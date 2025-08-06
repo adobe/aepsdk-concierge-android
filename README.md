@@ -1,2 +1,3 @@
 # aepsdk-concierge-android
-Android support for Brand Concierge project.
+<!--Android support for Brand Concierge project.-->
+Currently in development.
