@@ -1,0 +1,68 @@
+name: Update Versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New version to use for the extension (ex: 1.2.3).'
+        type: string
+        required: true
+
+      branch:
+        description: 'The target branch where the version update will be applied and the pull request will be merged into.'
+        type: string
+        required: true
+
+      core-dependency:
+        description: | 
+          If a version is provided, update Core dependency in gradle.properties (ex: 1.2.3).
+          This is a published dependency in the pom.xml file.
+        type: string
+        required: false
+        default: ''
+      
+      # to-do: update with the actual prod dependencies
+      edge-dependency:
+        description: | 
+          If a version is provided, update Edge dependency in gradle.properties (ex: 1.2.3).
+          This is a published dependency in the pom.xml file.
+        type: string
+        required: false
+        default: ''
+
+      assurance-dependency:
+        description: | 
+          If a version is provided, update Assurance dependency in gradle.properties (ex: 1.2.3).
+          This is a testing-only dependency.
+        type: string
+        required: false
+        default: ''
+
+      edge-identity-dependency:
+        description: | 
+          If a version is provided, update EdgeIdentity dependency in gradle.properties (ex: 1.2.3).
+          This is a testing-only dependency.
+        type: string
+        required: false
+        default: ''
+        
+      lifecycle-dependency:
+        description: | 
+          If a version is provided, update Lifecycle dependency in gradle.properties (ex: 1.2.3).
+          This is a testing-only dependency.
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  update-versions:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: adobe/aepsdk-commons/.github/workflows/versions.yml@gha-android-3.4.3
+    with:
+      version: ${{ github.event.inputs.version }}
+      branch: ${{ github.event.inputs.branch }}
+      dependencies: Core ${{ github.event.inputs.core-dependency }}, Assurance ${{ github.event.inputs.assurance-dependency }}, Edge ${{ github.event.inputs.edge-dependency }}, EdgeIdentity ${{ github.event.inputs.edge-identity-dependency }}, Lifecycle ${{ github.event.inputs.lifecycle-dependency }}
+      paths: code/gradle.properties, code/concierge/src/phone/java/com/adobe/marketing/mobile/Concierge.java # to-do: update with actual API file
+      update: true
