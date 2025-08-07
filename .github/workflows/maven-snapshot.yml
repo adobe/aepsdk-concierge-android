@@ -1,0 +1,11 @@
+name: Publish Snapshot
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  publish:
+    permissions:
+        contents: write
+    uses: adobe/aepsdk-commons/.github/workflows/android-maven-snapshot.yml@gha-android-3.4.3
+    secrets: inherit

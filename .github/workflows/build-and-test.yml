@@ -1,0 +1,17 @@
+name: Build and Test
+
+on:
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: "CI"
+    uses: adobe/aepsdk-commons/.github/workflows/android-build-and-test.yml@gha-android-3.4.3
+    with:
+      android-api-levels: '[29]'
+      run-test-unit: true
+      run-test-functional: true
+      run-build-app: true
+      enable-codecov: true
+      javadoc-build-path: code/concierge/build/docs/javadoc
+    secrets: inherit
