@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1234567890",
+    "project_id": "aep-bc-agent-app",
+    "storage_bucket": "aep-bc-agent-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1234567890",
+        "android_client_info": {
+          "package_name": "com.adobe.marketing.mobile.aepsdkbcapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "1234567890"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

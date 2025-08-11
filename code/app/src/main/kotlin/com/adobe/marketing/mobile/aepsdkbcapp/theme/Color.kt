@@ -9,20 +9,15 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-apply(plugin = "aep-license")
-buildscript {
-    repositories {
-        maven { url = uri("https://jitpack.io") }
-        gradlePluginPortal()
-        google()
-        mavenCentral()
-        mavenLocal()
-    }
 
-    dependencies {
-        classpath("com.github.adobe:aepsdk-commons:gp-3.4.2")
-        classpath("com.google.gms:google-services:4.4.1")
-        classpath("com.android.tools.build:gradle:8.6.0")
-    }
-}
+package com.adobe.marketing.mobile.aepsdkbcapp.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
