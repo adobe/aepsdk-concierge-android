@@ -37,3 +37,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "aepsdk-concierge-android"
 include(":concierge")
+include(":testapp")

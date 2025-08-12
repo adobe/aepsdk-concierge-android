@@ -9,18 +9,23 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-apply(plugin = "aep-license")
-buildscript {
-    repositories {
-        maven { url = uri("https://jitpack.io") }
-        gradlePluginPortal()
-        google()
-        mavenCentral()
-        mavenLocal()
-    }
 
-    dependencies {
-        classpath("com.github.adobe:aepsdk-commons:gp-3.4.2")
+package com.adobe.marketing.mobile.conciergetestapp.ui
+
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatScreen(
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit = {}
+) {
+
+    Scaffold { paddingValues ->
+        paddingValues
+        // Chat component can be added here
     }
 }

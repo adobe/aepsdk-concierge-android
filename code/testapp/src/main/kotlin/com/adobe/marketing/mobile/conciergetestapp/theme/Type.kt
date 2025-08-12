@@ -9,18 +9,22 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-apply(plugin = "aep-license")
-buildscript {
-    repositories {
-        maven { url = uri("https://jitpack.io") }
-        gradlePluginPortal()
-        google()
-        mavenCentral()
-        mavenLocal()
-    }
 
-    dependencies {
-        classpath("com.github.adobe:aepsdk-commons:gp-3.4.2")
-    }
-}
+package com.adobe.marketing.mobile.conciergetestapp.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+// Set of Material typography styles to start with
+val Typography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    )
+)
