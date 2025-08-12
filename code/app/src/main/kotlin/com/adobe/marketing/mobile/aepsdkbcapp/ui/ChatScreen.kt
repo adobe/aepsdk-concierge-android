@@ -12,10 +12,6 @@
 
 package com.adobe.marketing.mobile.aepsdkbcapp.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,12 +25,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
-    sessionId: String? = null,
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
@@ -60,14 +54,16 @@ fun ChatScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-
-        }
+        paddingValues
+//        Column(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(paddingValues)
+//                .padding(16.dp),
+//            verticalArrangement = Arrangement.SpaceBetween
+//        ) {
+//
+//        }
+        // Chat component can be added here
     }
 }

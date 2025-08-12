@@ -63,7 +63,6 @@ fun MainScreenWrapper() {
                 modifier = Modifier.fillMaxSize()
             ) {
                 ChatScreen(
-                    sessionId = null,
                     modifier = Modifier.fillMaxSize(),
                     onClose = { showChat.value = false },
                 )
