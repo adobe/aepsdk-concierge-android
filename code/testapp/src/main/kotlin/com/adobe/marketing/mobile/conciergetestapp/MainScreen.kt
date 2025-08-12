@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.aepsdkbcapp
+package com.adobe.marketing.mobile.conciergetestapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,7 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.adobe.marketing.mobile.aepsdkbcapp.ui.ChatScreen
+import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

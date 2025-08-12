@@ -19,14 +19,14 @@
 
     <application
         android:allowBackup="true"
-        android:name=".ChatApp"
+        android:name="com.adobe.marketing.mobile.conciergetestapp.ChatApp"
         android:icon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.AEPSDKBrandConciergeAgent"
         tools:targetApi="31">
         <activity
-            android:name="com.adobe.marketing.mobile.aepsdkbcapp.MainActivity"
+            android:name="com.adobe.marketing.mobile.conciergetestapp.MainActivity"
             android:launchMode="singleInstance"
             android:exported="true"
             android:label="@string/app_name"

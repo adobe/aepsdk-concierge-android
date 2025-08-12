@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.aepsdkbcapp
+package com.adobe.marketing.mobile.conciergetestapp
 
 import android.app.Application
 import com.adobe.marketing.mobile.LoggingMode

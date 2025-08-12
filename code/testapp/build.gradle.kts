@@ -9,66 +9,66 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-import java.util.Properties
+import com.adobe.marketing.mobile.gradle.BuildConstants
 
 plugins {
     id("com.android.application")
-    id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.android")
-    kotlin("plugin.compose") version "2.0.0" apply false
-    kotlin("plugin.serialization") version "1.6.0" apply false
 }
 
 val mavenCoreVersion: String by project
 val mavenEdgeIdentityVersion: String by project
 
 android {
-    namespace = "com.adobe.marketing.mobile.aepsdkbcapp"
-    compileSdk = 35
-
     defaultConfig {
-        applicationId = "com.adobe.marketing.mobile.aepsdkbcapp"
-        minSdk = 24
-        targetSdk = 35
+        namespace = "com.adobe.marketing.mobile.conciergeapp"
+        minSdk = BuildConstants.Versions.MIN_SDK_VERSION
+        compileSdk = BuildConstants.Versions.COMPILE_SDK_VERSION
+        targetSdk = BuildConstants.Versions.TARGET_SDK_VERSION
+
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
-        release {
+        getByName(BuildConstants.BuildTypes.RELEASE) {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = BuildConstants.Versions.JAVA_SOURCE_COMPATIBILITY
+        targetCompatibility = BuildConstants.Versions.JAVA_TARGET_COMPATIBILITY
     }
+
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = BuildConstants.Versions.KOTLIN_JVM_TARGET
+        languageVersion = BuildConstants.Versions.KOTLIN_LANGUAGE_VERSION
+        apiVersion = BuildConstants.Versions.KOTLIN_API_VERSION
     }
+
     buildFeatures {
         compose = true
     }
+
     composeOptions {
-        kotlinCompilerExtensionVersion="1.4.6"
+        kotlinCompilerExtensionVersion = BuildConstants.Versions.COMPOSE_COMPILER
     }
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2024.10.00"))
+    implementation(platform("androidx.compose:compose-bom:2024.04.01"))
     implementation("androidx.compose.runtime:runtime")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
-    implementation("androidx.navigation:navigation-compose-android:2.9.0")
+    //implementation("androidx.navigation:navigation-compose:2.8.6")
 
     // brand concierge from project module
     implementation(project(":concierge"))

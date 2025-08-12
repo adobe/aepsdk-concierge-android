@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.aepsdkbcapp.theme
+package com.adobe.marketing.mobile.conciergetestapp.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -45,7 +45,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun GenericChatAppTheme(
+fun ConciergeAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,

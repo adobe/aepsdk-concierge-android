@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.aepsdkbcapp
+package com.adobe.marketing.mobile.conciergetestapp
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -18,14 +18,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.adobe.marketing.mobile.aepsdkbcapp.theme.GenericChatAppTheme
+import com.adobe.marketing.mobile.conciergetestapp.theme.ConciergeAppTheme
 
 class MainActivity : ComponentActivity() {
     
@@ -34,25 +29,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val navController = rememberNavController()
-
-            GenericChatAppTheme {
+            ConciergeAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = Color.Transparent
                 ) {
-                    AppNavigation(navController)
+                    MainScreenWrapper()
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun AppNavigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = "main") {
-        composable("main") {
-            MainScreenWrapper()
         }
     }
 }

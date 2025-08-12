@@ -22,7 +22,5 @@ buildscript {
 
     dependencies {
         classpath("com.github.adobe:aepsdk-commons:gp-3.4.2")
-        classpath("com.google.gms:google-services:4.4.1")
-        classpath("com.android.tools.build:gradle:8.6.0")
     }
 }
