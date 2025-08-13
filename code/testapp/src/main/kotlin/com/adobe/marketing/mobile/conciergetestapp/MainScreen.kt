@@ -111,7 +111,7 @@ fun MainScreen(
                     .size(80.dp)
                     .clip(CircleShape),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2196F3)
+                    containerColor = Color(0xFFBFBFBF)
                 ),
                 shape = RoundedCornerShape(40.dp)
             ) {
