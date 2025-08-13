@@ -11,7 +11,6 @@
 
 package com.adobe.marketing.mobile.concierge.chat
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,13 +37,13 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.configuration.ConciergeConfiguration
-import com.adobe.marketing.mobile.services.ServiceProvider
 
 @Composable
 fun TextInputField(
     modifier: Modifier = Modifier,
     configuration: ConciergeConfiguration,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    onMessageSent: (String) -> Unit = {}
 ) {
     var messageText by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -77,11 +76,7 @@ fun TextInputField(
         IconButton(
             onClick = {
                 if (messageText.isNotBlank()) {
-                    // build a ChatRequest and send it
-                    // val request = ChatRequest(message = messageText)
-                    // For demonstration, we show a toast instead of sending a request
-                    val toast = Toast.makeText(ServiceProvider.getInstance().appContextService.applicationContext, messageText, Toast.LENGTH_SHORT)
-                    toast.show()
+                    onMessageSent(messageText)
                     messageText = ""
                     focusManager.clearFocus()
                 }

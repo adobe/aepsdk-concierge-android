@@ -29,7 +29,6 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-
     Scaffold { paddingValues ->
         Box(
             modifier = modifier
