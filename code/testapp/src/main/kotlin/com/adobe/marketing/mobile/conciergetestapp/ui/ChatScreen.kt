@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.adobe.marketing.mobile.concierge.chat.ChatInputDemo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,9 +24,5 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-
-    Scaffold { paddingValues ->
-        paddingValues
-        // Chat component can be added here
-    }
+    ChatInputDemo()
 }
