@@ -39,7 +39,7 @@ fun UserInput(
     isTranscribing: Boolean,
     canSendMessage: Boolean,
     errorMessage: String?,
-    userInputState: UserInputState,
+    onTextChange: (String) -> Unit,
     onSendMessage: () -> Unit,
     onMicButtonClick: () -> Unit
 ) {
@@ -67,13 +67,13 @@ fun UserInput(
             ChatTextField(
                 modifier = Modifier.weight(1f),
                 value = inputText,
+                onValueChange = onTextChange,
                 enabled = isEnabled && !isRecording && !isTranscribing,
-                placeholder = when (userInputState) {
-                    is UserInputState.Empty -> "Type a message..."
-                    is UserInputState.Editing -> "Type a message..."
-                    is UserInputState.Recording -> "Recording... (click mic to stop)"
-                    is UserInputState.Transcribing -> "Transcribing audio..."
-                    is UserInputState.Error -> "Error: ${userInputState.message}"
+                placeholder = when {
+                    isRecording -> "Recording... (click mic to stop)"
+                    isTranscribing -> "Transcribing audio..."
+                    errorMessage != null -> "Error: $errorMessage"
+                    else -> "Type a message..."
                 }
             )
             

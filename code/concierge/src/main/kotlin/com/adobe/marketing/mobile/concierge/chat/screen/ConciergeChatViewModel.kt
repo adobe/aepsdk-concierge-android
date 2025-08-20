@@ -20,31 +20,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.adobe.marketing.mobile.concierge.chat.simulation.SpeechSimulator
 
 /**
  * ViewModel for managing the observable state of the Concierge Chat UI.
- * Handles user input, manages chat messages, and simulates bot responses / handles responses
- * from brand concierge.
+ * Coordinates between UI events, input state management, and message handling.
  */
 class ConciergeChatViewModel : ViewModel() {
-    // input state management
-    private val _userInputState = MutableStateFlow<UserInputState>(UserInputState.Empty)
-    val userInputState: StateFlow<UserInputState> = _userInputState.asStateFlow()
-    private val _inputData = MutableStateFlow(ChatInputData.EMPTY)
     
-    // uI state management
+    // state flows
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
-    // current recording job tracking
-    private var recordingJob: kotlinx.coroutines.Job? = null
-
-    // Mark: UI event processing
+    // input state manager
+    private val inputStateManager = InputStateManager()
+    
+    // message manager
+    private val messageManager = MessageManager()
+    
+    // speech simulator (to be replaced with actual speech recognition and brand concierge integration)
+    private val speechSimulator = SpeechSimulator()
+    
     /**
      * Processes incoming UI events and updates the chat state accordingly.
-     * This method is called from the UI layer to handle user interactions.
-     *
-     * @param event The [ChatUiEvent] representing the user action
      */
     fun processChatUiEvent(event: ChatUiEvent) {
         when (event) {
@@ -55,103 +53,235 @@ class ConciergeChatViewModel : ViewModel() {
             is ChatUiEvent.TranscriptionError -> handleTranscriptionError(event.error)
         }
         
-        // update UI state to reflect input state machine changes
-        updateUiStateFromInputMachine()
+        updateUiState()
+    }
+    
+    // ui event handlers
+    fun handleTextInput(text: String) {
+        inputStateManager.handleTextInput(text)
+        updateUiState()
     }
 
-    // ui event handlers
     private fun handleSendMessageClicked() {
-        val currentText = _inputData.value.text
+        val currentText = inputStateManager.getCurrentText()
         if (currentText.isNotBlank()) {
-            addUserMessage(currentText)
-            simulateBotResponse(currentText)
-            // reset input after sending
-            processChatInputEvent(ChatInputEvent.SendMessage)
+            messageManager.addUserMessage(currentText)
+            inputStateManager.handleSendMessage()
+            updateUiState()
+            
+            // simulate bot response with delay
+            viewModelScope.launch {
+                delay(speechSimulator.getSimulatedResponseDelay()) // Simulate network delay
+                val botMessage = speechSimulator.simulateResponse(currentText)
+                messageManager.addBotMessage(botMessage)
+                updateUiState()
+            }
         }
     }
     
     private fun handleRecordingStopped() {
-        val currentState = _userInputState.value
-        
-        if (currentState is UserInputState.Recording) {
-            recordingJob?.cancel() // cancel the ongoing recording
-            recordingJob = null
-            
-            processChatInputEvent(ChatInputEvent.RecordingComplete)
-
-            // to-do: remove following code when actual speech-to-text implemented
-            // simulate transcription processing time (1 second)
-            viewModelScope.launch {
-                delay(1000)
-                
-                // simulate successful transcription with sample text
-                val simulatedTranscription = generateSimulatedTranscription()
-                processChatInputEvent(ChatInputEvent.TranscriptionComplete(simulatedTranscription))
-                
-                // update UI state after transcription
-                updateUiStateFromInputMachine()
-            }
+        if (inputStateManager.isCurrentlyRecording()) {
+            inputStateManager.handleRecordingComplete()
+            simulateTranscriptionProcessing()
         } else {
-            // start recording
-            processChatInputEvent(ChatInputEvent.StartMic)
+            inputStateManager.handleStartRecording()
         }
+        updateUiState()
     }
     
     private fun handleRecordingStarted() {
-        processChatInputEvent(ChatInputEvent.RecordingComplete)
+        inputStateManager.handleRecordingComplete()
+        updateUiState()
     }
     
     private fun handleTranscriptionComplete(text: String) {
-        processChatInputEvent(ChatInputEvent.TranscriptionComplete(text))
-        // update UI state after transcription
-        updateUiStateFromInputMachine()
+        inputStateManager.handleTranscriptionComplete(text)
+        updateUiState()
     }
     
     private fun handleTranscriptionError(error: String) {
-        processChatInputEvent(ChatInputEvent.TranscriptionError(error))
+        inputStateManager.handleTranscriptionError(error)
+        updateUiState()
     }
-    
-    // helper methods for managing chat messages
-    private fun addUserMessage(text: String) {
-        val userMessage = createChatMessage(text, isFromUser = true)
-        _uiState.update { currentState ->
-            currentState.copy(
-                messages = currentState.messages + userMessage
-            )
+
+    // simulates transcription processing with a delay and generates mock transcribed text
+    private fun simulateTranscriptionProcessing() {
+        viewModelScope.launch {
+            delay(speechSimulator.getSimulatedTranscriptionDelay())
+            val simulatedText = speechSimulator.generateSimulatedTranscription()
+            inputStateManager.handleTranscriptionComplete(simulatedText)
+            updateUiState()
         }
     }
 
-    /**
-     * Generates a simulated transcription message for testing purposes.
-     */
-    private fun generateSimulatedTranscription(): String {
-        val samplePhrases = listOf(
-            "Hello, how can you help me today?",
-            "I have a question about my account",
-            "Can you please explain the pricing?",
-            "I need assistance with the mobile app",
-            "What are the available features?",
-            "Thank you for your help"
-        )
-        return samplePhrases.random()
+    // updates the UI state based on the current input and message states
+    private fun updateUiState() {
+        val inputState = inputStateManager.getCurrentState()
+        val messages = messageManager.getMessages()
+        
+        _uiState.update { currentState ->
+            currentState.copy(
+                messages = messages,
+                inputText = inputState.text,
+                isInputEnabled = inputState.isEnabled,
+                isRecording = inputState.isRecording,
+                isTranscribing = inputState.isTranscribing,
+                errorMessage = inputState.errorMessage,
+                canSendMessage = inputState.canSendMessage
+            )
+        }
+    }
+}
+
+/**
+ * Manages the input state machine and chat input data.
+ */
+private class InputStateManager {
+    private val _inputState = MutableStateFlow<UserInputState>(UserInputState.Empty)
+    private val _inputData = MutableStateFlow(ChatInputData.EMPTY)
+    
+    fun getCurrentState(): ChatInputData = _inputData.value
+    fun getCurrentText(): String = _inputData.value.text
+    fun isCurrentlyRecording(): Boolean = _inputState.value is UserInputState.Recording
+
+    fun handleStartRecording() {
+        processInputEvent(ChatInputEvent.StartMic)
+    }
+    
+    fun handleRecordingComplete() {
+        processInputEvent(ChatInputEvent.RecordingComplete)
+    }
+    
+    fun handleTranscriptionComplete(text: String) {
+        processInputEvent(ChatInputEvent.TranscriptionComplete(text))
+    }
+    
+    fun handleTranscriptionError(error: String) {
+        processInputEvent(ChatInputEvent.TranscriptionError(error))
+    }
+    
+    fun handleSendMessage() {
+        processInputEvent(ChatInputEvent.SendMessage)
+    }
+    
+    fun handleTextInput(text: String) {
+        updateInputData { 
+            copy(
+                text = text,
+                canSendMessage = text.isNotBlank()
+            )
+        }
+
+        if (_inputState.value !is UserInputState.Recording && 
+            _inputState.value !is UserInputState.Transcribing && 
+            _inputState.value !is UserInputState.Error) {
+            _inputState.value = UserInputState.Editing
+        }
     }
 
-    // to-do: replace with message from brand concierge
-    private fun simulateBotResponse(userText: String) {
-        viewModelScope.launch {
-            // simulate network delay
-            delay(1000)
-            
-            val botMessage = createChatMessage(
-                text = "Thanks for your message: '$userText'",
-                isFromUser = false
+    private fun processInputEvent(event: ChatInputEvent) {
+        val state = _inputState.value
+        when (event) {
+            is ChatInputEvent.StartMic -> handleStartMic(state)
+            is ChatInputEvent.RecordingComplete -> handleRecordingComplete(state)
+            is ChatInputEvent.TranscriptionComplete -> handleTranscriptionComplete(event, state)
+            is ChatInputEvent.TranscriptionError -> handleTranscriptionError(event, state)
+            is ChatInputEvent.SendMessage -> handleSendMessage(state)
+            is ChatInputEvent.InputEnabledChanged -> handleInputEnabledChanged(event, state)
+        }
+    }
+
+    // mark: chat input event handlers
+    private fun handleStartMic(currentState: UserInputState) {
+        updateInputData { copy(isRecording = true) }
+        if (currentState is UserInputState.Empty || currentState is UserInputState.Editing) {
+            _inputState.value = UserInputState.Recording
+        }
+    }
+    
+    private fun handleRecordingComplete(currentState: UserInputState) {
+        updateInputData { copy(isRecording = false, isTranscribing = true) }
+        if (currentState is UserInputState.Recording) {
+            _inputState.value = UserInputState.Transcribing
+        }
+    }
+    
+    private fun handleTranscriptionComplete(event: ChatInputEvent.TranscriptionComplete, currentState: UserInputState) {
+        updateInputData { 
+            copy(
+                voiceInputText = event.transcribedText,
+                text = event.transcribedText,
+                canSendMessage = event.transcribedText.isNotBlank(),
+                isTranscribing = false
             )
-            
-            _uiState.update { currentState ->
-                currentState.copy(
-                    messages = currentState.messages + botMessage
-                )
+        }
+        
+        if (currentState is UserInputState.Transcribing) {
+            _inputState.value = UserInputState.Editing
+        }
+    }
+    
+    private fun handleTranscriptionError(event: ChatInputEvent.TranscriptionError, currentState: UserInputState) {
+        updateInputData { copy(errorMessage = event.error) }
+        
+        if (currentState is UserInputState.Transcribing) {
+            _inputState.value = UserInputState.Error(event.error)
+        }
+    }
+    
+    private fun handleSendMessage(currentState: UserInputState) {
+        if (currentState is UserInputState.Editing && _inputData.value.canSendMessage) {
+            updateInputData { 
+                copy(
+                    text = "",
+                    voiceInputText = "",
+                    canSendMessage = false,
+                    isRecording = false,
+                    isTranscribing = false
+                ) 
             }
+            _inputState.value = UserInputState.Empty
+        }
+    }
+    
+    private fun handleInputEnabledChanged(event: ChatInputEvent.InputEnabledChanged, currentState: UserInputState) {
+        updateInputData { copy(isEnabled = event.enabled) }
+        
+        if (event.enabled) {
+            if (currentState is UserInputState.Error) {
+                _inputState.value = UserInputState.Empty
+            }
+        } else {
+            _inputState.value = UserInputState.Error("Input disabled")
+        }
+    }
+    
+    private inline fun updateInputData(update: ChatInputData.() -> ChatInputData) {
+        _inputData.value = _inputData.value.update()
+    }
+}
+
+/**
+ * Manages chat messages and their lifecycle.
+ */
+private class MessageManager {
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    
+    fun getMessages(): List<ChatMessage> = _messages.value
+    
+    fun addUserMessage(text: String) {
+        val userMessage = createChatMessage(text, isFromUser = true)
+        addMessage(userMessage)
+    }
+    
+    fun addBotMessage(text: String) {
+        val botMessage = createChatMessage(text, isFromUser = false)
+        addMessage(botMessage)
+    }
+    
+    private fun addMessage(message: ChatMessage) {
+        _messages.update { currentMessages ->
+            currentMessages + message
         }
     }
     
@@ -166,130 +296,5 @@ class ConciergeChatViewModel : ViewModel() {
     private fun generateMessageId(isFromUser: Boolean): String {
         val prefix = if (isFromUser) "msg" else "bot"
         return "${prefix}_${System.currentTimeMillis()}"
-    }
-
-    // Mark: chat input event processing
-    /**
-     * Processes a [ChatInputEvent] to update the user input state machine.
-     * This method handles the state transitions based on the event type and updates the
-     * input data accordingly.
-     */
-    private fun processChatInputEvent(event: ChatInputEvent) {
-        val currentState = _userInputState.value
-        val newState = when (event) {
-            is ChatInputEvent.StartMic -> handleStartMic(currentState)
-            is ChatInputEvent.RecordingComplete -> handleRecordingComplete(currentState)
-            is ChatInputEvent.TranscriptionComplete -> handleTranscriptionComplete(event, currentState)
-            is ChatInputEvent.TranscriptionError -> handleTranscriptionError(event, currentState)
-            is ChatInputEvent.SendMessage -> handleSendMessage(currentState)
-            is ChatInputEvent.InputEnabledChanged -> handleInputEnabledChanged(event, currentState)
-            is ChatInputEvent.Reset -> handleReset()
-        }
-        
-        val stateChanged = newState != currentState
-        if (stateChanged) {
-            _userInputState.value = newState
-        }
-    }
-    
-    // chat input event handlers
-    private fun handleStartMic(currentState: UserInputState): UserInputState =
-        when (currentState) {
-            is UserInputState.Empty,
-            is UserInputState.Editing -> UserInputState.Recording
-            else -> currentState
-        }
-    
-    private fun handleRecordingComplete(currentState: UserInputState): UserInputState =
-        when (currentState) {
-            is UserInputState.Recording -> UserInputState.Transcribing
-            else -> currentState
-        }
-    
-    private fun handleTranscriptionComplete(event: ChatInputEvent.TranscriptionComplete, currentState: UserInputState): UserInputState {
-        updateInputData { 
-            copy(
-                voiceInputText = event.transcribedText,
-                text = event.transcribedText,
-                canSendMessage = event.transcribedText.isNotBlank()
-            )
-        }
-        
-        return when (currentState) {
-            is UserInputState.Transcribing -> UserInputState.Editing
-            else -> currentState
-        }
-    }
-    
-    private fun handleTranscriptionError(event: ChatInputEvent.TranscriptionError, currentState: UserInputState): UserInputState {
-        updateInputData { copy(errorMessage = event.error) }
-        
-        return when (currentState) {
-            is UserInputState.Transcribing -> UserInputState.Error(event.error)
-            else -> currentState
-        }
-    }
-    
-    private fun handleSendMessage(currentState: UserInputState): UserInputState =
-        when (currentState) {
-            is UserInputState.Editing -> {
-                if (_inputData.value.canSendMessage) {
-                    // clear the input data when sending a message
-                    updateInputData { 
-                        copy(
-                            text = "",
-                            voiceInputText = "",
-                            canSendMessage = false
-                        ) 
-                    }
-                    UserInputState.Empty
-                } else currentState
-            }
-            else -> currentState
-        }
-    
-    private fun handleInputEnabledChanged(event: ChatInputEvent.InputEnabledChanged, currentState: UserInputState): UserInputState {
-        updateInputData { copy(isEnabled = event.enabled) }
-        
-        return if (event.enabled) {
-            when (currentState) {
-                is UserInputState.Error -> UserInputState.Empty
-                else -> currentState
-            }
-        } else {
-            UserInputState.Error("Input disabled")
-        }
-    }
-    
-    private fun handleReset(): UserInputState {
-        _inputData.value = ChatInputData.EMPTY
-        return UserInputState.Empty
-    }
-    
-    // chat input helpers
-    /**
-     * Updates the input data state using the provided update function.
-     */
-    private inline fun updateInputData(update: ChatInputData.() -> ChatInputData) {
-        _inputData.value = _inputData.value.update()
-    }
-    
-    /**
-     * Updates the UI state to reflect the current state of the input state machine
-     */
-    private fun updateUiStateFromInputMachine() {
-        val inputData = _inputData.value
-        val inputState = _userInputState.value
-        
-        _uiState.update { currentState ->
-            currentState.copy(
-                inputText = inputData.text,
-                isInputEnabled = inputData.isEnabled,
-                isRecording = inputState is UserInputState.Recording,
-                isTranscribing = inputState is UserInputState.Transcribing,
-                errorMessage = inputData.errorMessage,
-                canSendMessage = inputData.canSendMessage
-            )
-        }
     }
 }

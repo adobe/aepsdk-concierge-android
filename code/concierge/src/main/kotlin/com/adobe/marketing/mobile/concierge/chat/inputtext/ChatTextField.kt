@@ -35,12 +35,13 @@ import androidx.compose.ui.unit.dp
 fun ChatTextField(
     modifier: Modifier = Modifier,
     value: String,
+    onValueChange: (String) -> Unit,
     enabled: Boolean = true,
     placeholder: String = "Type a message..."
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = {},
+        onValueChange = onValueChange,
         enabled = enabled,
         placeholder = { Text(text = placeholder) },
         modifier = modifier

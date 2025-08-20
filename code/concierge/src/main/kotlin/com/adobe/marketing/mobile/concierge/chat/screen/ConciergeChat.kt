@@ -34,7 +34,6 @@ fun ConciergeChat(
     viewModel: ConciergeChatViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val inputStreamState by viewModel.userInputState.collectAsStateWithLifecycle()
     
     Column(
         modifier = modifier.fillMaxSize(),
@@ -55,7 +54,9 @@ fun ConciergeChat(
             isTranscribing = uiState.isTranscribing,
             canSendMessage = uiState.canSendMessage,
             errorMessage = uiState.errorMessage,
-            userInputState = inputStreamState,
+            onTextChange = { text ->
+                viewModel.handleTextInput(text)
+            },
             onSendMessage = {
                 viewModel.processChatUiEvent(ChatUiEvent.SendMessageClicked)
             },

@@ -53,9 +53,6 @@ sealed class ChatInputEvent {
     
     // input field was enabled/disabled
     data class InputEnabledChanged(val enabled: Boolean) : ChatInputEvent()
-    
-    // reset to initial state
-    object Reset : ChatInputEvent()
 }
 
 /**
@@ -66,7 +63,9 @@ data class ChatInputData(
     val isEnabled: Boolean = true,
     val errorMessage: String? = null,
     val voiceInputText: String = "",
-    val canSendMessage: Boolean = false
+    val canSendMessage: Boolean = false,
+    val isRecording: Boolean = false,
+    val isTranscribing: Boolean = false
 ) {
     companion object {
         val EMPTY = ChatInputData()
