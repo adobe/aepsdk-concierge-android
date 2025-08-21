@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat
+package com.adobe.marketing.mobile.concierge.chat.userinput
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
@@ -63,7 +64,7 @@ fun SendButton(
             painter = painterResource(R.drawable.send),
             contentDescription = "Send message",
             modifier = Modifier.size(24.dp),
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+            colorFilter = ColorFilter.tint(
                 if (canSendMessage) {
                     MaterialTheme.colorScheme.onPrimary
                 } else {

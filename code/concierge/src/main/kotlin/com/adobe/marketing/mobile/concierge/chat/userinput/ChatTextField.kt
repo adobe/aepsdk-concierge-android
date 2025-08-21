@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat
+package com.adobe.marketing.mobile.concierge.chat.userinput
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
  * @param modifier Modifier for the composable
  * @param value The current text value
  * @param onValueChange Callback when the text value changes
- * @param inputStreamState The current state of the input stream
+ * @param userInputState The current state of the input stream
  * @param isEnabled Whether the field is enabled
  * @param canSendMessage Whether a message can be sent
  * @param placeholder Default placeholder text
@@ -43,7 +43,7 @@ fun ChatTextField(
     modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
-    inputStreamState: InputStreamState,
+    userInputState: UserInputState,
     isEnabled: Boolean,
     canSendMessage: Boolean,
     placeholder: String = "Type a message..."
@@ -56,15 +56,15 @@ fun ChatTextField(
         modifier = modifier.padding(horizontal = 8.dp),
         placeholder = {
             Text(
-                text = when (inputStreamState) {
-                    is InputStreamState.Recording -> "Listening..."
-                    is InputStreamState.Transcribing -> "Processing voice..."
+                text = when (userInputState) {
+                    is UserInputState.Recording -> "Listening..."
+                    is UserInputState.Transcribing -> "Processing voice..."
                     else -> placeholder
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
-        enabled = isEnabled && inputStreamState !is InputStreamState.Recording,
+        enabled = isEnabled && userInputState !is UserInputState.Recording,
         singleLine = false,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,

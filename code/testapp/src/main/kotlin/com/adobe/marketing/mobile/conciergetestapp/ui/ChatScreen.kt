@@ -13,10 +13,9 @@
 package com.adobe.marketing.mobile.conciergetestapp.ui
 
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.adobe.marketing.mobile.concierge.chat.ChatInputDemo
+import com.adobe.marketing.mobile.concierge.chat.messages.ConciergeChat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,5 +23,5 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-    ChatInputDemo()
+    ConciergeChat()
 }

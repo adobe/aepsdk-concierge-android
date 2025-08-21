@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat
+package com.adobe.marketing.mobile.concierge.chat.userinput
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
@@ -29,7 +30,7 @@ import com.adobe.marketing.mobile.concierge.R
  * A voice input button that supports recording, transcribing, and idle states.
  *
  * @param modifier Modifier for the composable
- * @param inputStreamState The current state of the input stream
+ * @param userInputState The current state of the input stream
  * @param isEnabled Whether the button is enabled
  * @param waveformPulse The current pulse scale value for animation
  * @param onVoiceInputStart Callback when voice recording should start
@@ -38,7 +39,7 @@ import com.adobe.marketing.mobile.concierge.R
 @Composable
 fun MicButton(
     modifier: Modifier = Modifier,
-    inputStreamState: InputStreamState,
+    userInputState: UserInputState,
     isEnabled: Boolean,
     waveformPulse: Float,
     onVoiceInputStart: () -> Unit,
@@ -46,40 +47,40 @@ fun MicButton(
 ) {
     IconButton(
         onClick = {
-            when (inputStreamState) {
-                is InputStreamState.Recording -> onVoiceInputStop()
+            when (userInputState) {
+                is UserInputState.Recording -> onVoiceInputStop()
                 else -> onVoiceInputStart()
             }
         },
         enabled = isEnabled,
         modifier = modifier
             .size(48.dp)
-            .scale(if (inputStreamState is InputStreamState.Recording) waveformPulse else 1.0f)
+            .scale(if (userInputState is UserInputState.Recording) waveformPulse else 1.0f)
             .background(
-                color = when (inputStreamState) {
-                    is InputStreamState.Recording -> MaterialTheme.colorScheme.primaryContainer
-                    is InputStreamState.Transcribing -> MaterialTheme.colorScheme.surfaceVariant
+                color = when (userInputState) {
+                    is UserInputState.Recording -> MaterialTheme.colorScheme.primaryContainer
+                    is UserInputState.Transcribing -> MaterialTheme.colorScheme.surfaceVariant
                     else -> MaterialTheme.colorScheme.primaryContainer
                 },
                 shape = CircleShape
             )
     ) {
         Image(
-            painter = when (inputStreamState) {
-                is InputStreamState.Recording -> painterResource(R.drawable.audiowave)
-                is InputStreamState.Transcribing -> painterResource(R.drawable.microphone)
+            painter = when (userInputState) {
+                is UserInputState.Recording -> painterResource(R.drawable.audiowave)
+                is UserInputState.Transcribing -> painterResource(R.drawable.microphone)
                 else -> painterResource(R.drawable.microphone)
             },
-            contentDescription = when (inputStreamState) {
-                is InputStreamState.Recording -> "Stop recording"
-                is InputStreamState.Transcribing -> "Processing voice input"
+            contentDescription = when (userInputState) {
+                is UserInputState.Recording -> "Stop recording"
+                is UserInputState.Transcribing -> "Processing voice input"
                 else -> "Start voice input"
             },
             modifier = Modifier.size(24.dp),
-            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
-                when (inputStreamState) {
-                    is InputStreamState.Recording -> MaterialTheme.colorScheme.onPrimaryContainer
-                    is InputStreamState.Transcribing -> MaterialTheme.colorScheme.onSurfaceVariant
+            colorFilter = ColorFilter.tint(
+                when (userInputState) {
+                    is UserInputState.Recording -> MaterialTheme.colorScheme.onPrimaryContainer
+                    is UserInputState.Transcribing -> MaterialTheme.colorScheme.onSurfaceVariant
                     else -> MaterialTheme.colorScheme.onPrimaryContainer
                 }
             )

@@ -42,6 +42,15 @@ dependencies {
     // COMPOSE_RUNTIME, COMPOSE_MATERIAL, ANDROIDX_ACTIVITY_COMPOSE, COMPOSE_UI_TOOLING
     implementation("androidx.compose.ui:ui-tooling-preview:${BuildConstants.Versions.COMPOSE}")
     implementation("androidx.compose.material3:material3:$material3Version")
+    implementation("androidx.compose.ui:ui:${BuildConstants.Versions.COMPOSE}")
+    implementation("androidx.activity:activity-compose:${BuildConstants.Versions.COMPOSE}")
+    
+    // Material Icons for UI components
+    implementation("androidx.compose.material:material-icons-core:${BuildConstants.Versions.COMPOSE}")
+    implementation("androidx.compose.material:material-icons-extended:${BuildConstants.Versions.COMPOSE}")
+    
+    // Lifecycle compose for collectAsStateWithLifecycle
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     // AEP SDK
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
