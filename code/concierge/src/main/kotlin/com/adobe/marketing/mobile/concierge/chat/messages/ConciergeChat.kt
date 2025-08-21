@@ -14,9 +14,13 @@ package com.adobe.marketing.mobile.concierge.chat.messages
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -38,19 +42,16 @@ import com.adobe.marketing.mobile.concierge.chat.userinput.ChatInputField
 import com.adobe.marketing.mobile.concierge.chat.userinput.UserInputState
 
 @Composable
-fun ConciergeChat(viewModel: ConciergeChatViewModel = ConciergeChatViewModel()) {
-    val state by viewModel.state.collectAsState()
+fun ConciergeChat(viewModel: ConciergeChatViewModel) {
     val data by viewModel.data.collectAsState()
     
     ConciergeChatContent(
-        state = state,
         data = data,
         onMessageSent = { text ->
             viewModel.processEvent(UiEvent.TextProcessingComplete(text))
             viewModel.processEvent(UiEvent.SendMessage)
         },
         onInputTextChanged = { text ->
-            // Update the input text in the ViewModel
             viewModel.updateInputText(text)
         },
         onVoiceRecordingStarted = {
@@ -67,7 +68,6 @@ fun ConciergeChat(viewModel: ConciergeChatViewModel = ConciergeChatViewModel()) 
 
 @Composable
 fun ConciergeChatContent(
-    state: ChatScreenState,
     data: ChatScreenData,
     onMessageSent: (String) -> Unit,
     onInputTextChanged: (String) -> Unit,
@@ -80,56 +80,71 @@ fun ConciergeChatContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .pointerInput(Unit) {
-                    // Prevent swipe gestures from dismissing the composable
-                    detectDragGestures { _, _ ->
-                        // Consume all drag gestures to prevent dismissal
-                    }
-                }
         ) {
-            // Header at the top
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .align(Alignment.TopCenter),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        // Prevent swipe gestures from dismissing the composable
+                        detectDragGestures { _, _ ->
+                            // Consume all drag gestures to prevent dismissal
+                        }
+                    }
             ) {
-                Text(
-                    text = "BC Chat Frame",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                // Header at the top
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Text(
+                        text = "BC Chat Frame",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                
+                // Messages list
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f) // Take up available space
+                ) {
+                    MessageList(
+                        messages = data.messages,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter) // Anchor to bottom of available space
+                            .padding(horizontal = 16.dp)
+                    )
+                }
+                
+                // User input at the bottom - directly below MessageList
+                UserInput(
+                    inputText = data.inputText,
+                    isInputEnabled = data.isInputEnabled,
+                    isRecording = data.isRecording,
+                    canSendMessage = data.canSendMessage,
+                    isProcessing = data.isProcessing,
+                    onMessageSent = onMessageSent,
+                    onInputTextChanged = onInputTextChanged,
+                    onVoiceRecordingStarted = onVoiceRecordingStarted,
+                    onVoiceRecordingStopped = onVoiceRecordingStopped,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             
-            // Messages list
-            MessageList(
-                messages = data.messages,
-                isProcessing = data.isProcessing,
-                modifier = Modifier.align(Alignment.Center)
-            )
-            
-            // User input at the bottom
-            UserInput(
-                inputText = data.inputText,
-                isInputEnabled = data.isInputEnabled,
-                isRecording = data.isRecording,
-                canSendMessage = data.canSendMessage,
-                onMessageSent = onMessageSent,
-                onInputTextChanged = onInputTextChanged,
-                onVoiceRecordingStarted = onVoiceRecordingStarted,
-                onVoiceRecordingStopped = onVoiceRecordingStopped,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
-            
-            // Error overlay if there's an error
+            // Error overlay if there's an error (positioned as overlay on top)
             if (data.errorMessage != null) {
                 ErrorOverlay(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center),
                     errorMessage = data.errorMessage,
                     onDismiss = onErrorDismissed
                 )
@@ -141,59 +156,20 @@ fun ConciergeChatContent(
 @Composable
 fun MessageList(
     modifier: Modifier = Modifier,
-    messages: List<ChatMessage>,
-    isProcessing: Boolean
+    messages: List<ChatMessage>
 ) {
     LazyColumn(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 120.dp), // Space for input field
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        reverseLayout = true
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Show processing indicator if processing
-        if (isProcessing) {
-            item {
-                ProcessingIndicator()
-            }
-        }
-        
-        // Show messages
-        items(messages.reversed()) { message ->
+        // Show messages in chronological order (oldest first, newest last)
+        items(messages) { message ->
             ChatMessageItem(message = message)
         }
     }
 }
 
-@Composable
-fun ProcessingIndicator() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.padding(8.dp)
-            )
-            Text(
-                text = "Processing...",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 48.dp)
-            )
-        }
-    }
-}
+
 
 @Composable
 fun UserInput(
@@ -202,23 +178,63 @@ fun UserInput(
     isInputEnabled: Boolean,
     isRecording: Boolean,
     canSendMessage: Boolean,
+    isProcessing: Boolean = false,
     onMessageSent: (String) -> Unit,
     onInputTextChanged: (String) -> Unit,
     onVoiceRecordingStarted: () -> Unit,
     onVoiceRecordingStopped: () -> Unit
 ) {
-    ChatInputField(
-        modifier = modifier,
-        text = inputText,
-        onTextChange = onInputTextChanged,
-        onMessageCreated = onMessageSent,
-        placeholder = "Type a message or use voice input...",
-        isEnabled = isInputEnabled,
-        isRecording = isRecording,
-        canSendMessage = canSendMessage,
-        onVoiceRecordingStarted = onVoiceRecordingStarted,
-        onVoiceRecordingStopped = onVoiceRecordingStopped
-    )
+    Column(
+        modifier = modifier
+    ) {
+        // Show processing indicator above the input field when processing
+        if (isProcessing) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "Processing message...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Input field
+        ChatInputField(
+            modifier = Modifier.fillMaxWidth(),
+            text = inputText,
+            onTextChange = onInputTextChanged,
+            onMessageCreated = onMessageSent,
+            placeholder = "Type a message or use voice input...",
+            isEnabled = isInputEnabled,
+            isRecording = isRecording,
+            canSendMessage = canSendMessage,
+            onVoiceRecordingStarted = onVoiceRecordingStarted,
+            onVoiceRecordingStopped = onVoiceRecordingStopped
+        )
+    }
 }
 
 @Composable
