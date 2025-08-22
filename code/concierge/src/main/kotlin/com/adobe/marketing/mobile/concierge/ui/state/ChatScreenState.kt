@@ -10,10 +10,10 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat.messages
+package com.adobe.marketing.mobile.concierge.ui.state
 
 import androidx.compose.runtime.Stable
-import com.adobe.marketing.mobile.concierge.chat.userinput.UserInputState
+
 
 /**
  * Represents the overall state of the chat screen.
@@ -77,3 +77,12 @@ data class ChatScreenData(
         val EMPTY = ChatScreenData()
     }
 }
+
+/**
+ * A simple chat message data class.
+ */
+data class ChatMessage(
+    val text: String,
+    val isFromUser: Boolean,
+    val timestamp: Long
+)

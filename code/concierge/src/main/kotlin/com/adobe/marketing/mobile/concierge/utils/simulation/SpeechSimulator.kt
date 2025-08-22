@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat.simulation
+package com.adobe.marketing.mobile.concierge.utils.simulation
 
 /**
  * Simulates speech-to-text transcription and conversation responses for testing purposes.

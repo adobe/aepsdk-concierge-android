@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat.userinput
+package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

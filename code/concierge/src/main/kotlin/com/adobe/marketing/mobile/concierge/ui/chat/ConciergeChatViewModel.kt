@@ -10,12 +10,16 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat.messages
+package com.adobe.marketing.mobile.concierge.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.adobe.marketing.mobile.concierge.chat.simulation.SpeechSimulator
-import com.adobe.marketing.mobile.concierge.chat.userinput.UserInputState
+import com.adobe.marketing.mobile.concierge.utils.simulation.SpeechSimulator
+import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenData
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
+import com.adobe.marketing.mobile.concierge.ui.state.UiEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

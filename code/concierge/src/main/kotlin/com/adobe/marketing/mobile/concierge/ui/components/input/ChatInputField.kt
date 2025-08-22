@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.chat.userinput
+package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -33,8 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import androidx.compose.animation.core.EaseInOutCubic
-import com.adobe.marketing.mobile.concierge.chat.simulation.SpeechSimulator
+import com.adobe.marketing.mobile.concierge.utils.simulation.SpeechSimulator
 import kotlinx.coroutines.delay
 
 /**
