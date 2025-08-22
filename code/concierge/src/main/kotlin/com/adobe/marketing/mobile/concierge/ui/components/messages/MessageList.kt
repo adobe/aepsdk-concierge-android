@@ -10,22 +10,31 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.conciergetestapp.ui
+package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
-import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
+import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Component that displays a list of chat messages.
+ */
 @Composable
-fun ChatScreen(
+fun MessageList(
     modifier: Modifier = Modifier,
-    onClose: () -> Unit = {}
+    messages: List<ChatMessage>
 ) {
-    val viewModel = remember { ConciergeChatViewModel() }
-    ConciergeChat(viewModel)
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp)
+    ) {
+        // Show messages in chronological order (oldest first, newest last)
+        items(messages) { message ->
+            ChatMessageItem(message = message)
+        }
+    }
 }
