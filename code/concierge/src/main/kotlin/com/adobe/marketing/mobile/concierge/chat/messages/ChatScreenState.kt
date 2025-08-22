@@ -68,12 +68,10 @@ data class ChatScreenData(
     val messages: List<ChatMessage> = emptyList(),
     val inputText: String = "",
     val isInputEnabled: Boolean = true,
-    val isRecording: Boolean = false,
     val isProcessing: Boolean = false,
     val errorMessage: String? = null,
     val isLoading: Boolean = false,
-    val canSendMessage: Boolean = false,
-    val isConnected: Boolean = true
+    val canSendMessage: Boolean = false
 ) {
     companion object {
         val EMPTY = ChatScreenData()

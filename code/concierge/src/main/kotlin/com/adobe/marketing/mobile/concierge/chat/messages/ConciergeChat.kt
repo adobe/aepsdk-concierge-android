@@ -44,21 +44,23 @@ import com.adobe.marketing.mobile.concierge.chat.userinput.UserInputState
 @Composable
 fun ConciergeChat(viewModel: ConciergeChatViewModel) {
     val data by viewModel.data.collectAsState()
+    val inputState by viewModel.inputState.collectAsState()
     
     ConciergeChatContent(
         data = data,
+        inputState = inputState,
         onMessageSent = { text ->
             viewModel.processEvent(UiEvent.TextProcessingComplete(text))
             viewModel.processEvent(UiEvent.SendMessage)
         },
         onInputTextChanged = { text ->
-            viewModel.updateInputText(text)
+            viewModel.processEvent(UiEvent.TextProcessingComplete(text))
         },
         onVoiceRecordingStarted = {
-            viewModel.setVoiceInputState(UserInputState.Recording)
+            viewModel.startVoiceRecording()
         },
         onVoiceRecordingStopped = {
-            viewModel.setVoiceInputState(UserInputState.Transcribing)
+            viewModel.stopVoiceRecording()
         },
         onErrorDismissed = {
             viewModel.processEvent(UiEvent.Reset)
@@ -69,6 +71,7 @@ fun ConciergeChat(viewModel: ConciergeChatViewModel) {
 @Composable
 fun ConciergeChatContent(
     data: ChatScreenData,
+    inputState: UserInputState,
     onMessageSent: (String) -> Unit,
     onInputTextChanged: (String) -> Unit,
     onVoiceRecordingStarted: () -> Unit,
@@ -128,7 +131,7 @@ fun ConciergeChatContent(
                 UserInput(
                     inputText = data.inputText,
                     isInputEnabled = data.isInputEnabled,
-                    isRecording = data.isRecording,
+                    inputState = inputState,
                     canSendMessage = data.canSendMessage,
                     isProcessing = data.isProcessing,
                     onMessageSent = onMessageSent,
@@ -160,7 +163,7 @@ fun MessageList(
 ) {
     LazyColumn(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         // Show messages in chronological order (oldest first, newest last)
         items(messages) { message ->
@@ -176,7 +179,7 @@ fun UserInput(
     modifier: Modifier = Modifier,
     inputText: String,
     isInputEnabled: Boolean,
-    isRecording: Boolean,
+    inputState: UserInputState,
     canSendMessage: Boolean,
     isProcessing: Boolean = false,
     onMessageSent: (String) -> Unit,
@@ -229,7 +232,7 @@ fun UserInput(
             onMessageCreated = onMessageSent,
             placeholder = "Type a message or use voice input...",
             isEnabled = isInputEnabled,
-            isRecording = isRecording,
+            inputState = inputState,
             canSendMessage = canSendMessage,
             onVoiceRecordingStarted = onVoiceRecordingStarted,
             onVoiceRecordingStopped = onVoiceRecordingStopped

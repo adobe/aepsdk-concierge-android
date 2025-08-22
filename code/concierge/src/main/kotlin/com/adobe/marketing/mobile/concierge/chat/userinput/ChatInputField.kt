@@ -32,9 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
 import androidx.compose.animation.core.EaseInOutCubic
 import com.adobe.marketing.mobile.concierge.chat.simulation.SpeechSimulator
 import kotlinx.coroutines.delay
@@ -61,24 +59,12 @@ fun ChatInputField(
     onMessageCreated: (String) -> Unit,
     placeholder: String = "Type a message...",
     isEnabled: Boolean = true,
-    isRecording: Boolean = false,
+    inputState: UserInputState = UserInputState.Empty,
     canSendMessage: Boolean = false,
     onVoiceRecordingStarted: () -> Unit = {},
     onVoiceRecordingStopped: () -> Unit = {}
 ) {
-    val context = LocalContext.current
 
-    // Track previous state for toast notifications
-    var previousRecordingState by remember { mutableStateOf(false) }
-
-    // For testing purposes, show toast for recording state changes
-    LaunchedEffect(isRecording) {
-        if (isRecording != previousRecordingState) {
-            val stateName = if (isRecording) "Recording Started" else "Recording Stopped"
-            Toast.makeText(context, "Voice Input: $stateName", Toast.LENGTH_SHORT).show()
-            previousRecordingState = isRecording
-        }
-    }
 
     // Smooth pulsing animation for waveform icon when recording
     var waveformPulseTarget by remember { mutableStateOf(1.0f) }
@@ -91,12 +77,14 @@ fun ChatInputField(
         label = "waveform_pulse"
     )
     
-    LaunchedEffect(isRecording) {
-        while (isRecording) {
-            waveformPulseTarget = 1.2f
-            delay(600)
-            waveformPulseTarget = 1.0f
-            delay(600)
+    LaunchedEffect(inputState) {
+        if (inputState is UserInputState.Recording) {
+            while (true) {
+                waveformPulseTarget = 1.2f
+                delay(600)
+                waveformPulseTarget = 1.0f
+                delay(600)
+            }
         }
     }
 
@@ -126,7 +114,7 @@ fun ChatInputField(
                     modifier = Modifier.weight(1f),
                     value = text,
                     onValueChange = onTextChange,
-                    userInputState = if (isRecording) UserInputState.Recording else if (text.isNotBlank()) UserInputState.Editing else UserInputState.Empty,
+                    userInputState = inputState,
                     isEnabled = isEnabled,
                     canSendMessage = canSendMessage,
                     placeholder = placeholder
@@ -134,7 +122,7 @@ fun ChatInputField(
 
                 // Mic button for voice input
                 MicButton(
-                    userInputState = if (isRecording) UserInputState.Recording else UserInputState.Empty,
+                    userInputState = inputState,
                     isEnabled = isEnabled,
                     waveformPulse = waveformPulse,
                     onVoiceInputStart = onVoiceRecordingStarted,
@@ -147,7 +135,7 @@ fun ChatInputField(
                 SendButton(
                     canSendMessage = canSendMessage,
                     isEnabled = isEnabled,
-                    isRecording = isRecording,
+                    isRecording = inputState is UserInputState.Recording,
                     onSend = {
                         if (text.isNotBlank()) {
                             onMessageCreated(text)

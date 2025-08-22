@@ -26,35 +26,23 @@ class ConciergeChatViewModel : ViewModel() {
     private val _state = MutableStateFlow<ChatScreenState>(
         ChatScreenState.Idle(UserInputState.Empty)
     )
+    private val _inputState = MutableStateFlow<UserInputState>(
+        UserInputState.Empty
+    )
+
     val state: StateFlow<ChatScreenState> = _state.asStateFlow()
+    val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
 
     private val _data = MutableStateFlow(ChatScreenData.EMPTY)
     val data: StateFlow<ChatScreenData> = _data.asStateFlow()
 
+    /* Process incoming UI events */
     fun processEvent(event: UiEvent) {
         when (event) {
-            is UiEvent.TextProcessingComplete -> handleTextProcessingComplete(event.text)
+            is UiEvent.TextProcessingComplete -> handleInputText(event.text)
             is UiEvent.Error -> handleProcessingError(event.message)
             is UiEvent.Reset -> handleResetChat()
             is UiEvent.SendMessage -> handleSendMessage()
-        }
-    }
-
-    private fun handleTextProcessingComplete(text: String) {
-        _data.update { it.copy(inputText = text, canSendMessage = text.isNotBlank()) }
-        
-        val inputState = if (text.isBlank()) {
-            UserInputState.Empty
-        } else {
-            UserInputState.Editing
-        }
-        
-        _state.update { currentState ->
-            when (currentState) {
-                is ChatScreenState.Idle -> ChatScreenState.Idle(inputState)
-                is ChatScreenState.Processing -> ChatScreenState.Processing(inputState, currentState.message)
-                is ChatScreenState.Error -> ChatScreenState.Error(inputState, currentState.error)
-            }
         }
     }
 
@@ -75,7 +63,6 @@ class ConciergeChatViewModel : ViewModel() {
                 inputText = "",
                 canSendMessage = false,
                 errorMessage = null,
-                isRecording = false,
                 isInputEnabled = true,
                 isProcessing = false
             )
@@ -83,6 +70,7 @@ class ConciergeChatViewModel : ViewModel() {
         _state.update { 
             ChatScreenState.Idle(UserInputState.Empty)
         }
+        _inputState.update { UserInputState.Empty }
     }
 
     private fun handleSendMessage() {
@@ -141,36 +129,20 @@ class ConciergeChatViewModel : ViewModel() {
     }
 
     /**
-     * Get the current messages list
+     * Handle text input changes from keyboard or transcription
      */
-    fun getMessages(): List<ChatMessage> = _data.value.messages
-
-    /**
-     * Check if the chat is currently processing
-     */
-    fun isProcessing(): Boolean = _data.value.isProcessing
-
-    /**
-     * Check if the input is enabled
-     */
-    fun isInputEnabled(): Boolean = _data.value.isInputEnabled
-
-    /**
-     * Check if a message can be sent
-     */
-    fun canSendMessage(): Boolean = _data.value.canSendMessage
-
-    /**
-     * Update the input text as user types
-     */
-    fun updateInputText(text: String) {
+    fun handleInputText(text: String) {
         _data.update { it.copy(inputText = text, canSendMessage = text.isNotBlank()) }
-        
-        val inputState = if (text.isBlank()) {
-            UserInputState.Empty
-        } else {
-            UserInputState.Editing
+
+        _inputState.update {
+            if (text.isBlank()) {
+                UserInputState.Empty
+            } else {
+                UserInputState.Editing
+            }
         }
+        val inputState = _inputState.value
+
         
         _state.update { currentState ->
             when (currentState) {
@@ -185,11 +157,57 @@ class ConciergeChatViewModel : ViewModel() {
      * Handle voice input state changes
      */
     fun setVoiceInputState(voiceState: UserInputState) {
+        // Update the dedicated input state
+        _inputState.update { voiceState }
+        
+        // Update the UI state
         _state.update { currentState ->
             when (currentState) {
                 is ChatScreenState.Idle -> ChatScreenState.Idle(voiceState)
                 is ChatScreenState.Processing -> ChatScreenState.Processing(voiceState, currentState.message)
                 is ChatScreenState.Error -> ChatScreenState.Error(voiceState, currentState.error)
+            }
+        }
+    }
+
+    /**
+     * Start voice recording
+     */
+    fun startVoiceRecording() {
+        setVoiceInputState(UserInputState.Recording)
+    }
+
+    /**
+     * Stop voice recording and start transcription
+     */
+    fun stopVoiceRecording() {
+        println("DEBUG: Starting voice transcription...")
+        setVoiceInputState(UserInputState.Transcribing)
+        
+        // Simulate transcription delay and then complete
+        viewModelScope.launch {
+            try {
+                // Simulate transcription delay using SpeechSimulator
+                val speechSimulator = SpeechSimulator()
+                val delay = speechSimulator.getSimulatedTranscriptionDelay()
+                println("DEBUG: Transcription delay: ${delay}ms")
+                kotlinx.coroutines.delay(delay)
+                
+                // Generate simulated transcribed text
+                val transcribedText = speechSimulator.generateSimulatedTranscription()
+                println("DEBUG: Transcribed text: $transcribedText")
+                
+                // Update the input text with transcribed content
+                handleInputText(transcribedText)
+                println("DEBUG: Updated input text in ViewModel")
+                
+                // Set state to editing mode
+                setVoiceInputState(UserInputState.Editing)
+                println("DEBUG: Transcribed message ready - user must press send button to send")
+            } catch (e: Exception) {
+                println("DEBUG: Transcription error: ${e.message}")
+                // Handle transcription error
+                setVoiceInputState(UserInputState.Error("Failed to transcribe voice message: ${e.message}"))
             }
         }
     }
