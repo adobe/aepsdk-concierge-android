@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.conciergetestapp
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,27 +21,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWrapper() {
     val showChat = remember { mutableStateOf(false) }
@@ -51,22 +47,11 @@ fun MainScreenWrapper() {
             onStartChat = { showChat.value = true }
         )
 
-        // Chat modal sheet
         if (showChat.value) {
-            ModalBottomSheet(
-                onDismissRequest = { showChat.value = false },
-                sheetState = rememberModalBottomSheetState(
-                    skipPartiallyExpanded = true
-                ),
-                containerColor = Color.White,
-                dragHandle = null,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                ChatScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onClose = { showChat.value = false },
-                )
-            }
+            ChatScreen(
+                modifier = Modifier.fillMaxSize().background(Color.White),
+                onClose = { showChat.value = false },
+            )
         }
     }
 }
@@ -75,6 +60,8 @@ fun MainScreenWrapper() {
 fun MainScreen(
     onStartChat: () -> Unit
 ) {
+    val context = LocalContext.current
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -97,27 +84,49 @@ fun MainScreen(
             
             // Subtitle
             Text(
-                text = "Tap the button below to start chatting",
+                text = "Choose your integration approach",
                 fontSize = 16.sp,
                 color = Color(0xFF666666)
             )
             
             Spacer(modifier = Modifier.height(48.dp))
             
-            // Chat button
+            // Compose Chat button
             Button(
                 onClick = { onStartChat() },
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape),
+                    .size(width = 200.dp, height = 60.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2196F3)
                 ),
-                shape = RoundedCornerShape(40.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "💬",
-                    fontSize = 24.sp
+                    text = "💬 Compose Chat",
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // XML Integration button
+            Button(
+                onClick = { 
+                    val intent = Intent(context, XmlChatActivity::class.java)
+                    context.startActivity(intent)
+                },
+                modifier = Modifier
+                    .size(width = 200.dp, height = 60.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "📝 XML Integration",
+                    fontSize = 16.sp,
+                    color = Color.White
                 )
             }
         }

@@ -12,20 +12,20 @@
 
 package com.adobe.marketing.mobile.conciergetestapp.ui
 
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.ExperimentalMaterial3Api
+import android.app.Application
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-    val viewModel = remember { ConciergeChatViewModel() }
-    ConciergeChat(viewModel)
+    val context = LocalContext.current.applicationContext as Application
+    val viewModel = remember { ConciergeChatViewModel(context) }
+    ConciergeChat(viewModel, onClose)
 }

@@ -12,39 +12,59 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.header
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.R
 
 /**
- * Header component for the chat interface.
+ * Header component for the chat interface with title and close button.
+ * @param modifier Modifier for the header
+ * @param title The title text to display
+ * @param onClose Callback when the close button is pressed
  */
 @Composable
-fun ChatHeader(
+internal fun ChatHeader(
     modifier: Modifier = Modifier,
-    title: String = "BC Chat Frame"
+    title: String = "Brand",
+    onClose: () -> Unit
 ) {
-    Card(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(16.dp),
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onPrimary
         )
+        
+        // Close button
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.close),
+                contentDescription = "Close chat",
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+        }
     }
 }

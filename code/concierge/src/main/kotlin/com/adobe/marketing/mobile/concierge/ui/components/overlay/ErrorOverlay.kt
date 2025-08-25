@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
  * Component that displays error messages as an overlay.
  */
 @Composable
-fun ErrorOverlay(
+internal fun ErrorOverlay(
     modifier: Modifier = Modifier,
     errorMessage: String,
     onDismiss: () -> Unit

@@ -29,7 +29,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
  * Component that displays a single chat message.
  */
 @Composable
-fun ChatMessageItem(message: ChatMessage) {
+internal fun ChatMessageItem(message: ChatMessage) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

@@ -28,24 +28,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechPermissionHandler
 
 /**
  * Component that handles user input including text input and voice recording.
+ * Derives its behavior from UserInputState and processing state.
  */
 @Composable
-fun UserInput(
+internal fun UserInput(
     modifier: Modifier = Modifier,
-    inputText: String,
-    isInputEnabled: Boolean,
     inputState: UserInputState,
-    canSendMessage: Boolean,
+    onContentAvailabilityChange: (available: Boolean) -> Unit,
     isProcessing: Boolean = false,
-    onMessageSent: (String) -> Unit,
-    onInputTextChanged: (String) -> Unit,
-    onVoiceRecordingStarted: () -> Unit,
-    onVoiceRecordingStopped: () -> Unit
+    onMicEvent: (MicEvent) -> Unit,
+    onSend: (String) -> Unit,
+    hasAudioPermission: Boolean,
+    onPermissionResult: (Boolean) -> Unit
 ) {
+
+    // Handle speech permission if needed
+    SpeechPermissionHandler(
+        hasPermission = hasAudioPermission,
+        onPermissionResult = onPermissionResult
+    )
+
     Column(
         modifier = modifier
     ) {
@@ -86,15 +94,25 @@ fun UserInput(
         // Input field
         ChatInputField(
             modifier = Modifier.fillMaxWidth(),
-            text = inputText,
-            onTextChange = onInputTextChanged,
-            onMessageCreated = onMessageSent,
-            placeholder = "Type a message or use voice input...",
-            isEnabled = isInputEnabled,
+            enable = true,
             inputState = inputState,
-            canSendMessage = canSendMessage,
-            onVoiceRecordingStarted = onVoiceRecordingStarted,
-            onVoiceRecordingStopped = onVoiceRecordingStopped
+            isProcessing = isProcessing,
+            onContentAvailabilityChanged = onContentAvailabilityChange,
+            onMicPressed = {
+                if (hasAudioPermission) {
+                    onMicEvent(MicEvent.StartRecording)
+                } else {
+                    // Permission will be requested by SpeechPermissionHandler
+                    // TODO: propagate permission error to user
+                }
+            },
+            onVoiceCancel = {
+                onMicEvent(MicEvent.StopRecording(isCancelled = true, isError = false))
+            },
+            onVoiceConfirm = {
+                onMicEvent(MicEvent.StopRecording(isCancelled = false, isError = false))
+            },
+            onSend = onSend,
         )
     }
 }

@@ -15,7 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.state
 /**
  * Represents the different states of the input stream (text/voice input).
  */
-sealed class UserInputState {
+internal sealed class UserInputState {
     // No input, ready for input
     object Empty : UserInputState()
     
@@ -26,7 +26,7 @@ sealed class UserInputState {
     object Transcribing : UserInputState()
 
     // Text content (typed or transcribed) received and ready for editing
-    object Editing : UserInputState()
+    data class Editing(val content: String = "") : UserInputState()
     
     // Error state
     data class Error(val message: String) : UserInputState()

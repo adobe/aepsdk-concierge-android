@@ -12,76 +12,57 @@
 
 package com.adobe.marketing.mobile.concierge.ui.state
 
-import androidx.compose.runtime.Stable
-
 
 /**
  * Represents the overall state of the chat screen.
  */
-sealed class ChatScreenState {
+internal sealed class ChatScreenState {
     /**
      * Chat is in idle state, waiting for user interaction.
      */
-    data class Idle(val inputState: UserInputState) : ChatScreenState()
+    data class Idle(val message: String) : ChatScreenState()
     
     /**
      * Chat is actively processing a user message.
      */
-    data class Processing(val inputState: UserInputState, val message: String) : ChatScreenState()
+    data class Processing(val message: String) : ChatScreenState()
     
     /**
      * Chat is in an error state.
      */
-    data class Error(val inputState: UserInputState, val error: String) : ChatScreenState()
+    data class Error(val error: String) : ChatScreenState()
 }
 
 /**
  * Represents UI events that can be processed by the ViewModel.
  */
-sealed class UiEvent {
+internal sealed class ChatEvent {
     /**
-     * Text captured from keyboard input or voice transcription.
+     * User wants to send a message.
      */
-    data class TextProcessingComplete(val text: String) : UiEvent()
-
-    /**
-     * User pressed the send button.
-     */
-    object SendMessage : UiEvent()
+    data class SendMessage(val message: String) : ChatEvent()
 
     /**
      * An error occurred while processing the input.
      */
-    data class Error(val message: String) : UiEvent()
+    data class Error(val message: String) : ChatEvent()
 
     /**
      * User dismissed the error, returning to idle state.
      */
-    object Reset: UiEvent()
+    object Reset: ChatEvent()
 }
 
-/**
- * Represents the current data state of the chat screen.
- */
-@Stable
-data class ChatScreenData(
-    val messages: List<ChatMessage> = emptyList(),
-    val inputText: String = "",
-    val isInputEnabled: Boolean = true,
-    val isProcessing: Boolean = false,
-    val errorMessage: String? = null,
-    val isLoading: Boolean = false,
-    val canSendMessage: Boolean = false
-) {
-    companion object {
-        val EMPTY = ChatScreenData()
-    }
+
+internal sealed class MicEvent : ChatEvent() {
+    object StartRecording : MicEvent()
+    data class StopRecording(val isCancelled: Boolean, val isError: Boolean) : MicEvent()
 }
 
 /**
  * A simple chat message data class.
  */
-data class ChatMessage(
+internal data class ChatMessage(
     val text: String,
     val isFromUser: Boolean,
     val timestamp: Long

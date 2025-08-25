@@ -12,136 +12,100 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import androidx.compose.animation.core.EaseInOutCubic
-import com.adobe.marketing.mobile.concierge.utils.simulation.SpeechSimulator
-import kotlinx.coroutines.delay
+
 
 /**
- * A composable chat input field that supports both text and voice input.
+ * A composable chat input coordinator that manages the display of different input panels.
+ * Shows VoiceRecordingPanel during recording/transcribing states, otherwise shows ChatInputPanel.
  *
  * @param modifier Modifier for the composable
- * @param text Current text in the input field
- * @param onTextChange Callback for when text changes
- * @param onMessageCreated Callback invoked when a message is sent
  * @param placeholder Placeholder text for the input field
- * @param isEnabled Whether the input field is enabled
- * @param isRecording Whether voice recording is currently active
- * @param canSendMessage Whether a message can be sent
- * @param onVoiceRecordingStarted Callback when voice recording starts
- * @param onVoiceRecordingStopped Callback when voice recording stops
+ * @param enable Whether the input field is enabled
+ * @param inputState The current state of user input (contains transcribed text if available)
+ * @param onContentAvailabilityChanged Callback when content availability changes (non-empty/empty)
+ * @param onMicPressed Callback when microphone button is pressed
+ * @param onSend Callback when a message is created
+ * @param onVoiceCancel Callback when voice recording is cancelled (X button)
+ * @param onVoiceConfirm Callback when voice recording is confirmed (✓ button)
  */
 @Composable
-fun ChatInputField(
+internal fun ChatInputField(
     modifier: Modifier = Modifier,
-    text: String = "",
-    onTextChange: (String) -> Unit = {},
-    onMessageCreated: (String) -> Unit,
-    placeholder: String = "Type a message...",
-    isEnabled: Boolean = true,
+    placeholder: String = "How can I help",
+    enable: Boolean = true,
     inputState: UserInputState = UserInputState.Empty,
-    canSendMessage: Boolean = false,
-    onVoiceRecordingStarted: () -> Unit = {},
-    onVoiceRecordingStopped: () -> Unit = {}
+    isProcessing: Boolean = false,
+    onContentAvailabilityChanged: (available: Boolean) -> Unit,
+    onMicPressed: () -> Unit,
+    onSend: (String) -> Unit,
+    onVoiceCancel: () -> Unit,
+    onVoiceConfirm: () -> Unit
 ) {
+    // Local text state to manage input field content
+    var text by remember { mutableStateOf("") }
 
-
-    // Smooth pulsing animation for waveform icon when recording
-    var waveformPulseTarget by remember { mutableStateOf(1.0f) }
-    val waveformPulse by animateFloatAsState(
-        targetValue = waveformPulseTarget,
-        animationSpec = tween(
-            durationMillis = 600,
-            easing = EaseInOutCubic
-        ),
-        label = "waveform_pulse"
-    )
-    
+    // Update local text state when inputState changes to Editing with non-empty content
     LaunchedEffect(inputState) {
-        if (inputState is UserInputState.Recording) {
-            while (true) {
-                waveformPulseTarget = 1.2f
-                delay(600)
-                waveformPulseTarget = 1.0f
-                delay(600)
+        if (inputState is UserInputState.Editing && inputState.content.isNotEmpty()) {
+            val wasEmpty = text.isBlank()
+            text += inputState.content
+            
+            // Notify parent about content availability change
+            if (wasEmpty && inputState.content.isNotBlank()) {
+                onContentAvailabilityChanged(true)
             }
         }
     }
 
-    // Begin composable layout
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        // Frame the chat input field in a card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Text input field
-                ChatTextField(
-                    modifier = Modifier.weight(1f),
-                    value = text,
-                    onValueChange = onTextChange,
-                    userInputState = inputState,
-                    isEnabled = isEnabled,
-                    canSendMessage = canSendMessage,
-                    placeholder = placeholder
-                )
+        when (inputState) {
+            is UserInputState.Empty, is UserInputState.Editing, is UserInputState.Error -> {
+                ChatInputPanel(
+                    text = text,
+                    onTextChange = { newText ->
+                        val wasEmpty = text.isBlank()
+                        val willBeEmpty = newText.isBlank()
+                        text = newText
 
-                // Mic button for voice input
-                MicButton(
-                    userInputState = inputState,
-                    isEnabled = isEnabled,
-                    waveformPulse = waveformPulse,
-                    onVoiceInputStart = onVoiceRecordingStarted,
-                    onVoiceInputStop = onVoiceRecordingStopped
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                // Send button
-                SendButton(
-                    canSendMessage = canSendMessage,
-                    isEnabled = isEnabled,
-                    isRecording = inputState is UserInputState.Recording,
-                    onSend = {
-                        if (text.isNotBlank()) {
-                            onMessageCreated(text)
+                        // Only notify parent when empty/non-empty state changes
+                        if (wasEmpty != willBeEmpty) {
+                            onContentAvailabilityChanged(!willBeEmpty)
                         }
+                    },
+                    placeholder = placeholder,
+                    enable = enable,
+                    inputState = inputState,
+                    isProcessing = isProcessing,
+                    onMicPressed = onMicPressed,
+                    onSend = { sentText ->
+                        onSend(sentText)
+                        text = ""
+                        onContentAvailabilityChanged(false)
                     }
+                )
+            }
+            is UserInputState.Recording, is UserInputState.Transcribing -> {
+                VoiceRecordingPanel(
+                    inputState = inputState,
+                    onCancel = onVoiceCancel,
+                    onConfirm = onVoiceConfirm
                 )
             }
         }

@@ -31,44 +31,31 @@ import com.adobe.marketing.mobile.concierge.R
  * @param modifier Modifier for the composable
  * @param canSendMessage Whether a message can be sent
  * @param isEnabled Whether the button is enabled
- * @param isRecording Whether voice is currently being recorded
  * @param onSend Callback when the send button is pressed
  */
 @Composable
-fun SendButton(
+internal fun SendButton(
     modifier: Modifier = Modifier,
-    canSendMessage: Boolean,
     isEnabled: Boolean,
-    isRecording: Boolean,
     onSend: () -> Unit
 ) {
     IconButton(
         onClick = {
-            if (canSendMessage) {
+            if (isEnabled) {
                 onSend()
             }
         },
-        enabled = isEnabled && canSendMessage && !isRecording,
+        enabled = isEnabled,
         modifier = modifier
-            .size(48.dp)
-            .background(
-                color = if (canSendMessage) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                shape = CircleShape
-            )
     ) {
         Image(
             painter = painterResource(R.drawable.send),
             contentDescription = "Send message",
-            modifier = Modifier.size(24.dp),
             colorFilter = ColorFilter.tint(
-                if (canSendMessage) {
-                    MaterialTheme.colorScheme.onPrimary
+                if (isEnabled) {
+                    MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme.colorScheme.surfaceDim
                 }
             )
         )

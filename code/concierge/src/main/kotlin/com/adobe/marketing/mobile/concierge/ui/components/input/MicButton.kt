@@ -13,9 +13,6 @@
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -23,9 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 /**
  * A voice input button that supports recording, transcribing, and idle states.
@@ -38,33 +34,18 @@ import com.adobe.marketing.mobile.concierge.R
  * @param onVoiceInputStop Callback when voice recording should stop
  */
 @Composable
-fun MicButton(
+internal fun MicButton(
     modifier: Modifier = Modifier,
     userInputState: UserInputState,
     isEnabled: Boolean,
     waveformPulse: Float,
-    onVoiceInputStart: () -> Unit,
-    onVoiceInputStop: () -> Unit
+    onClick: () -> Unit = {},
 ) {
+
     IconButton(
-        onClick = {
-            when (userInputState) {
-                is UserInputState.Recording -> onVoiceInputStop()
-                else -> onVoiceInputStart()
-            }
-        },
+        onClick = onClick,
         enabled = isEnabled,
-        modifier = modifier
-            .size(48.dp)
-            .scale(if (userInputState is UserInputState.Recording) waveformPulse else 1.0f)
-            .background(
-                color = when (userInputState) {
-                    is UserInputState.Recording -> MaterialTheme.colorScheme.primaryContainer
-                    is UserInputState.Transcribing -> MaterialTheme.colorScheme.surfaceVariant
-                    else -> MaterialTheme.colorScheme.primaryContainer
-                },
-                shape = CircleShape
-            )
+        modifier = modifier.scale(if (userInputState is UserInputState.Recording) waveformPulse else 1.0f)
     ) {
         Image(
             painter = when (userInputState) {
@@ -77,14 +58,7 @@ fun MicButton(
                 is UserInputState.Transcribing -> "Processing voice input"
                 else -> "Start voice input"
             },
-            modifier = Modifier.size(24.dp),
-            colorFilter = ColorFilter.tint(
-                when (userInputState) {
-                    is UserInputState.Recording -> MaterialTheme.colorScheme.onPrimaryContainer
-                    is UserInputState.Transcribing -> MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> MaterialTheme.colorScheme.onPrimaryContainer
-                }
-            )
+            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
         )
     }
 }
