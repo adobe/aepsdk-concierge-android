@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable

@@ -39,16 +39,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
+import com.adobe.marketing.mobile.conciergetestapp.ui.MarkdownDemoScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWrapper() {
     val showChat = remember { mutableStateOf(false) }
+    val showMarkdownDemo = remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Main screen with chat button
         MainScreen(
-            onStartChat = { showChat.value = true }
+            onStartChat = { showChat.value = true },
+            onShowMarkdownDemo = { showMarkdownDemo.value = true }
         )
 
         // Chat modal sheet
@@ -68,12 +71,31 @@ fun MainScreenWrapper() {
                 )
             }
         }
+
+        // Markdown demo modal sheet
+        if (showMarkdownDemo.value) {
+            ModalBottomSheet(
+                onDismissRequest = { showMarkdownDemo.value = false },
+                sheetState = rememberModalBottomSheetState(
+                    skipPartiallyExpanded = true
+                ),
+                containerColor = Color.White,
+                dragHandle = null,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                MarkdownDemoScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onClose = { showMarkdownDemo.value = false }
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun MainScreen(
-    onStartChat: () -> Unit
+    onStartChat: () -> Unit,
+    onShowMarkdownDemo: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -120,6 +142,43 @@ fun MainScreen(
                     fontSize = 24.sp
                 )
             }
+            
+            // Chat button label
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Start Chat",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF666666)
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Markdown demo button
+            Button(
+                onClick = { onShowMarkdownDemo() },
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4CAF50)
+                ),
+                shape = RoundedCornerShape(40.dp)
+            ) {
+                Text(
+                    text = "📝",
+                    fontSize = 24.sp
+                )
+            }
+            
+            // Markdown demo button label
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Markdown Demo",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF666666)
+            )
         }
     }
 }
