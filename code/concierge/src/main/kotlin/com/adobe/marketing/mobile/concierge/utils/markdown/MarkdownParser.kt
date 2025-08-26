@@ -20,24 +20,23 @@ import com.adobe.marketing.mobile.services.Log
  * Core class that manages the parsing workflow via the [MarkdownTokenizer] and [MarkdownRenderer]
  * objects.
  */
-internal class MarkdownParser {
-    companion object {
-        private val tokenizer = MarkdownTokenizer()
-        private val renderer = MarkdownRenderer()
-
-        /**
-         * Parses the provided markdown string and returns an [AnnotatedString] with the appropriate
-         * styling applied.
-         *
-         * @param markdown The markdown string to parse.
-         * @return An [AnnotatedString] with the appropriate styling applied.
-         */
-        @JvmStatic
-        fun parse(markdown: String): AnnotatedString {
-            val tokens = tokenizer.tokenize(markdown)
-            Log.debug(ConciergeConstants.EXTENSION_NAME, "parse", "Parsed ${tokens.size} tokens, starting rendering.")
-            val result = renderer.render(markdown, tokens)
-            return result
-        }
+internal object MarkdownParser {
+    /**
+     * Parses the provided markdown string and returns an [AnnotatedString] with the appropriate
+     * styling applied.
+     *
+     * @param markdown The markdown string to parse.
+     * @return An [AnnotatedString] with the appropriate styling applied.
+     */
+    @JvmStatic
+    fun parse(markdown: String): AnnotatedString {
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            "parse",
+            "Parsed ${tokens.size} tokens, starting rendering."
+        )
+        val result = MarkdownRenderer.render(markdown, tokens)
+        return result
     }
 }

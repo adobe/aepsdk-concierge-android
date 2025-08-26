@@ -37,7 +37,7 @@ fun ConciergeResponse(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val annotatedString = MarkdownParser.Companion.parse(text)
+    val annotatedString = MarkdownParser.parse(text)
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     
     BasicText(

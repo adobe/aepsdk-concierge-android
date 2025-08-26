@@ -19,7 +19,7 @@ import com.adobe.marketing.mobile.services.Log
 /**
  * Handles the rendering of tokens into an [AnnotatedString].
  */
-internal class MarkdownRenderer {
+internal object MarkdownRenderer {
 
     /**
      * Renders the provided list of [MarkdownToken]s into an [AnnotatedString].

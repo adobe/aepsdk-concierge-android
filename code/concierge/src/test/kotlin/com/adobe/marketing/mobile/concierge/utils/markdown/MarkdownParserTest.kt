@@ -14,9 +14,6 @@ package com.adobe.marketing.mobile.concierge.utils.markdown
 import org.junit.Test
 import org.junit.Assert.*
 
-/**
- * Tests for the MarkdownParser functionality
- */
 class MarkdownParserTest {
 
     @Test

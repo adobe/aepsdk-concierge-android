@@ -18,7 +18,7 @@ import com.adobe.marketing.mobile.services.Log
 /**
  * Handles the tokenization of markdown text into structured tokens.
  */
-internal class MarkdownTokenizer {
+internal object MarkdownTokenizer {
 
     /**
      * Tokenizes the given markdown string into a list of [MarkdownToken] objects.
@@ -53,8 +53,8 @@ internal class MarkdownTokenizer {
             TokenType.HEADING to """^(#{1,2})\s*(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.LIST to """^- (.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE),
-            TokenType.ITALIC to """\*(.*?)\*""".toRegex(),
-            TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex()
+            TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex(),
+            TokenType.ITALIC to """\*(.*?)\*""".toRegex()
         )
         
         otherPatterns.forEach { (type, pattern) ->
