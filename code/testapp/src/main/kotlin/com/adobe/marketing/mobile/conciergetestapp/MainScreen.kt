@@ -24,7 +24,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
 import com.adobe.marketing.mobile.conciergetestapp.ui.MarkdownDemoScreen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWrapper() {
     val showChat = rememberSaveable { mutableStateOf(false) }
@@ -151,43 +155,27 @@ fun MainScreen(
                     color = Color.White
                 )
             }
-            
-            // Chat button label
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Start Chat",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF666666)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Markdown demo button
             Button(
-                onClick = { onShowMarkdownDemo() },
+                onClick = {
+                    onShowMarkdownDemo()
+                },
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape),
+                    .size(width = 200.dp, height = 60.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF4CAF50)
+                    containerColor = Color(0xFFF44336)
                 ),
-                shape = RoundedCornerShape(40.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "📝",
-                    fontSize = 24.sp
+                    text = "📝 Markdown Demo",
+                    fontSize = 16.sp,
+                    color = Color.White
                 )
             }
-            
-            // Markdown demo button label
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Markdown Demo",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF666666)
-            )
         }
     }
 }
