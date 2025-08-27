@@ -24,11 +24,11 @@ import kotlin.coroutines.resumeWithException
  * Configuration for the conversation service request.
  */
 internal data class ConversationConfig(
-    val configId: String = "51ee226f-9327-4b97-99fb-d5f9877d8198",
-    val sessionId: String = "083f7d55-df46-43f3-a70d-626cc324d1ef",
-    val requestId: String = "f199b4ed-50db-44cd-9371-291778e81927",
-    val baseUrl: String = "https://bc-conversation-service-dev.corp.ethos11-stage-va7.ethos.adobe.net",
-    val surfaces: List<String> = listOf("web://bc-conversation-service-dev.corp.ethos11-stage-va7.ethos.adobe.net/brand-concierge/pages/745F37C35E4B776E0A49421B@AdobeOrg/index.html")
+    val configId: String = "",
+    val sessionId: String = "",
+    val requestId: String = "",
+    val baseUrl: String = "",
+    val surfaces: List<String> = listOf("")
 )
 
 internal class ConciergeConversationServiceClient(
