@@ -54,7 +54,7 @@ internal fun ChatHeader(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onPrimary
         )
-        
+
         // Close button
         IconButton(
             onClick = onClose,

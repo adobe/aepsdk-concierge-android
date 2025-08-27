@@ -12,19 +12,17 @@
 
 package com.adobe.marketing.mobile.concierge.ui.chat
 
+import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
-import android.Manifest
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-
-import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-
-import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
+import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
+import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,8 +74,10 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * Indicates if speech recognition is available on the device
      * TODO: Permission handling should be wrapped and exposed to the app level to handle permission requests
      */
-    private val _isSpeechRecognitionAvailable = MutableStateFlow(speechToTextManager.isAvailable.value)
-    val isSpeechRecognitionAvailable: StateFlow<Boolean> = _isSpeechRecognitionAvailable.asStateFlow()
+    private val _isSpeechRecognitionAvailable =
+        MutableStateFlow(speechToTextManager.isAvailable.value)
+    val isSpeechRecognitionAvailable: StateFlow<Boolean> =
+        _isSpeechRecognitionAvailable.asStateFlow()
     private val _hasAudioPermission = MutableStateFlow(checkAudioPermission())
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
 
@@ -95,6 +95,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             is MicEvent.StartRecording -> {
                 startSpeechRecognition()
             }
+
             is MicEvent.StopRecording -> {
                 stopSpeechRecognition()
             }
@@ -127,7 +128,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * Resets the chat to the initial idle state
      */
     private fun handleResetChat() {
-        _state.update { 
+        _state.update {
             ChatScreenState.Idle("")
         }
         _inputState.update { UserInputState.Empty }
@@ -149,13 +150,13 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             isFromUser = true,
             timestamp = System.currentTimeMillis()
         )
-        
+
         _messages.update { currentMessages ->
             currentMessages + userMessage
         }
 
         // Transition to processing state
-        _state.update { 
+        _state.update {
             ChatScreenState.Processing(messageText)
         }
 
@@ -164,19 +165,19 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             try {
                 // Simulate API delay
                 kotlinx.coroutines.delay(2000) // 2 second delay
-                
+
                 val assistantMessage = ChatMessage(
                     text = "Hello! I received your message: \"$messageText\". This is a placeholder response.",
                     isFromUser = false,
                     timestamp = System.currentTimeMillis()
                 )
-                
+
                 _messages.update { currentMessages ->
                     currentMessages + assistantMessage
                 }
-                
+
                 // Return to idle state after processing
-                _state.update { 
+                _state.update {
                     ChatScreenState.Idle("")
                 }
             } catch (e: Exception) {
@@ -193,8 +194,8 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
         if (_hasAudioPermission.value) {
             speechToTextManager.startListening()
         } else {
-            _inputState.update { 
-                UserInputState.Error("Microphone permission required") 
+            _inputState.update {
+                UserInputState.Error("Microphone permission required")
             }
         }
     }
@@ -223,8 +224,8 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * @param errorCode The error code from the speech recognizer
      */
     private fun handleSpeechError(errorCode: Int) {
-        _inputState.update { 
-            UserInputState.Error("Speech recognition error: $errorCode") 
+        _inputState.update {
+            UserInputState.Error("Speech recognition error: $errorCode")
         }
     }
 

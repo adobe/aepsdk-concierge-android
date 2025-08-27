@@ -57,7 +57,7 @@ internal fun ChatMessageItem(message: ChatMessage) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
-            
+
             Text(
                 text = if (message.isFromUser) "You" else "Assistant",
                 style = MaterialTheme.typography.bodySmall,

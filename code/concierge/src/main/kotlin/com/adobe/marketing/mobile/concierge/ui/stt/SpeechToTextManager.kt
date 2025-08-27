@@ -22,12 +22,12 @@ import com.adobe.marketing.mobile.services.Log
  */
 internal class SpeechToTextManager(
     private val context: Context,
-    val onSpeechStarted : () -> Unit = {},
-    val onSpeechEnded : () -> Unit = {},
+    val onSpeechStarted: () -> Unit = {},
+    val onSpeechEnded: () -> Unit = {},
     val onTranscriptionResult: (transcription: String) -> Unit = {},
     val onSpeechError: (recognitionError: Int) -> Unit = {},
 
-) {
+    ) {
     private var speechRecognizer: SpeechRecognizer? = null
 
     private val _isAvailable = mutableStateOf<Boolean>(false)
@@ -58,12 +58,18 @@ internal class SpeechToTextManager(
         override fun onEndOfSpeech() {
             onSpeechEnded()
         }
+
         override fun onError(error: Int) {
-            Log.error(ConciergeConstants.EXTENSION_NAME, "SpeechRecognizer", "Speech recognition error: $error")
+            Log.error(
+                ConciergeConstants.EXTENSION_NAME,
+                "SpeechRecognizer",
+                "Speech recognition error: $error"
+            )
             when (error) {
                 SpeechRecognizer.ERROR_NO_MATCH -> {
                     onTranscriptionResult("")
                 }
+
                 else -> {
                     onSpeechError(error)
                 }
@@ -71,7 +77,11 @@ internal class SpeechToTextManager(
         }
 
         override fun onResults(results: Bundle?) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, "SpeechRecognizer", "Speech recognition results received")
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                "SpeechRecognizer",
+                "Speech recognition results received"
+            )
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             matches?.firstOrNull()?.let { text ->
                 onTranscriptionResult(text)
@@ -94,7 +104,10 @@ internal class SpeechToTextManager(
         }
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             // Add these for better compatibility
@@ -127,7 +140,11 @@ internal class SpeechToTextManager(
     fun release() {
         try {
             speechRecognizer?.destroy()
-            Log.debug(ConciergeConstants.EXTENSION_NAME, "SpeechRecognizer", "Speech recognizer released")
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                "SpeechRecognizer",
+                "Speech recognizer released"
+            )
             _isAvailable.value = false
         } catch (e: Exception) {
             // Handle any errors silently

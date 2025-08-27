@@ -27,7 +27,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,7 +39,7 @@ import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
 
 @Composable
 fun MainScreenWrapper() {
-    val showChat = remember { mutableStateOf(false) }
+    val showChat = rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Main screen with chat button

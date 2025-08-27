@@ -90,7 +90,7 @@ internal fun UserInput(
                 }
             }
         }
-        
+
         // Input field
         ChatInputField(
             modifier = Modifier.fillMaxWidth(),

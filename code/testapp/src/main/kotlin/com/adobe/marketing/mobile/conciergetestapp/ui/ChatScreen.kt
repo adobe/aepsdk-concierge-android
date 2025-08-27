@@ -12,20 +12,15 @@
 
 package com.adobe.marketing.mobile.conciergetestapp.ui
 
-import android.app.Application
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
-import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 
 @Composable
 fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-    val context = LocalContext.current.applicationContext as Application
-    val viewModel = remember { ConciergeChatViewModel(context) }
-    ConciergeChat(viewModel, onClose)
+    ConciergeChat(viewModel = viewModel(), onClose)
 }

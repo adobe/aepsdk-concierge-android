@@ -15,6 +15,5 @@
 <resources>
 
     <style name="Theme.AEPSDKBrandConciergeAgent" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowIsTranslucent">true</item>
     </style>
 </resources>

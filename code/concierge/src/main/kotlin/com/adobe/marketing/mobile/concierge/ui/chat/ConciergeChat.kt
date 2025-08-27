@@ -46,11 +46,11 @@ fun ConciergeChat(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
-    
+
     // Derive UI state from ChatScreenState
     val isProcessing = state is ChatScreenState.Processing
     val errorMessage = (state as? ChatScreenState.Error)?.error
-    
+
     ConciergeChat(
         messages = messages,
         isProcessing = isProcessing,
@@ -91,7 +91,7 @@ internal fun ConciergeChat(
         ) {
 
             ChatHeader(onClose = onClose)
-            
+
             // Messages list
             Box(
                 modifier = Modifier
@@ -106,7 +106,7 @@ internal fun ConciergeChat(
                         .padding(horizontal = 16.dp)
                 )
             }
-            
+
             // User input
             UserInput(
                 inputState = inputState,
@@ -121,7 +121,7 @@ internal fun ConciergeChat(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        
+
         // Error overlay if there's an error
         errorMessage?.let {
             ErrorOverlay(

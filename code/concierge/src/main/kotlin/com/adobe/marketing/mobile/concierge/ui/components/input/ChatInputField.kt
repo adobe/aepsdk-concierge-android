@@ -62,7 +62,7 @@ internal fun ChatInputField(
         if (inputState is UserInputState.Editing && inputState.content.isNotEmpty()) {
             val wasEmpty = text.isBlank()
             text += inputState.content
-            
+
             // Notify parent about content availability change
             if (wasEmpty && inputState.content.isNotBlank()) {
                 onContentAvailabilityChanged(true)
@@ -101,6 +101,7 @@ internal fun ChatInputField(
                     }
                 )
             }
+
             is UserInputState.Recording, is UserInputState.Transcribing -> {
                 VoiceRecordingPanel(
                     inputState = inputState,

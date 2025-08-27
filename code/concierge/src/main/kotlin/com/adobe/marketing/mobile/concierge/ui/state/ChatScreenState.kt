@@ -21,12 +21,12 @@ internal sealed class ChatScreenState {
      * Chat is in idle state, waiting for user interaction.
      */
     data class Idle(val message: String) : ChatScreenState()
-    
+
     /**
      * Chat is actively processing a user message.
      */
     data class Processing(val message: String) : ChatScreenState()
-    
+
     /**
      * Chat is in an error state.
      */
@@ -50,7 +50,7 @@ internal sealed class ChatEvent {
     /**
      * User dismissed the error, returning to idle state.
      */
-    object Reset: ChatEvent()
+    object Reset : ChatEvent()
 }
 
 

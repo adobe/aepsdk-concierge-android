@@ -18,16 +18,16 @@ package com.adobe.marketing.mobile.concierge.ui.state
 internal sealed class UserInputState {
     // No input, ready for input
     object Empty : UserInputState()
-    
+
     // User is actively recording audio
     object Recording : UserInputState()
-    
+
     // Processing speech to text conversion
     object Transcribing : UserInputState()
 
     // Text content (typed or transcribed) received and ready for editing
     data class Editing(val content: String = "") : UserInputState()
-    
+
     // Error state
     data class Error(val message: String) : UserInputState()
 }
