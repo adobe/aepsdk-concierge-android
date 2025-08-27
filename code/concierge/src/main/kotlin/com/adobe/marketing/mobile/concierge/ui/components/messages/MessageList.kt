@@ -23,7 +23,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
  * Component that displays a list of chat messages.
  */
 @Composable
-fun MessageList(
+internal fun MessageList(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>
 ) {

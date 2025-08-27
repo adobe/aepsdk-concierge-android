@@ -14,17 +14,14 @@ package com.adobe.marketing.mobile.conciergetestapp.ui
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
-import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-    val viewModel = remember { ConciergeChatViewModel() }
-    ConciergeChat(viewModel)
+    ConciergeChat(viewModel = viewModel(), onClose)
 }

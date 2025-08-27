@@ -12,10 +12,10 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.overlay
 
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
  * Component that displays error messages as an overlay.
  */
 @Composable
-fun ErrorOverlay(
+internal fun ErrorOverlay(
     modifier: Modifier = Modifier,
     errorMessage: String,
     onDismiss: () -> Unit
@@ -52,7 +52,7 @@ fun ErrorOverlay(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
-            
+
             Text(
                 text = "Dismiss",
                 style = MaterialTheme.typography.bodySmall,

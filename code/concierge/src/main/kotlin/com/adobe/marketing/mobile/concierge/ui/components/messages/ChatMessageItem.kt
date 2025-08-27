@@ -29,7 +29,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
  * Component that displays a single chat message.
  */
 @Composable
-fun ChatMessageItem(message: ChatMessage) {
+internal fun ChatMessageItem(message: ChatMessage) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -61,7 +61,7 @@ fun ChatMessageItem(message: ChatMessage) {
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            
+        
             Text(
                 text = if (message.isFromUser) "You" else "Assistant",
                 style = MaterialTheme.typography.bodySmall,

@@ -12,8 +12,19 @@
     governing permissions and limitations under the License.
 
 -->
-<resources>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5">
 
-    <style name="Theme.AEPSDKBrandConciergeAgent" parent="android:Theme.Material.Light.NoActionBar">
-    </style>
-</resources>
+    <!-- The ConciergeChat view -->
+    <com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatView
+        android:id="@+id/concierge_chat"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FFFFFF"
+        android:elevation="4dp" />
+
+</LinearLayout>
