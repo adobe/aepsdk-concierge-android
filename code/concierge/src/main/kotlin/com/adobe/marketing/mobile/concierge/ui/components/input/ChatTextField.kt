@@ -26,7 +26,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 /**
  * A text input field for chat messages with support for different states.
@@ -36,46 +35,38 @@ import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
  * @param onValueChange Callback when the text value changes
  * @param userInputState The current state of the input stream
  * @param isEnabled Whether the field is enabled
- * @param canSendMessage Whether a message can be sent
  * @param placeholder Default placeholder text
  */
 @Composable
-fun ChatTextField(
+internal fun ChatTextField(
     modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
-    userInputState: UserInputState,
     isEnabled: Boolean,
-    canSendMessage: Boolean,
     placeholder: String = "Type a message..."
 ) {
     val focusManager = LocalFocusManager.current
-    
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.padding(horizontal = 8.dp),
         placeholder = {
             Text(
-                text = when (userInputState) {
-                    is UserInputState.Recording -> "Listening..."
-                    is UserInputState.Transcribing -> "Processing voice..."
-                    else -> placeholder
-                },
+                text = placeholder,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         },
-        enabled = isEnabled && userInputState !is UserInputState.Recording,
+        enabled = isEnabled,
         singleLine = false,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
-            imeAction = ImeAction.Send
+            imeAction = ImeAction.Done
         ),
         keyboardActions = KeyboardActions(
-            onSend = {
-                if (canSendMessage) {
-                    focusManager.clearFocus()
-                }
+            onDone = {
+                focusManager.clearFocus()
+                // Do something when the user presses the send action on the keyboard
             }
         ),
         colors = OutlinedTextFieldDefaults.colors(

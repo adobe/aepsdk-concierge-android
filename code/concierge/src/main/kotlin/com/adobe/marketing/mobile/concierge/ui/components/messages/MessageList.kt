@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -24,7 +23,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
  * Component that displays a list of chat messages.
  */
 @Composable
-fun MessageList(
+internal fun MessageList(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>
 ) {

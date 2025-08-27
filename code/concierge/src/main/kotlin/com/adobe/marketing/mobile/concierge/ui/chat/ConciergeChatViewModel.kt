@@ -12,118 +12,173 @@
 
 package com.adobe.marketing.mobile.concierge.ui.chat
 
-import androidx.lifecycle.ViewModel
+import android.Manifest
+import android.app.Application
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.adobe.marketing.mobile.concierge.utils.simulation.SpeechSimulator
-import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenData
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
-import com.adobe.marketing.mobile.concierge.ui.state.UiEvent
+import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
+import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ConciergeChatViewModel : ViewModel() {
+class ConciergeChatViewModel(application: Application) : AndroidViewModel(application) {
+    /**
+     * Tracks the overall state of the chat flow
+     */
     private val _state = MutableStateFlow<ChatScreenState>(
-        ChatScreenState.Idle(UserInputState.Empty)
+        ChatScreenState.Idle("")
     )
+    internal val state: StateFlow<ChatScreenState> = _state.asStateFlow()
+
+    /**
+     * Tracks state of the user input area (text input, voice recording, etc.)
+     */
     private val _inputState = MutableStateFlow<UserInputState>(
         UserInputState.Empty
     )
+    internal val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
 
-    val state: StateFlow<ChatScreenState> = _state.asStateFlow()
-    val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
+    /**
+     * List of chat messages in the conversation
+     */
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private val _data = MutableStateFlow(ChatScreenData.EMPTY)
-    val data: StateFlow<ChatScreenData> = _data.asStateFlow()
-
-    /* Process incoming UI events */
-    fun processEvent(event: UiEvent) {
-        when (event) {
-            is UiEvent.TextProcessingComplete -> handleInputText(event.text)
-            is UiEvent.Error -> handleProcessingError(event.message)
-            is UiEvent.Reset -> handleResetChat()
-            is UiEvent.SendMessage -> handleSendMessage()
+    // Speech to text manager
+    private val speechToTextManager = SpeechToTextManager(
+        context = getApplication<Application>(),
+        onSpeechStarted = {
+            _inputState.update { UserInputState.Recording }
+        },
+        onSpeechEnded = {
+            _inputState.update { UserInputState.Transcribing }
+        },
+        onTranscriptionResult = { transcription ->
+            handleTranscriptionResult(transcription)
+        },
+        onSpeechError = { errorCode ->
+            handleSpeechError(errorCode)
         }
-    }
+    )
 
-    private fun handleProcessingError(message: String) {
-        _data.update { it.copy(errorMessage = message) }
-        _state.update { currentState ->
-            val inputState = UserInputState.Error(message)
-            when (currentState) {
-                is ChatScreenState.Error -> ChatScreenState.Error(inputState, currentState.error)
-                else -> ChatScreenState.Error(inputState, message)
+    /**
+     * Indicates if speech recognition is available on the device
+     * TODO: Permission handling should be wrapped and exposed to the app level to handle permission requests
+     */
+    private val _isSpeechRecognitionAvailable =
+        MutableStateFlow(speechToTextManager.isAvailable.value)
+    val isSpeechRecognitionAvailable: StateFlow<Boolean> =
+        _isSpeechRecognitionAvailable.asStateFlow()
+    private val _hasAudioPermission = MutableStateFlow(checkAudioPermission())
+    val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
+
+
+    /**
+     * Process incoming events from the UI
+     * @param event The event to process
+     */
+    internal fun processEvent(event: ChatEvent) {
+        when (event) {
+            is ChatEvent.Error -> handleProcessingError(event.message)
+            is ChatEvent.Reset -> handleResetChat()
+            is ChatEvent.SendMessage -> handleSendMessage(event.message)
+
+            is MicEvent.StartRecording -> {
+                startSpeechRecognition()
+            }
+
+            is MicEvent.StopRecording -> {
+                stopSpeechRecognition()
             }
         }
     }
 
-    private fun handleResetChat() {
-        _data.update { 
-            it.copy(
-                inputText = "",
-                canSendMessage = false,
-                errorMessage = null,
-                isInputEnabled = true,
-                isProcessing = false
-            )
+    /**
+     * Called when the text input state changes (e.g. user types or deletes text)
+     * @param hasContent True if there is text content, false if empty
+     */
+    internal fun onTextStateChanged(hasContent: Boolean) {
+        _inputState.value = if (hasContent) {
+            UserInputState.Editing()  // Empty content for manual typing
+        } else {
+            UserInputState.Empty
         }
-        _state.update { 
-            ChatScreenState.Idle(UserInputState.Empty)
+    }
+
+    /**
+     * Handles errors that occur during message processing
+     * @param message The error message to display
+     */
+    private fun handleProcessingError(message: String) {
+        _state.update { currentState ->
+            ChatScreenState.Error(message)
+        }
+    }
+
+    /**
+     * Resets the chat to the initial idle state
+     */
+    private fun handleResetChat() {
+        _state.update {
+            ChatScreenState.Idle("")
         }
         _inputState.update { UserInputState.Empty }
     }
 
-    private fun handleSendMessage() {
-        val currentText = _data.value.inputText
-        if (currentText.isBlank()) return
+    /**
+     * Handles sending a user message
+     * @param messageText The text of the message to send
+     */
+    private fun handleSendMessage(messageText: String) {
+        if (messageText.isBlank()) return
+
+        // Reset input state after sending (text clearing is handled in ChatInputField)
+        _inputState.update { UserInputState.Empty }
 
         // Add user message to the list
         val userMessage = ChatMessage(
-            text = currentText,
+            text = messageText,
             isFromUser = true,
             timestamp = System.currentTimeMillis()
         )
-        
-        _data.update { 
-            it.copy(
-                messages = it.messages + userMessage,
-                inputText = "",
-                canSendMessage = false,
-                isProcessing = true
-            )
+
+        _messages.update { currentMessages ->
+            currentMessages + userMessage
         }
 
         // Transition to processing state
-        _state.update { 
-            ChatScreenState.Processing(UserInputState.Empty, currentText)
+        _state.update {
+            ChatScreenState.Processing(messageText)
         }
 
         // Simulate processing and response (replace with actual API call)
         viewModelScope.launch {
             try {
                 // Simulate API delay
-                kotlinx.coroutines.delay(SpeechSimulator().getSimulatedResponseDelay())
-                
+                kotlinx.coroutines.delay(2000) // 2 second delay
+
                 val assistantMessage = ChatMessage(
-                    text = SpeechSimulator().simulateResponse(currentText),
+                    text = "Hello! I received your message: \"$messageText\". This is a placeholder response.",
                     isFromUser = false,
                     timestamp = System.currentTimeMillis()
                 )
-                
-                _data.update { 
-                    it.copy(
-                        messages = it.messages + assistantMessage,
-                        isProcessing = false
-                    )
+
+                _messages.update { currentMessages ->
+                    currentMessages + assistantMessage
                 }
-                
+
                 // Return to idle state after processing
-                _state.update { 
-                    ChatScreenState.Idle(UserInputState.Empty)
+                _state.update {
+                    ChatScreenState.Idle("")
                 }
             } catch (e: Exception) {
                 // Handle any errors during processing
@@ -133,86 +188,61 @@ class ConciergeChatViewModel : ViewModel() {
     }
 
     /**
-     * Handle text input changes from keyboard or transcription
+     * Starts speech recognition if permission is granted
      */
-    fun handleInputText(text: String) {
-        _data.update { it.copy(inputText = text, canSendMessage = text.isNotBlank()) }
+    private fun startSpeechRecognition() {
+        if (_hasAudioPermission.value) {
+            speechToTextManager.startListening()
+        } else {
+            _inputState.update {
+                UserInputState.Error("Microphone permission required")
+            }
+        }
+    }
 
+    /**
+     * Stops speech recognition
+     */
+    private fun stopSpeechRecognition() {
+        speechToTextManager.stopListening()
+    }
+
+    /**
+     * Handles the result of speech transcription
+     * @param transcription The transcribed text
+     */
+    private fun handleTranscriptionResult(transcription: String) {
+        if (transcription.isNotBlank()) {
+            _inputState.update { UserInputState.Editing(transcription) }
+        } else {
+            _inputState.update { UserInputState.Empty }
+        }
+    }
+
+    /**
+     * Handles speech recognition errors
+     * @param errorCode The error code from the speech recognizer
+     */
+    private fun handleSpeechError(errorCode: Int) {
         _inputState.update {
-            if (text.isBlank()) {
-                UserInputState.Empty
-            } else {
-                UserInputState.Editing
-            }
-        }
-        val inputState = _inputState.value
-
-        
-        _state.update { currentState ->
-            when (currentState) {
-                is ChatScreenState.Idle -> ChatScreenState.Idle(inputState)
-                is ChatScreenState.Processing -> ChatScreenState.Processing(inputState, currentState.message)
-                is ChatScreenState.Error -> ChatScreenState.Error(inputState, currentState.error)
-            }
+            UserInputState.Error("Speech recognition error: $errorCode")
         }
     }
 
-    /**
-     * Handle voice input state changes
-     */
-    fun setVoiceInputState(voiceState: UserInputState) {
-        // Update the dedicated input state
-        _inputState.update { voiceState }
-        
-        // Update the UI state
-        _state.update { currentState ->
-            when (currentState) {
-                is ChatScreenState.Idle -> ChatScreenState.Idle(voiceState)
-                is ChatScreenState.Processing -> ChatScreenState.Processing(voiceState, currentState.message)
-                is ChatScreenState.Error -> ChatScreenState.Error(voiceState, currentState.error)
-            }
-        }
+
+    private fun checkAudioPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            getApplication(),
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
-    /**
-     * Start voice recording
-     */
-    fun startVoiceRecording() {
-        setVoiceInputState(UserInputState.Recording)
+    fun refreshPermissionStatus() {
+        _hasAudioPermission.update { checkAudioPermission() }
     }
 
-    /**
-     * Stop voice recording and start transcription
-     */
-    fun stopVoiceRecording() {
-        println("DEBUG: Starting voice transcription...")
-        setVoiceInputState(UserInputState.Transcribing)
-        
-        // Simulate transcription delay and then complete
-        viewModelScope.launch {
-            try {
-                // Simulate transcription delay using SpeechSimulator
-                val speechSimulator = SpeechSimulator()
-                val delay = speechSimulator.getSimulatedTranscriptionDelay()
-                println("DEBUG: Transcription delay: ${delay}ms")
-                kotlinx.coroutines.delay(delay)
-                
-                // Generate simulated transcribed text
-                val transcribedText = speechSimulator.generateSimulatedTranscription()
-                println("DEBUG: Transcribed text: $transcribedText")
-                
-                // Update the input text with transcribed content
-                handleInputText(transcribedText)
-                println("DEBUG: Updated input text in ViewModel")
-                
-                // Set state to editing mode
-                setVoiceInputState(UserInputState.Editing)
-                println("DEBUG: Transcribed message ready - user must press send button to send")
-            } catch (e: Exception) {
-                println("DEBUG: Transcription error: ${e.message}")
-                // Handle transcription error
-                setVoiceInputState(UserInputState.Error("Failed to transcribe voice message: ${e.message}"))
-            }
-        }
+    override fun onCleared() {
+        super.onCleared()
+        speechToTextManager.release()
     }
 }

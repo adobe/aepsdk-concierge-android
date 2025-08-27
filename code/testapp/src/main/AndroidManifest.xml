@@ -37,6 +37,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.XmlChatActivity"
+            android:exported="false"
+            android:label="XML Integration Demo"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
     </application>
 
 </manifest>

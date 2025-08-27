@@ -13,16 +13,12 @@
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 
 /**
@@ -31,44 +27,31 @@ import com.adobe.marketing.mobile.concierge.R
  * @param modifier Modifier for the composable
  * @param canSendMessage Whether a message can be sent
  * @param isEnabled Whether the button is enabled
- * @param isRecording Whether voice is currently being recorded
  * @param onSend Callback when the send button is pressed
  */
 @Composable
-fun SendButton(
+internal fun SendButton(
     modifier: Modifier = Modifier,
-    canSendMessage: Boolean,
     isEnabled: Boolean,
-    isRecording: Boolean,
     onSend: () -> Unit
 ) {
     IconButton(
         onClick = {
-            if (canSendMessage) {
+            if (isEnabled) {
                 onSend()
             }
         },
-        enabled = isEnabled && canSendMessage && !isRecording,
+        enabled = isEnabled,
         modifier = modifier
-            .size(48.dp)
-            .background(
-                color = if (canSendMessage) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                shape = CircleShape
-            )
     ) {
         Image(
             painter = painterResource(R.drawable.send),
             contentDescription = "Send message",
-            modifier = Modifier.size(24.dp),
             colorFilter = ColorFilter.tint(
-                if (canSendMessage) {
-                    MaterialTheme.colorScheme.onPrimary
+                if (isEnabled) {
+                    MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme.colorScheme.surfaceDim
                 }
             )
         )

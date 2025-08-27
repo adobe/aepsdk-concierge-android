@@ -12,126 +12,127 @@
 
 package com.adobe.marketing.mobile.concierge.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenData
-import com.adobe.marketing.mobile.concierge.ui.state.UiEvent
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
-import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
+import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
+import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 @Composable
-fun ConciergeChat(viewModel: ConciergeChatViewModel) {
-    val data by viewModel.data.collectAsState()
-    val inputState by viewModel.inputState.collectAsState()
-    
-    ConciergeChatContent(
-        data = data,
+fun ConciergeChat(
+    viewModel: ConciergeChatViewModel,
+    onClose: () -> Unit
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val inputState by viewModel.inputState.collectAsStateWithLifecycle()
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    // TODO: Need to expose this permission to the app level to handle permission requests
+    val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
+
+    // Derive UI state from ChatScreenState
+    val isProcessing = state is ChatScreenState.Processing
+    val errorMessage = (state as? ChatScreenState.Error)?.error
+
+    ConciergeChat(
+        messages = messages,
+        isProcessing = isProcessing,
+        errorMessage = errorMessage,
         inputState = inputState,
-        onMessageSent = { text ->
-            viewModel.processEvent(UiEvent.TextProcessingComplete(text))
-            viewModel.processEvent(UiEvent.SendMessage)
+        hasAudioPermission = hasAudioPermission,
+        onTextStateChanged = viewModel::onTextStateChanged,
+        onEvent = viewModel::processEvent,
+        onPermissionResult = { granted ->
+            viewModel.refreshPermissionStatus()
         },
-        onInputTextChanged = { text ->
-            viewModel.processEvent(UiEvent.TextProcessingComplete(text))
-        },
-        onVoiceRecordingStarted = {
-            viewModel.startVoiceRecording()
-        },
-        onVoiceRecordingStopped = {
-            viewModel.stopVoiceRecording()
-        },
-        onErrorDismissed = {
-            viewModel.processEvent(UiEvent.Reset)
-        }
+        onClose = onClose
     )
 }
 
 @Composable
-fun ConciergeChatContent(
-    data: ChatScreenData,
+internal fun ConciergeChat(
+    messages: List<ChatMessage>,
+    isProcessing: Boolean,
+    errorMessage: String?,
     inputState: UserInputState,
-    onMessageSent: (String) -> Unit,
-    onInputTextChanged: (String) -> Unit,
-    onVoiceRecordingStarted: () -> Unit,
-    onVoiceRecordingStopped: () -> Unit,
-    onErrorDismissed: () -> Unit
+    hasAudioPermission: Boolean,
+    onTextStateChanged: (Boolean) -> Unit,
+    onEvent: (ChatEvent) -> Unit,
+    onPermissionResult: (Boolean) -> Unit,
+    onClose: () -> Unit
 ) {
-    Scaffold { paddingValues ->
-        Box(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.primary)
+            .navigationBarsPadding()
+            .statusBarsPadding()
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
         ) {
-            Column(
+
+            ChatHeader(onClose = onClose)
+
+            // Messages list
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        // Prevent swipe gestures from dismissing the composable
-                        detectDragGestures { _, _ ->
-                            // Consume all drag gestures to prevent dismissal
-                        }
-                    }
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
-                // Header at the top
-                ChatHeader()
-                
-                // Messages list
-                Box(
+                MessageList(
+                    messages = messages,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f) // Take up available space
-                ) {
-                    MessageList(
-                        messages = data.messages,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter) // Anchor to bottom of available space
-                            .padding(horizontal = 16.dp)
-                    )
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp)
+                )
+            }
+
+            // User input
+            UserInput(
+                inputState = inputState,
+                onContentAvailabilityChange = onTextStateChanged,
+                isProcessing = isProcessing,
+                hasAudioPermission = hasAudioPermission,
+                onSend = { text ->
+                    onEvent(ChatEvent.SendMessage(text))
+                },
+                onMicEvent = onEvent,
+                onPermissionResult = onPermissionResult,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Error overlay if there's an error
+        errorMessage?.let {
+            ErrorOverlay(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                errorMessage = it,
+                onDismiss = {
+                    onEvent(ChatEvent.Reset)
                 }
-                
-                // User input at the bottom - directly below MessageList
-                UserInput(
-                    inputText = data.inputText,
-                    isInputEnabled = data.isInputEnabled,
-                    inputState = inputState,
-                    canSendMessage = data.canSendMessage,
-                    isProcessing = data.isProcessing,
-                    onMessageSent = onMessageSent,
-                    onInputTextChanged = onInputTextChanged,
-                    onVoiceRecordingStarted = onVoiceRecordingStarted,
-                    onVoiceRecordingStopped = onVoiceRecordingStopped,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            
-            // Error overlay if there's an error (positioned as overlay on top)
-            if (data.errorMessage != null) {
-                ErrorOverlay(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center),
-                    errorMessage = data.errorMessage,
-                    onDismiss = onErrorDismissed
-                )
-            }
+            )
         }
     }
 }
-
-
