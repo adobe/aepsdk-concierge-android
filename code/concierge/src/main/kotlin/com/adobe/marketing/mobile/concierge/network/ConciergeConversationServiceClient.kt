@@ -1,3 +1,15 @@
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+
 package com.adobe.marketing.mobile.concierge.network
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
@@ -49,9 +61,15 @@ internal class ConciergeConversationServiceClient(
 
 
     /**
-     * Initiates a chat conversation and returns parsed conversation messages as they stream in.
-     * All network operations are performed on the IO dispatcher. Parsing and streaming concerns
-     * are encapsulated so consumers receive structured data.
+     * Initiates a chat conversation and returns a cold Flow of parsed conversation messages.
+     *
+     * Behavior:
+     * - Establishes an HTTP SSE connection and consumes events on Dispatchers.IO
+     * - Uses [SSEParser] to parse the raw SSE stream into [StreamingEvent]s
+     * - Converts DataReceived/EventReceived to [ParsedConversationMessage] and emits them downstream
+     * - On HTTP errors or stream errors, throws an exception to the collector
+     *
+     * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
     fun chat(message: String): Flow<ParsedConversationMessage> = flow {
             val requestBody = createRequestBody(message)
@@ -60,11 +78,8 @@ internal class ConciergeConversationServiceClient(
             try {
                 val connection = connect(request)
 
-                processResponse(connection) { event ->
+                processResponse(connection).collect { event ->
                     when (event) {
-                        is StreamingEvent.Started -> {
-                            Log.debug(LOG_TAG, TAG, "Streaming connection started")
-                        }
                         is StreamingEvent.EventReceived -> {
                             val parsed = TempConversationResponseParser.parseConversationData(event.data)
                             parsed.forEach { emit(it) }
@@ -73,12 +88,11 @@ internal class ConciergeConversationServiceClient(
                             val parsed = TempConversationResponseParser.parseConversationData(event.data)
                             parsed.forEach { emit(it) }
                         }
-                        is StreamingEvent.Error ->  {
+                        is StreamingEvent.Error -> {
                             throw event.exception
-                            connection.close()
                         }
-                        is StreamingEvent.Closed -> {
-                            connection.close()
+                        else -> {
+                            // Ignore connection handling events (Started, Closed)
                         }
                     }
                 }
@@ -89,7 +103,7 @@ internal class ConciergeConversationServiceClient(
         }.flowOn(Dispatchers.IO)
     
     /**
-     * Creates the JSON request body for the conversation.
+     * Creates the JSON request body for the conversation request.
      */
     private fun createRequestBody(message: String): String = """
         {
@@ -108,8 +122,10 @@ internal class ConciergeConversationServiceClient(
     """.trimIndent()
     
     /**
-     * Suspending function to establish network connection.
-     * @param request the NetworkRequest to connect with
+     * Establishes the network connection asynchronously and resumes with the connection.
+     *
+     * @param request NetworkRequest to use for establishing the SSE connection
+     * @throws IOException when connection could not be established
      */
     private suspend fun connect(request: NetworkRequest): HttpConnecting =
         suspendCancellableCoroutine { continuation ->
@@ -132,14 +148,13 @@ internal class ConciergeConversationServiceClient(
         }
 
     /**
-     * Creates a NetworkRequest configured for Server-Sent Events (SSE) with POST method.
-     * 
-     * @param url the endpoint URL for the SSE stream
-     * @param body the request body as JSON
-     * @param additionalHeaders optional additional headers to include
+     * Creates a POST [NetworkRequest] configured for Server-Sent Events (SSE).
+     *
+     * @param url endpoint URL
+     * @param body JSON request body
+     * @param additionalHeaders optional additional headers
      * @param connectTimeout connection timeout in seconds
      * @param readTimeout read timeout in seconds
-     * @return NetworkRequest configured for SSE streaming with POST
      */
     private fun createConversationServiceRequest(
         url: String,
@@ -167,30 +182,48 @@ internal class ConciergeConversationServiceClient(
 
 
     /**
-     * Processes the streaming response and emits events.
-     * @param connection The established HttpConnecting
-     * @param onEvent Callback to emit StreamingEvent
+     * Consumes the HTTP response stream and returns a Flow of [StreamingEvent].
+     *
+     * Behavior:
+     * - Validates HTTP status; on non-2xx throws an [IOException]
+     * - Delegates parsing to [SSEParser.process], which emits Started, data events, and Closed
+     * - Re-throws on [StreamingEvent.Error]
+     * - Always closes the underlying [HttpConnecting]
      */
-    private suspend fun processResponse(
-        connection: HttpConnecting,
-        onEvent: suspend (StreamingEvent) -> Unit
-    ) {
-        BufferedReader(
-            InputStreamReader(connection.inputStream ?: throw IOException("Input stream is null"), StandardCharsets.UTF_8)
-        ).use { reader ->
-            try {
-                validateResponseCode(connection)
-                SSEParser().processEvents(reader, onEvent)
-            } catch (e: IOException) {
-                Log.warning(LOG_TAG, TAG, "Streaming connection error: ${e.message}")
-                onEvent(StreamingEvent.Error(e))
-            } catch (e: Exception) {
-                Log.warning(LOG_TAG, TAG, "Unexpected streaming error: ${e.message}")
-                onEvent(StreamingEvent.Error(e))
-            } finally {
-                connection.close()
-                onEvent(StreamingEvent.Closed("Connection closed"))
+    private fun processResponse(
+        connection: HttpConnecting
+    ): Flow<StreamingEvent> = flow {
+        try {
+            validateResponseCode(connection)
+
+            val input = connection.inputStream ?: throw IOException("Input stream is null")
+            BufferedReader(
+                InputStreamReader(input, StandardCharsets.UTF_8)
+            ).use { reader ->
+                SSEParser().process(reader).collect { event ->
+                    when (event) {
+                        is StreamingEvent.Started -> {
+                            Log.trace(LOG_TAG, TAG, "Streaming connection started")
+                        }
+                        is StreamingEvent.DataReceived -> emit(event)
+                        is StreamingEvent.EventReceived -> emit(event)
+                        is StreamingEvent.Error -> {
+                            Log.error(LOG_TAG, TAG, "Streaming error: ${event.exception.message}")
+                            connection.close()
+                            throw event.exception
+                        }
+                        is StreamingEvent.Closed -> {
+                            Log.debug(LOG_TAG, TAG, "Streaming connection closed: ${event.reason}")
+                            connection.close()
+                        }
+                    }
+                }
             }
+        } catch (e: Exception) {
+            Log.warning(LOG_TAG, TAG, "Streaming response processing error: ${e.message}")
+            throw e
+        } finally {
+            connection.close()
         }
     }
     

@@ -11,6 +11,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,10 +22,10 @@ import java.io.Reader
 import java.io.StringReader
 import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
+@ExperimentalTime
 class SSEParserTest {
     @Test
-    fun `processEvents emits DataReceived then EventReceived in order`() = runTest {
+    fun `process emits DataReceived then EventReceived in order`() = runTest {
         val input = buildString {
             appendLine(": comment to ignore")
             appendLine("data: hello")
@@ -40,28 +41,29 @@ class SSEParserTest {
         val parser = SSEParser()
 
         val collected = mutableListOf<StreamingEvent>()
-        parser.processEvents(reader) { event ->
-            collected.add(event)
-        }
+        parser.process(reader).toList(collected)
 
-        // We expect 2 emissions:
-        // DataReceived for first (hello\nworld),
-        // EventReceived for second (delta, chunk1)
-        assertEquals(2, collected.size)
+        // Lifecycle assertions
+        assertTrue(collected.first() is StreamingEvent.Started)
+        assertTrue(collected.last() is StreamingEvent.Closed)
 
-        val first = collected[0]
+        // Filter only data-carrying events; Started/Closed are also emitted
+        val dataEvents = collected.filter { it is StreamingEvent.DataReceived || it is StreamingEvent.EventReceived }
+        assertEquals(2, dataEvents.size)
+
+        val first = dataEvents[0]
         assertTrue(first is StreamingEvent.DataReceived)
         assertEquals("hello\nworld", (first as StreamingEvent.DataReceived).data)
 
-        val second = collected[1]
+        val second = dataEvents[1]
         assertTrue(second is StreamingEvent.EventReceived)
         val ev = second as StreamingEvent.EventReceived
         assertEquals("delta", ev.eventType)
         assertEquals("chunk1", ev.data)
     }
 
-    @Test(expected = IOException::class)
-    fun `processEvents propagates IOException thrown by reader`() = runTest {
+    @Test
+    fun `process emits Error event when reader throws IOException`() = runTest {
         val throwingReader = BufferedReader(object : Reader() {
             override fun read(cbuf: CharArray, off: Int, len: Int): Int {
                 throw IOException("boom from reader")
@@ -71,30 +73,34 @@ class SSEParserTest {
 
         val parser = SSEParser()
 
-        parser.processEvents(throwingReader) {
-            throw AssertionError("onEvent should not be called when reader throws")
-        }
+        val events = parser.process(throwingReader).toList(mutableListOf())
+        // Lifecycle: Started is first, Error is last, and no Closed on error path
+        assertTrue(events.first() is StreamingEvent.Started)
+        assertTrue(events.last() is StreamingEvent.Error)
+        assertTrue(events.none { it is StreamingEvent.Closed })
     }
 
     @Test
-    fun `processEvents emits final event without trailing delimiter`() = runTest {
+    fun `process emits final event without trailing delimiter`() = runTest {
         val input = "data: tail only" // no trailing blank line
         val reader = BufferedReader(StringReader(input))
         val parser = SSEParser()
 
         val collected = mutableListOf<StreamingEvent>()
-        parser.processEvents(reader) { event ->
-            collected.add(event)
-        }
+        parser.process(reader).toList(collected)
 
-        assertEquals(1, collected.size)
-        val first = collected[0]
-        assertTrue(first is StreamingEvent.DataReceived)
-        assertEquals("tail only", (first as StreamingEvent.DataReceived).data)
+        // Lifecycle assertions
+        assertTrue(collected.first() is StreamingEvent.Started)
+        assertTrue(collected.last() is StreamingEvent.Closed)
+
+        val dataEvents = collected.filterIsInstance<StreamingEvent.DataReceived>()
+        assertEquals(1, dataEvents.size)
+        val first = dataEvents[0]
+        assertEquals("tail only", first.data)
     }
 
     @Test
-    fun `processEvents with only comments and blanks emits nothing`() = runTest {
+    fun `process with only comments and blanks emits nothing`() = runTest {
         val input = buildString {
             appendLine(": comment")
             appendLine("")
@@ -106,15 +112,18 @@ class SSEParserTest {
         val parser = SSEParser()
 
         val collected = mutableListOf<StreamingEvent>()
-        parser.processEvents(reader) { event ->
-            collected.add(event)
-        }
+        parser.process(reader).toList(collected)
 
-        assertTrue(collected.isEmpty())
+        // Lifecycle assertions
+        assertTrue(collected.first() is StreamingEvent.Started)
+        assertTrue(collected.last() is StreamingEvent.Closed)
+
+        val dataEvents = collected.filter { it is StreamingEvent.DataReceived || it is StreamingEvent.EventReceived }
+        assertTrue(dataEvents.isEmpty())
     }
 
     @Test
-    fun `processEvents emits typed event with empty data`() = runTest {
+    fun `process emits typed event with empty data`() = runTest {
         val input = buildString {
             appendLine("event: ping")
             appendLine("")
@@ -124,14 +133,15 @@ class SSEParserTest {
         val parser = SSEParser()
 
         val collected = mutableListOf<StreamingEvent>()
-        parser.processEvents(reader) { event ->
-            collected.add(event)
-        }
+        parser.process(reader).toList(collected)
 
-        assertEquals(1, collected.size)
-        val only = collected.first()
-        assertTrue(only is StreamingEvent.EventReceived)
-        val ev = only as StreamingEvent.EventReceived
+        // Lifecycle assertions
+        assertTrue(collected.first() is StreamingEvent.Started)
+        assertTrue(collected.last() is StreamingEvent.Closed)
+
+        val typedEvents = collected.filterIsInstance<StreamingEvent.EventReceived>()
+        assertEquals(1, typedEvents.size)
+        val ev = typedEvents.first()
         assertEquals("ping", ev.eventType)
         assertEquals("", ev.data)
     }

@@ -1,3 +1,14 @@
+/*
+ * Copyright 2025 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
 package com.adobe.marketing.mobile.concierge.network
 
 import androidx.annotation.VisibleForTesting
@@ -6,12 +17,14 @@ import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.Log
 import java.io.BufferedReader
 import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * Represents different types of streaming events that can be received.
  */
 internal sealed class StreamingEvent {
-    data class Started(val connection: HttpConnecting) : StreamingEvent()
+    object Started : StreamingEvent()
     data class DataReceived(val data: String) : StreamingEvent()
     data class EventReceived(val eventType: String, val data: String) : StreamingEvent()
     data class Error(val exception: Exception) : StreamingEvent()
@@ -50,26 +63,29 @@ internal class SSEParser {
     private var isFirstLine: Boolean = true
 
     /**
-     * Processes Server-Sent Events from a BufferedReader, emitting StreamingEvents as they're parsed.
-     * This method encapsulates the entire SSE processing workflow.
+     * Parses Server-Sent Events from the given [BufferedReader] and emits [StreamingEvent]s as a Flow.
      *
-     * @param reader The BufferedReader containing SSE data
-     * @param onEvent Suspend callback invoked for each parsed StreamingEvent
-     * @throws IOException if there's an error reading from the stream
+     * Emitted sequence on normal completion:
+     * - [StreamingEvent.Started] once at the beginning
+     * - Zero or more [StreamingEvent.DataReceived] and/or [StreamingEvent.EventReceived]
+     * - [StreamingEvent.Closed] once at the end
+     *
+     * On I/O failure:
+     * - [StreamingEvent.Started] may have been emitted
+     * - [StreamingEvent.Error] is emitted and the flow completes without [StreamingEvent.Closed]
      */
     @Throws(IOException::class)
-    suspend fun processEvents(
-        reader: BufferedReader,
-        onEvent: suspend (StreamingEvent) -> Unit
-    ) {
+    fun process(reader: BufferedReader): Flow<StreamingEvent> = flow {
         try {
+            // Emit Started event immediately
+            emit(StreamingEvent.Started)
+
             reader.useLines { lines ->
                 lines.forEach { line ->
                     try {
                         val events = feed(line)
                         events.forEach { sseEvent ->
-                            val streamingEvent = convertToStreamingEvent(sseEvent)
-                            onEvent(streamingEvent)
+                            emit(convertToStreamingEvent(sseEvent))
                         }
                     } catch (e: Exception) {
                         Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "SSE feed error: ${e.message}")
@@ -78,14 +94,15 @@ internal class SSEParser {
                 }
             }
 
-            // Process any remaining event
             finish()?.let { lastEvent ->
-                val streamingEvent = convertToStreamingEvent(lastEvent)
-                onEvent(streamingEvent)
+                emit(convertToStreamingEvent(lastEvent))
             }
+
+            // Normal completion: emit Closed (no emission on exceptional path)
+            emit(StreamingEvent.Closed("Stream completed"))
         } catch (e: IOException) {
             Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "SSE processing error: ${e.message}")
-            throw e
+            emit(StreamingEvent.Error(e))
         }
     }
 
