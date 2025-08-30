@@ -18,19 +18,28 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
+import com.adobe.marketing.mobile.services.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class ConciergeChatViewModel(application: Application) : AndroidViewModel(application) {
+
+    companion object {
+        private const val LOG_TAG = "ConciergeChatViewModel"
+    }
+
     /**
      * Tracks the overall state of the chat flow
      */
@@ -91,6 +100,8 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             is ChatEvent.Error -> handleProcessingError(event.message)
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
+            is ChatEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
+            is ChatEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
 
             is MicEvent.StartRecording -> {
                 startSpeechRecognition()
@@ -100,6 +111,45 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
                 stopSpeechRecognition()
             }
         }
+    }
+
+    /**
+     * Generates random citations for testing purposes
+     */
+    private fun generateRandomCitations(): List<Citation> {
+        val sampleCitations = listOf(
+            Citation(
+                title = "Adobe Experience Platform Documentation",
+                url = "https://experienceleague.adobe.com/docs/experience-platform.html",
+                description = "Comprehensive guide to Adobe Experience Platform features and capabilities."
+            ),
+            Citation(
+                title = "Mobile SDK Implementation Guide",
+                url = "https://developer.adobe.com/client-sdks/",
+                description = "Best practices for implementing Adobe mobile SDKs in Android applications."
+            ),
+            Citation(
+                title = "Adobe Firefly Service documentation",
+                url = "https://developer.adobe.com/firefly-services/docs/guides/",
+                description = "Welcome to Firefly Services, your solution for seamless content generation at scale."
+            )
+        )
+        
+        // Randomly select 0-3 citations for variety
+        val randomCount = (0..3).random()
+        return sampleCitations.shuffled().take(randomCount)
+    }
+
+    /**
+     * Handles user feedback for responses
+     * @param interactionId The interaction ID to associate with the feedback
+     * @param feedbackType The type of feedback ("positive" or "negative")
+     */
+    private fun handleFeedback(interactionId: String, feedbackType: String) {
+        // TODO: Implement Edge send event with interaction ID in XDM
+        // Edge.sendEvent(...)
+        // For now, just log the feedback
+        Log.debug(LOG_TAG, "handleFeedback", "Received feedback: $feedbackType for interactionId: $interactionId")
     }
 
     /**
@@ -163,13 +213,15 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
         // Simulate processing and response (replace with actual API call)
         viewModelScope.launch {
             try {
-                // Simulate API delay
-                kotlinx.coroutines.delay(2000) // 2 second delay
+                // Simulate 1 second API delay
+                delay(1000)
 
                 val assistantMessage = ChatMessage(
-                    text = "Hello! I received your message: \"$messageText\". This is a placeholder response.",
+                    text = "User input: $messageText",
                     isFromUser = false,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    citations = generateRandomCitations(),
+                    interactionId = "sample-interaction-${System.currentTimeMillis()}"
                 )
 
                 _messages.update { currentMessages ->

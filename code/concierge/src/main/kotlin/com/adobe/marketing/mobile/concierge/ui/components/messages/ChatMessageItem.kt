@@ -12,9 +12,11 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -23,51 +25,72 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 
 /**
  * Component that displays a single chat message.
  */
 @Composable
-internal fun ChatMessageItem(message: ChatMessage) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (message.isFromUser) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+internal fun ChatMessageItem(
+    message: ChatMessage,
+    onFeedback: (ChatEvent) -> Unit = {}
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            Text(
-                text = message.text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (message.isFromUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (message.isFromUser) {
+                    MaterialTheme.colorScheme.primaryContainer
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme.colorScheme.surfaceVariant
                 }
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                // Message text
+                Text(
+                    text = message.text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (message.isFromUser) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
 
-            Text(
-                text = if (message.isFromUser) "You" else "Assistant",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (message.isFromUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                },
-                modifier = Modifier.align(Alignment.BottomEnd)
-            )
+                // If the message is from the assistant and has citations, show the footer
+                if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ChatFooter(
+                        citations = message.citations,
+                        interactionId = message.interactionId,
+                        onFeedback = onFeedback
+                    )
+                }
+
+                // Sender label
+                Text(
+                    text = if (message.isFromUser) "You" else "Assistant",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (message.isFromUser) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
         }
     }
 }

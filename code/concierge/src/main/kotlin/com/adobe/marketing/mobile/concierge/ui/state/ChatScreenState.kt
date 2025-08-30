@@ -51,6 +51,16 @@ internal sealed class ChatEvent {
      * User dismissed the error, returning to idle state.
      */
     object Reset : ChatEvent()
+
+    /**
+     * User provided positive feedback for a response.
+     */
+    data class ThumbsUp(val interactionId: String) : ChatEvent()
+
+    /**
+     * User provided negative feedback for a response.
+     */
+    data class ThumbsDown(val interactionId: String) : ChatEvent()
 }
 
 
@@ -65,5 +75,16 @@ internal sealed class MicEvent : ChatEvent() {
 internal data class ChatMessage(
     val text: String,
     val isFromUser: Boolean,
-    val timestamp: Long
+    val timestamp: Long,
+    val citations: List<Citation>? = null,
+    val interactionId: String? = null
+)
+
+/**
+ * Represents a citation source for a chat message.
+ */
+internal data class Citation(
+    val title: String,
+    val url: String? = null,
+    val description: String? = null
 )

@@ -100,6 +100,7 @@ internal fun ConciergeChat(
             ) {
                 MessageList(
                     messages = messages,
+                    onFeedback = onEvent,
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)

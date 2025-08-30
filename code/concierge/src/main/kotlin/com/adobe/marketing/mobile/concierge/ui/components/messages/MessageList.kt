@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 
 /**
@@ -25,7 +26,8 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 @Composable
 internal fun MessageList(
     modifier: Modifier = Modifier,
-    messages: List<ChatMessage>
+    messages: List<ChatMessage>,
+    onFeedback: (ChatEvent) -> Unit = {}
 ) {
     LazyColumn(
         modifier = modifier,
@@ -33,7 +35,10 @@ internal fun MessageList(
     ) {
         // Show messages in chronological order (oldest first, newest last)
         items(messages) { message ->
-            ChatMessageItem(message = message)
+            ChatMessageItem(
+                message = message,
+                onFeedback = onFeedback
+            )
         }
     }
 }
