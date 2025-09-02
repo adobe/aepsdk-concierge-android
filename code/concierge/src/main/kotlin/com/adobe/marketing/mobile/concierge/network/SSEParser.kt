@@ -29,6 +29,7 @@ internal sealed class StreamingEvent {
     data class EventReceived(val eventType: String, val data: String) : StreamingEvent()
     data class Error(val exception: Exception) : StreamingEvent()
     data class Closed(val reason: String?) : StreamingEvent()
+    data class Retry(val delayMillis: Int) : StreamingEvent()
 }
 
 internal class SSEParser {
@@ -87,6 +88,8 @@ internal class SSEParser {
                         events.forEach { sseEvent ->
                             emit(convertToStreamingEvent(sseEvent))
                         }
+                        // Emit Retry event immediately if updated
+                        retry?.let { emit(StreamingEvent.Retry(it)) }
                     } catch (e: Exception) {
                         Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "SSE feed error: ${e.message}")
                         // Continue processing other lines

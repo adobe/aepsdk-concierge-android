@@ -75,30 +75,25 @@ internal class ConciergeConversationServiceClient(
             val requestBody = createRequestBody(message)
             val request = createConversationServiceRequest(endpoint, requestBody)
 
-            try {
-                val connection = connect(request)
+            val connection = connect(request)
 
-                processResponse(connection).collect { event ->
-                    when (event) {
-                        is StreamingEvent.EventReceived -> {
-                            val parsed = TempConversationResponseParser.parseConversationData(event.data)
-                            parsed.forEach { emit(it) }
-                        }
-                        is StreamingEvent.DataReceived -> {
-                            val parsed = TempConversationResponseParser.parseConversationData(event.data)
-                            parsed.forEach { emit(it) }
-                        }
-                        is StreamingEvent.Error -> {
-                            throw event.exception
-                        }
-                        else -> {
-                            // Ignore connection handling events (Started, Closed)
-                        }
+            processResponse(connection).collect { event ->
+                when (event) {
+                    is StreamingEvent.EventReceived -> {
+                        val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                        parsed.forEach { emit(it) }
+                    }
+                    is StreamingEvent.DataReceived -> {
+                        val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                        parsed.forEach { emit(it) }
+                    }
+                    is StreamingEvent.Retry -> {
+                        // TODO: Implement retry logic if needed
+                    }
+                    else -> {
+                        // ignore Started/Closed here; Error is rethrown by processResponse
                     }
                 }
-            } catch (e: Exception) {
-                Log.error(LOG_TAG, TAG, "Chat error: ${e.message}")
-                throw e
             }
         }.flowOn(Dispatchers.IO)
     
@@ -211,6 +206,10 @@ internal class ConciergeConversationServiceClient(
                             Log.error(LOG_TAG, TAG, "Streaming error: ${event.exception.message}")
                             connection.close()
                             throw event.exception
+                        }
+                        is StreamingEvent.Retry -> {
+                            Log.debug(LOG_TAG, TAG, "Server requested retry interval: ${event.delayMillis} ms")
+                            emit(StreamingEvent.Retry(event.delayMillis))
                         }
                         is StreamingEvent.Closed -> {
                             Log.debug(LOG_TAG, TAG, "Streaming connection closed: ${event.reason}")
