@@ -56,6 +56,10 @@ dependencies {
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
 
     // Test dependencies
+    testImplementation("junit:junit:4.13.2")
+    testImplementation(BuildConstants.Dependencies.MOCKK)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation(BuildConstants.Dependencies.ESPRESSO_CORE)
     implementation("androidx.test.ext:junit:1.1.5")
 
 }
