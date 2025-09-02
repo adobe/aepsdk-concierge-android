@@ -81,6 +81,43 @@ class MarkdownParserTest {
     }
 
     @Test
+    fun `test markdown within list items`() {
+        val markdown = """
+            - This is **bold** text in a list item
+            - This item has *italic* text
+            - This item has `inline code` 
+            - This item has a [link](https://example.com)
+            - This item has **bold** and *italic* and `code` together
+        """.trimIndent()
+        
+        val result = MarkdownParser.parse(markdown)
+        
+        // Check that list structure is preserved
+        assertTrue(result.text.contains("• This is"))
+        assertTrue(result.text.contains("• This item has"))
+        
+        // Check that markdown within list items is processed
+        assertTrue(result.text.contains("bold"))
+        assertTrue(result.text.contains("italic"))
+        assertTrue(result.text.contains("inline code"))
+        assertTrue(result.text.contains("link"))
+        
+        // Check that markdown syntax is removed
+        assertFalse(result.text.contains("**bold**"))
+        assertFalse(result.text.contains("*italic*"))
+        assertFalse(result.text.contains("`inline code`"))
+        assertFalse(result.text.contains("[link]("))
+        
+        // Check that URL annotations are added for links
+        val annotations = result.getStringAnnotations("URL", 0, result.length)
+        assertFalse(annotations.isEmpty())
+        assertEquals("https://example.com", annotations[0].item)
+        
+        // Check that span styles are applied (bold, italic, code)
+        assertTrue(result.spanStyles.size > 0)
+    }
+
+    @Test
     fun `test blockquote parsing`() {
         val markdown = "> This is a quote"
         val result = MarkdownParser.parse(markdown)

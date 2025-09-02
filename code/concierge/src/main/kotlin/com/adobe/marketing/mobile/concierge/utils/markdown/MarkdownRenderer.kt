@@ -130,7 +130,29 @@ internal object MarkdownRenderer {
     
     private fun renderList(token: MarkdownToken, builder: AnnotatedString.Builder) {
         val listItem = token.groups[0]
-        builder.append("• $listItem\n")
+        builder.append("• ")
+        
+        // Handle markdown within the list item
+        val nestedTokens = MarkdownTokenizer.tokenize(listItem)
+        var currentIndex = 0
+        
+        nestedTokens.forEach { nestedToken ->
+            if (nestedToken.start < currentIndex) return@forEach
+            
+            // Append text before the nested token
+            if (nestedToken.start > currentIndex) {
+                builder.append(listItem.substring(currentIndex, nestedToken.start))
+            }
+            
+            // Render the nested token
+            renderToken(nestedToken, builder)
+            currentIndex = nestedToken.end
+        }
+        
+        // Append any remaining text
+        if (currentIndex < listItem.length) {
+            builder.append(listItem.substring(currentIndex))
+        }
     }
     
     private fun renderBlockquote(token: MarkdownToken, builder: AnnotatedString.Builder) {
