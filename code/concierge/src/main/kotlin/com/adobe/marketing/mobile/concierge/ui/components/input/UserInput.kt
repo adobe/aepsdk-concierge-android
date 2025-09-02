@@ -40,7 +40,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechPermissionHandler
 internal fun UserInput(
     modifier: Modifier = Modifier,
     inputState: UserInputState,
-    onContentAvailabilityChange: (available: Boolean) -> Unit,
+    onTextChange: (String) -> Unit,
     isProcessing: Boolean = false,
     onMicEvent: (MicEvent) -> Unit,
     onSend: (String) -> Unit,
@@ -97,7 +97,7 @@ internal fun UserInput(
             enable = true,
             inputState = inputState,
             isProcessing = isProcessing,
-            onContentAvailabilityChanged = onContentAvailabilityChange,
+            onTextChange = onTextChange,
             onMicPressed = {
                 if (hasAudioPermission) {
                     onMicEvent(MicEvent.StartRecording)
@@ -107,9 +107,6 @@ internal fun UserInput(
                 }
             },
             onVoiceCancel = {
-                onMicEvent(MicEvent.StopRecording(isCancelled = true, isError = false))
-            },
-            onVoiceConfirm = {
                 onMicEvent(MicEvent.StopRecording(isCancelled = false, isError = false))
             },
             onSend = onSend,

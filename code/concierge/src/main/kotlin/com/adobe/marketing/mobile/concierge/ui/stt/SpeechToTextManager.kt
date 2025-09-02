@@ -29,6 +29,7 @@ import com.adobe.marketing.mobile.services.Log
  * @param context The application context
  * @param onSpeechStarted Callback invoked when speech input starts
  * @param onSpeechEnded Callback invoked when speech input ends
+ * @param onPartialTranscription Callback invoked with partial transcription results during recording
  * @param onTranscriptionResult Callback invoked with the transcribed text result
  * @param onSpeechError Callback invoked with error code if speech recognition fails
  */
@@ -36,10 +37,13 @@ internal class SpeechToTextManager(
     private val context: Context,
     val onSpeechStarted: () -> Unit = {},
     val onSpeechEnded: () -> Unit = {},
+    val onPartialTranscription: (partialText: String) -> Unit = {},
     val onTranscriptionResult: (transcription: String) -> Unit = {},
-    val onSpeechError: (recognitionError: Int) -> Unit = {},
+    val onSpeechError: (recognitionError: Int) -> Unit = {}) {
+    companion object {
+        private const val TAG = "SpeechToTextManager"
+    }
 
-    ) {
     private var speechRecognizer: SpeechRecognizer? = null
 
     private val _isAvailable = mutableStateOf<Boolean>(false)
@@ -74,7 +78,7 @@ internal class SpeechToTextManager(
         override fun onError(error: Int) {
             Log.error(
                 ConciergeConstants.EXTENSION_NAME,
-                "SpeechRecognizer",
+                TAG,
                 "Speech recognition error: $error"
             )
             when (error) {
@@ -91,16 +95,38 @@ internal class SpeechToTextManager(
         override fun onResults(results: Bundle?) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
-                "SpeechRecognizer",
+                TAG,
                 "Speech recognition results received"
             )
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             matches?.firstOrNull()?.let { text ->
                 onTranscriptionResult(text)
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Final transcription: $text"
+                )
+            } ?: run {
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "No final transcription results found"
+                )
             }
         }
 
-        override fun onPartialResults(partialResults: Bundle?) {}
+        override fun onPartialResults(partialResults: Bundle?) {
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Speech recognition partial results received"
+            )
+            val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            matches?.firstOrNull()?.let { partialText ->
+                onPartialTranscription(partialText)
+            }
+        }
+
         override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 

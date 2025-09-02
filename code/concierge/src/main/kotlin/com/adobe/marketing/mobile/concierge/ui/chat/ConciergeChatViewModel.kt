@@ -74,10 +74,13 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     private val speechToTextManager = SpeechToTextManager(
         context = getApplication<Application>(),
         onSpeechStarted = {
-            _inputState.update { UserInputState.Recording }
+            _inputState.update { UserInputState.Recording("") }
         },
         onSpeechEnded = {
-            _inputState.update { UserInputState.Transcribing }
+            //_inputState.update { UserInputState.Transcribing() }
+        },
+        onPartialTranscription = { partialText ->
+            handlePartialTranscription(partialText)
         },
         onTranscriptionResult = { transcription ->
             handleTranscriptionResult(transcription)
@@ -115,17 +118,28 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
             is MicEvent.StopRecording -> {
                 stopSpeechRecognition()
+                // Immediately transition UI state based on current partial text
+                val currentState = _inputState.value
+                if (currentState is UserInputState.Recording) {
+                    if (currentState.transcription.isNotBlank()) {
+                        // If we have partial text, transition to Editing state
+                        _inputState.update { UserInputState.Editing(currentState.transcription) }
+                    } else {
+                        // If no partial text, go back to Empty
+                        _inputState.update { UserInputState.Empty }
+                    }
+                }
             }
         }
     }
 
     /**
      * Called when the text input state changes (e.g. user types or deletes text)
-     * @param hasContent True if there is text content, false if empty
+     * @param currentText The current text content being edited
      */
-    internal fun onTextStateChanged(hasContent: Boolean) {
-        _inputState.value = if (hasContent) {
-            UserInputState.Editing()  // Empty content for manual typing
+    internal fun onTextStateChanged(currentText: String) {
+        _inputState.value = if (currentText.isNotEmpty()) {
+            UserInputState.Editing(currentText)
         } else {
             UserInputState.Empty
         }
@@ -308,13 +322,27 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /**
+     * Handles partial transcription results during recording
+     * @param partialText The partial transcribed text
+     */
+    private fun handlePartialTranscription(partialText: String) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handlePartialTranscription: partialText='$partialText'")
+        _inputState.update { UserInputState.Recording(partialText) }
+    }
+
+    /**
      * Handles the result of speech transcription
      * @param transcription The transcribed text
      */
     private fun handleTranscriptionResult(transcription: String) {
+        val currentState = _inputState.value
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleTranscriptionResult: transcription='$transcription', currentState=$currentState")
+
         if (transcription.isNotBlank()) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Transitioning to Editing state with transcription: '$transcription'")
             _inputState.update { UserInputState.Editing(transcription) }
         } else {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Transitioning to Empty state (blank transcription)")
             _inputState.update { UserInputState.Empty }
         }
     }

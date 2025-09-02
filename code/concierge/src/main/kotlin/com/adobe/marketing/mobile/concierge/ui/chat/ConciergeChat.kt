@@ -57,7 +57,7 @@ fun ConciergeChat(
         errorMessage = errorMessage,
         inputState = inputState,
         hasAudioPermission = hasAudioPermission,
-        onTextStateChanged = viewModel::onTextStateChanged,
+        onTextChanged = viewModel::onTextStateChanged,
         onEvent = viewModel::processEvent,
         onPermissionResult = { granted ->
             viewModel.refreshPermissionStatus()
@@ -73,7 +73,7 @@ internal fun ConciergeChat(
     errorMessage: String?,
     inputState: UserInputState,
     hasAudioPermission: Boolean,
-    onTextStateChanged: (Boolean) -> Unit,
+    onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit
@@ -110,7 +110,7 @@ internal fun ConciergeChat(
             // User input
             UserInput(
                 inputState = inputState,
-                onContentAvailabilityChange = onTextStateChanged,
+                onTextChange = onTextChanged,
                 isProcessing = isProcessing,
                 hasAudioPermission = hasAudioPermission,
                 onSend = { text ->

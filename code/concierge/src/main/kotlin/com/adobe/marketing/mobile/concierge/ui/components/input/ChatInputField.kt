@@ -28,18 +28,18 @@ import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 
 /**
- * A composable chat input coordinator that manages the display of different input panels.
- * Shows VoiceRecordingPanel during recording/transcribing states, otherwise shows ChatInputPanel.
+ * A composable chat input coordinator that manages text input and voice recording.
+ * Always shows ChatInputPanel which adapts its UI based on the current input state.
+ * During recording, streams partial transcription results directly to the text field.
  *
  * @param modifier Modifier for the composable
  * @param placeholder Placeholder text for the input field
  * @param enable Whether the input field is enabled
  * @param inputState The current state of user input (contains transcribed text if available)
- * @param onContentAvailabilityChanged Callback when content availability changes (non-empty/empty)
+ * @param onTextChange Callback when text content changes
  * @param onMicPressed Callback when microphone button is pressed
  * @param onSend Callback when a message is created
- * @param onVoiceCancel Callback when voice recording is cancelled (X button)
- * @param onVoiceConfirm Callback when voice recording is confirmed (✓ button)
+ * @param onVoiceCancel Callback when voice recording is cancelled/stopped
  */
 @Composable
 internal fun ChatInputField(
@@ -48,24 +48,30 @@ internal fun ChatInputField(
     enable: Boolean = true,
     inputState: UserInputState = UserInputState.Empty,
     isProcessing: Boolean = false,
-    onContentAvailabilityChanged: (available: Boolean) -> Unit,
+    onTextChange: (String) -> Unit,
     onMicPressed: () -> Unit,
     onSend: (String) -> Unit,
-    onVoiceCancel: () -> Unit,
-    onVoiceConfirm: () -> Unit
+    onVoiceCancel: () -> Unit
 ) {
     // Local text state to manage input field content
     var text by remember { mutableStateOf("") }
 
-    // Update local text state when inputState changes to Editing with non-empty content
+    // Update local text state when inputState changes (for voice transcription)
     LaunchedEffect(inputState) {
-        if (inputState is UserInputState.Editing && inputState.content.isNotEmpty()) {
-            val wasEmpty = text.isBlank()
-            text += inputState.content
-
-            // Notify parent about content availability change
-            if (wasEmpty && inputState.content.isNotBlank()) {
-                onContentAvailabilityChanged(true)
+        when (inputState) {
+            is UserInputState.Recording -> {
+                // Stream partial transcription results directly to text field
+                if (text != inputState.transcription) {
+                    text = inputState.transcription
+                    // No need to notify parent - they already know about this content
+                }
+            }
+            is UserInputState.Editing -> {
+                // Final transcription result
+                if (inputState.content.isNotEmpty() && text != inputState.content) {
+                    text = inputState.content
+                    // No need to notify parent - they already know about this content
+                }
             }
         }
     }
@@ -75,40 +81,28 @@ internal fun ChatInputField(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        when (inputState) {
-            is UserInputState.Empty, is UserInputState.Editing, is UserInputState.Error -> {
-                ChatInputPanel(
-                    text = text,
-                    onTextChange = { newText ->
-                        val wasEmpty = text.isBlank()
-                        val willBeEmpty = newText.isBlank()
-                        text = newText
-
-                        // Only notify parent when empty/non-empty state changes
-                        if (wasEmpty != willBeEmpty) {
-                            onContentAvailabilityChanged(!willBeEmpty)
-                        }
-                    },
-                    placeholder = placeholder,
-                    enable = enable,
-                    inputState = inputState,
-                    isProcessing = isProcessing,
-                    onMicPressed = onMicPressed,
-                    onSend = { sentText ->
-                        onSend(sentText)
-                        text = ""
-                        onContentAvailabilityChanged(false)
-                    }
-                )
-            }
-
-            is UserInputState.Recording, is UserInputState.Transcribing -> {
-                VoiceRecordingPanel(
-                    inputState = inputState,
-                    onCancel = onVoiceCancel,
-                    onConfirm = onVoiceConfirm
-                )
-            }
-        }
+        // Always show ChatInputPanel - no more separate VoiceRecordingPanel
+        ChatInputPanel(
+            text = text,
+            onTextChange = { newText ->
+                // Only allow text changes during Empty/Editing states (not during Recording)
+                if (inputState !is UserInputState.Recording) {
+                    text = newText
+                    // Always notify parent about text changes
+                    onTextChange(newText)
+                }
+            },
+            placeholder = placeholder,
+            enable = enable && inputState !is UserInputState.Recording,
+            inputState = inputState,
+            isProcessing = isProcessing,
+            onMicPressed = onMicPressed,
+            onSend = { sentText ->
+                onSend(sentText)
+                text = ""
+                onTextChange("")
+            },
+            onVoiceCancel = onVoiceCancel
+        )
     }
 }
