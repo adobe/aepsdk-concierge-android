@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,7 +51,7 @@ internal fun ChatTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.padding(horizontal = 8.dp),
+        modifier = modifier.animateContentSize().padding(horizontal = 8.dp),
         placeholder = {
             Text(
                 text = placeholder,

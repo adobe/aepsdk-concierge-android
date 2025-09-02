@@ -12,6 +12,15 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.PathEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,18 +30,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.StopCircle
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 /**
@@ -46,6 +59,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
  * @param inputState The current state of user input (e.g. Empty, Editing)
  * @param onMicPressed Callback when the microphone button is pressed
  * @param onSend Callback when a send button is pressed with non-empty text
+ * @param borderColors List of colors for the animated border gradient
  */
 @Composable
 internal fun ChatInputPanel(
@@ -58,78 +72,120 @@ internal fun ChatInputPanel(
     inputState: UserInputState = UserInputState.Empty,
     onMicPressed: () -> Unit,
     onSend: (String) -> Unit,
-    onVoiceCancel: (() -> Unit)? = null
+    onVoiceCancel: (() -> Unit)? = null,
+    borderColors: List<Color> = emptyList()
 ) {
     // Static pulse value for mic button
     val waveformPulse = remember { 1.0f }
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.onPrimary
+    // Animated border rotation
+    val infiniteTransition = rememberInfiniteTransition()
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
         )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ChatTextField(
-                modifier = Modifier.weight(1f),
-                value = text,
-                onValueChange = onTextChange,
-                isEnabled = enable,
-                placeholder = if (inputState is UserInputState.Recording) "Listening..." else placeholder
-            )
+    )
 
-            // Show different buttons based on state
-            when (inputState) {
-                is UserInputState.Recording -> {
-                    // During recording, transform mic button to cancel button
-                    IconButton(
-                        onClick = { onVoiceCancel?.invoke() },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.StopCircle,
-                            contentDescription = "Stop recording",
-                            tint = MaterialTheme.colorScheme.primary
+    val brush = if (inputState is UserInputState.Recording) Brush.sweepGradient(
+        listOf(
+            Color(0xFF2196F3), // Blue
+            Color.White,
+            Color.White,
+            Color(0xFF2196F3)  // Blue again to complete the loop
+        )
+    ) else Brush.sweepGradient(listOf(Color.Transparent))
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .clipToBounds()
+                .fillMaxWidth()
+                .padding(2.dp)
+                .let { baseModifier ->
+                    if (inputState is UserInputState.Recording) {
+                        baseModifier.drawWithContent {
+                            rotate(angle) {
+                                drawCircle(
+                                    brush = brush,
+                                    radius = size.width,
+                                    blendMode = BlendMode.SrcIn,
+                                )
+                            }
+                            drawContent()
+                        }
+                    } else {
+                        baseModifier
+                    }
+                },
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ChatTextField(
+                    modifier = Modifier.weight(1f),
+                    value = text,
+                    onValueChange = onTextChange,
+                    isEnabled = enable,
+                    placeholder = if (inputState is UserInputState.Recording) "Listening..." else placeholder
+                )
+
+                // Show different buttons based on state
+                when (inputState) {
+                    is UserInputState.Recording -> {
+                        // During recording, transform mic button to cancel button
+                        IconButton(
+                            onClick = { onVoiceCancel?.invoke() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.StopCircle,
+                                contentDescription = "Stop recording",
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Send button remains but is disabled during recording
+                        SendButton(
+                            modifier = Modifier.size(24.dp),
+                            isEnabled = false, // Disabled during recording
+                            onSend = { /* No-op during recording */ }
                         )
                     }
+                    else -> {
+                        // Normal state - show mic and send buttons
+                        MicButton(
+                            modifier = Modifier.size(24.dp),
+                            userInputState = inputState,
+                            isEnabled = enable,
+                            waveformPulse = waveformPulse,
+                            onClick = onMicPressed
+                        )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                    // Send button remains but is disabled during recording
-                    SendButton(
-                        modifier = Modifier.size(24.dp),
-                        isEnabled = false, // Disabled during recording
-                        onSend = { /* No-op during recording */ }
-                    )
-                }
-                else -> {
-                    // Normal state - show mic and send buttons
-                    MicButton(
-                        modifier = Modifier.size(24.dp),
-                        userInputState = inputState,
-                        isEnabled = enable,
-                        waveformPulse = waveformPulse,
-                        onClick = onMicPressed
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    SendButton(
-                        modifier = Modifier.size(24.dp),
-                        isEnabled = text.isNotBlank() && !isProcessing,
-                        onSend = {
-                            if (text.isNotBlank()) {
-                                onSend(text)
+                        SendButton(
+                            modifier = Modifier.size(24.dp),
+                            isEnabled = text.isNotBlank() && !isProcessing,
+                            onSend = {
+                                if (text.isNotBlank()) {
+                                    onSend(text)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }

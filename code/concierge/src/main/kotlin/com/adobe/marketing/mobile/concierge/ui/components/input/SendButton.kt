@@ -51,7 +51,7 @@ internal fun SendButton(
                 if (isEnabled) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.surfaceDim
+                    MaterialTheme.colorScheme.primary.copy(0.3f)
                 }
             )
         )
