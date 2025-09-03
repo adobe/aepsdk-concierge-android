@@ -58,25 +58,28 @@ internal fun ChatMessageItem(
                     .fillMaxWidth()
                     .padding(12.dp)
             ) {
-                // Message text
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (message.isFromUser) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-
-                // If the message is from the assistant and has citations, show the footer
-                if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    ChatFooter(
-                        citations = message.citations,
-                        interactionId = message.interactionId,
-                        onFeedback = onFeedback
+                // Use ConciergeResponse composable for response messages to support markdown formatting
+                if (message.isFromUser) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
+                } else {
+                    ConciergeResponse(
+                        text = message.text,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // If the message has citations show the footer
+                    if (!message.citations.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        ChatFooter(
+                            citations = message.citations,
+                            interactionId = message.interactionId,
+                            onFeedback = onFeedback
+                        )
+                    }
                 }
 
                 // Sender label

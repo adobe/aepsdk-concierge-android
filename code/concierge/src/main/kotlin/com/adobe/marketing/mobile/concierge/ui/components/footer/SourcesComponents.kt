@@ -33,7 +33,6 @@ internal fun SourcesAccordionButton(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit
 ) {
-    // Sources button - always visible for alignment
     TextButton(
         onClick = { 
             onExpandedChange(!expanded)

@@ -38,7 +38,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 class ConciergeChatViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
@@ -158,7 +157,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
         // TODO: Implement Edge send event with interaction ID in XDM
         // Edge.sendEvent(...)
         // For now, just log the feedback
-        Log.debug(LOG_TAG, "handleFeedback", "Received feedback: $feedbackType for interactionId: $interactionId")
+        Log.debug(TAG, "handleFeedback", "Received feedback: $feedbackType for interactionId: $interactionId")
     }
 
     /**

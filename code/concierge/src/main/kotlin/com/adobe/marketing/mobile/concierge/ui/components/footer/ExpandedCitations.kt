@@ -55,10 +55,7 @@ internal fun ExpandedCitations(
             enter = expandVertically(animationSpec = tween(200)),
             exit = shrinkVertically(animationSpec = tween(200))
         ) {
-            Column(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column {
                 citations.forEachIndexed { index, citation ->
                     CitationItem(
                         citation = citation,
