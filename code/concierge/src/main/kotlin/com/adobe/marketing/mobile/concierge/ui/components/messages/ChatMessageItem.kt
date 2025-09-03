@@ -48,16 +48,20 @@ internal fun ChatMessageItem(message: ChatMessage) {
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Text(
-                text = message.text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (message.isFromUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-
+            // Use ConciergeResponse composable for response messages to support markdown formatting
+            if (message.isFromUser) {
+                Text(
+                    text = message.text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            } else {
+                ConciergeResponse(
+                    text = message.text,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        
             Text(
                 text = if (message.isFromUser) "You" else "Assistant",
                 style = MaterialTheme.typography.bodySmall,
