@@ -19,6 +19,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -27,6 +30,9 @@ import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
 import com.adobe.marketing.mobile.services.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,9 +41,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 class ConciergeChatViewModel(application: Application) : AndroidViewModel(application) {
-
     companion object {
-        private const val LOG_TAG = "ConciergeChatViewModel"
+        private const val TAG = "ConciergeChatViewModel"
     }
 
     /**
@@ -61,6 +66,10 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      */
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+
+    private val networkScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val chatService : ConciergeConversationServiceClient = ConciergeConversationServiceClient()
 
     // Speech to text manager
     private val speechToTextManager = SpeechToTextManager(
@@ -191,9 +200,6 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
 
-        // Reset input state after sending (text clearing is handled in ChatInputField)
-        _inputState.update { UserInputState.Empty }
-
         // Add user message to the list
         val userMessage = ChatMessage(
             text = messageText,
@@ -204,38 +210,124 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
         _messages.update { currentMessages ->
             currentMessages + userMessage
         }
+        // Reset input state after sending (text clearing is handled in ChatInputField)
+        _inputState.update { UserInputState.Empty }
 
         // Transition to processing state
         _state.update {
             ChatScreenState.Processing(messageText)
         }
 
-        // Simulate processing and response (replace with actual API call)
+        // Start the conversation stream from the API
+        initiateConversation(messageText)
+    }
+    
+    /**
+     * Handles the streaming conversation response from the API
+     * @param messageText The original user message
+     */
+    private fun initiateConversation(messageText: String) {
         viewModelScope.launch {
-            try {
-                // Simulate 1 second API delay
-                delay(1000)
+            var assistantMessage: ChatMessage
+            val contentBuilder = StringBuilder()
 
-                val assistantMessage = ChatMessage(
-                    text = "User input: $messageText",
+            try {
+                // Create initial empty assistant message once the stream begins
+                assistantMessage = ChatMessage(
+                    text = "",
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
                     citations = generateRandomCitations(),
                     interactionId = "sample-interaction-${System.currentTimeMillis()}"
                 )
+                _messages.update { currentMessages -> currentMessages + assistantMessage }
 
-                _messages.update { currentMessages ->
-                    currentMessages + assistantMessage
-                }
-
-                // Return to idle state after processing
-                _state.update {
-                    ChatScreenState.Idle("")
+                chatService.chat(messageText).collect { parsedMessage ->
+                    onParsedMessage(parsedMessage, contentBuilder)
                 }
             } catch (e: Exception) {
-                // Handle any errors during processing
-                handleProcessingError("Failed to process message: ${e.message}")
+                Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Error processing conversation : ${e.message}")
+                handleConversationError("Failed to process response: ${e.message}")
             }
+        }
+    }
+    
+    /**
+     * Handles parsed event data by extracting conversation messages and updating the UI
+     * @param jsonData The raw JSON data from the SSE event
+     * @param contentBuilder StringBuilder tracking the full content
+     */
+    private fun onParsedMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Parsed message: ${parsedMessage.messageContent}, state: ${parsedMessage.state}"
+        )
+
+        when (parsedMessage.state) {
+            ConversationState.IN_PROGRESS -> {
+                appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
+            }
+            ConversationState.COMPLETED -> {
+                // Finalize the assistant message with the complete content
+                // and change state to Idle
+                contentBuilder.clear()
+                _state.update { ChatScreenState.Idle("") }
+            }
+            ConversationState.ERROR -> {
+                handleConversationError("Conversation error: ${parsedMessage.messageContent}")
+            }
+            else -> appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
+        }
+    }
+    
+    /**
+     * Appends new content to the assistant message
+     * @param newContent The new content to append
+     * @param contentBuilder StringBuilder tracking the full content
+     */
+    private fun appendToAssistantMessage(newContent: String, contentBuilder: StringBuilder) {
+        if (newContent.isNotBlank()) {
+            contentBuilder.append(newContent)
+            updateAssistantMessageText(contentBuilder.toString())
+        }
+    }
+
+    /**
+     * Updates the assistant message text in the UI
+     * @param text The new text content for the assistant message
+     */
+    private fun updateAssistantMessageText(text: String) {
+        _messages.update { currentMessages ->
+            currentMessages.mapIndexed { index, message ->
+                if (index == currentMessages.lastIndex && !message.isFromUser) {
+                    message.copy(text = text)
+                } else {
+                    message
+                }
+            }
+        }
+    }
+    
+    /**
+     * Handles errors during conversation
+     * @param errorMessage The error message to display
+     */
+    private fun handleConversationError(errorMessage: String) {
+        // Add error message to chat
+        val errorChatMessage = ChatMessage(
+            text = "Sorry, I encountered an error: $errorMessage",
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        
+        _messages.update { currentMessages ->
+            currentMessages + errorChatMessage
+        }
+        
+        // Return to idle state
+        _state.update {
+            ChatScreenState.Idle("")
         }
     }
 
@@ -296,5 +388,6 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     override fun onCleared() {
         super.onCleared()
         speechToTextManager.release()
+        chatService.cleanup()
     }
 }
