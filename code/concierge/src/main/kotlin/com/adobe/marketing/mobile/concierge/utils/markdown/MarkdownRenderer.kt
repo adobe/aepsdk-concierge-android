@@ -131,9 +131,32 @@ internal object MarkdownRenderer {
     private fun renderList(token: MarkdownToken, builder: AnnotatedString.Builder) {
         val listItem = token.groups[0]
         builder.append("• ")
+        renderNestedMarkdown(listItem, builder)
+    }
+    
+    private fun renderBlockquote(token: MarkdownToken, builder: AnnotatedString.Builder) {
+        val quoteText = token.groups[0]
         
-        // Handle markdown within the list item
-        val nestedTokens = MarkdownTokenizer.tokenize(listItem)
+        renderNestedMarkdown(quoteText, builder) { text, _, _ ->
+            val styleStart = builder.length
+            builder.append(text)
+            builder.addStyle(MarkdownStyles.blockquoteStyle(), styleStart, builder.length)
+        }
+    }
+    
+    /**
+     * Renders content with nested markdown support.
+     * 
+     * @param content The content to render
+     * @param builder The AnnotatedString builder
+     * @param textRenderer Optional function to render plain text with custom styling
+     */
+    private fun renderNestedMarkdown(
+        content: String, 
+        builder: AnnotatedString.Builder,
+        textRenderer: ((String, Int, Int) -> Unit)? = null
+    ) {
+        val nestedTokens = MarkdownTokenizer.tokenize(content)
         var currentIndex = 0
         
         nestedTokens.forEach { nestedToken ->
@@ -141,7 +164,12 @@ internal object MarkdownRenderer {
             
             // Append text before the nested token
             if (nestedToken.start > currentIndex) {
-                builder.append(listItem.substring(currentIndex, nestedToken.start))
+                val textBefore = content.substring(currentIndex, nestedToken.start)
+                if (textRenderer != null) {
+                    textRenderer(textBefore, currentIndex, nestedToken.start)
+                } else {
+                    builder.append(textBefore)
+                }
             }
             
             // Render the nested token
@@ -150,17 +178,13 @@ internal object MarkdownRenderer {
         }
         
         // Append any remaining text
-        if (currentIndex < listItem.length) {
-            builder.append(listItem.substring(currentIndex))
+        if (currentIndex < content.length) {
+            val remainingText = content.substring(currentIndex)
+            if (textRenderer != null) {
+                textRenderer(remainingText, currentIndex, content.length)
+            } else {
+                builder.append(remainingText)
+            }
         }
-    }
-    
-    private fun renderBlockquote(token: MarkdownToken, builder: AnnotatedString.Builder) {
-        val quoteText = token.groups[0]
-        val styleStart = builder.length
-        
-        builder.append(quoteText)
-        builder.addStyle(MarkdownStyles.blockquoteStyle(), styleStart, builder.length)
-        builder.append("\n")
     }
 }

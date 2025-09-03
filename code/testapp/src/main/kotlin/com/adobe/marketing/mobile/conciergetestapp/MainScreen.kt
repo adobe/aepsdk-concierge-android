@@ -25,9 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,19 +37,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
-import com.adobe.marketing.mobile.conciergetestapp.ui.MarkdownDemoScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenWrapper() {
     val showChat = rememberSaveable { mutableStateOf(false) }
-    val showMarkdownDemo = rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Main screen with chat button
         MainScreen(
-            onStartChat = { showChat.value = true },
-            onShowMarkdownDemo = { showMarkdownDemo.value = true }
+            onStartChat = { showChat.value = true }
         )
 
         if (showChat.value) {
@@ -60,32 +55,12 @@ fun MainScreenWrapper() {
                 onClose = { showChat.value = false },
             )
         }
-
-        // Markdown demo modal sheet
-        if (showMarkdownDemo.value) {
-            ModalBottomSheet(
-                onDismissRequest = { showMarkdownDemo.value = false },
-                sheetState = rememberModalBottomSheetState(
-                    skipPartiallyExpanded = true
-                ),
-                containerColor = Color.White,
-                dragHandle = null,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                MarkdownDemoScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onClose = { showMarkdownDemo.value = false }
-                )
-            }
-        }
     }
 }
 
 @Composable
 fun MainScreen(
-    onStartChat: () -> Unit,
-    onShowMarkdownDemo: () -> Unit
-) {
+    onStartChat: () -> Unit) {
     val context = LocalContext.current
     
     Box(
@@ -151,27 +126,6 @@ fun MainScreen(
             ) {
                 Text(
                     text = "📝 XML Integration",
-                    fontSize = 16.sp,
-                    color = Color.White
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Markdown demo button
-            Button(
-                onClick = {
-                    onShowMarkdownDemo()
-                },
-                modifier = Modifier
-                    .size(width = 200.dp, height = 60.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF44336)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "📝 Markdown Demo",
                     fontSize = 16.sp,
                     color = Color.White
                 )

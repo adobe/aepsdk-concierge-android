@@ -23,8 +23,9 @@ internal object MarkdownTokenizer {
     /**
      * Tokenizes the given markdown string into a list of [MarkdownToken] objects.
      *
-     * The order of pattern matching is important to avoid conflicts, especially with links.
-     * Links are processed first to ensure they are not broken up by other patterns.
+     * Uses a priority-based approach to handle nested markdown properly:
+     * 1. First processes block-level elements (code blocks, headings, lists, blockquotes)
+     * 2. Then processes inline elements (links, bold, italic, inline code) within those blocks
      *
      * @param markdown The markdown string to tokenize.
      * @return A list of [MarkdownToken] objects representing the parsed tokens.
@@ -32,33 +33,28 @@ internal object MarkdownTokenizer {
     fun tokenize(markdown: String): List<MarkdownToken> {
         val tokens = mutableListOf<MarkdownToken>()
         
-        // First, find all links
-        val linkPattern = """\[(.*?)\]\((.*?)\)""".toRegex()
-        linkPattern.findAll(markdown).forEach { result ->
-            val matchedGroups = (1..result.groups.size - 1)
-                .map { i -> result.groups[i]?.value ?: "" }
-            
-            tokens += MarkdownToken(
-                type = TokenType.LINK,
-                start = result.range.first,
-                end = result.range.last + 1,
-                groups = matchedGroups
-            )
-        }
-        
-        // Then find other patterns, but skip if they overlap with existing tokens
-        val otherPatterns = mapOf(
+        // Process block-level elements first (these have higher priority)
+        val blockPatterns = mapOf(
             TokenType.CODE_BLOCK to """```([\s\S]*?)```""".toRegex(),
-            TokenType.INLINE_CODE to """`(.*?)`""".toRegex(),
             TokenType.HEADING to """^(#{1,2})\s*(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.LIST to """^- (.*)""".toRegex(RegexOption.MULTILINE),
-            TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE),
+            TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE)
+        )
+        
+        blockPatterns.forEach { (type, pattern) ->
+            addMatchesIfNoOverlap(markdown, pattern, type, tokens)
+        }
+        
+        // Process inline elements, allowing them to be nested within block elements
+        val inlinePatterns = mapOf(
+            TokenType.LINK to """\[(.*?)\]\((.*?)\)""".toRegex(),
+            TokenType.INLINE_CODE to """`(.*?)`""".toRegex(),
             TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex(),
             TokenType.ITALIC to """\*(.*?)\*""".toRegex()
         )
         
-        otherPatterns.forEach { (type, pattern) ->
-            addMatchesIfNoOverlap(markdown, pattern, type, tokens)
+        inlinePatterns.forEach { (type, pattern) ->
+            addInlineMatches(markdown, pattern, type, tokens)
         }
         
         val sortedTokens = tokens.sortedBy { it.start }
@@ -90,6 +86,33 @@ internal object MarkdownTokenizer {
             }
             
             if (!hasOverlap) {
+                tokens += newToken
+            }
+        }
+    }
+    
+    private fun addInlineMatches(
+        markdown: String, 
+        pattern: Regex, 
+        type: TokenType, 
+        tokens: MutableList<MarkdownToken>
+    ) {
+        pattern.findAll(markdown).forEach { result ->
+            val newToken = MarkdownToken(
+                type = type,
+                start = result.range.first,
+                end = result.range.last + 1,
+                groups = (1..result.groups.size - 1).map { i -> result.groups[i]?.value ?: "" }
+            )
+            
+            // For inline elements, allow them to be nested within block elements
+            // but prevent them from overlapping with other inline elements
+            val hasInlineOverlap = tokens.any { existing ->
+                val isInlineElement = existing.type in listOf(TokenType.LINK, TokenType.INLINE_CODE, TokenType.BOLD, TokenType.ITALIC)
+                isInlineElement && (newToken.start < existing.end && newToken.end > existing.start)
+            }
+            
+            if (!hasInlineOverlap) {
                 tokens += newToken
             }
         }

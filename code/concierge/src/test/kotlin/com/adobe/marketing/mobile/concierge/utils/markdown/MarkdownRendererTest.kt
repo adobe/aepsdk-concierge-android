@@ -177,8 +177,40 @@ class MarkdownRendererTest {
         
         val result = MarkdownRenderer.render(markdown, tokens)
         
-        assertEquals("• List item\n", result.text)
+        assertEquals("• List item", result.text)
         assertEquals(0, result.spanStyles.size)
+    }
+
+    @Test
+    fun `test render list token with markdown`() {
+        val markdown = "- This is **bold** text with *italic* and `code`"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        // The list structure should be preserved
+        assertTrue("Expected text to start with '• This is', but got: '${result.text}'", result.text.startsWith("• This is"))
+        assertTrue(result.text.contains("bold"))
+        assertTrue(result.text.contains("italic"))
+        assertTrue(result.text.contains("code"))
+        
+        // Check that markdown syntax is removed
+        assertFalse(result.text.contains("**bold**"))
+        assertFalse(result.text.contains("*italic*"))
+        assertFalse(result.text.contains("`code`"))
+        
+        // Check that span styles are applied for the nested markdown
+        assertTrue(result.spanStyles.size > 0)
+        
+        // Verify specific styles are applied
+        val boldStyle = result.spanStyles.find { it.item.fontWeight == FontWeight.Bold }
+        assertNotNull("Should have bold style", boldStyle)
+        
+        val italicStyle = result.spanStyles.find { it.item.fontStyle == FontStyle.Italic }
+        assertNotNull("Should have italic style", italicStyle)
+        
+        val codeStyle = result.spanStyles.find { it.item.fontFamily == FontFamily.Monospace }
+        assertNotNull("Should have code style", codeStyle)
     }
 
     @Test
@@ -188,7 +220,7 @@ class MarkdownRendererTest {
         
         val result = MarkdownRenderer.render(markdown, tokens)
         
-        assertEquals("This is a quote\n", result.text)
+        assertEquals("This is a quote", result.text)
         assertEquals(1, result.spanStyles.size)
         
         val quoteStyle = result.spanStyles[0]
@@ -241,16 +273,15 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
         val result = MarkdownRenderer.render(markdown, tokens)
-        
-        // The tokenizer doesn't handle nested markdown, so it will only parse the outer bold
         assertTrue(result.text.contains("Bold"))
         assertTrue(result.text.contains("italic"))
         assertTrue(result.text.contains("text"))
-        assertEquals(1, result.spanStyles.size)
+        assertTrue("Should have at least one span style", result.spanStyles.size >= 1)
         
-        val boldStyle = result.spanStyles[0]
-        assertEquals(FontWeight.Bold, boldStyle.item.fontWeight)
-        assertTrue(boldStyle.start >= 0)
+        // Verify that bold styling is applied
+        val boldStyle = result.spanStyles.find { it.item.fontWeight == FontWeight.Bold }
+        assertNotNull("Should have bold style applied", boldStyle)
+        assertTrue(boldStyle!!.start >= 0)
         assertTrue(boldStyle.end > boldStyle.start)
     }
 

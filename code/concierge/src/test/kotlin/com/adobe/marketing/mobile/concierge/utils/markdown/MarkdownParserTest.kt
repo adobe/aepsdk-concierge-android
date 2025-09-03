@@ -92,7 +92,7 @@ class MarkdownParserTest {
         
         val result = MarkdownParser.parse(markdown)
         
-        // Check that list structure is preserved
+        // Check that list structure is preserved with bullet points
         assertTrue(result.text.contains("• This is"))
         assertTrue(result.text.contains("• This item has"))
         
@@ -114,6 +114,55 @@ class MarkdownParserTest {
         assertEquals("https://example.com", annotations[0].item)
         
         // Check that span styles are applied (bold, italic, code)
+        assertTrue(result.spanStyles.size > 0)
+    }
+
+    @Test
+    fun `test complex nested markdown`() {
+        val markdown = """
+            # Main Heading
+            
+            This is a paragraph with **bold** and *italic* text.
+            
+            - List item with `inline code`
+            - Another item with [a link](https://example.com)
+            - Item with **bold** and *italic* together
+            
+            > This is a blockquote with **bold** text
+            
+            ## Sub Heading
+            
+            More content here.
+        """.trimIndent()
+        
+        val result = MarkdownParser.parse(markdown)
+        
+        // Check that all elements are properly processed
+        assertTrue(result.text.contains("Main Heading"))
+        assertTrue(result.text.contains("Sub Heading"))
+        assertTrue(result.text.contains("• List item with"))
+        assertTrue(result.text.contains("• Another item with"))
+        assertTrue(result.text.contains("• Item with"))
+        assertTrue(result.text.contains("This is a blockquote with"))
+        
+        // Check that nested markdown is processed
+        assertTrue(result.text.contains("bold"))
+        assertTrue(result.text.contains("italic"))
+        assertTrue(result.text.contains("inline code"))
+        assertTrue(result.text.contains("a link"))
+        
+        // Check that markdown syntax is removed
+        assertFalse("Found **bold** in result: '${result.text}'", result.text.contains("**bold**"))
+        assertFalse("Found *italic* in result: '${result.text}'", result.text.contains("*italic*"))
+        assertFalse("Found `inline code` in result: '${result.text}'", result.text.contains("`inline code`"))
+        assertFalse("Found [a link]( in result: '${result.text}'", result.text.contains("[a link]("))
+        
+        // Check that URL annotations are added
+        val annotations = result.getStringAnnotations("URL", 0, result.length)
+        assertFalse(annotations.isEmpty())
+        assertEquals("https://example.com", annotations[0].item)
+        
+        // Check that span styles are applied
         assertTrue(result.spanStyles.size > 0)
     }
 
