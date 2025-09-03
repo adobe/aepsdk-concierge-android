@@ -22,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 
@@ -36,12 +38,12 @@ internal fun ChatMessageItem(message: ChatMessage) {
             .padding(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (message.isFromUser) {
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.surfaceVariant
+                Color.LightGray.copy(alpha = 0.3f)
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
@@ -61,17 +63,6 @@ internal fun ChatMessageItem(message: ChatMessage) {
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-        
-            Text(
-                text = if (message.isFromUser) "You" else "Assistant",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (message.isFromUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                },
-                modifier = Modifier.align(Alignment.BottomEnd)
-            )
         }
     }
 }

@@ -66,8 +66,6 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-
-    private val networkScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val chatService : ConciergeConversationServiceClient = ConciergeConversationServiceClient()
 
     // Speech to text manager
