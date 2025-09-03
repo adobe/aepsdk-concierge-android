@@ -44,7 +44,7 @@ fun ConciergeResponse(
         text = annotatedString,
         modifier = modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
+            .pointerInput(annotatedString) {
                 detectTapGestures { tapOffsetPosition ->
                     val layoutResult = textLayoutResult ?: return@detectTapGestures
                     val position = layoutResult.getOffsetForPosition(tapOffsetPosition)
