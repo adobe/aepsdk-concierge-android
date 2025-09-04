@@ -12,15 +12,12 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.PathEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -164,6 +161,7 @@ internal fun ChatInputPanel(
                             onSend = { /* No-op during recording */ }
                         )
                     }
+
                     else -> {
                         // Normal state - show mic and send buttons
                         MicButton(

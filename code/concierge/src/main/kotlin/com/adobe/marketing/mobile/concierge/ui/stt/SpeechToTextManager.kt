@@ -39,7 +39,8 @@ internal class SpeechToTextManager(
     val onSpeechEnded: () -> Unit = {},
     val onPartialTranscription: (partialText: String) -> Unit = {},
     val onTranscriptionResult: (transcription: String) -> Unit = {},
-    val onSpeechError: (recognitionError: Int) -> Unit = {}) {
+    val onSpeechError: (recognitionError: Int) -> Unit = {}
+) {
     companion object {
         private const val TAG = "SpeechToTextManager"
     }

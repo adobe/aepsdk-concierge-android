@@ -29,9 +29,6 @@ import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
 import com.adobe.marketing.mobile.services.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,7 +45,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * Tracks the overall state of the chat flow
      */
     private val _state = MutableStateFlow<ChatScreenState>(
-        ChatScreenState.Idle("")
+        ChatScreenState.Idle
     )
     internal val state: StateFlow<ChatScreenState> = _state.asStateFlow()
 
@@ -66,7 +63,8 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private val chatService : ConciergeConversationServiceClient = ConciergeConversationServiceClient()
+    private val chatService: ConciergeConversationServiceClient =
+        ConciergeConversationServiceClient()
 
     // Speech to text manager
     private val speechToTextManager = SpeechToTextManager(
@@ -158,7 +156,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      */
     private fun handleResetChat() {
         _state.update {
-            ChatScreenState.Idle("")
+            ChatScreenState.Idle
         }
         _inputState.update { UserInputState.Empty }
     }
@@ -185,13 +183,13 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
         // Transition to processing state
         _state.update {
-            ChatScreenState.Processing(messageText)
+            ChatScreenState.Processing
         }
 
         // Start the conversation stream from the API
         initiateConversation(messageText)
     }
-    
+
     /**
      * Handles the streaming conversation response from the API
      * @param messageText The original user message
@@ -214,18 +212,25 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
                     onParsedMessage(parsedMessage, contentBuilder)
                 }
             } catch (e: Exception) {
-                Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Error processing conversation : ${e.message}")
+                Log.error(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Error processing conversation : ${e.message}"
+                )
                 handleConversationError("Failed to process response: ${e.message}")
             }
         }
     }
-    
+
     /**
      * Handles parsed event data by extracting conversation messages and updating the UI
      * @param jsonData The raw JSON data from the SSE event
      * @param contentBuilder StringBuilder tracking the full content
      */
-    private fun onParsedMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
+    private fun onParsedMessage(
+        parsedMessage: ParsedConversationMessage,
+        contentBuilder: StringBuilder
+    ) {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
@@ -236,19 +241,22 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             ConversationState.IN_PROGRESS -> {
                 appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
             }
+
             ConversationState.COMPLETED -> {
                 // Finalize the assistant message with the complete content
                 // and change state to Idle
                 contentBuilder.clear()
-                _state.update { ChatScreenState.Idle("") }
+                _state.update { ChatScreenState.Idle }
             }
+
             ConversationState.ERROR -> {
                 handleConversationError("Conversation error: ${parsedMessage.messageContent}")
             }
+
             else -> appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
         }
     }
-    
+
     /**
      * Appends new content to the assistant message
      * @param newContent The new content to append
@@ -276,7 +284,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             }
         }
     }
-    
+
     /**
      * Handles errors during conversation
      * @param errorMessage The error message to display
@@ -288,14 +296,14 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             isFromUser = false,
             timestamp = System.currentTimeMillis()
         )
-        
+
         _messages.update { currentMessages ->
             currentMessages + errorChatMessage
         }
-        
+
         // Return to idle state
         _state.update {
-            ChatScreenState.Idle("")
+            ChatScreenState.Idle
         }
     }
 
@@ -324,7 +332,11 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * @param partialText The partial transcribed text
      */
     private fun handlePartialTranscription(partialText: String) {
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handlePartialTranscription: partialText='$partialText'")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "handlePartialTranscription: partialText='$partialText'"
+        )
         _inputState.update { UserInputState.Recording(partialText) }
     }
 
@@ -334,13 +346,25 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      */
     private fun handleTranscriptionResult(transcription: String) {
         val currentState = _inputState.value
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleTranscriptionResult: transcription='$transcription', currentState=$currentState")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "handleTranscriptionResult: transcription='$transcription', currentState=$currentState"
+        )
 
         if (transcription.isNotBlank()) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Transitioning to Editing state with transcription: '$transcription'")
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Transitioning to Editing state with transcription: '$transcription'"
+            )
             _inputState.update { UserInputState.Editing(transcription) }
         } else {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Transitioning to Empty state (blank transcription)")
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Transitioning to Empty state (blank transcription)"
+            )
             _inputState.update { UserInputState.Empty }
         }
     }

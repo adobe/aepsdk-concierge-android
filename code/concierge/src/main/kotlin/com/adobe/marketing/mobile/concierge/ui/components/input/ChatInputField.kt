@@ -18,11 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
@@ -54,24 +53,28 @@ internal fun ChatInputField(
     onVoiceCancel: () -> Unit
 ) {
     // Local text state to manage input field content
-    var text by remember { mutableStateOf("") }
+    val text = remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     // Update local text state when inputState changes (for voice transcription)
     LaunchedEffect(inputState) {
         when (inputState) {
             is UserInputState.Recording -> {
                 // Stream partial transcription results directly to text field
-                if (text != inputState.transcription) {
-                    text = inputState.transcription
+                text.value = inputState.transcription
+                // No need to notify parent - they already know about this content
+            }
+
+            is UserInputState.Editing -> {
+                // Final transcription result
+                if (inputState.content.isNotEmpty()) {
+                    text.value = inputState.content
                     // No need to notify parent - they already know about this content
                 }
             }
-            is UserInputState.Editing -> {
-                // Final transcription result
-                if (inputState.content.isNotEmpty() && text != inputState.content) {
-                    text = inputState.content
-                    // No need to notify parent - they already know about this content
-                }
+
+            else -> {
+                // Do nothing for other states
             }
         }
     }
@@ -83,11 +86,11 @@ internal fun ChatInputField(
     ) {
         // Always show ChatInputPanel - no more separate VoiceRecordingPanel
         ChatInputPanel(
-            text = text,
+            text = text.value,
             onTextChange = { newText ->
                 // Only allow text changes during Empty/Editing states (not during Recording)
                 if (inputState !is UserInputState.Recording) {
-                    text = newText
+                    text.value = newText
                     // Always notify parent about text changes
                     onTextChange(newText)
                 }
@@ -99,8 +102,9 @@ internal fun ChatInputField(
             onMicPressed = onMicPressed,
             onSend = { sentText ->
                 onSend(sentText)
-                text = ""
+                text.value = ""
                 onTextChange("")
+                focusManager.clearFocus() // Dismiss keyboard after sending
             },
             onVoiceCancel = onVoiceCancel
         )

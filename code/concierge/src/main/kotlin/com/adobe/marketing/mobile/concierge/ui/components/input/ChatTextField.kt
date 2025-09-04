@@ -51,7 +51,9 @@ internal fun ChatTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.animateContentSize().padding(horizontal = 8.dp),
+        modifier = modifier
+            .animateContentSize()
+            .padding(horizontal = 8.dp),
         placeholder = {
             Text(
                 text = placeholder,
@@ -60,6 +62,7 @@ internal fun ChatTextField(
         },
         enabled = isEnabled,
         singleLine = false,
+        maxLines = 7,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done
@@ -67,7 +70,6 @@ internal fun ChatTextField(
         keyboardActions = KeyboardActions(
             onDone = {
                 focusManager.clearFocus()
-                // Do something when the user presses the send action on the keyboard
             }
         ),
         colors = OutlinedTextFieldDefaults.colors(
