@@ -28,7 +28,6 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
-import kotlin.collections.mapOf
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -46,11 +45,11 @@ internal data class ConversationConfig(
 internal class ConciergeConversationServiceClient(
     private val config: ConversationConfig = ConversationConfig()
 ) {
-    
+
     companion object {
         private const val LOG_TAG = ConciergeConstants.EXTENSION_FRIENDLY_NAME
         private const val TAG = "ConciergeConversationServiceClient"
-        
+
         private const val DEFAULT_CONNECT_TIMEOUT = 30
         private const val DEFAULT_READ_TIMEOUT = 60
     }
@@ -72,31 +71,46 @@ internal class ConciergeConversationServiceClient(
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
     fun chat(message: String): Flow<ParsedConversationMessage> = flow {
-            val requestBody = createRequestBody(message)
-            val request = createConversationServiceRequest(endpoint, requestBody)
+        val requestBody = createRequestBody(message)
+        val request = createConversationServiceRequest(endpoint, requestBody)
 
-            val connection = connect(request)
+        val connection = connect(request)
+        var eventOrDataReceived = false
 
-            processResponse(connection).collect { event ->
-                when (event) {
-                    is StreamingEvent.EventReceived -> {
-                        val parsed = TempConversationResponseParser.parseConversationData(event.data)
-                        parsed.forEach { emit(it) }
-                    }
-                    is StreamingEvent.DataReceived -> {
-                        val parsed = TempConversationResponseParser.parseConversationData(event.data)
-                        parsed.forEach { emit(it) }
-                    }
-                    is StreamingEvent.Retry -> {
-                        // TODO: Implement retry logic if needed
-                    }
-                    else -> {
-                        // ignore Started/Closed here; Error is rethrown by processResponse
+        processResponse(connection).collect { event ->
+            when (event) {
+                is StreamingEvent.EventReceived -> {
+                    val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                    eventOrDataReceived = true
+                    parsed.forEach { emit(it) }
+                }
+
+                is StreamingEvent.DataReceived -> {
+                    val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                    eventOrDataReceived = true
+                    parsed.forEach { emit(it) }
+                }
+
+                is StreamingEvent.Closed -> {
+                    // We need to emit a final COMPLETED for the case where
+                    // the stream closes without data/event indicating completion
+                    // We don't have a message to pass here, so we can use an empty string
+                    if (!eventOrDataReceived) {
+                        emit(ParsedConversationMessage("", ConversationState.COMPLETED))
                     }
                 }
+
+                is StreamingEvent.Retry -> {
+                    // TODO: Implement retry logic if needed
+                }
+
+                else -> {
+                    // ignore Started/Closed here; Error is rethrown by processResponse
+                }
             }
-        }.flowOn(Dispatchers.IO)
-    
+        }
+    }.flowOn(Dispatchers.IO)
+
     /**
      * Creates the JSON request body for the conversation request.
      */
@@ -115,7 +129,7 @@ internal class ConciergeConversationServiceClient(
             ]
         }
     """.trimIndent()
-    
+
     /**
      * Establishes the network connection asynchronously and resumes with the connection.
      *
@@ -130,13 +144,14 @@ internal class ConciergeConversationServiceClient(
                         connection == null -> continuation.resumeWithException(
                             IOException("Failed to establish connection")
                         )
+
                         continuation.isActive -> continuation.resume(connection)
                     }
                 }
             }
-            
+
             ServiceProvider.getInstance().networkService.connectAsync(request, callback)
-            
+
             continuation.invokeOnCancellation {
                 Log.debug(LOG_TAG, TAG, "Connection cancelled")
             }
@@ -200,6 +215,7 @@ internal class ConciergeConversationServiceClient(
                         is StreamingEvent.Started -> {
                             Log.trace(LOG_TAG, TAG, "Streaming connection started")
                         }
+
                         is StreamingEvent.DataReceived -> emit(event)
                         is StreamingEvent.EventReceived -> emit(event)
                         is StreamingEvent.Error -> {
@@ -207,13 +223,20 @@ internal class ConciergeConversationServiceClient(
                             connection.close()
                             throw event.exception
                         }
+
                         is StreamingEvent.Retry -> {
-                            Log.debug(LOG_TAG, TAG, "Server requested retry interval: ${event.delayMillis} ms")
+                            Log.debug(
+                                LOG_TAG,
+                                TAG,
+                                "Server requested retry interval: ${event.delayMillis} ms"
+                            )
                             emit(StreamingEvent.Retry(event.delayMillis))
                         }
+
                         is StreamingEvent.Closed -> {
                             Log.debug(LOG_TAG, TAG, "Streaming connection closed: ${event.reason}")
                             connection.close()
+                            emit(event)
                         }
                     }
                 }
@@ -225,7 +248,7 @@ internal class ConciergeConversationServiceClient(
             connection.close()
         }
     }
-    
+
     /**
      * Validates the HTTP response code.
      * @throws IOException if the response code indicates an error (not in 200-299 range)
@@ -237,7 +260,7 @@ internal class ConciergeConversationServiceClient(
             throw IOException("HTTP error: $responseCode ${connection.responseMessage}")
         }
     }
-    
+
     /**
      * Cleanup method to cancel any ongoing network operations.
      * Should be called when the client is no longer needed to prevent memory leaks.

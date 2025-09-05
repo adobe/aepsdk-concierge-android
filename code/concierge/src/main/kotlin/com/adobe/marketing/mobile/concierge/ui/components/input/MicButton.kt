@@ -50,12 +50,10 @@ internal fun MicButton(
         Image(
             painter = when (userInputState) {
                 is UserInputState.Recording -> painterResource(R.drawable.audiowave)
-                is UserInputState.Transcribing -> painterResource(R.drawable.microphone)
                 else -> painterResource(R.drawable.microphone)
             },
             contentDescription = when (userInputState) {
                 is UserInputState.Recording -> "Stop recording"
-                is UserInputState.Transcribing -> "Processing voice input"
                 else -> "Start voice input"
             },
             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)

@@ -97,7 +97,6 @@ internal fun VoiceRecordingPanel(
                 Icon(
                     painter = when (inputState) {
                         is UserInputState.Recording -> painterResource(R.drawable.audiowave)
-                        is UserInputState.Transcribing -> painterResource(R.drawable.microphone)
                         else -> painterResource(R.drawable.microphone)
                     },
                     contentDescription = null,
@@ -111,7 +110,6 @@ internal fun VoiceRecordingPanel(
                 Text(
                     text = when (inputState) {
                         is UserInputState.Recording -> "Listening"
-                        is UserInputState.Transcribing -> "Transcribing"
                         else -> ""
                     },
                     style = MaterialTheme.typography.bodyLarge,

@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -28,8 +30,8 @@ internal fun MessageList(
     messages: List<ChatMessage>
 ) {
     LazyColumn(
-        modifier = modifier,
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(2.dp)
+        modifier = modifier.animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         // Show messages in chronological order (oldest first, newest last)
         items(messages) { message ->
