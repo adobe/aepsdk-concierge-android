@@ -15,13 +15,14 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 
@@ -33,27 +34,26 @@ internal fun ChatMessageItem(message: ChatMessage) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
             .padding(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (message.isFromUser) {
                 MaterialTheme.colorScheme.primary
             } else {
-                Color.LightGray.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.surfaceContainer
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
+            modifier = Modifier.padding(12.dp)
         ) {
             // Use ConciergeResponse composable for response messages to support markdown formatting
             if (message.isFromUser) {
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
                 ConciergeResponse(

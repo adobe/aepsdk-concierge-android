@@ -13,9 +13,11 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import android.content.Intent
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,9 +48,14 @@ fun ConciergeResponse(
 
     BasicText(
         text = annotatedString,
+        style = MaterialTheme.typography.bodyLarge.copy(
+            color = MaterialTheme.colorScheme.onSurface
+        ),
         modifier = modifier
             .fillMaxWidth()
+            .animateContentSize()
             .pointerInput(Unit) {
+                // TODO: This is messing with focus handling in the UserInput field. Fix it.
                 detectTapGestures { tapOffsetPosition ->
                     val layoutResult = textLayoutResult ?: return@detectTapGestures
                     val position = layoutResult.getOffsetForPosition(tapOffsetPosition)

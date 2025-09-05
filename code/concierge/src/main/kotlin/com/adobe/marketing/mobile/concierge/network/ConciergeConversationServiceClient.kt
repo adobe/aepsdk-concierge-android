@@ -75,17 +75,29 @@ internal class ConciergeConversationServiceClient(
         val request = createConversationServiceRequest(endpoint, requestBody)
 
         val connection = connect(request)
+        var eventOrDataReceived = false
 
         processResponse(connection).collect { event ->
             when (event) {
                 is StreamingEvent.EventReceived -> {
                     val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                    eventOrDataReceived = true
                     parsed.forEach { emit(it) }
                 }
 
                 is StreamingEvent.DataReceived -> {
                     val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                    eventOrDataReceived = true
                     parsed.forEach { emit(it) }
+                }
+
+                is StreamingEvent.Closed -> {
+                    // We need to emit a final COMPLETED for the case where
+                    // the stream closes without data/event indicating completion
+                    // We don't have a message to pass here, so we can use an empty string
+                    if (!eventOrDataReceived) {
+                        emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+                    }
                 }
 
                 is StreamingEvent.Retry -> {
@@ -224,6 +236,7 @@ internal class ConciergeConversationServiceClient(
                         is StreamingEvent.Closed -> {
                             Log.debug(LOG_TAG, TAG, "Streaming connection closed: ${event.reason}")
                             connection.close()
+                            emit(event)
                         }
                     }
                 }
