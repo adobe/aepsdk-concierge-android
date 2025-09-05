@@ -73,7 +73,7 @@ internal enum class ConversationState {
     COMPLETED,
     ERROR,
     UNKNOWN;
-    
+
     companion object {
         fun fromString(state: String?): ConversationState {
             return when (state?.lowercase()) {

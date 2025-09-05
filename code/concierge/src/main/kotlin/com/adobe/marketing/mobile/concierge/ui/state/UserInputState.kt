@@ -19,11 +19,8 @@ internal sealed class UserInputState {
     // No input, ready for input
     object Empty : UserInputState()
 
-    // User is actively recording audio
-    object Recording : UserInputState()
-
-    // Processing speech to text conversion
-    object Transcribing : UserInputState()
+    // User is actively recording audio and streaming partial transcription
+    data class Recording(val transcription: String = "") : UserInputState()
 
     // Text content (typed or transcribed) received and ready for editing
     data class Editing(val content: String = "") : UserInputState()

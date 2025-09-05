@@ -52,7 +52,7 @@ internal fun ChatHeader(
             text = title,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = MaterialTheme.colorScheme.primary
         )
 
         // Close button
@@ -63,7 +63,7 @@ internal fun ChatHeader(
             Icon(
                 painter = painterResource(R.drawable.close),
                 contentDescription = "Close chat",
-                tint = MaterialTheme.colorScheme.onPrimary
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }

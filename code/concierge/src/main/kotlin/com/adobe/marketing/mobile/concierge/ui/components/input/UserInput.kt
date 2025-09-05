@@ -12,22 +12,10 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechPermissionHandler
@@ -40,7 +28,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechPermissionHandler
 internal fun UserInput(
     modifier: Modifier = Modifier,
     inputState: UserInputState,
-    onContentAvailabilityChange: (available: Boolean) -> Unit,
+    onTextChange: (String) -> Unit,
     isProcessing: Boolean = false,
     onMicEvent: (MicEvent) -> Unit,
     onSend: (String) -> Unit,
@@ -57,47 +45,13 @@ internal fun UserInput(
     Column(
         modifier = modifier
     ) {
-        // Show processing indicator above the input field when processing
-        if (isProcessing) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Text(
-                            text = "Processing message...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
         // Input field
         ChatInputField(
             modifier = Modifier.fillMaxWidth(),
             enable = true,
             inputState = inputState,
             isProcessing = isProcessing,
-            onContentAvailabilityChanged = onContentAvailabilityChange,
+            onTextChange = onTextChange,
             onMicPressed = {
                 if (hasAudioPermission) {
                     onMicEvent(MicEvent.StartRecording)
@@ -107,9 +61,6 @@ internal fun UserInput(
                 }
             },
             onVoiceCancel = {
-                onMicEvent(MicEvent.StopRecording(isCancelled = true, isError = false))
-            },
-            onVoiceConfirm = {
                 onMicEvent(MicEvent.StopRecording(isCancelled = false, isError = false))
             },
             onSend = onSend,

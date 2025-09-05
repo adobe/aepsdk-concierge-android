@@ -13,12 +13,11 @@ package com.adobe.marketing.mobile.concierge.network
 
 import androidx.annotation.VisibleForTesting
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
-import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.Log
-import java.io.BufferedReader
-import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.io.BufferedReader
+import java.io.IOException
 
 /**
  * Represents different types of streaming events that can be received.
@@ -91,7 +90,11 @@ internal class SSEParser {
                         // Emit Retry event immediately if updated
                         retry?.let { emit(StreamingEvent.Retry(it)) }
                     } catch (e: Exception) {
-                        Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "SSE feed error: ${e.message}")
+                        Log.warning(
+                            ConciergeConstants.EXTENSION_NAME,
+                            TAG,
+                            "SSE feed error: ${e.message}"
+                        )
                         // Continue processing other lines
                     }
                 }
@@ -104,7 +107,11 @@ internal class SSEParser {
             // Normal completion: emit Closed (no emission on exceptional path)
             emit(StreamingEvent.Closed("Stream completed"))
         } catch (e: IOException) {
-            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "SSE processing error: ${e.message}")
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "SSE processing error: ${e.message}"
+            )
             emit(StreamingEvent.Error(e))
         }
     }
@@ -141,18 +148,28 @@ internal class SSEParser {
                 if (isNotEmpty()) append('\n')
                 append(value)
             }
+
             FIELD_EVENT -> eventType = value
             FIELD_ID -> id = value
             FIELD_RETRY -> {
                 val parsed = value.toIntOrNull()
                 if (parsed == null) {
-                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid retry value: $value")
+                    Log.warning(
+                        ConciergeConstants.EXTENSION_NAME,
+                        TAG,
+                        "Invalid retry value: $value"
+                    )
                 } else {
                     retry = parsed
                 }
             }
+
             else -> {
-                Log.trace(ConciergeConstants.EXTENSION_NAME, TAG, "Ignoring unknown SSE field: $field")
+                Log.trace(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Ignoring unknown SSE field: $field"
+                )
             }
         }
 
@@ -173,7 +190,7 @@ internal class SSEParser {
             }
         } else null
     }
-    
+
     /**
      * Converts a raw SSEEvent to a StreamingEvent with proper defaults.
      */
@@ -183,6 +200,7 @@ internal class SSEParser {
                 sseEvent.eventType!!,
                 sseEvent.data
             )
+
             else -> StreamingEvent.DataReceived(sseEvent.data)
         }
     }
