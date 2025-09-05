@@ -63,6 +63,7 @@ internal fun ClickableText(
         modifier = modifier
             .padding(end = ListSpacing.END_PADDING)
             .pointerInput(text) {
+                // TODO: This is messing with focus handling in the UserInput field. Fix it.
                 detectTapGestures { tapOffsetPosition ->
                     // Link click handling logic
                     text.getStringAnnotations(start = 0, end = text.length)

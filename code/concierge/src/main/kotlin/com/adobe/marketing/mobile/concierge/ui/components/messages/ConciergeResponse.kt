@@ -13,25 +13,19 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import android.content.Intent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.core.net.toUri
-import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
  * Component that renders brand concierge responses containing markdown text
