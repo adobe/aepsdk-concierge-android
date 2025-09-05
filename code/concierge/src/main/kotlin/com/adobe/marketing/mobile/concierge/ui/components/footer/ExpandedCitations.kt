@@ -16,32 +16,29 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.services.ServiceProvider
 
 /**
- * Component that displays a list of citations.
+ * Component that displays a list of citations as individual accordion items.
+ * Each citation can be expanded/collapsed independently.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation]s to display.
- * @param expanded Current expanded state.
+ * @param expanded Current expanded state for the overall container.
  */
 @Composable
 internal fun ExpandedCitations(
@@ -49,17 +46,24 @@ internal fun ExpandedCitations(
     citations: List<Citation>,
     expanded: Boolean
 ) {
-    Column(modifier = modifier) {
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(animationSpec = tween(200)),
-            exit = shrinkVertically(animationSpec = tween(200))
-        ) {
-            Column {
-                citations.forEachIndexed { index, citation ->
-                    CitationItem(
-                        citation = citation,
-                        index = index + 1
+    AnimatedVisibility(
+        visible = expanded,
+        enter = expandVertically(animationSpec = tween(200)),
+        exit = shrinkVertically(animationSpec = tween(200))
+    ) {
+        Column(modifier = modifier) {
+            citations.forEachIndexed { index, citation ->
+                CitationItem(
+                    citation = citation,
+                    index = index + 1
+                )
+                // Add separator line between items
+                if (index < citations.size - 1) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     )
                 }
             }
@@ -68,7 +72,7 @@ internal fun ExpandedCitations(
 }
 
 /**
- * An individual citation item component.
+ * A citation item component that displays a title and clickable url.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citation The [Citation] to display.
@@ -83,61 +87,30 @@ internal fun CitationItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(8.dp)
-            .clickable(
-                enabled = !citation.url.isNullOrBlank(),
-                onClick = {
-                    citation.url?.let { url ->
-                        ServiceProvider.getInstance().uriService.openUri(url)
-                    }
-                }
-            )
+            .padding(16.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.Top
-        ) {
+        // Citation title
+        Text(
+            text = "$index. ${citation.title}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        // URL with clickable styling if it exists
+        if (!citation.url.isNullOrBlank()) {
             Text(
-                text = "$index.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = citation.url,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(end = 8.dp)
-            )
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // Title with clickable styling if URL exists
-                if (!citation.url.isNullOrBlank()) {
-                    val annotatedString = buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                color = MaterialTheme.colorScheme.primary,
-                                textDecoration = TextDecoration.Underline
-                            )
-                        ) {
-                            append(citation.title)
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clickable {
+                        citation.url.let { url ->
+                            ServiceProvider.getInstance().uriService.openUri(url)
                         }
                     }
-                    Text(
-                        text = annotatedString,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                } else {
-                    Text(
-                        text = citation.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                
-                citation.description?.let { description ->
-                    if (description.isNotBlank()) {
-                        Spacer(modifier = Modifier.padding(top = 2.dp))
-                        Text(
-                            text = description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            )
         }
     }
 }

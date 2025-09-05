@@ -13,12 +13,18 @@
 package com.adobe.marketing.mobile.concierge.ui.components.footer
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.R
 
 /**
  * Sources accordion button component that handles the clickable sources label.
@@ -39,10 +45,20 @@ internal fun SourcesAccordionButton(
         },
         contentPadding = PaddingValues(0.dp)
     ) {
-        Text(
-            text = "> Sources",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row {
+            Icon(
+                painter = painterResource(
+                    id = if (expanded) R.drawable.chevron_down else R.drawable.chevron_right
+                ),
+                contentDescription = if (expanded) "Collapse sources" else "Expand sources",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "Sources",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

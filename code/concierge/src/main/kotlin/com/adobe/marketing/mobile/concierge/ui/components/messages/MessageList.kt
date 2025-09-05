@@ -19,8 +19,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 
 /**
  * Component that displays a list of chat messages.
@@ -29,7 +29,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 internal fun MessageList(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
-    onFeedback: (ChatEvent) -> Unit = {}
+    onFeedback: (FeedbackEvent) -> Unit = {}
 ) {
     LazyColumn(
         modifier = modifier.animateContentSize(),

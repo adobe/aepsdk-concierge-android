@@ -26,6 +26,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Citation
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
@@ -107,8 +108,6 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             is ChatEvent.Error -> handleProcessingError(event.message)
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
-            is ChatEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
-            is ChatEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
 
             is MicEvent.StartRecording -> {
                 startSpeechRecognition()
@@ -132,24 +131,32 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /**
+     * Process incoming feedback events from the UI
+     * @param event The feedback event to process
+     */
+    internal fun processFeedbackEvent(event: FeedbackEvent) {
+        when (event) {
+            is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
+            is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+        }
+    }
+
+    /**
      * Generates random citations for testing purposes
      */
     private fun generateRandomCitations(): List<Citation> {
         val sampleCitations = listOf(
             Citation(
                 title = "Adobe Experience Platform Documentation",
-                url = "https://experienceleague.adobe.com/docs/experience-platform.html",
-                description = "Comprehensive guide to Adobe Experience Platform features and capabilities."
+                url = "https://experienceleague.adobe.com/docs/experience-platform.html"
             ),
             Citation(
                 title = "Mobile SDK Implementation Guide",
-                url = "https://developer.adobe.com/client-sdks/",
-                description = "Best practices for implementing Adobe mobile SDKs in Android applications."
+                url = "https://developer.adobe.com/client-sdks/"
             ),
             Citation(
                 title = "Adobe Firefly Service documentation",
-                url = "https://developer.adobe.com/firefly-services/docs/guides/",
-                description = "Welcome to Firefly Services, your solution for seamless content generation at scale."
+                url = "https://developer.adobe.com/firefly-services/docs/guides/"
             )
         )
         

@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
-import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 
 /**
  * Feedback buttons component with a thumbs up and thumbs down button.
@@ -37,7 +37,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 internal fun FeedbackButtons(
     modifier: Modifier = Modifier,
     interactionId: String,
-    onFeedback: (ChatEvent) -> Unit
+    onFeedback: (FeedbackEvent) -> Unit
 ) {
     Row(
         modifier = modifier,
@@ -46,7 +46,7 @@ internal fun FeedbackButtons(
     ) {
         // Thumbs up button
         IconButton(
-            onClick = { onFeedback(ChatEvent.ThumbsUp(interactionId)) },
+            onClick = { onFeedback(FeedbackEvent.ThumbsUp(interactionId)) },
             modifier = Modifier.size(32.dp)
         ) {
             Icon(
@@ -59,7 +59,7 @@ internal fun FeedbackButtons(
 
         // Thumbs down button
         IconButton(
-            onClick = { onFeedback(ChatEvent.ThumbsDown(interactionId)) },
+            onClick = { onFeedback(FeedbackEvent.ThumbsDown(interactionId)) },
             modifier = Modifier.size(32.dp)
         ) {
             Icon(

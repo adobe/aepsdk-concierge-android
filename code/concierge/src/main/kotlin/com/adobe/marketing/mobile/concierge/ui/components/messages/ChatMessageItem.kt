@@ -28,8 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
-import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 
 /**
  * Component that displays a single chat message.
@@ -37,7 +37,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 @Composable
 internal fun ChatMessageItem(
     message: ChatMessage,
-    onFeedback: (ChatEvent) -> Unit = {}
+    onFeedback: (FeedbackEvent) -> Unit = {}
 ) {
     Card(
         modifier = Modifier

@@ -52,21 +52,27 @@ internal sealed class ChatEvent {
      */
     object Reset : ChatEvent()
 
-    /**
-     * User provided positive feedback for a response.
-     */
-    data class ThumbsUp(val interactionId: String) : ChatEvent()
-
-    /**
-     * User provided negative feedback for a response.
-     */
-    data class ThumbsDown(val interactionId: String) : ChatEvent()
 }
 
 
 internal sealed class MicEvent : ChatEvent() {
     object StartRecording : MicEvent()
     data class StopRecording(val isCancelled: Boolean, val isError: Boolean) : MicEvent()
+}
+
+/**
+ * Represents feedback events that can be processed by the ViewModel.
+ */
+internal sealed class FeedbackEvent {
+    /**
+     * User provided positive feedback for a response.
+     */
+    data class ThumbsUp(val interactionId: String) : FeedbackEvent()
+
+    /**
+     * User provided negative feedback for a response.
+     */
+    data class ThumbsDown(val interactionId: String) : FeedbackEvent()
 }
 
 /**
@@ -85,6 +91,5 @@ internal data class ChatMessage(
  */
 internal data class Citation(
     val title: String,
-    val url: String? = null,
-    val description: String? = null
+    val url: String? = null
 )
