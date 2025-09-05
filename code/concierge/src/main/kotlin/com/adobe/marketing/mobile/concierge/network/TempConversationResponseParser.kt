@@ -38,10 +38,10 @@ internal object TempConversationResponseParser {
     private const val FIELD_PROMPT_SUGGESTIONS = "promptSuggestions"
     private const val FIELD_MULTIMODAL_ELEMENTS = "multimodalElements"
 
-    
+
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
-     * 
+     *
      * @param jsonData The raw JSON string from the SSE event
      * @return List of parsed conversation messages, empty if parsing fails or no conversation data found
      */
@@ -49,37 +49,45 @@ internal object TempConversationResponseParser {
         if (jsonData.isBlank()) {
             return emptyList()
         }
-        
+
         return try {
             val jsonObject = JSONObject(jsonData)
             extractConversationMessages(jsonObject)
         } catch (e: JSONException) {
-            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse JSON: ${e.message}")
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Failed to parse JSON: ${e.message}"
+            )
             emptyList()
         } catch (e: Exception) {
-            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Unexpected error parsing conversation data: ${e.message}")
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Unexpected error parsing conversation data: ${e.message}"
+            )
             emptyList()
         }
     }
-    
+
     /**
      * Extracts conversation messages from the parsed JSON object.
      */
     private fun extractConversationMessages(jsonObject: JSONObject): List<ParsedConversationMessage> {
         val messages = mutableListOf<ParsedConversationMessage>()
-        
+
         val handleArray = jsonObject.optJSONArray(FIELD_HANDLE) ?: return emptyList()
-        
+
         for (i in 0 until handleArray.length()) {
             val handle = handleArray.optJSONObject(i) ?: continue
-            
+
             // Only process conversation-type handles
             if (handle.optString(FIELD_TYPE) == CONVERSATION_TYPE) {
                 val payloadArray = handle.optJSONArray(FIELD_PAYLOAD) ?: continue
-                
+
                 for (j in 0 until payloadArray.length()) {
                     val payload = payloadArray.optJSONObject(j) ?: continue
-                    
+
                     val parsedMessage = extractMessageFromPayload(payload)
                     if (parsedMessage != null) {
                         messages.add(parsedMessage)
@@ -87,25 +95,25 @@ internal object TempConversationResponseParser {
                 }
             }
         }
-        
+
         return messages
     }
-    
+
     /**
      * Extracts a conversation message from a single payload object.
      */
     private fun extractMessageFromPayload(payload: JSONObject): ParsedConversationMessage? {
         val response = payload.optJSONObject(FIELD_RESPONSE) ?: return null
-        
+
         val message = response.optString(FIELD_MESSAGE, "")
         if (message.isEmpty()) {
             return null
         }
-        
+
         val state = ConversationState.fromString(payload.optString(FIELD_STATE))
         val conversationId = payload.optString(FIELD_CONVERSATION_ID).takeIf { it.isNotEmpty() }
         val interactionId = payload.optString(FIELD_INTERACTION_ID).takeIf { it.isNotEmpty() }
-        
+
         // Extract prompt suggestions
         val promptSuggestions = mutableListOf<String>()
         val suggestionsArray = response.optJSONArray(FIELD_PROMPT_SUGGESTIONS)
@@ -117,7 +125,7 @@ internal object TempConversationResponseParser {
                 }
             }
         }
-        
+
         // Extract multimodal elements (basic extraction for now)
         val multimodalElements = mutableListOf<MultimodalElement>()
         val elementsArray = response.optJSONArray(FIELD_MULTIMODAL_ELEMENTS)
@@ -137,7 +145,7 @@ internal object TempConversationResponseParser {
                 }
             }
         }
-        
+
         return ParsedConversationMessage(
             messageContent = message,
             state = state,

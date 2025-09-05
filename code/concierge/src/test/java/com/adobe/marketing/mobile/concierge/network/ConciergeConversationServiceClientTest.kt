@@ -315,7 +315,7 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
-    fun `blank data yields no emissions`() = runTest {
+    fun `blank data yields single COMPLETED empty emission`() = runTest {
         val sse = "data:\n\n"
 
         val connection = mockk<HttpConnecting>(relaxed = true)
@@ -329,7 +329,9 @@ class ConciergeConversationServiceClientTest {
 
         val client = ConciergeConversationServiceClient()
         val emitted = client.chat("hi").toList(mutableListOf())
-        assertEquals(0, emitted.size)
+        assertEquals(1, emitted.size)
+        assertEquals("", emitted[0].messageContent)
+        assertEquals(ConversationState.COMPLETED, emitted[0].state)
         verify(atLeast = 1) { connection.close() }
     }
 
@@ -417,7 +419,7 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
-    fun `empty stream yields no emissions and closes`() = runTest {
+    fun `empty stream yields single COMPLETED empty emission and closes`() = runTest {
         val connection = mockk<HttpConnecting>(relaxed = true)
         every { connection.responseCode } returns 200
         every { connection.responseMessage } returns "OK"
@@ -429,12 +431,14 @@ class ConciergeConversationServiceClientTest {
 
         val client = ConciergeConversationServiceClient()
         val emitted = client.chat("hi").toList(mutableListOf())
-        assertEquals(0, emitted.size)
+        assertEquals(1, emitted.size)
+        assertEquals("", emitted[0].messageContent)
+        assertEquals(ConversationState.COMPLETED, emitted[0].state)
         verify(atLeast = 1) { connection.close() }
     }
 
     @Test
-    fun `http 204 no content yields no emissions and closes`() = runTest {
+    fun `http 204 no content yields single COMPLETED empty emission and closes`() = runTest {
         val connection = mockk<HttpConnecting>(relaxed = true)
         every { connection.responseCode } returns 204
         every { connection.responseMessage } returns "No Content"
@@ -446,7 +450,9 @@ class ConciergeConversationServiceClientTest {
 
         val client = ConciergeConversationServiceClient()
         val emitted = client.chat("hi").toList(mutableListOf())
-        assertEquals(0, emitted.size)
+        assertEquals(1, emitted.size)
+        assertEquals("", emitted[0].messageContent)
+        assertEquals(ConversationState.COMPLETED, emitted[0].state)
         verify(atLeast = 1) { connection.close() }
     }
 

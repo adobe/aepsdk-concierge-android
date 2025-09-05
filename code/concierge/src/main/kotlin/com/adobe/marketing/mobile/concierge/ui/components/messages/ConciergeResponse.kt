@@ -13,21 +13,27 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import android.content.Intent
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.runtime.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
-import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
  * Component that renders brand concierge responses containing markdown text
  * with proper styling and clickable links.
- * 
+ *
  * @param text The markdown text to be rendered
  * @param modifier Optional modifier for the text component
  */
@@ -39,16 +45,21 @@ fun ConciergeResponse(
     val context = LocalContext.current
     val annotatedString = MarkdownParser.parse(text)
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    
+
     BasicText(
         text = annotatedString,
+        style = MaterialTheme.typography.bodyLarge.copy(
+            color = MaterialTheme.colorScheme.onSurface
+        ),
         modifier = modifier
             .fillMaxWidth()
+            .animateContentSize()
             .pointerInput(Unit) {
+                // TODO: This is messing with focus handling in the UserInput field. Fix it.
                 detectTapGestures { tapOffsetPosition ->
                     val layoutResult = textLayoutResult ?: return@detectTapGestures
                     val position = layoutResult.getOffsetForPosition(tapOffsetPosition)
-                    
+
                     annotatedString
                         .getStringAnnotations(start = position, end = position)
                         .firstOrNull { it.tag == "URL" }

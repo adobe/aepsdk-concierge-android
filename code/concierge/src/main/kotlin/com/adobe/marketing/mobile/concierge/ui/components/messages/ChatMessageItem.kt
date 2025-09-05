@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -33,25 +34,23 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
  * Component that displays a single chat message.
  */
 @Composable
-internal fun ChatMessageItem(
-    message: ChatMessage,
-    onFeedback: (ChatEvent) -> Unit = {}
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
+internal fun ChatMessageItem(message: ChatMessage) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (message.isFromUser) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (message.isFromUser) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        Box(
+            modifier = Modifier.padding(12.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -84,14 +83,14 @@ internal fun ChatMessageItem(
 
                 // Sender label
                 Text(
-                    text = if (message.isFromUser) "You" else "Assistant",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (message.isFromUser) {
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    },
-                    modifier = Modifier.align(Alignment.End)
+                    text = message.text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                ConciergeResponse(
+                    text = message.text,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
