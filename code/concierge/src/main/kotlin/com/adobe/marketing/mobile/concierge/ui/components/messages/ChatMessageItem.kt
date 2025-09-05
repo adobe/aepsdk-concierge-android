@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,7 +35,10 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
  * Component that displays a single chat message.
  */
 @Composable
-internal fun ChatMessageItem(message: ChatMessage) {
+internal fun ChatMessageItem(
+    message: ChatMessage,
+    onFeedback: (ChatEvent) -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -62,7 +66,7 @@ internal fun ChatMessageItem(message: ChatMessage) {
                     Text(
                         text = message.text,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
                     ConciergeResponse(
@@ -80,18 +84,6 @@ internal fun ChatMessageItem(message: ChatMessage) {
                         )
                     }
                 }
-
-                // Sender label
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                ConciergeResponse(
-                    text = message.text,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     }
