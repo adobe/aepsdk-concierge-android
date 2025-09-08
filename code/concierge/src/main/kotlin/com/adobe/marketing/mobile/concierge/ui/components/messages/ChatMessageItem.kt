@@ -27,14 +27,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
-import com.adobe.marketing.mobile.concierge.ui.components.card.ImageCarousel
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCardData
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCarousel
+import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.services.Log
 
 /**
  * Component that displays a single chat message.
@@ -43,29 +43,31 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 internal fun ChatMessageItem(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit = {},
-    onProductClick: (ProductCardData) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {}
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            renderTextMessage(message)
-        }
-        is MessageContent.ProductCarousel -> {
-            renderProductCarouselMessage(message, onProductClick, onActionClick)
-        }
-        is MessageContent.ImageCarousel -> {
-            renderImageCarouselMessage(message, onImageClick)
+            RenderTextMessage(message)
         }
         is MessageContent.Mixed -> {
-            renderMixedMessage(message, onProductClick, onActionClick, onImageClick)
+            RenderMixedMessage(message, onActionClick, onImageClick)
         }
+    }
+
+    // If we have a response message and citations are available then show the footer
+    if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+        Spacer(modifier = Modifier.height(6.dp))
+        ChatFooter(
+            citations = message.citations,
+            interactionId = message.interactionId,
+            onFeedback = onFeedback
+        )
     }
 }
 
 @Composable
-private fun renderTextMessage(message: ChatMessage,
-                              onFeedback: (FeedbackEvent) -> Unit = {},) {
+private fun RenderTextMessage(message: ChatMessage) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -100,16 +102,6 @@ private fun renderTextMessage(message: ChatMessage,
                         text = message.text,
                         modifier = Modifier.fillMaxWidth()
                     )
-
-                    // If the message has citations show the footer
-                    if (!message.citations.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        ChatFooter(
-                            citations = message.citations,
-                            interactionId = message.interactionId,
-                            onFeedback = onFeedback
-                        )
-                    }
                 }
             }
         }
@@ -117,45 +109,10 @@ private fun renderTextMessage(message: ChatMessage,
 }
 
 @Composable
-private fun renderProductCarouselMessage(
+private fun RenderMixedMessage(
     message: ChatMessage,
-    onProductClick: (ProductCardData) -> Unit,
-    onActionClick: (ProductActionButton) -> Unit
-) {
-    if (message.content is MessageContent.ProductCarousel) {
-        ProductCarousel(
-            carousel = message.content.carousel,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            onProductClick = onProductClick,
-            onActionClick = onActionClick
-        )
-    }
-}
-
-@Composable
-private fun renderImageCarouselMessage(
-    message: ChatMessage,
-    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit
-) {
-    if (message.content is MessageContent.ImageCarousel) {
-        ImageCarousel(
-            elements = message.content.elements.elements,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            onImageClick = onImageClick
-        )
-    }
-}
-
-@Composable
-private fun renderMixedMessage(
-    message: ChatMessage,
-    onProductClick: (ProductCardData) -> Unit,
     onActionClick: (ProductActionButton) -> Unit,
-    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit
+    onImageClick: (MultimodalElement) -> Unit
 ) {
     if (message.content is MessageContent.Mixed) {
         Column(
@@ -186,20 +143,17 @@ private fun renderMixedMessage(
                 }
             }
             
-            // Render product carousel if present
-            message.content.productCarousel?.let { carousel ->
-                ProductCarousel(
-                    carousel = carousel,
-                    onProductClick = onProductClick,
-                    onActionClick = onActionClick
-                )
-            }
             
-            // Render image carousel if present
-            message.content.imageCarousel?.let { imageCarousel ->
-                ImageCarousel(
-                    elements = imageCarousel.elements,
-                    onImageClick = onImageClick
+            // Render multi-modal elements if present
+            message.content.multimodalElements?.let { multimodalElements ->
+                if (multimodalElements.isEmpty()) {
+                    return@let
+                }
+
+                RecommendationCards(
+                    elements = multimodalElements,
+                    onImageClick = onImageClick,
+                    onActionClick = onActionClick
                 )
             }
         }

@@ -24,18 +24,6 @@ fun ChatScreen(
 ) {
     ConciergeChat(
         viewModel = viewModel(),
-        onClose = onClose,
-        onProductClick = { product ->
-            // Handle product card click - could navigate to product details, etc.
-            println("Product clicked: ${product.title}")
-        },
-        onActionClick = { action ->
-            // Handle action button click - could add to cart, view details, etc.
-            println("Action clicked: ${action.text} (${action.type})")
-        },
-        onImageClick = { element ->
-            // Handle image click - could open full screen view, etc.
-            println("Image clicked: ${element.title ?: element.alttext}")
-        }
+        onClose = onClose
     )
 }

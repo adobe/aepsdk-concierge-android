@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCarouselData
 
 // TODO: Temporary data classes for parsing conversation temporary API responses. Need to be
 //  replaced with actual API response structures once available
@@ -55,7 +54,7 @@ internal data class ConversationRequest(
  */
 internal data class ConversationResponse(
     val message: String,
-    val multimodalElements: MultimodalElements? = null,
+    val multimodalElements: List<MultimodalElement> = emptyList(),
     val promptSuggestions: List<String> = emptyList()
 )
 
@@ -76,53 +75,6 @@ data class MultimodalElement(
     val caption: String? = null,
     val transcript: String? = null,
     val content: Map<String, Any> = emptyMap()
-)
-
-/**
- * Container for multimodal elements
- */
-internal data class MultimodalElements(
-    val elements: List<MultimodalElement> = emptyList()
-)
-
-/**
- * Product card data structure for multimodal elements
- */
-internal data class ProductCardElement(
-    val id: String,
-    val title: String,
-    val description: String? = null,
-    val price: String? = null,
-    val originalPrice: String? = null,
-    val imageUrl: String? = null,
-    val brand: String? = null,
-    val rating: Float? = null,
-    val reviewCount: Int? = null,
-    val availability: String? = null,
-    val actionButtons: List<ProductActionButtonElement> = emptyList(),
-    val metadata: Map<String, Any> = emptyMap()
-)
-
-/**
- * Action button data structure for product cards
- */
-internal data class ProductActionButtonElement(
-    val id: String,
-    val text: String,
-    val type: String,
-    val url: String? = null,
-    val metadata: Map<String, Any> = emptyMap()
-)
-
-/**
- * Product carousel data structure for multimodal elements
- */
-internal data class ProductCarouselElement(
-    val id: String,
-    val title: String? = null,
-    val products: List<ProductCardElement>,
-    val layout: String = "horizontal",
-    val metadata: Map<String, Any> = emptyMap()
 )
 
 /**
@@ -155,6 +107,5 @@ internal data class ParsedConversationMessage(
     val conversationId: String? = null,
     val interactionId: String? = null,
     val promptSuggestions: List<String> = emptyList(),
-    val multimodalElements: MultimodalElements? = null,
-    val productCarousels: List<ProductCarouselData> = emptyList()
+    val multimodalElements: List<MultimodalElement> = emptyList()
 )

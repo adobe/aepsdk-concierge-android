@@ -19,8 +19,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCardData
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 
@@ -32,9 +32,8 @@ internal fun MessageList(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
     onFeedback: (FeedbackEvent) -> Unit = {},
-    onProductClick: (ProductCardData) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {}
 ) {
     LazyColumn(
         modifier = modifier.animateContentSize(),
@@ -45,7 +44,6 @@ internal fun MessageList(
             ChatMessageItem(
                 message = message,
                 onFeedback = onFeedback,
-                onProductClick = onProductClick,
                 onActionClick = onActionClick,
                 onImageClick = onImageClick
             )

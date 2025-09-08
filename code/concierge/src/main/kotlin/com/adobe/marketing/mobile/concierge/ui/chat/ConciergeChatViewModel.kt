@@ -21,7 +21,9 @@ import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -32,6 +34,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
 import com.adobe.marketing.mobile.services.Log
+import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -143,6 +146,35 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /**
+     * Process product action button presses from the UI
+     * @param button The [ProductActionButton] that was pressed
+     */
+    internal fun processProductButtonPress(button: ProductActionButton) {
+        if (button.url.isNullOrEmpty()) {
+            Log.debug(TAG, "processProductButtonPress", "Invalid url found, cannot open.")
+            return
+        }
+
+        Log.debug(TAG, "processProductButtonPress", "Button pressed: ${button.text}, opening URL: ${button.url}")
+        ServiceProvider.getInstance().uriService.openUri(button.url.toString())
+    }
+
+    /**
+     * Process product image clicks from the UI
+     * @param element The [MultimodalElement] image that was clicked
+     */
+    internal fun processProductImageClick(element: MultimodalElement) {
+        var url = element.content["productPageURL"] as? String
+        if (url.isNullOrEmpty()) {
+            Log.debug(TAG, "processProductImageClick", "Invalid url found, cannot open.")
+            return
+        }
+
+        Log.debug(TAG, "processProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
+        ServiceProvider.getInstance().uriService.openUri(url)
+    }
+
+    /**
      * Generates random citations for testing purposes
      */
     private fun generateRandomCitations(): List<Citation> {
@@ -251,7 +283,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             try {
                 // Create initial empty assistant message once the stream begins
                 assistantMessage = ChatMessage(
-                    content = com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Text(""),
+                    content = MessageContent.Text(""),
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
                     citations = generateRandomCitations(),
@@ -295,7 +327,9 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
             ConversationState.COMPLETED -> {
                 // Finalize the assistant message with the complete content
-                // and change state to Idle
+                // For COMPLETED state, replace the content with the final message
+                contentBuilder.clear()
+                appendToAssistantMessage(parsedMessage, contentBuilder)
                 contentBuilder.clear()
                 _state.update { ChatScreenState.Idle }
             }
@@ -318,37 +352,23 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             contentBuilder.append(parsedMessage.messageContent)
         }
         
-        // Create message content based on what's available
-        val messageContent = when {
-            parsedMessage.productCarousels.isNotEmpty() && contentBuilder.isNotEmpty() -> {
-                MessageContent.Mixed(
-                    text = contentBuilder.toString(),
-                    productCarousel = parsedMessage.productCarousels.firstOrNull(),
-                    imageCarousel = parsedMessage.multimodalElements
-                )
-            }
-            parsedMessage.productCarousels.isNotEmpty() -> {
-                MessageContent.ProductCarousel(
-                    carousel = parsedMessage.productCarousels.first()
-                )
-            }
-            parsedMessage.multimodalElements != null && contentBuilder.isNotEmpty() -> {
-                MessageContent.Mixed(
-                    text = contentBuilder.toString(),
-                    imageCarousel = parsedMessage.multimodalElements
-                )
-            }
-            parsedMessage.multimodalElements != null -> {
-                MessageContent.ImageCarousel(
-                    elements = parsedMessage.multimodalElements
-                )
-            }
-            else -> {
-                MessageContent.Text(
-                    text = contentBuilder.toString()
-                )
-            }
+        // Create message content - conditionally include multimodal content
+        val messageContent = MessageContent.Mixed(
+            text = contentBuilder.toString(),
+            multimodalElements = parsedMessage.multimodalElements
+        )
+
+        val logMessage = if (parsedMessage.multimodalElements.isNullOrEmpty()) {
+            "Creating Text message with length (${contentBuilder.length} chars)"
+        } else {
+            "Creating Mixed message with text (${contentBuilder.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
         }
+
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            "ConciergeChatViewModel",
+            logMessage
+        )
         
         updateAssistantMessageContent(messageContent)
     }

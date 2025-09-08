@@ -12,203 +12,137 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 
 /**
- * Composable that displays a single product card with image, title, price, rating, and action buttons.
+ * Composable that displays a single product recommendation in a card element containing
+ * a large image with two action buttons.
  */
 @Composable
 internal fun ProductCard(
-    product: ProductCardData,
+    element: MultimodalElement,
     modifier: Modifier = Modifier,
-    onActionClick: (ProductActionButton) -> Unit = {},
-    onCardClick: (ProductCardData) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {},
+    onActionClick: (ProductActionButton) -> Unit = {}
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onCardClick(product) },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            .height(IntrinsicSize.Min)
+            .clickable { onImageClick(element) },
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
+        // Background image (if available)
+        ProductImage(
+            element = element,
+            modifier = Modifier.fillMaxWidth(),
+            onImageClick = { onImageClick(element) }
+        )
+
+        // Display area for text and buttons
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .align(Alignment.End)
         ) {
-            // Product Image
-            if (product.imageUrl != null) {
-                AsyncImage(
-                    model = product.imageUrl,
-                    contentDescription = product.title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Brand
-            if (product.brand != null) {
-                Text(
-                    text = product.brand,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            // Title
-            Text(
-                text = product.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Description
-            if (product.description != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = product.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            // Rating
-            if (product.rating != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp)
+                    .align(Alignment.TopStart)
+            ) {
+                // Title
+                if (element.title != null) {
                     Text(
-                        text = String.format("%.1f", product.rating),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (product.reviewCount != null) {
-                        Text(
-                            text = "(${product.reviewCount})",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            // Price
-            if (product.price != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = product.price,
-                        style = MaterialTheme.typography.titleMedium,
+                        text = element.title,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    if (product.originalPrice != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = product.originalPrice,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textDecoration = TextDecoration.LineThrough
-                        )
-                    }
                 }
-            }
 
-            // Availability
-            if (product.availability != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = product.availability,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = when (product.availability.lowercase()) {
-                        "in stock" -> Color(0xFF4CAF50)
-                        "out of stock" -> Color(0xFFF44336)
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-            }
+                // Caption/Description
+                if (element.caption != null && element.caption != element.title) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = element.caption,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-            // Action Buttons
-            if (product.actionButtons.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    product.actionButtons.forEach { button ->
-                        when (button.type) {
-                            ActionButtonType.ADD_TO_CART -> {
+                // Action Buttons
+                val actionButtons = extractActionButtons(element)
+                if (actionButtons.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        actionButtons.forEach { button ->
+                            if (actionButtons.indexOf(button) == 0) {
+                                // Primary button
                                 Button(
                                     onClick = { onActionClick(button) },
-                                    modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary
-                                    )
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(button.text)
+                                    Text(
+                                        text = button.text,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
-                            }
-                            else -> {
+                            } else {
+                                // Secondary button
                                 OutlinedButton(
                                     onClick = { onActionClick(button) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(button.text)
+                                    Text(
+                                        text = button.text,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
                             }
                         }
@@ -216,5 +150,41 @@ internal fun ProductCard(
                 }
             }
         }
+
     }
+}
+
+/**
+ * Helper function to extract action buttons from MultimodalElement content map
+ */
+private fun extractActionButtons(element: MultimodalElement): List<ProductActionButton> {
+    val actionButtons = mutableListOf<ProductActionButton>()
+
+    // Extract primary action button
+    val primaryText = element.content["primaryText"] as? String
+    val primaryUrl = element.content["primaryUrl"] as? String
+    if (!primaryText.isNullOrEmpty()) {
+        actionButtons.add(
+            ProductActionButton(
+                id = "${element.id}_primary",
+                text = primaryText,
+                url = primaryUrl
+            )
+        )
+    }
+
+    // Extract secondary action button
+    val secondaryText = element.content["secondaryText"] as? String
+    val secondaryUrl = element.content["secondaryUrl"] as? String
+    if (!secondaryText.isNullOrEmpty()) {
+        actionButtons.add(
+            ProductActionButton(
+                id = "${element.id}_secondary",
+                text = secondaryText,
+                url = secondaryUrl
+            )
+        )
+    }
+
+    return actionButtons
 }

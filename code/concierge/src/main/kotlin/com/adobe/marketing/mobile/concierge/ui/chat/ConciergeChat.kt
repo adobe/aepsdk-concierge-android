@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCardData
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
@@ -47,10 +46,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
-    onClose: () -> Unit,
-    onProductClick: (ProductCardData) -> Unit = {},
-    onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (MultimodalElement) -> Unit = {}
+    onClose: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
@@ -75,9 +71,8 @@ fun ConciergeChat(
             viewModel.refreshPermissionStatus()
         },
         onClose = onClose,
-        onProductClick = onProductClick,
-        onActionClick = onActionClick,
-        onImageClick = onImageClick
+        onActionClick = viewModel::processProductButtonPress,
+        onImageClick = viewModel::processProductImageClick
     )
 }
 
@@ -93,9 +88,8 @@ internal fun ConciergeChat(
     onFeedbackEvent: (FeedbackEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
-    onProductClick: (ProductCardData) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -129,7 +123,6 @@ internal fun ConciergeChat(
                 MessageList(
                     messages = messages,
                     onFeedback = onFeedbackEvent,
-                    onProductClick = onProductClick,
                     onActionClick = onActionClick,
                     onImageClick = onImageClick,
                     modifier = Modifier

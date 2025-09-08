@@ -12,8 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.state
 
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCarouselData
-import com.adobe.marketing.mobile.concierge.network.MultimodalElements
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 
 /**
  * Represents the overall state of the chat screen.
@@ -82,12 +81,9 @@ internal sealed class FeedbackEvent {
  */
 internal sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
-    data class ProductCarousel(val carousel: ProductCarouselData) : MessageContent()
-    data class ImageCarousel(val elements: MultimodalElements) : MessageContent()
     data class Mixed(
         val text: String, 
-        val productCarousel: ProductCarouselData? = null,
-        val imageCarousel: MultimodalElements? = null
+        val multimodalElements: List<MultimodalElement>? = null
     ) : MessageContent()
 }
 
@@ -101,20 +97,10 @@ internal data class ChatMessage(
     val citations: List<Citation>? = null,
     val interactionId: String? = null
 ) {
-    // Convenience constructor for text-only messages (backward compatibility)
-    constructor(text: String, isFromUser: Boolean, timestamp: Long) : this(
-        MessageContent.Text(text),
-        isFromUser,
-        timestamp
-    )
-    
-    // Convenience property for text content
     val text: String
         get() = when (content) {
             is MessageContent.Text -> content.text
             is MessageContent.Mixed -> content.text
-            is MessageContent.ProductCarousel -> ""
-            is MessageContent.ImageCarousel -> ""
         }
 }
 
