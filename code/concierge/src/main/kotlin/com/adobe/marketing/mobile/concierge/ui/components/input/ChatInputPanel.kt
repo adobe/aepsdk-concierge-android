@@ -48,6 +48,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 /**
  * Chat input panel with text field, microphone button, and send button.
  * Used when not in voice recording mode.
+ *
  * @param modifier Modifier for the composable
  * @param text The current text input value
  * @param onTextChange Callback when the text input changes

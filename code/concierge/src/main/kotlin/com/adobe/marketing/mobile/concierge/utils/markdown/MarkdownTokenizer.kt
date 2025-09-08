@@ -37,7 +37,7 @@ internal object MarkdownTokenizer {
         val blockPatterns = mapOf(
             TokenType.CODE_BLOCK to """```([\s\S]*?)```""".toRegex(),
             TokenType.HEADING to """^(#{1,2})\s*(.*)""".toRegex(RegexOption.MULTILINE),
-            TokenType.LIST to """^- (.*)""".toRegex(RegexOption.MULTILINE),
+            TokenType.LIST to """^(\s*)([-•]|\d+\.)\s+(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE)
         )
         
@@ -73,12 +73,30 @@ internal object MarkdownTokenizer {
         tokens: MutableList<MarkdownToken>
     ) {
         pattern.findAll(markdown).forEach { result ->
-            val newToken = MarkdownToken(
-                type = type,
-                start = result.range.first,
-                end = result.range.last + 1,
-                groups = (1..result.groups.size - 1).map { i -> result.groups[i]?.value ?: "" }
-            )
+            val groups = (1..result.groups.size - 1).map { i -> result.groups[i]?.value ?: "" }
+            
+            val newToken = when (type) {
+                TokenType.LIST -> {
+                    val indentation = groups.firstOrNull() ?: ""
+                    val listMarker = groups.getOrNull(1) ?: ""
+                    val content = groups.getOrNull(2) ?: ""
+                    val indentationLevel = indentation.length / 2 // Assuming 2 spaces per level
+                    
+                    MarkdownToken(
+                        type = type,
+                        start = result.range.first,
+                        end = result.range.last + 1,
+                        groups = listOf(content, listMarker),
+                        indentationLevel = indentationLevel
+                    )
+                }
+                else -> MarkdownToken(
+                    type = type,
+                    start = result.range.first,
+                    end = result.range.last + 1,
+                    groups = groups
+                )
+            }
             
             // Only add if it doesn't overlap with existing tokens
             val hasOverlap = tokens.any { existing ->
@@ -126,7 +144,8 @@ internal data class MarkdownToken(
     val type: TokenType,
     val start: Int,
     val end: Int,
-    val groups: List<String>
+    val groups: List<String>,
+    val indentationLevel: Int = 0
 )
 
 /**

@@ -200,7 +200,7 @@ class MarkdownRendererTest {
         assertFalse(result.text.contains("`code`"))
         
         // Check that span styles are applied for the nested markdown
-        assertTrue(result.spanStyles.size > 0)
+        assertTrue(result.spanStyles.isNotEmpty())
         
         // Verify specific styles are applied
         val boldStyle = result.spanStyles.find { it.item.fontWeight == FontWeight.Bold }
@@ -451,5 +451,277 @@ class MarkdownRendererTest {
         assertTrue(result.text.contains("unclosed bold"))
         assertTrue(result.text.contains("unclosed italic"))
         assertTrue(result.spanStyles.size > 0)
+    }
+
+    @Test
+    fun `test render simple unordered list`() {
+        val markdown = "- First item\n- Second item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• First item"))
+        assertTrue(result.text.contains("• Second item"))
+        assertEquals(0, result.spanStyles.size)
+    }
+
+    @Test
+    fun `test render simple ordered list`() {
+        val markdown = "1. First item\n2. Second item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("1. First item"))
+        assertTrue(result.text.contains("2. Second item"))
+        assertEquals(0, result.spanStyles.size)
+    }
+
+    @Test
+    fun `test render list with bullet points`() {
+        val markdown = "• First item\n• Second item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• First item"))
+        assertTrue(result.text.contains("• Second item"))
+        assertEquals(0, result.spanStyles.size)
+    }
+
+    @Test
+    fun `test render list with markdown content`() {
+        val markdown = "- This is **bold** text\n- This has *italic* text\n- This has `code`"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        // Check that list structure is preserved
+        assertTrue(result.text.contains("• This is"))
+        assertTrue(result.text.contains("• This has"))
+        
+        // Check that markdown content is processed
+        assertTrue(result.text.contains("bold"))
+        assertTrue(result.text.contains("italic"))
+        assertTrue(result.text.contains("code"))
+        
+        // Check that markdown syntax is removed
+        assertFalse(result.text.contains("**bold**"))
+        assertFalse(result.text.contains("*italic*"))
+        assertFalse(result.text.contains("`code`"))
+        
+        // Check that span styles are applied
+        assertTrue(result.spanStyles.size > 0)
+        
+        val boldStyle = result.spanStyles.find { it.item.fontWeight == FontWeight.Bold }
+        val italicStyle = result.spanStyles.find { it.item.fontStyle == FontStyle.Italic }
+        val codeStyle = result.spanStyles.find { it.item.fontFamily == FontFamily.Monospace }
+        
+        assertNotNull("Should have bold style", boldStyle)
+        assertNotNull("Should have italic style", italicStyle)
+        assertNotNull("Should have code style", codeStyle)
+    }
+
+    @Test
+    fun `test render list with links`() {
+        val markdown = "- [Link text](https://example.com)\n- Another item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• Link text"))
+        assertTrue(result.text.contains("• Another item"))
+        
+        // Check that link styling is applied
+        val linkStyle = result.spanStyles.find { it.item.color == Color.Blue }
+        assertNotNull("Should have link style", linkStyle)
+        
+        // Check that URL annotation is added
+        val urlAnnotations = result.getStringAnnotations("URL", 0, result.length)
+        assertFalse("Should have URL annotation", urlAnnotations.isEmpty())
+        assertEquals("https://example.com", urlAnnotations[0].item)
+    }
+
+    @Test
+    fun `test render nested list`() {
+        val markdown = "- Main item\n  - Nested item\n- Another main item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• Main item"))
+        assertTrue(result.text.contains("• Nested item"))
+        assertTrue(result.text.contains("• Another main item"))
+    }
+
+    @Test
+    fun `test render deeply nested list`() {
+        val markdown = "- Level 0\n  - Level 1\n    - Level 2"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• Level 0"))
+        assertTrue(result.text.contains("• Level 1"))
+        assertTrue(result.text.contains("• Level 2"))
+    }
+
+    @Test
+    fun `test render mixed list types`() {
+        val markdown = "1. Ordered item\n- Unordered item\n2. Another ordered item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("1. Ordered item"))
+        assertTrue(result.text.contains("• Unordered item"))
+        assertTrue(result.text.contains("2. Another ordered item"))
+    }
+
+    @Test
+    fun `test render list with empty items`() {
+        val markdown = "- \n- Empty item\n- "
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• "))
+        assertTrue(result.text.contains("• Empty item"))
+    }
+
+    @Test
+    fun `test render list with complex nested markdown`() {
+        val markdown = """
+            - Main item with **bold** and *italic*
+              - Nested item with `code` and [link](https://example.com)
+                - Deeply nested with **bold** and `code`
+        """.trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        // Check list structure
+        assertTrue(result.text.contains("• Main item with"))
+        assertTrue(result.text.contains("• Nested item with"))
+        assertTrue(result.text.contains("• Deeply nested with"))
+        
+        // Check that nested markdown is processed
+        assertTrue(result.text.contains("bold"))
+        assertTrue(result.text.contains("italic"))
+        assertTrue(result.text.contains("code"))
+        assertTrue(result.text.contains("link"))
+        
+        // Check that markdown syntax is removed
+        assertFalse(result.text.contains("**bold**"))
+        assertFalse(result.text.contains("*italic*"))
+        assertFalse(result.text.contains("`code`"))
+        assertFalse(result.text.contains("[link]("))
+        
+        // Check that styles are applied
+        assertTrue(result.spanStyles.size > 0)
+        
+        val boldStyle = result.spanStyles.find { it.item.fontWeight == FontWeight.Bold }
+        val italicStyle = result.spanStyles.find { it.item.fontStyle == FontStyle.Italic }
+        val codeStyle = result.spanStyles.find { it.item.fontFamily == FontFamily.Monospace }
+        val linkStyle = result.spanStyles.find { it.item.color == Color.Blue }
+        
+        assertNotNull("Should have bold style", boldStyle)
+        assertNotNull("Should have italic style", italicStyle)
+        assertNotNull("Should have code style", codeStyle)
+        assertNotNull("Should have link style", linkStyle)
+        
+        // Check URL annotation
+        val urlAnnotations = result.getStringAnnotations("URL", 0, result.length)
+        assertFalse("Should have URL annotation", urlAnnotations.isEmpty())
+        assertEquals("https://example.com", urlAnnotations[0].item)
+    }
+
+    @Test
+    fun `test render list with extra whitespace`() {
+        val markdown = "  - Indented item\n    - More indented"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• Indented item"))
+        assertTrue(result.text.contains("• More indented"))
+    }
+
+    @Test
+    fun `test render list with no items`() {
+        val markdown = "This is not a list"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertEquals("This is not a list", result.text)
+        assertEquals(0, result.spanStyles.size)
+    }
+
+    @Test
+    fun `test render list with malformed syntax`() {
+        val markdown = "-Item without space\n- Valid item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        // Only the valid item should be rendered
+        assertTrue(result.text.contains("• Valid item"))
+        assertFalse(result.text.contains("•Item without space"))
+    }
+
+    @Test
+    fun `test render list with tabs`() {
+        val markdown = "-\tItem with tab\n- Item with space"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• Item with tab"))
+        assertTrue(result.text.contains("• Item with space"))
+    }
+
+    @Test
+    fun `test render list with multiple spaces in indentation`() {
+        val markdown = "- Level 0\n    - Level 2 (4 spaces)\n  - Level 1 (2 spaces)"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        assertTrue(result.text.contains("• Level 0"))
+        assertTrue(result.text.contains("• Level 2 (4 spaces)"))
+        assertTrue(result.text.contains("• Level 1 (2 spaces)"))
+    }
+
+    @Test
+    fun `test render list with real-world content`() {
+        val markdown = """
+            Here are some beach destinations:
+            
+            1. **Miami** - Known for vibrant nightlife
+            2. **Fort Lauderdale** - Famous for boating canals
+            3. **Destin** - Renowned for emerald waters
+            
+            Each offers a unique experience!
+        """.trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val result = MarkdownRenderer.render(markdown, tokens)
+        
+        // Check that list items are rendered with preserved numbers
+        assertTrue(result.text.contains("1. Miami"))
+        assertTrue(result.text.contains("2. Fort Lauderdale"))
+        assertTrue(result.text.contains("3. Destin"))
+        
+        // Check that bold text is processed
+        assertTrue(result.text.contains("Miami"))
+        assertTrue(result.text.contains("Fort Lauderdale"))
+        assertTrue(result.text.contains("Destin"))
+        
+        // Check that bold styling is applied
+        val boldStyle = result.spanStyles.find { it.item.fontWeight == FontWeight.Bold }
+        assertNotNull("Should have bold style", boldStyle)
     }
 }
