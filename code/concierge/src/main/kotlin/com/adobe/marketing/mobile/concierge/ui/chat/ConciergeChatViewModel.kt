@@ -25,6 +25,8 @@ import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Citation
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
@@ -39,7 +41,6 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     companion object {
         private const val TAG = "ConciergeChatViewModel"
     }
-
 
     /**
      * Tracks the overall state of the chat flow
@@ -130,6 +131,53 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     }
 
     /**
+     * Process incoming feedback events from the UI
+     * @param event The feedback event to process
+     */
+    internal fun processFeedbackEvent(event: FeedbackEvent) {
+        when (event) {
+            is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
+            is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+        }
+    }
+
+    /**
+     * Generates random citations for testing purposes
+     */
+    private fun generateRandomCitations(): List<Citation> {
+        val sampleCitations = listOf(
+            Citation(
+                title = "Adobe Experience Platform Documentation",
+                url = "https://experienceleague.adobe.com/docs/experience-platform.html"
+            ),
+            Citation(
+                title = "Mobile SDK Implementation Guide",
+                url = "https://developer.adobe.com/client-sdks/"
+            ),
+            Citation(
+                title = "Adobe Firefly Service documentation",
+                url = "https://developer.adobe.com/firefly-services/docs/guides/"
+            )
+        )
+        
+        // Randomly select 0-3 citations for variety
+        val randomCount = (0..3).random()
+        return sampleCitations.shuffled().take(randomCount)
+    }
+
+    /**
+     * Handles user feedback for responses
+     * @param interactionId The interaction ID to associate with the feedback
+     * @param feedbackType The type of feedback ("positive" or "negative")
+     */
+    private fun handleFeedback(interactionId: String, feedbackType: String) {
+        // TODO: Implement Edge send event with interaction ID in XDM
+        // Edge.sendEvent(...)
+        // For now, just log the feedback
+        Log.debug(TAG, "handleFeedback", "Received feedback: $feedbackType for interactionId: $interactionId")
+    }
+
+    /**
      * Called when the text input state changes (e.g. user types or deletes text)
      * @param currentText The current text content being edited
      */
@@ -204,7 +252,9 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
                 assistantMessage = ChatMessage(
                     text = "",
                     isFromUser = false,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    citations = generateRandomCitations(),
+                    interactionId = "sample-interaction-${System.currentTimeMillis()}"
                 )
                 _messages.update { currentMessages -> currentMessages + assistantMessage }
 

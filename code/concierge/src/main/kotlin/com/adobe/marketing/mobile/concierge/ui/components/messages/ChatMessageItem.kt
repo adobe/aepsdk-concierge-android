@@ -13,8 +13,11 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -24,13 +27,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 
 /**
  * Component that displays a single chat message.
  */
 @Composable
-internal fun ChatMessageItem(message: ChatMessage) {
+internal fun ChatMessageItem(
+    message: ChatMessage,
+    onFeedback: (FeedbackEvent) -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -48,18 +56,34 @@ internal fun ChatMessageItem(message: ChatMessage) {
         Box(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Use ConciergeResponse composable for response messages to support markdown formatting
-            if (message.isFromUser) {
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                ConciergeResponse(
-                    text = message.text,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                // Use ConciergeResponse composable for response messages to support markdown formatting
+                if (message.isFromUser) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    ConciergeResponse(
+                        text = message.text,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // If the message has citations show the footer
+                    if (!message.citations.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        ChatFooter(
+                            citations = message.citations,
+                            interactionId = message.interactionId,
+                            onFeedback = onFeedback
+                        )
+                    }
+                }
             }
         }
     }

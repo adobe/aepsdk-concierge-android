@@ -51,6 +51,7 @@ internal sealed class ChatEvent {
      * User dismissed the error, returning to idle state.
      */
     object Reset : ChatEvent()
+
 }
 
 
@@ -60,10 +61,35 @@ internal sealed class MicEvent : ChatEvent() {
 }
 
 /**
+ * Represents feedback events that can be processed by the ViewModel.
+ */
+internal sealed class FeedbackEvent {
+    /**
+     * User provided positive feedback for a response.
+     */
+    data class ThumbsUp(val interactionId: String) : FeedbackEvent()
+
+    /**
+     * User provided negative feedback for a response.
+     */
+    data class ThumbsDown(val interactionId: String) : FeedbackEvent()
+}
+
+/**
  * A simple chat message data class.
  */
 internal data class ChatMessage(
     val text: String,
     val isFromUser: Boolean,
-    val timestamp: Long
+    val timestamp: Long,
+    val citations: List<Citation>? = null,
+    val interactionId: String? = null
+)
+
+/**
+ * Represents a citation source for a chat message.
+ */
+internal data class Citation(
+    val title: String,
+    val url: String? = null
 )

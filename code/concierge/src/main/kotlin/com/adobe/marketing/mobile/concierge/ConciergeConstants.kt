@@ -15,4 +15,9 @@ object ConciergeConstants {
     const val EXTENSION_NAME = "concierge"
     const val EXTENSION_FRIENDLY_NAME = "Concierge"
     const val EXTENSION_VERSION = "3.0.0"
+
+    object ChatInteraction {
+        const val POSITIVE = "positive"
+        const val NEGATIVE = "negative"
+    }
 }

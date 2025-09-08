@@ -38,6 +38,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 @Composable
@@ -63,6 +64,7 @@ fun ConciergeChat(
         hasAudioPermission = hasAudioPermission,
         onTextChanged = viewModel::onTextStateChanged,
         onEvent = viewModel::processEvent,
+        onFeedbackEvent = viewModel::processFeedbackEvent,
         onPermissionResult = { granted ->
             viewModel.refreshPermissionStatus()
         },
@@ -79,6 +81,7 @@ internal fun ConciergeChat(
     hasAudioPermission: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
+    onFeedbackEvent: (FeedbackEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit
 ) {
@@ -113,6 +116,7 @@ internal fun ConciergeChat(
             ) {
                 MessageList(
                     messages = messages,
+                    onFeedback = onFeedbackEvent,
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
