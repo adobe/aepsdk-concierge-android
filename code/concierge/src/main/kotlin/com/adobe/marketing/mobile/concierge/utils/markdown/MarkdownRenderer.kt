@@ -130,7 +130,17 @@ internal object MarkdownRenderer {
     
     private fun renderList(token: MarkdownToken, builder: AnnotatedString.Builder) {
         val listItem = token.groups[0]
-        builder.append("• ")
+        val listMarker = token.groups.getOrNull(1) ?: "•"
+
+        if (listMarker.matches(Regex("\\d+\\."))) {
+            // For ordered lists, keep the number and period
+            builder.append("$listMarker ")
+        } else {
+            // For unordered lists, use bullet points. The use of filled or unfilled bullet points
+            // is handled in the ListItem composable based on indentation level.
+            builder.append("• ")
+        }
+        
         renderNestedMarkdown(listItem, builder)
     }
     
@@ -145,7 +155,7 @@ internal object MarkdownRenderer {
     }
     
     /**
-     * Renders content with nested markdown support.
+     * Renders nested markdown content.
      * 
      * @param content The content to render
      * @param builder The AnnotatedString builder
