@@ -27,6 +27,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
@@ -218,7 +219,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
         // Add user message to the list
         val userMessage = ChatMessage(
-            text = messageText,
+            content = MessageContent.Text(messageText),
             isFromUser = true,
             timestamp = System.currentTimeMillis()
         )
@@ -250,7 +251,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             try {
                 // Create initial empty assistant message once the stream begins
                 assistantMessage = ChatMessage(
-                    text = "",
+                    content = com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Text(""),
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
                     citations = generateRandomCitations(),
@@ -274,7 +275,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
     /**
      * Handles parsed event data by extracting conversation messages and updating the UI
-     * @param jsonData The raw JSON data from the SSE event
+     * @param parsedMessage The parsed conversation message
      * @param contentBuilder StringBuilder tracking the full content
      */
     private fun onParsedMessage(
@@ -289,7 +290,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
+                appendToAssistantMessage(parsedMessage, contentBuilder)
             }
 
             ConversationState.COMPLETED -> {
@@ -303,31 +304,64 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
                 handleConversationError("Conversation error: ${parsedMessage.messageContent}")
             }
 
-            else -> appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
+            else -> appendToAssistantMessage(parsedMessage, contentBuilder)
         }
     }
 
     /**
      * Appends new content to the assistant message
-     * @param newContent The new content to append
+     * @param parsedMessage The parsed message containing content and product carousels
      * @param contentBuilder StringBuilder tracking the full content
      */
-    private fun appendToAssistantMessage(newContent: String, contentBuilder: StringBuilder) {
-        if (newContent.isNotBlank()) {
-            contentBuilder.append(newContent)
-            updateAssistantMessageText(contentBuilder.toString())
+    private fun appendToAssistantMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
+        if (parsedMessage.messageContent.isNotBlank()) {
+            contentBuilder.append(parsedMessage.messageContent)
         }
+        
+        // Create message content based on what's available
+        val messageContent = when {
+            parsedMessage.productCarousels.isNotEmpty() && contentBuilder.isNotEmpty() -> {
+                MessageContent.Mixed(
+                    text = contentBuilder.toString(),
+                    productCarousel = parsedMessage.productCarousels.firstOrNull(),
+                    imageCarousel = parsedMessage.multimodalElements
+                )
+            }
+            parsedMessage.productCarousels.isNotEmpty() -> {
+                MessageContent.ProductCarousel(
+                    carousel = parsedMessage.productCarousels.first()
+                )
+            }
+            parsedMessage.multimodalElements != null && contentBuilder.isNotEmpty() -> {
+                MessageContent.Mixed(
+                    text = contentBuilder.toString(),
+                    imageCarousel = parsedMessage.multimodalElements
+                )
+            }
+            parsedMessage.multimodalElements != null -> {
+                MessageContent.ImageCarousel(
+                    elements = parsedMessage.multimodalElements
+                )
+            }
+            else -> {
+                MessageContent.Text(
+                    text = contentBuilder.toString()
+                )
+            }
+        }
+        
+        updateAssistantMessageContent(messageContent)
     }
 
     /**
-     * Updates the assistant message text in the UI
-     * @param text The new text content for the assistant message
+     * Updates the assistant message content in the UI
+     * @param content The new content for the assistant message
      */
-    private fun updateAssistantMessageText(text: String) {
+    private fun updateAssistantMessageContent(content: MessageContent) {
         _messages.update { currentMessages ->
             currentMessages.mapIndexed { index, message ->
                 if (index == currentMessages.lastIndex && !message.isFromUser) {
-                    message.copy(text = text)
+                    message.copy(content = content)
                 } else {
                     message
                 }
@@ -342,7 +376,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     private fun handleConversationError(errorMessage: String) {
         // Add error message to chat
         val errorChatMessage = ChatMessage(
-            text = "Sorry, I encountered an error: $errorMessage",
+            content = MessageContent.Text("Sorry, I encountered an error: $errorMessage"),
             isFromUser = false,
             timestamp = System.currentTimeMillis()
         )

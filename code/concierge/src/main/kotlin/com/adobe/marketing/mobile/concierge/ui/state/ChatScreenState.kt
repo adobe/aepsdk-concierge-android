@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.state
 
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCarouselData
+import com.adobe.marketing.mobile.concierge.network.MultimodalElements
 
 /**
  * Represents the overall state of the chat screen.
@@ -76,15 +78,45 @@ internal sealed class FeedbackEvent {
 }
 
 /**
- * A simple chat message data class.
+ * Represents different types of content in a chat message
+ */
+internal sealed class MessageContent {
+    data class Text(val text: String) : MessageContent()
+    data class ProductCarousel(val carousel: ProductCarouselData) : MessageContent()
+    data class ImageCarousel(val elements: MultimodalElements) : MessageContent()
+    data class Mixed(
+        val text: String, 
+        val productCarousel: ProductCarouselData? = null,
+        val imageCarousel: MultimodalElements? = null
+    ) : MessageContent()
+}
+
+/**
+ * A chat message data class that supports different content types.
  */
 internal data class ChatMessage(
-    val text: String,
+    val content: MessageContent,
     val isFromUser: Boolean,
     val timestamp: Long,
     val citations: List<Citation>? = null,
     val interactionId: String? = null
-)
+) {
+    // Convenience constructor for text-only messages (backward compatibility)
+    constructor(text: String, isFromUser: Boolean, timestamp: Long) : this(
+        MessageContent.Text(text),
+        isFromUser,
+        timestamp
+    )
+    
+    // Convenience property for text content
+    val text: String
+        get() = when (content) {
+            is MessageContent.Text -> content.text
+            is MessageContent.Mixed -> content.text
+            is MessageContent.ProductCarousel -> ""
+            is MessageContent.ImageCarousel -> ""
+        }
+}
 
 /**
  * Represents a citation source for a chat message.

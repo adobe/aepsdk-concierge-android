@@ -30,6 +30,11 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.components.card.ImageCarousel
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCardData
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductCarousel
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 
 /**
  * Component that displays a single chat message.
@@ -37,8 +42,30 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 @Composable
 internal fun ChatMessageItem(
     message: ChatMessage,
-    onFeedback: (FeedbackEvent) -> Unit = {}
+    onFeedback: (FeedbackEvent) -> Unit = {},
+    onProductClick: (ProductCardData) -> Unit = {},
+    onActionClick: (ProductActionButton) -> Unit = {},
+    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit = {}
 ) {
+    when (message.content) {
+        is MessageContent.Text -> {
+            renderTextMessage(message)
+        }
+        is MessageContent.ProductCarousel -> {
+            renderProductCarouselMessage(message, onProductClick, onActionClick)
+        }
+        is MessageContent.ImageCarousel -> {
+            renderImageCarouselMessage(message, onImageClick)
+        }
+        is MessageContent.Mixed -> {
+            renderMixedMessage(message, onProductClick, onActionClick, onImageClick)
+        }
+    }
+}
+
+@Composable
+private fun renderTextMessage(message: ChatMessage,
+                              onFeedback: (FeedbackEvent) -> Unit = {},) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -84,6 +111,96 @@ internal fun ChatMessageItem(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun renderProductCarouselMessage(
+    message: ChatMessage,
+    onProductClick: (ProductCardData) -> Unit,
+    onActionClick: (ProductActionButton) -> Unit
+) {
+    if (message.content is MessageContent.ProductCarousel) {
+        ProductCarousel(
+            carousel = message.content.carousel,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            onProductClick = onProductClick,
+            onActionClick = onActionClick
+        )
+    }
+}
+
+@Composable
+private fun renderImageCarouselMessage(
+    message: ChatMessage,
+    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit
+) {
+    if (message.content is MessageContent.ImageCarousel) {
+        ImageCarousel(
+            elements = message.content.elements.elements,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            onImageClick = onImageClick
+        )
+    }
+}
+
+@Composable
+private fun renderMixedMessage(
+    message: ChatMessage,
+    onProductClick: (ProductCardData) -> Unit,
+    onActionClick: (ProductActionButton) -> Unit,
+    onImageClick: (com.adobe.marketing.mobile.concierge.network.MultimodalElement) -> Unit
+) {
+    if (message.content is MessageContent.Mixed) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            // Render text content if present
+            if (message.content.text.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.Start)
+                        .padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                ) {
+                    Box(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        ConciergeResponse(
+                            text = message.content.text,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+            
+            // Render product carousel if present
+            message.content.productCarousel?.let { carousel ->
+                ProductCarousel(
+                    carousel = carousel,
+                    onProductClick = onProductClick,
+                    onActionClick = onActionClick
+                )
+            }
+            
+            // Render image carousel if present
+            message.content.imageCarousel?.let { imageCarousel ->
+                ImageCarousel(
+                    elements = imageCarousel.elements,
+                    onImageClick = onImageClick
+                )
             }
         }
     }

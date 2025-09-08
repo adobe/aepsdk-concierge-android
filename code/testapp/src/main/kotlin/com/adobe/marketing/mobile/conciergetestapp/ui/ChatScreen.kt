@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.conciergetestapp.ui
 
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,5 +22,20 @@ fun ChatScreen(
     modifier: Modifier = Modifier,
     onClose: () -> Unit = {}
 ) {
-    ConciergeChat(viewModel = viewModel(), onClose)
+    ConciergeChat(
+        viewModel = viewModel(),
+        onClose = onClose,
+        onProductClick = { product ->
+            // Handle product card click - could navigate to product details, etc.
+            println("Product clicked: ${product.title}")
+        },
+        onActionClick = { action ->
+            // Handle action button click - could add to cart, view details, etc.
+            println("Action clicked: ${action.text} (${action.type})")
+        },
+        onImageClick = { element ->
+            // Handle image click - could open full screen view, etc.
+            println("Image clicked: ${element.title ?: element.alttext}")
+        }
+    )
 }
