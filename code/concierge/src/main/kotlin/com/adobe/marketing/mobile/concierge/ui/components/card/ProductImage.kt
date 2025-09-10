@@ -34,7 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.services.Log
@@ -64,18 +64,20 @@ internal fun ProductImage(
             val imageUrl = element.url ?: element.thumbnailUrl
             if (imageUrl != null) {
                 AsyncImage(
-                    model = imageUrl,
+                    url = imageUrl,
                     contentDescription = element.alttext ?: element.title,
                     contentScale = ContentScale.Crop,
                     onError = { error ->
                         Log.warning(
-                            ConciergeConstants.EXTENSION_NAME, "ProductImage", "Failed to load image: $imageUrl, error: $error"
+                            ConciergeConstants.EXTENSION_NAME,
+                            "ProductImage",
+                            "Failed to load image: $imageUrl, error: $error"
                         )
                     },
                     modifier = Modifier.height(280.dp)
                 )
             } else {
-                // Fallback to a gradient background if needed
+                // Fallback to a gradient background if no image URL is available
                 Box(
                     modifier = Modifier
                         .height(280.dp)
@@ -89,7 +91,7 @@ internal fun ProductImage(
                         )
                 )
             }
-            
+
             // Product ID overlay in bottom-left corner if there is more than 1 element
             if (isMultiElement) {
                 Box(
