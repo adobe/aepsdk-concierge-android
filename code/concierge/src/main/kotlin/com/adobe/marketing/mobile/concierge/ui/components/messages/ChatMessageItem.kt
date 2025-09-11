@@ -47,26 +47,16 @@ internal fun ChatMessageItem(
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message)
+            RenderTextMessage(message, onFeedback)
         }
         is MessageContent.Mixed -> {
-            RenderMixedMessage(message, onActionClick, onImageClick)
+            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick)
         }
-    }
-
-    // If we have a response message and citations are available then show the footer
-    if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
-        Spacer(modifier = Modifier.height(6.dp))
-        ChatFooter(
-            citations = message.citations,
-            interactionId = message.interactionId,
-            onFeedback = onFeedback
-        )
     }
 }
 
 @Composable
-private fun RenderTextMessage(message: ChatMessage) {
+private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -82,12 +72,11 @@ private fun RenderTextMessage(message: ChatMessage) {
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Box(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
             ) {
                 // Use ConciergeResponse composable for response messages to support markdown formatting
                 if (message.isFromUser) {
@@ -102,6 +91,15 @@ private fun RenderTextMessage(message: ChatMessage) {
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+
+                // If we have a response message and citations are available then show the footer
+                if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                    ChatFooter(
+                        citations = message.citations,
+                        interactionId = message.interactionId,
+                        onFeedback = onFeedback
+                    )
+                }
             }
         }
     }
@@ -110,50 +108,62 @@ private fun RenderTextMessage(message: ChatMessage) {
 @Composable
 private fun RenderMixedMessage(
     message: ChatMessage,
+    onFeedback: (FeedbackEvent) -> Unit,
     onActionClick: (ProductActionButton) -> Unit,
     onImageClick: (MultimodalElement) -> Unit
 ) {
     if (message.content is MessageContent.Mixed) {
-        Column(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp)
+                .wrapContentWidth(Alignment.Start)
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
-            // Render text content if present
-            if (message.content.text.isNotEmpty()) {
-                Card(
+            Box(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .wrapContentWidth(Alignment.Start)
-                        .padding(bottom = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 ) {
-                    Box(
-                        modifier = Modifier.padding(12.dp)
-                    ) {
+                    // Render text content if present
+                    if (message.content.text.isNotEmpty()) {
                         ConciergeResponse(
                             text = message.content.text,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                }
-            }
-            
-            
-            // Render multi-modal elements if present
-            message.content.multimodalElements?.let { multimodalElements ->
-                if (multimodalElements.isEmpty()) {
-                    return@let
-                }
+                    
+                    // Add spacing between text and recommendation cards if both are present
+                    if (message.content.text.isNotEmpty() && 
+                        !message.content.multimodalElements.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    
+                    // Render multi-modal elements if present
+                    message.content.multimodalElements?.let { multimodalElements ->
+                        if (multimodalElements.isNotEmpty()) {
+                            RecommendationCards(
+                                elements = multimodalElements,
+                                onImageClick = onImageClick,
+                                onActionClick = onActionClick
+                            )
+                        }
+                    }
 
-                RecommendationCards(
-                    elements = multimodalElements,
-                    onImageClick = onImageClick,
-                    onActionClick = onActionClick
-                )
+                    // If we have a response message and citations are available then show the footer
+                    if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                        ChatFooter(
+                            citations = message.citations,
+                            interactionId = message.interactionId,
+                            onFeedback = onFeedback
+                        )
+                    }
+                }
             }
         }
     }

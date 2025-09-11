@@ -12,18 +12,10 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.services.Log
@@ -57,25 +49,15 @@ internal fun RecommendationCards(
                 onActionClick = onActionClick
             )
         } else {
-            // Multiple elements - display in a product carousel
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
-            ) {
-                items(elements) { element ->
-                    ProductImage(
-                        element = element,
-                        modifier = modifier
-                            .width(200.dp)
-                            .height(150.dp),
-                        onImageClick = onImageClick,
-                        isMultiElement = true
-                    )
-                }
-            }
+            // Multiple elements - display in a product carousel with navigation controls
+            ProductCarousel(
+                elements = elements,
+                onImageClick = onImageClick
+            )
         }
     }
 }
+
 
 /**
  * Data class representing an action button for product recommendations with multimodal elements

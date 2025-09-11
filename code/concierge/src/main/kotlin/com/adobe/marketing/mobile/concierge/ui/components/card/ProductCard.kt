@@ -56,7 +56,7 @@ internal fun ProductCard(
             .height(IntrinsicSize.Min)
             .clickable { onImageClick(element) },
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
