@@ -30,6 +30,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
@@ -131,46 +132,41 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
                     }
                 }
             }
-        }
-    }
 
-    /**
-     * Process incoming feedback events from the UI
-     * @param event The feedback event to process
-     */
-    internal fun processFeedbackEvent(event: FeedbackEvent) {
-        when (event) {
             is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
             is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+
+            is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
+            is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
         }
     }
 
     /**
-     * Process product action button presses from the UI
+     * Handle product action button clicks
      * @param button The [ProductActionButton] that was pressed
      */
-    internal fun processProductButtonPress(button: ProductActionButton) {
+    private fun handleProductActionClick(button: ProductActionButton) {
         if (button.url.isNullOrEmpty()) {
-            Log.debug(TAG, "processProductButtonPress", "Invalid url found, cannot open.")
+            Log.debug(TAG, "handleProductActionClick", "Invalid url found, cannot open.")
             return
         }
 
-        Log.debug(TAG, "processProductButtonPress", "Button pressed: ${button.text}, opening URL: ${button.url}")
+        Log.debug(TAG, "handleProductActionClick", "Button pressed: ${button.text}, opening URL: ${button.url}")
         ServiceProvider.getInstance().uriService.openUri(button.url.toString())
     }
 
     /**
-     * Process product image clicks from the UI
+     * Handle product image clicks
      * @param element The [MultimodalElement] image that was clicked
      */
-    internal fun processProductImageClick(element: MultimodalElement) {
+    private fun handleProductImageClick(element: MultimodalElement) {
         var url = element.content["productPageURL"] as? String
         if (url.isNullOrEmpty()) {
-            Log.debug(TAG, "processProductImageClick", "Invalid url found, cannot open.")
+            Log.debug(TAG, "handleProductImageClick", "Invalid url found, cannot open.")
             return
         }
 
-        Log.debug(TAG, "processProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
+        Log.debug(TAG, "handleProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
         ServiceProvider.getInstance().uriService.openUri(url)
     }
 
@@ -307,6 +303,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
     /**
      * Handles parsed event data by extracting conversation messages and updating the UI
+     *
      * @param parsedMessage The parsed conversation message
      * @param contentBuilder StringBuilder tracking the full content
      */
@@ -326,11 +323,8 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             }
 
             ConversationState.COMPLETED -> {
-                // Finalize the assistant message with the complete content
                 // For COMPLETED state, replace the content with the final message
-                contentBuilder.clear()
-                appendToAssistantMessage(parsedMessage, contentBuilder)
-                contentBuilder.clear()
+                replaceAssistantMessageContent(parsedMessage)
                 _state.update { ChatScreenState.Idle }
             }
 
@@ -344,7 +338,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
     /**
      * Appends new content to the assistant message
-     * @param parsedMessage The parsed message containing content and product carousels
+     * @param parsedMessage The parsed message containing content
      * @param contentBuilder StringBuilder tracking the full content
      */
     private fun appendToAssistantMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
@@ -352,16 +346,38 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
             contentBuilder.append(parsedMessage.messageContent)
         }
         
-        // Create message content - conditionally include multimodal content
-        val messageContent = MessageContent.Mixed(
-            text = contentBuilder.toString(),
-            multimodalElements = parsedMessage.multimodalElements
-        )
+        // Create text-only message content for streaming updates
+        val messageContent = MessageContent.Text(contentBuilder.toString())
 
-        val logMessage = if (parsedMessage.multimodalElements.isNullOrEmpty()) {
-            "Creating Text message with length (${contentBuilder.length} chars)"
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            "ConciergeChatViewModel",
+            "Appending text content with length (${contentBuilder.length} chars)"
+        )
+        
+        updateAssistantMessageContent(messageContent)
+    }
+
+    /**
+     * Replaces the assistant message content with the final complete message
+     *
+     * @param parsedMessage The parsed message containing the final complete content
+     */
+    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
+        // Create message content - conditionally include multimodal content
+        val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
+            MessageContent.Text(parsedMessage.messageContent)
         } else {
-            "Creating Mixed message with text (${contentBuilder.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
+            MessageContent.Mixed(
+                text = parsedMessage.messageContent,
+                multimodalElements = parsedMessage.multimodalElements
+            )
+        }
+
+        val logMessage = if (parsedMessage.multimodalElements.isEmpty()) {
+            "Replacing with final Text message with length (${parsedMessage.messageContent.length} chars)"
+        } else {
+            "Replacing with final Mixed message with text (${parsedMessage.messageContent.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
         }
 
         Log.debug(

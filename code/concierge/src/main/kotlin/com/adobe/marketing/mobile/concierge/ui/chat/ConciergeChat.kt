@@ -31,8 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.adobe.marketing.mobile.concierge.network.MultimodalElement
-import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
@@ -40,7 +38,8 @@ import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 @Composable
@@ -66,13 +65,10 @@ fun ConciergeChat(
         hasAudioPermission = hasAudioPermission,
         onTextChanged = viewModel::onTextStateChanged,
         onEvent = viewModel::processEvent,
-        onFeedbackEvent = viewModel::processFeedbackEvent,
         onPermissionResult = { granted ->
             viewModel.refreshPermissionStatus()
         },
-        onClose = onClose,
-        onActionClick = viewModel::processProductButtonPress,
-        onImageClick = viewModel::processProductImageClick
+        onClose = onClose
     )
 }
 
@@ -85,11 +81,8 @@ internal fun ConciergeChat(
     hasAudioPermission: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
-    onFeedbackEvent: (FeedbackEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
-    onClose: () -> Unit,
-    onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (MultimodalElement) -> Unit = {}
+    onClose: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -122,9 +115,9 @@ internal fun ConciergeChat(
             ) {
                 MessageList(
                     messages = messages,
-                    onFeedback = onFeedbackEvent,
-                    onActionClick = onActionClick,
-                    onImageClick = onImageClick,
+                    onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
+                    onActionClick = { button -> onEvent(ProductActionClick(button)) },
+                    onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)

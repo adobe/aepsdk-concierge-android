@@ -51,7 +51,6 @@ dependencies {
     
     // Lifecycle compose for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
-    
 
     // AEP SDK
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")

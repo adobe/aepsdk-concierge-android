@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 
 /**
  * Represents the overall state of the chat screen.
@@ -64,7 +65,7 @@ internal sealed class MicEvent : ChatEvent() {
 /**
  * Represents feedback events that can be processed by the ViewModel.
  */
-internal sealed class FeedbackEvent {
+internal sealed class FeedbackEvent : ChatEvent() {
     /**
      * User provided positive feedback for a response.
      */
@@ -77,8 +78,24 @@ internal sealed class FeedbackEvent {
 }
 
 /**
+ * Represents message interaction events that can be processed by the ViewModel.
+ */
+internal sealed class MessageInteractionEvent : ChatEvent() {
+    /**
+     * User clicked on a product action button.
+     */
+    data class ProductActionClick(val button: ProductActionButton) : MessageInteractionEvent()
+
+    /**
+     * User clicked on a product image.
+     */
+    data class ProductImageClick(val element: MultimodalElement) : MessageInteractionEvent()
+}
+
+/**
  * Represents different types of content in a chat message
  */
+// TODO: Find a better place for this, e.g. ChatMessage.MessageContent
 internal sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
     data class Mixed(
