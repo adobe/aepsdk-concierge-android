@@ -29,7 +29,10 @@ import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
+import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.services.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +40,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class ConciergeChatViewModel(application: Application) : AndroidViewModel(application) {
+class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
     }
@@ -64,40 +67,53 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private val chatService: ConciergeConversationServiceClient =
-        ConciergeConversationServiceClient()
-
-    // Speech to text manager
-    private val speechToTextManager = SpeechToTextManager(
-        context = getApplication<Application>(),
-        onSpeechStarted = {
-            _inputState.update { UserInputState.Recording("") }
-        },
-        onSpeechEnded = {
-            //_inputState.update { UserInputState.Transcribing() }
-        },
-        onPartialTranscription = { partialText ->
-            handlePartialTranscription(partialText)
-        },
-        onTranscriptionResult = { transcription ->
-            handleTranscriptionResult(transcription)
-        },
-        onSpeechError = { errorCode ->
-            handleSpeechError(errorCode)
-        }
-    )
-
     /**
-     * Indicates if speech recognition is available on the device
-     * TODO: Permission handling should be wrapped and exposed to the app level to handle permission requests
+     * Tracks whether the app has audio recording permission
      */
-    private val _isSpeechRecognitionAvailable =
-        MutableStateFlow(speechToTextManager.isAvailable.value)
-    val isSpeechRecognitionAvailable: StateFlow<Boolean> =
-        _isSpeechRecognitionAvailable.asStateFlow()
     private val _hasAudioPermission = MutableStateFlow(checkAudioPermission())
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
 
+    /**
+     * Speech capturing implementation that will be used for this session
+     */
+    private val speechCapturing: SpeechCapturing
+
+    /**
+     * Chat service client for handling conversation API calls
+     */
+    private val chatService: ConciergeConversationServiceClient
+
+    constructor(application: Application) : this(application, AndroidSpeechCapturing(application))
+
+    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, ConciergeConversationServiceClient())
+
+    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatService : ConciergeConversationServiceClient = ConciergeConversationServiceClient()) : super(application) {
+        this.speechCapturing = speechCapturing
+        this.chatService = chatService
+        speechCapturing.setListener(captureListener)
+    }
+
+    private val captureListener = object : SpeechCaptureListener {
+        override fun onSpeechStarted() {
+            _inputState.update { UserInputState.Recording("") }
+        }
+
+        override fun onSpeechEnded() {
+            // no-op for now
+        }
+
+        override fun onPartialTranscription(text: String) {
+            handlePartialTranscription(text)
+        }
+
+        override fun onTranscriptionResult(text: String) {
+            handleTranscriptionResult(text)
+        }
+
+        override fun onError(error: SpeechCaptureError) {
+            handleSpeechError(error)
+        }
+    }
 
     /**
      * Process incoming events from the UI
@@ -362,7 +378,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      */
     private fun startSpeechRecognition() {
         if (_hasAudioPermission.value) {
-            speechToTextManager.startListening()
+            speechCapturing.startCapture()
         } else {
             _inputState.update {
                 UserInputState.Error("Microphone permission required")
@@ -374,7 +390,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * Stops speech recognition
      */
     private fun stopSpeechRecognition() {
-        speechToTextManager.stopListening()
+        speechCapturing.endCapture()
     }
 
     /**
@@ -423,10 +439,15 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
      * Handles speech recognition errors
      * @param errorCode The error code from the speech recognizer
      */
-    private fun handleSpeechError(errorCode: Int) {
-        _inputState.update {
-            UserInputState.Error("Speech recognition error: $errorCode")
+    private fun handleSpeechError(error: SpeechCaptureError) {
+        val message = when (error) {
+            is SpeechCaptureError.NoMatch -> "No speech recognized"
+            is SpeechCaptureError.Client -> "Speech client error"
+            is SpeechCaptureError.Permission -> "Microphone permission required"
+            is SpeechCaptureError.Network -> "Network error during speech recognition"
+            is SpeechCaptureError.Unknown -> "Speech recognition error: ${error.code}"
         }
+        _inputState.update { UserInputState.Error(message) }
     }
 
 
@@ -443,7 +464,8 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
     override fun onCleared() {
         super.onCleared()
-        speechToTextManager.release()
+        speechCapturing.setListener(null)
+        speechCapturing.release()
         chatService.cleanup()
     }
 }
