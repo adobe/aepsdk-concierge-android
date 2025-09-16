@@ -34,6 +34,7 @@ import org.junit.Before
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import kotlin.time.ExperimentalTime
 
@@ -389,7 +390,7 @@ class ConciergeConversationServiceClientTest {
         // InputStream that throws after a few bytes
         val payload = "data: {\"handle\":[]}\n\n".toByteArray()
         var index = 0
-        val throwingStream = object : java.io.InputStream() {
+        val throwingStream = object : InputStream() {
             override fun read(): Int {
                 if (index >= payload.size / 2) throw IOException("boom")
                 return payload[index++].toInt()
