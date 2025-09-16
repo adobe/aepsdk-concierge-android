@@ -40,6 +40,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 
 @Composable
@@ -118,6 +119,7 @@ internal fun ConciergeChat(
                     onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
+                    onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)

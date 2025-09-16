@@ -23,6 +23,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 
 /**
  * Component that displays a list of chat messages.
@@ -33,7 +34,8 @@ internal fun MessageList(
     messages: List<ChatMessage>,
     onFeedback: (FeedbackEvent) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (MultimodalElement) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {},
+    onSuggestionClick: (String) -> Unit = {}
 ) {
     LazyColumn(
         modifier = modifier.animateContentSize(),
@@ -45,7 +47,8 @@ internal fun MessageList(
                 message = message,
                 onFeedback = onFeedback,
                 onActionClick = onActionClick,
-                onImageClick = onImageClick
+                onImageClick = onImageClick,
+                onSuggestionClick = onSuggestionClick
             )
         }
     }
