@@ -45,7 +45,6 @@ internal object TempConversationResponseParser {
     private const val FIELD_THUMBNAIL_HEIGHT = "thumbnail_height"
 
     // product card field names
-    private const val FIELD_ENTITY_INFO = "entity_info"
     private const val FIELD_PRODUCT_NAME = "productName"
     private const val FIELD_PRODUCT_DESCRIPTION = "productDescription"
     private const val FIELD_DESCRIPTION = "description"
@@ -56,8 +55,8 @@ internal object TempConversationResponseParser {
     private const val FIELD_LOGO = "logo"
     private const val FIELD_PRIMARY = "primary"
     private const val FIELD_SECONDARY = "secondary"
-    private const val FIELD_PRIMARY_TEXT = "text"
-    private const val FIELD_PRIMARY_URL = "url"
+    private const val FIELD_BUTTON_TEXT = "text"
+    private const val FIELD_BUTTON_URL = "url"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -184,20 +183,15 @@ internal object TempConversationResponseParser {
         }
 
         val elements = mutableListOf<MultimodalElement>()
-        val elementTypes = mutableMapOf<String, Int>()
-
         for (i in 0 until elementsArray.length()) {
             val elementObj = elementsArray.optJSONObject(i) ?: continue
             val element = parseMultimodalElement(elementObj)
             if (element != null) {
                 elements.add(element)
-                val type = element.type
-                elementTypes[type] = (elementTypes[type] ?: 0) + 1
-
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
-                    "Parsed multimodal element ${i + 1}: id=${element.id}, type=${element.type}, title=${element.title ?: "N/A"}."
+                    "Parsed multimodal element ${i + 1}: id=${element.id}, title=${element.title ?: "N/A"}."
                 )
             } else {
                 Log.warning(
@@ -212,7 +206,7 @@ internal object TempConversationResponseParser {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
-                "Successfully parsed ${elements.size} multimodal elements from response: $elementTypes."
+                "Successfully parsed ${elements.size} multimodal elements from response."
             )
         } else {
             Log.debug(
@@ -231,22 +225,9 @@ internal object TempConversationResponseParser {
      */
     private fun parseMultimodalElement(elementObj: JSONObject): MultimodalElement? {
         val id = elementObj.optString(FIELD_ID)
-        val type = elementObj.optString(FIELD_TYPE)
+        if (id.isEmpty()) return null
 
-        if (id.isEmpty() || type.isEmpty()) return null
-
-        // Extract entity_info if present
-        val entityInfo = elementObj.optJSONObject(FIELD_ENTITY_INFO)
         val content = mutableMapOf<String, Any>()
-
-        if (entityInfo == null) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Unable to find entity_info for multimodal element id=$id, type=$type. Skipping element."
-            )
-            return null
-        }
 
         // get image fields from the base json object element
         val width = elementObj.optInt(FIELD_WIDTH, -1).takeIf { it > 0 }
@@ -254,26 +235,26 @@ internal object TempConversationResponseParser {
         val thumbnailWidth = elementObj.optInt(FIELD_THUMBNAIL_WIDTH, -1).takeIf { it > 0 }
         val thumbnailHeight = elementObj.optInt(FIELD_THUMBNAIL_HEIGHT, -1).takeIf { it > 0 }
 
-        // Extract product information from entity_info
-        val productName = entityInfo.optString(FIELD_PRODUCT_NAME).takeIf { it.isNotEmpty() }
+        // Extract product information
+        val productName = elementObj.optString(FIELD_PRODUCT_NAME).takeIf { it.isNotEmpty() }
         val productDescription =
-            entityInfo.optString(FIELD_PRODUCT_DESCRIPTION).takeIf { it.isNotEmpty() }
-        val description = entityInfo.optString(FIELD_DESCRIPTION).takeIf { it.isNotEmpty() }
+            elementObj.optString(FIELD_PRODUCT_DESCRIPTION).takeIf { it.isNotEmpty() }
+        val description = elementObj.optString(FIELD_DESCRIPTION).takeIf { it.isNotEmpty() }
         val productPageUrl =
-            entityInfo.optString(FIELD_PRODUCT_PAGE_URL).takeIf { it.isNotEmpty() }
+            elementObj.optString(FIELD_PRODUCT_PAGE_URL).takeIf { it.isNotEmpty() }
         val productImageUrl =
-            entityInfo.optString(FIELD_PRODUCT_IMAGE_URL).takeIf { it.isNotEmpty() }
+            elementObj.optString(FIELD_PRODUCT_IMAGE_URL).takeIf { it.isNotEmpty() }
         val backgroundColor =
-            entityInfo.optString(FIELD_BACKGROUND_COLOR).takeIf { it.isNotEmpty() }
+            elementObj.optString(FIELD_BACKGROUND_COLOR).takeIf { it.isNotEmpty() }
         val learningResource =
-            entityInfo.optString(FIELD_LEARNING_RESOURCE).takeIf { it.isNotEmpty() }
-        val logo = entityInfo.optString(FIELD_LOGO).takeIf { it.isNotEmpty() }
+            elementObj.optString(FIELD_LEARNING_RESOURCE).takeIf { it.isNotEmpty() }
+        val logo = elementObj.optString(FIELD_LOGO).takeIf { it.isNotEmpty() }
 
         // Extract primary and secondary action buttons
-        val primaryAction = entityInfo.optJSONObject(FIELD_PRIMARY)
-        val secondaryAction = entityInfo.optJSONObject(FIELD_SECONDARY)
+        val primaryAction = elementObj.optJSONObject(FIELD_PRIMARY)
+        val secondaryAction = elementObj.optJSONObject(FIELD_SECONDARY)
 
-        // Add entity_info fields to content
+        // Add element fields to content
         productName?.let { content["productName"] = it }
         productDescription?.let { content["productDescription"] = it }
         description?.let { content["description"] = it }
@@ -285,15 +266,15 @@ internal object TempConversationResponseParser {
 
         // Add action buttons
         primaryAction?.let { action ->
-            val primaryText = action.optString(FIELD_PRIMARY_TEXT).takeIf { it.isNotEmpty() }
-            val primaryUrl = action.optString(FIELD_PRIMARY_URL).takeIf { it.isNotEmpty() }
+            val primaryText = action.optString(FIELD_BUTTON_TEXT).takeIf { it.isNotEmpty() }
+            val primaryUrl = action.optString(FIELD_BUTTON_URL).takeIf { it.isNotEmpty() }
             primaryText?.let { content["primaryText"] = it }
             primaryUrl?.let { content["primaryUrl"] = it }
         }
 
         secondaryAction?.let { action ->
-            val secondaryText = action.optString(FIELD_PRIMARY_TEXT).takeIf { it.isNotEmpty() }
-            val secondaryUrl = action.optString(FIELD_PRIMARY_URL).takeIf { it.isNotEmpty() }
+            val secondaryText = action.optString(FIELD_BUTTON_TEXT).takeIf { it.isNotEmpty() }
+            val secondaryUrl = action.optString(FIELD_BUTTON_URL).takeIf { it.isNotEmpty() }
             secondaryText?.let { content["secondaryText"] = it }
             secondaryUrl?.let { content["secondaryUrl"] = it }
         }
@@ -306,7 +287,6 @@ internal object TempConversationResponseParser {
 
         return MultimodalElement(
             id = id,
-            type = type,
             url = productImageUrl,
             width = width,
             height = height,

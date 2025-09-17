@@ -63,7 +63,6 @@ internal data class ConversationResponse(
  */
 data class MultimodalElement(
     val id: String,
-    val type: String,
     val url: String? = null,
     val width: Int? = null,
     val height: Int? = null,
