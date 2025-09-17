@@ -54,7 +54,6 @@ internal fun ProductActionButtons(
         return
     }
 
-    Spacer(modifier = Modifier.height(20.dp))
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier
