@@ -14,9 +14,11 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
@@ -93,6 +95,7 @@ private fun ListMarker(
     
     BasicText(
         text = displayMarker,
+        style = TextStyle(color = MaterialTheme.colorScheme.onSurface),
         modifier = Modifier.padding(
             start = ListSpacing.BASE_INDENTATION + (indentationLevel * ListSpacing.INDENTATION_PER_LEVEL).dp
         )
