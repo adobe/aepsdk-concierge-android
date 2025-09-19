@@ -34,6 +34,8 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
+import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,6 +73,9 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
     private val chatService: ConciergeConversationServiceClient =
         ConciergeConversationServiceClient()
+
+    // Image provider for handling image loading and caching
+    val imageProvider: ImageProvider = DefaultImageProvider(maxEntries = 64)
 
     // Speech to text manager
     private val speechToTextManager = SpeechToTextManager(
@@ -513,6 +518,7 @@ class ConciergeChatViewModel(application: Application) : AndroidViewModel(applic
 
     override fun onCleared() {
         super.onCleared()
+        imageProvider.clear()
         speechToTextManager.release()
         chatService.cleanup()
     }

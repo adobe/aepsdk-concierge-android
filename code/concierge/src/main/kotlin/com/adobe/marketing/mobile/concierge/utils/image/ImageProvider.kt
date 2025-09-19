@@ -22,114 +22,131 @@ import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.ServiceProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * Image downloader class that handles downloading and caching images in-memory.
+ * Interface for providing image loading and caching functionality.
  */
-internal class ImageDownloader {
-
-    companion object {
-        @Volatile
-        private var INSTANCE: ImageDownloader? = null
-
-        fun getInstance(): ImageDownloader {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ImageDownloader().also { INSTANCE = it }
-            }
-        }
-    }
-
-    private val cache: LruCache<String, Bitmap>
-
-    init {
-        val maxMemory = Runtime.getRuntime().maxMemory()
-        val calculatedCacheSize = (maxMemory / 4).toInt() // Use 1/4th of available memory for cache
-        val minCacheSize = 50 * 1024 * 1024 // 50MB cache
-        val cacheSize = maxOf(calculatedCacheSize, minCacheSize)
-
-
-        cache = object : LruCache<String, Bitmap>(cacheSize) {
-            override fun entryRemoved(
-                evicted: Boolean,
-                key: String?,
-                oldValue: Bitmap?,
-                newValue: Bitmap?
-            ) {
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    "ImageDownloader",
-                    "Image removed from cache: $key"
-                )
-            }
-        }
-    }
+interface ImageProvider {
+    /**
+     * Gets a cached bitmap from the cache.
+     *
+     * @param url The URL of the cached image
+     * @return The cached bitmap or null if not in cache
+     */
+    fun getCached(url: String): Bitmap?
 
     /**
      * Downloads an image from the given URL.
      * First checks the cache, then downloads if not cached.
      *
      * @param url The URL of the image to download
-     * @return The downloaded bitmap or null if download failed
+     * @return The downloaded bitmap
      */
-    suspend fun downloadImage(url: String): Bitmap? {
+    suspend fun get(url: String): Bitmap
+
+    /**
+     * Clears the image cache.
+     */
+    fun clear()
+}
+
+/**
+ * Default implementation of ImageProvider that handles downloading and caching images in-memory.
+ */
+internal class DefaultImageProvider(
+    maxEntries: Int = 64
+) : ImageProvider {
+
+    private val cache = object : LruCache<String, Bitmap>(maxEntries) {
+        /* If we want to set max size based on memory instead of entry count, we can use this:
+        val MIN_CACHE_SIZE = 5 * 1024 * 1024 // 5MB cache
+        val maxMemory = Runtime.getRuntime().maxMemory()
+        val calculatedCacheSize = (maxMemory / 4).toInt() // Use 1/4th of available memory for cache
+        val cacheSize = maxOf(calculatedCacheSize, MIN_CACHE_SIZE)
+
+        override fun sizeOf(key: String?, value: Bitmap): Int {
+                return cacheSize
+        }
+        */
+
+        override fun entryRemoved(
+            evicted: Boolean,
+            key: String?,
+            oldValue: Bitmap?,
+            newValue: Bitmap?
+        ) {
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                "DefaultImageProvider",
+                "Image removed from cache: $key"
+            )
+        }
+    }
+
+    init {
+        cache
+    }
+
+    override fun getCached(url: String): Bitmap? {
+        return cache.get(url)
+    }
+
+    override suspend fun get(url: String): Bitmap {
         // Check cache first
         cache.get(url)?.let { cachedBitmap ->
             return cachedBitmap
         }
 
-        return try {
-            val request = createImageRequest(url)
-            val connection = connect(request)
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = createImageRequest(url)
+                val connection = connect(request)
 
-            val responseCode = connection.responseCode
-            if (responseCode !in 200..299) {
-                throw IOException("Failed to download image: HTTP $responseCode")
+                val responseCode = connection.responseCode
+                if (responseCode !in 200..299) {
+                    throw IOException("Failed to download image: HTTP $responseCode")
+                }
+
+                // Download and decode image
+                val inputStream = connection.inputStream
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                connection.close()
+
+                bitmap ?: throw IOException("Failed to decode image from URL: $url")
+            } catch (e: IOException) {
+                Log.error(
+                    ConciergeConstants.EXTENSION_NAME,
+                    "DefaultImageProvider",
+                    "IOException while downloading image: ${e.message}"
+                )
+                throw e
+            } catch (e: Exception) {
+                Log.error(
+                    ConciergeConstants.EXTENSION_NAME,
+                    "DefaultImageProvider",
+                    "Unexpected error while downloading image: ${e.message}"
+                )
+                throw IOException("Failed to download image: ${e.message}", e)
             }
-
-            // Download and decode image
-            val inputStream = connection.inputStream
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            connection.close()
-
+        }.also { bitmap ->
             // Cache the bitmap if successfully downloaded
-            bitmap?.let {
-                cache.put(url, it)
-            }
+            cache.put(url, bitmap)
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
-                "ImageDownloader",
+                "DefaultImageProvider",
                 "Image downloaded and cached from: $url"
             )
-            bitmap
-        } catch (e: IOException) {
-            Log.error(
-                ConciergeConstants.EXTENSION_NAME,
-                "ImageDownloader",
-                "IOException while downloading image: ${e.message}"
-            )
-            null
-        } catch (e: Exception) {
-            Log.error(
-                ConciergeConstants.EXTENSION_NAME,
-                "ImageDownloader",
-                "Unexpected error while downloading image: ${e.message}"
-            )
-            null
         }
     }
 
-    /**
-     * Gets a bitmap from cache without downloading
-     *
-     * @param url The URL of the cached image
-     * @return The cached bitmap or null if not in cache
-     */
-    fun getCachedBitmap(url: String): Bitmap? {
-        return cache.get(url)
+    override fun clear() {
+        cache.evictAll()
     }
 
     /**
@@ -179,7 +196,7 @@ internal class ImageDownloader {
             continuation.invokeOnCancellation {
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
-                    "ImageDownloader",
+                    "DefaultImageProvider",
                     "Connection cancelled"
                 )
             }

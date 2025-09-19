@@ -20,11 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -32,15 +28,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.ConciergeConstants
-import com.adobe.marketing.mobile.concierge.utils.image.ImageDownloader
-import com.adobe.marketing.mobile.services.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 /**
  * AsyncImage composable to load and display an image from a URL asynchronously.
- * Uses [ImageDownloader] for async image loading with in-memory caching.
+ * Uses [ImageProvider] for async image loading with in-memory caching.
  */
 @Composable
 internal fun AsyncImage(
@@ -52,49 +44,11 @@ internal fun AsyncImage(
     placeholder: @Composable (() -> Unit)? = null,
     error: @Composable (() -> Unit)? = null
 ) {
-    val imageDownloader = ImageDownloader.getInstance()
-
-    var imageBitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    var isLoading by remember(url) { mutableStateOf(true) }
-    var hasError by remember(url) { mutableStateOf(false) }
-
-    LaunchedEffect(url) {
-        isLoading = true
-        hasError = false
-
-        try {
-            var bitmap = imageDownloader.getCachedBitmap(url)
-
-            // If not in cache, download
-            if (bitmap == null) {
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    "AsyncImage",
-                    "Image not found in cache, downloading image from URL: $url"
-                )
-                bitmap = withContext(Dispatchers.IO) {
-                    imageDownloader.downloadImage(url)
-                }
-            }
-
-            bitmap?.let {
-                imageBitmap = it.asImageBitmap()
-                isLoading = false
-            } ?: run {
-                hasError = true
-                isLoading = false
-                onError?.invoke(Exception("Failed to load image: $url"))
-            }
-        } catch (e: Exception) {
-            hasError = true
-            isLoading = false
-            onError?.invoke(e)
-        }
-    }
+    val imageResult = rememberRemoteImage(url, onError)
 
     Box(modifier = modifier) {
-        when {
-            isLoading -> {
+        when (imageResult.state) {
+            ImageLoadingState.Loading -> {
                 // Show loading indicator until image is loaded
                 placeholder?.invoke() ?: run {
                     Box(
@@ -111,7 +65,7 @@ internal fun AsyncImage(
                 }
             }
 
-            hasError -> {
+            ImageLoadingState.Error -> {
                 // Show error state
                 error?.invoke() ?: run {
                     Box(
@@ -123,16 +77,62 @@ internal fun AsyncImage(
                 }
             }
 
-            imageBitmap != null -> {
+            ImageLoadingState.Success -> {
                 // Show the loaded image
-                Image(
-                    painter = BitmapPainter(imageBitmap!!),
-                    contentDescription = contentDescription,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = contentScale
-                )
+                imageResult.image?.let { bitmap ->
+                    Image(
+                        painter = BitmapPainter(bitmap),
+                        contentDescription = contentDescription,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = contentScale
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * Represents the different states of image loading.
+ */
+private enum class ImageLoadingState {
+    Loading,
+    Success,
+    Error
+}
+
+/**
+ * Data class to hold the result of image loading with state.
+ */
+private data class ImageResult(
+    val image: ImageBitmap?,
+    val state: ImageLoadingState
+)
+
+/**
+ * Composable that remembers a remote image loaded from the provided URL.
+ * Uses the [ImageProvider] to handle caching and downloading.
+ * Returns both the image and loading state.
+ */
+@Composable
+private fun rememberRemoteImage(url: String, onError: ((Throwable) -> Unit)? = null): ImageResult {
+    val provider = LocalImageProvider.current
+    return produceState(
+        initialValue = provider.getCached(url)?.asImageBitmap()?.let { bitmap ->
+            ImageResult(image = bitmap, state = ImageLoadingState.Success)
+        } ?: ImageResult(image = null, state = ImageLoadingState.Loading),
+        key1 = url
+    ) {
+        if (value.state == ImageLoadingState.Loading) {
+            try {
+                val bitmap = provider.get(url).asImageBitmap()
+                value = ImageResult(image = bitmap, state = ImageLoadingState.Success)
+            } catch (e: Exception) {
+                // Image loading failed
+                value = ImageResult(image = null, state = ImageLoadingState.Error)
+                onError?.invoke(e)
+            }
+        }
+    }.value
 }
 
