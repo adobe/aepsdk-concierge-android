@@ -75,32 +75,6 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
-    private val chatService: ConciergeConversationServiceClient =
-        ConciergeConversationServiceClient()
-
-    // Image provider for handling image loading and caching
-    val imageProvider: ImageProvider = DefaultImageProvider(maxEntries = 64)
-
-    // Speech to text manager
-    private val speechToTextManager = SpeechToTextManager(
-        context = getApplication<Application>(),
-        onSpeechStarted = {
-            _inputState.update { UserInputState.Recording("") }
-        },
-        onSpeechEnded = {
-            //_inputState.update { UserInputState.Transcribing() }
-        },
-        onPartialTranscription = { partialText ->
-            handlePartialTranscription(partialText)
-        },
-        onTranscriptionResult = { transcription ->
-            handleTranscriptionResult(transcription)
-        },
-        onSpeechError = { errorCode ->
-            handleSpeechError(errorCode)
-        }
-    )
-
     /**
      * Tracks whether the app has audio recording permission
      */
@@ -111,6 +85,11 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Speech capturing implementation that will be used for this session
      */
     private val speechCapturing: SpeechCapturing
+
+    /**
+     * Image provider for handling image loading and caching
+     */
+    internal val imageProvider: ImageProvider = DefaultImageProvider()
 
     /**
      * Chat service client for handling conversation API calls
@@ -564,7 +543,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     override fun onCleared() {
         super.onCleared()
         imageProvider.clear()
-        speechToTextManager.release()
+        speechCapturing.setListener(null)
+        speechCapturing.release()
         chatService.cleanup()
     }
 }
