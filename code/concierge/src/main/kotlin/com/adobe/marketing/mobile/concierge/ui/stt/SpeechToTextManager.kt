@@ -27,25 +27,18 @@ import com.adobe.marketing.mobile.services.Log
  * Manages speech-to-text functionality using Android's SpeechRecognizer API and
  * provides callbacks for speech events and transcription results.
  * @param context The application context
- * @param onSpeechStarted Callback invoked when speech input starts
- * @param onSpeechEnded Callback invoked when speech input ends
- * @param onPartialTranscription Callback invoked with partial transcription results during recording
- * @param onTranscriptionResult Callback invoked with the transcribed text result
- * @param onSpeechError Callback invoked with error code if speech recognition fails
+ * Uses a single listener to report speech lifecycle events, partial/final results,
+ * and errors via [SpeechCaptureError].
  */
 internal class SpeechToTextManager(
-    private val context: Context,
-    val onSpeechStarted: () -> Unit = {},
-    val onSpeechEnded: () -> Unit = {},
-    val onPartialTranscription: (partialText: String) -> Unit = {},
-    val onTranscriptionResult: (transcription: String) -> Unit = {},
-    val onSpeechError: (recognitionError: Int) -> Unit = {}
+    private val context: Context
 ) {
     companion object {
         private const val TAG = "SpeechToTextManager"
     }
 
     private var speechRecognizer: SpeechRecognizer? = null
+    private var listener: SpeechCaptureListener? = null
 
     private val _isAvailable = mutableStateOf<Boolean>(false)
     val isAvailable: State<Boolean> = _isAvailable
@@ -73,7 +66,7 @@ internal class SpeechToTextManager(
         override fun onRmsChanged(rmsdB: Float) {}
         override fun onBufferReceived(buffer: ByteArray?) {}
         override fun onEndOfSpeech() {
-            onSpeechEnded()
+            listener?.onSpeechEnded()
         }
 
         override fun onError(error: Int) {
@@ -82,15 +75,14 @@ internal class SpeechToTextManager(
                 TAG,
                 "Speech recognition error: $error"
             )
-            when (error) {
-                SpeechRecognizer.ERROR_NO_MATCH -> {
-                    onTranscriptionResult("")
-                }
-
-                else -> {
-                    onSpeechError(error)
-                }
+            val mapped = when (error) {
+                SpeechRecognizer.ERROR_NO_MATCH -> SpeechCaptureError.NoMatch
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> SpeechCaptureError.Permission()
+                SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> SpeechCaptureError.Network()
+                SpeechRecognizer.ERROR_CLIENT -> SpeechCaptureError.Client()
+                else -> SpeechCaptureError.Unknown(error)
             }
+            listener?.onError(mapped)
         }
 
         override fun onResults(results: Bundle?) {
@@ -101,7 +93,7 @@ internal class SpeechToTextManager(
             )
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             matches?.firstOrNull()?.let { text ->
-                onTranscriptionResult(text)
+                listener?.onTranscriptionResult(text)
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
@@ -124,7 +116,7 @@ internal class SpeechToTextManager(
             )
             val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             matches?.firstOrNull()?.let { partialText ->
-                onPartialTranscription(partialText)
+                listener?.onPartialTranscription(partialText)
             }
         }
 
@@ -156,10 +148,10 @@ internal class SpeechToTextManager(
 
         try {
             speechRecognizer?.startListening(intent)
-            onSpeechStarted()
+            listener?.onSpeechStarted()
 
         } catch (e: Exception) {
-            onSpeechError(SpeechRecognizer.ERROR_CLIENT)
+            listener?.onError(SpeechCaptureError.Client(e))
             _isAvailable.value = false
         }
     }
@@ -167,11 +159,10 @@ internal class SpeechToTextManager(
     fun stopListening() {
         try {
             speechRecognizer?.stopListening()
-            onSpeechEnded()
+            listener?.onSpeechEnded()
         } catch (e: Exception) {
-
         } finally {
-            onSpeechEnded()
+            listener?.onSpeechEnded()
         }
     }
 
@@ -191,5 +182,9 @@ internal class SpeechToTextManager(
             speechRecognizer = null
             _isAvailable.value = false
         }
+    }
+
+    fun setListener(listener: SpeechCaptureListener?) {
+        this.listener = listener
     }
 }
