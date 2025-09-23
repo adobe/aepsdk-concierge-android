@@ -17,18 +17,23 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
+import com.adobe.marketing.mobile.services.ServiceProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -50,6 +55,7 @@ class ConciergeChatViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var app: Application
+    private lateinit var mockServiceProvider: ServiceProvider
 
     @Before
     fun setUp() {
@@ -58,11 +64,19 @@ class ConciergeChatViewModelTest {
         // Default: grant audio permission
         mockkStatic(ContextCompat::class)
         every { ContextCompat.checkSelfPermission(any(), any()) } returns PackageManager.PERMISSION_GRANTED
+        
+        // Mock ServiceProvider and UriService
+        mockkStatic(ServiceProvider::class)
+        mockServiceProvider = mockk<ServiceProvider>(relaxed = true)
+        every { ServiceProvider.getInstance() } returns mockServiceProvider
+        every { mockServiceProvider.uriService } returns mockk(relaxed = true)
+        every { mockServiceProvider.uriService.openUri(any()) } returns true
     }
 
     @After
     fun tearDown() {
         unmockkStatic(ContextCompat::class)
+        unmockkStatic(ServiceProvider::class)
         Dispatchers.resetMain()
     }
 
@@ -167,7 +181,8 @@ class ConciergeChatViewModelTest {
         every { chatClient.chat("Hi") } returns flow {
             emit(ParsedConversationMessage("Hel", ConversationState.IN_PROGRESS))
             emit(ParsedConversationMessage("lo", ConversationState.IN_PROGRESS))
-            emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+            // the "completed" message contains the full text
+            emit(ParsedConversationMessage("Hello", ConversationState.COMPLETED))
         }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
@@ -332,6 +347,147 @@ class ConciergeChatViewModelTest {
         assertEquals(2, messages.size)
         assertTrue(!messages[1].isFromUser)
         assertEquals("", messages[1].text)
+    }
+
+    @Test
+    fun `productActionClick with valid URL calls openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val button = ProductActionButton(
+            id = "test_button",
+            text = "Buy Now",
+            url = "https://example.com/product"
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductActionClick(button))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was called with the correct URL
+        verify { mockServiceProvider.uriService.openUri("https://example.com/product") }
+    }
+
+    @Test
+    fun `productActionClick with null URL does not call openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val button = ProductActionButton(
+            id = "test_button",
+            text = "Buy Now",
+            url = null
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductActionClick(button))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was not called
+        verify(exactly = 0) { mockServiceProvider.uriService.openUri(any()) }
+    }
+
+    @Test
+    fun `productActionClick with empty URL does not call openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val button = ProductActionButton(
+            id = "test_button",
+            text = "Buy Now",
+            url = ""
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductActionClick(button))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was not called
+        verify(exactly = 0) { mockServiceProvider.uriService.openUri(any()) }
+    }
+
+    @Test
+    fun `productImageClick with valid productPageURL calls openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val element = MultimodalElement(
+            id = "test_element",
+            content = mapOf(
+                "productPageURL" to "https://example.com/product-page",
+                "productName" to "Test Product"
+            )
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductImageClick(element))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was called with the correct URL
+        verify { mockServiceProvider.uriService.openUri("https://example.com/product-page") }
+    }
+
+    @Test
+    fun `productImageClick with null productPageURL does not call openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val element = MultimodalElement(
+            id = "test_element",
+            content = mapOf(
+                "productName" to "Test Product"
+                // productPageURL is missing
+            )
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductImageClick(element))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was not called
+        verify(exactly = 0) { mockServiceProvider.uriService.openUri(any()) }
+    }
+
+    @Test
+    fun `productImageClick with empty productPageURL does not call openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val element = MultimodalElement(
+            id = "test_element",
+            content = mapOf(
+                "productPageURL" to "",
+                "productName" to "Test Product"
+            )
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductImageClick(element))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was not called
+        verify(exactly = 0) { mockServiceProvider.uriService.openUri(any()) }
+    }
+
+    @Test
+    fun `productImageClick with invalid productPageURL does not call openUri`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        
+        val element = MultimodalElement(
+            id = "test_element",
+            content = mapOf(
+                "productPageURL" to 1234,
+                "productName" to "Test Product"
+            )
+        )
+        
+        vm.processEvent(MessageInteractionEvent.ProductImageClick(element))
+        
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+        
+        // Verify that openUri was not called
+        verify(exactly = 0) { mockServiceProvider.uriService.openUri(any()) }
     }
 
     /**

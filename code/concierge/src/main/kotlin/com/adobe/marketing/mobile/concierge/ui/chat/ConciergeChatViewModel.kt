@@ -33,7 +33,6 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.ui.stt.SpeechToTextManager
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
@@ -89,7 +88,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Image provider for handling image loading and caching
      */
-    internal val imageProvider: ImageProvider = DefaultImageProvider()
+    internal val imageProvider: ImageProvider
 
     /**
      * Chat service client for handling conversation API calls
@@ -98,10 +97,13 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     constructor(application: Application) : this(application, AndroidSpeechCapturing(application))
 
-    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, ConciergeConversationServiceClient())
+    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, DefaultImageProvider(), ConciergeConversationServiceClient())
 
-    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatService : ConciergeConversationServiceClient = ConciergeConversationServiceClient()) : super(application) {
+    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatClient: ConciergeConversationServiceClient): this(application, speechCapturing, DefaultImageProvider(), chatClient)
+
+    internal constructor(application: Application, speechCapturing: SpeechCapturing, imageProvider: ImageProvider, chatService: ConciergeConversationServiceClient) : super(application) {
         this.speechCapturing = speechCapturing
+        this.imageProvider = imageProvider
         this.chatService = chatService
         speechCapturing.setListener(captureListener)
     }
@@ -184,7 +186,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param element The [MultimodalElement] image that was clicked
      */
     private fun handleProductImageClick(element: MultimodalElement) {
-        var url = element.content["productPageURL"] as? String
+        val url = element.content["productPageURL"] as? String
         if (url.isNullOrEmpty()) {
             Log.debug(TAG, "handleProductImageClick", "Invalid url found, cannot open.")
             return
