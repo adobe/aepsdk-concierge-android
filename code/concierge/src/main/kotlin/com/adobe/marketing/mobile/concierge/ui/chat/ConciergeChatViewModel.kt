@@ -21,19 +21,26 @@ import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.services.Log
+import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -79,16 +86,24 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val speechCapturing: SpeechCapturing
 
     /**
+     * Image provider for handling image loading and caching
+     */
+    internal val imageProvider: ImageProvider
+
+    /**
      * Chat service client for handling conversation API calls
      */
     private val chatService: ConciergeConversationServiceClient
 
     constructor(application: Application) : this(application, AndroidSpeechCapturing(application))
 
-    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, ConciergeConversationServiceClient())
+    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, DefaultImageProvider(), ConciergeConversationServiceClient())
 
-    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatService : ConciergeConversationServiceClient = ConciergeConversationServiceClient()) : super(application) {
+    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatClient: ConciergeConversationServiceClient): this(application, speechCapturing, DefaultImageProvider(), chatClient)
+
+    internal constructor(application: Application, speechCapturing: SpeechCapturing, imageProvider: ImageProvider, chatService: ConciergeConversationServiceClient) : super(application) {
         this.speechCapturing = speechCapturing
+        this.imageProvider = imageProvider
         this.chatService = chatService
         speechCapturing.setListener(captureListener)
     }
@@ -143,18 +158,42 @@ class ConciergeChatViewModel : AndroidViewModel {
                     }
                 }
             }
+
+            is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
+            is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+
+            is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
+            is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
         }
     }
 
     /**
-     * Process incoming feedback events from the UI
-     * @param event The feedback event to process
+     * Handle product action button clicks
+     * @param button The [ProductActionButton] that was pressed
      */
-    internal fun processFeedbackEvent(event: FeedbackEvent) {
-        when (event) {
-            is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
-            is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+    private fun handleProductActionClick(button: ProductActionButton) {
+        if (button.url.isNullOrEmpty()) {
+            Log.debug(TAG, "handleProductActionClick", "Invalid url found, cannot open.")
+            return
         }
+
+        Log.debug(TAG, "handleProductActionClick", "Button pressed: ${button.text}, opening URL: ${button.url}")
+        ServiceProvider.getInstance().uriService.openUri(button.url.toString())
+    }
+
+    /**
+     * Handle product image clicks
+     * @param element The [MultimodalElement] image that was clicked
+     */
+    private fun handleProductImageClick(element: MultimodalElement) {
+        val url = element.content["productPageURL"] as? String
+        if (url.isNullOrEmpty()) {
+            Log.debug(TAG, "handleProductImageClick", "Invalid url found, cannot open.")
+            return
+        }
+
+        Log.debug(TAG, "handleProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
+        ServiceProvider.getInstance().uriService.openUri(url)
     }
 
     /**
@@ -234,7 +273,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         // Add user message to the list
         val userMessage = ChatMessage(
-            text = messageText,
+            content = MessageContent.Text(messageText),
             isFromUser = true,
             timestamp = System.currentTimeMillis()
         )
@@ -266,7 +305,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             try {
                 // Create initial empty assistant message once the stream begins
                 assistantMessage = ChatMessage(
-                    text = "",
+                    content = MessageContent.Text(""),
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
                     citations = generateRandomCitations(),
@@ -290,7 +329,8 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Handles parsed event data by extracting conversation messages and updating the UI
-     * @param jsonData The raw JSON data from the SSE event
+     *
+     * @param parsedMessage The parsed conversation message
      * @param contentBuilder StringBuilder tracking the full content
      */
     private fun onParsedMessage(
@@ -305,13 +345,12 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
+                appendToAssistantMessage(parsedMessage, contentBuilder)
             }
 
             ConversationState.COMPLETED -> {
-                // Finalize the assistant message with the complete content
-                // and change state to Idle
-                contentBuilder.clear()
+                // For COMPLETED state, replace the content with the final message
+                replaceAssistantMessageContent(parsedMessage)
                 _state.update { ChatScreenState.Idle }
             }
 
@@ -319,31 +358,72 @@ class ConciergeChatViewModel : AndroidViewModel {
                 handleConversationError("Conversation error: ${parsedMessage.messageContent}")
             }
 
-            else -> appendToAssistantMessage(parsedMessage.messageContent, contentBuilder)
+            else -> appendToAssistantMessage(parsedMessage, contentBuilder)
         }
     }
 
     /**
      * Appends new content to the assistant message
-     * @param newContent The new content to append
+     * @param parsedMessage The parsed message containing content
      * @param contentBuilder StringBuilder tracking the full content
      */
-    private fun appendToAssistantMessage(newContent: String, contentBuilder: StringBuilder) {
-        if (newContent.isNotBlank()) {
-            contentBuilder.append(newContent)
-            updateAssistantMessageText(contentBuilder.toString())
+    private fun appendToAssistantMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
+        if (parsedMessage.messageContent.isNotBlank()) {
+            contentBuilder.append(parsedMessage.messageContent)
         }
+        
+        // Create text-only message content for streaming updates
+        val messageContent = MessageContent.Text(contentBuilder.toString())
+
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            "ConciergeChatViewModel",
+            "Appending text content with length (${contentBuilder.length} chars)"
+        )
+        
+        updateAssistantMessageContent(messageContent)
     }
 
     /**
-     * Updates the assistant message text in the UI
-     * @param text The new text content for the assistant message
+     * Replaces the assistant message content with the final complete message
+     *
+     * @param parsedMessage The parsed message containing the final complete content
      */
-    private fun updateAssistantMessageText(text: String) {
+    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
+        // Create message content - conditionally include multimodal content
+        val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
+            MessageContent.Text(parsedMessage.messageContent)
+        } else {
+            MessageContent.Mixed(
+                text = parsedMessage.messageContent,
+                multimodalElements = parsedMessage.multimodalElements
+            )
+        }
+
+        val logMessage = if (parsedMessage.multimodalElements.isEmpty()) {
+            "Replacing with final Text message with length (${parsedMessage.messageContent.length} chars)"
+        } else {
+            "Replacing with final Mixed message with text (${parsedMessage.messageContent.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
+        }
+
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            "ConciergeChatViewModel",
+            logMessage
+        )
+        
+        updateAssistantMessageContent(messageContent)
+    }
+
+    /**
+     * Updates the assistant message content in the UI
+     * @param content The new content for the assistant message
+     */
+    private fun updateAssistantMessageContent(content: MessageContent) {
         _messages.update { currentMessages ->
             currentMessages.mapIndexed { index, message ->
                 if (index == currentMessages.lastIndex && !message.isFromUser) {
-                    message.copy(text = text)
+                    message.copy(content = content)
                 } else {
                     message
                 }
@@ -358,7 +438,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleConversationError(errorMessage: String) {
         // Add error message to chat
         val errorChatMessage = ChatMessage(
-            text = "Sorry, I encountered an error: $errorMessage",
+            content = MessageContent.Text("Sorry, I encountered an error: $errorMessage"),
             isFromUser = false,
             timestamp = System.currentTimeMillis()
         )
@@ -464,6 +544,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     override fun onCleared() {
         super.onCleared()
+        imageProvider.clear()
         speechCapturing.setListener(null)
         speechCapturing.release()
         chatService.cleanup()

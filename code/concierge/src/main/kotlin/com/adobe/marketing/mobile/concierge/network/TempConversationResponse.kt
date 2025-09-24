@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+
 // TODO: Temporary data classes for parsing conversation temporary API responses. Need to be
 //  replaced with actual API response structures once available
 
@@ -58,10 +59,20 @@ internal data class ConversationResponse(
 )
 
 /**
- * Multimodal elements for rich content (future use)
+ * Multimodal elements for rich content
  */
-internal data class MultimodalElement(
-    val type: String? = null,
+data class MultimodalElement(
+    val id: String,
+    val url: String? = null,
+    val width: Int? = null,
+    val height: Int? = null,
+    val thumbnailUrl: String? = null,
+    val thumbnailWidth: Int? = null,
+    val thumbnailHeight: Int? = null,
+    val alttext: String? = null,
+    val title: String? = null,
+    val caption: String? = null,
+    val transcript: String? = null,
     val content: Map<String, Any> = emptyMap()
 )
 

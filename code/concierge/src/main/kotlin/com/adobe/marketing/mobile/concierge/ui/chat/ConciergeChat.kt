@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,8 +39,10 @@ import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 @Composable
 fun ConciergeChat(
@@ -56,20 +59,21 @@ fun ConciergeChat(
     val isProcessing = state is ChatScreenState.Processing
     val errorMessage = (state as? ChatScreenState.Error)?.error
 
-    ConciergeChat(
-        messages = messages,
-        isProcessing = isProcessing,
-        errorMessage = errorMessage,
-        inputState = inputState,
-        hasAudioPermission = hasAudioPermission,
-        onTextChanged = viewModel::onTextStateChanged,
-        onEvent = viewModel::processEvent,
-        onFeedbackEvent = viewModel::processFeedbackEvent,
-        onPermissionResult = { granted ->
-            viewModel.refreshPermissionStatus()
-        },
-        onClose = onClose
-    )
+    CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
+        ConciergeChat(
+            messages = messages,
+            isProcessing = isProcessing,
+            errorMessage = errorMessage,
+            inputState = inputState,
+            hasAudioPermission = hasAudioPermission,
+            onTextChanged = viewModel::onTextStateChanged,
+            onEvent = viewModel::processEvent,
+            onPermissionResult = { granted ->
+                viewModel.refreshPermissionStatus()
+            },
+            onClose = onClose
+        )
+    }
 }
 
 @Composable
@@ -81,7 +85,6 @@ internal fun ConciergeChat(
     hasAudioPermission: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
-    onFeedbackEvent: (FeedbackEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit
 ) {
@@ -116,7 +119,9 @@ internal fun ConciergeChat(
             ) {
                 MessageList(
                     messages = messages,
-                    onFeedback = onFeedbackEvent,
+                    onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
+                    onActionClick = { button -> onEvent(ProductActionClick(button)) },
+                    onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)

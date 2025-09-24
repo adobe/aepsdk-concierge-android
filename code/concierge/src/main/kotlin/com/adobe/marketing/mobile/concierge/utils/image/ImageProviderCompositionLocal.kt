@@ -10,20 +10,13 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.conciergetestapp.ui
+package com.adobe.marketing.mobile.concierge.utils.image
 
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
+import androidx.compose.runtime.staticCompositionLocalOf
 
-@Composable
-fun ChatScreen(
-    modifier: Modifier = Modifier,
-    onClose: () -> Unit = {}
-) {
-    ConciergeChat(
-        viewModel = viewModel(),
-        onClose = onClose
-    )
+/**
+ * CompositionLocal for providing ImageProvider throughout the Compose hierarchy.
+ */
+val LocalImageProvider = staticCompositionLocalOf<ImageProvider> {
+    error("ImageProvider not provided")
 }

@@ -27,9 +27,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 
 /**
  * Component that displays a single chat message.
@@ -37,8 +41,22 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 @Composable
 internal fun ChatMessageItem(
     message: ChatMessage,
-    onFeedback: (FeedbackEvent) -> Unit = {}
+    onFeedback: (FeedbackEvent) -> Unit = {},
+    onActionClick: (ProductActionButton) -> Unit = {},
+    onImageClick: (MultimodalElement) -> Unit = {}
 ) {
+    when (message.content) {
+        is MessageContent.Text -> {
+            RenderTextMessage(message, onFeedback)
+        }
+        is MessageContent.Mixed -> {
+            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick)
+        }
+    }
+}
+
+@Composable
+private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -54,12 +72,11 @@ internal fun ChatMessageItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Box(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
             ) {
                 // Use ConciergeResponse composable for response messages to support markdown formatting
                 if (message.isFromUser) {
@@ -73,10 +90,73 @@ internal fun ChatMessageItem(
                         text = message.text,
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
 
-                    // If the message has citations show the footer
-                    if (!message.citations.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(6.dp))
+                // If we have a response message and citations are available then show the footer
+                if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                    ChatFooter(
+                        citations = message.citations,
+                        interactionId = message.interactionId,
+                        onFeedback = onFeedback
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenderMixedMessage(
+    message: ChatMessage,
+    onFeedback: (FeedbackEvent) -> Unit,
+    onActionClick: (ProductActionButton) -> Unit,
+    onImageClick: (MultimodalElement) -> Unit
+) {
+    if (message.content is MessageContent.Mixed) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.Start)
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        ) {
+            Box(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    // Render text content if present
+                    if (message.content.text.isNotEmpty()) {
+                        ConciergeResponse(
+                            text = message.content.text,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    
+                    // Add spacing between text and recommendation cards if both are present
+                    if (message.content.text.isNotEmpty() && 
+                        !message.content.multimodalElements.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    
+                    // Render multi-modal elements if present
+                    message.content.multimodalElements?.let { multimodalElements ->
+                        if (multimodalElements.isNotEmpty()) {
+                            RecommendationCards(
+                                elements = multimodalElements,
+                                onImageClick = onImageClick,
+                                onActionClick = onActionClick
+                            )
+                        }
+                    }
+
+                    // If we have a response message and citations are available then show the footer
+                    if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
                         ChatFooter(
                             citations = message.citations,
                             interactionId = message.interactionId,
