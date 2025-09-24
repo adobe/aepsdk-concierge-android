@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,6 +43,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.Pro
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 @Composable
 fun ConciergeChat(
@@ -58,19 +60,21 @@ fun ConciergeChat(
     val isProcessing = state is ChatScreenState.Processing
     val errorMessage = (state as? ChatScreenState.Error)?.error
 
-    ConciergeChat(
-        messages = messages,
-        isProcessing = isProcessing,
-        errorMessage = errorMessage,
-        inputState = inputState,
-        hasAudioPermission = hasAudioPermission,
-        onTextChanged = viewModel::onTextStateChanged,
-        onEvent = viewModel::processEvent,
-        onPermissionResult = { granted ->
-            viewModel.refreshPermissionStatus()
-        },
-        onClose = onClose
-    )
+    CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
+        ConciergeChat(
+            messages = messages,
+            isProcessing = isProcessing,
+            errorMessage = errorMessage,
+            inputState = inputState,
+            hasAudioPermission = hasAudioPermission,
+            onTextChanged = viewModel::onTextStateChanged,
+            onEvent = viewModel::processEvent,
+            onPermissionResult = { granted ->
+                viewModel.refreshPermissionStatus()
+            },
+            onClose = onClose
+        )
+    }
 }
 
 @Composable
