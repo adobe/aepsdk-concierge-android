@@ -90,6 +90,11 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
      * User clicked on a product image.
      */
     data class ProductImageClick(val element: MultimodalElement) : MessageInteractionEvent()
+
+    /**
+     * User clicked on a prompt suggestion.
+     */
+    data class PromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
 }
 
 /**
@@ -112,7 +117,8 @@ internal data class ChatMessage(
     val isFromUser: Boolean,
     val timestamp: Long,
     val citations: List<Citation>? = null,
-    val interactionId: String? = null
+    val interactionId: String? = null,
+    val promptSuggestions: List<String> = emptyList()
 ) {
     val text: String
         get() = when (content) {

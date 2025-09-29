@@ -164,6 +164,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
+            is MessageInteractionEvent.PromptSuggestionClick -> handlePromptSuggestionClick(event.suggestion)
         }
     }
 
@@ -194,6 +195,16 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         Log.debug(TAG, "handleProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
         ServiceProvider.getInstance().uriService.openUri(url)
+    }
+
+    /**
+     * Handle prompt suggestion clicks
+     * @param suggestion The suggestion text that was clicked
+     */
+    private fun handlePromptSuggestionClick(suggestion: String) {
+        Log.debug(TAG, "handlePromptSuggestionClick", "Prompt suggestion clicked: $suggestion")
+        // Set the suggestion text in the input field
+        _inputState.update { UserInputState.Editing(suggestion) }
     }
 
     /**
@@ -412,18 +423,19 @@ class ConciergeChatViewModel : AndroidViewModel {
             logMessage
         )
         
-        updateAssistantMessageContent(messageContent)
+        updateAssistantMessageContent(messageContent, parsedMessage.promptSuggestions)
     }
 
     /**
      * Updates the assistant message content in the UI
      * @param content The new content for the assistant message
+     * @param promptSuggestions Optional prompt suggestions to include with the message
      */
-    private fun updateAssistantMessageContent(content: MessageContent) {
+    private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList()) {
         _messages.update { currentMessages ->
             currentMessages.mapIndexed { index, message ->
                 if (index == currentMessages.lastIndex && !message.isFromUser) {
-                    message.copy(content = content)
+                    message.copy(content = content, promptSuggestions = promptSuggestions)
                 } else {
                     message
                 }

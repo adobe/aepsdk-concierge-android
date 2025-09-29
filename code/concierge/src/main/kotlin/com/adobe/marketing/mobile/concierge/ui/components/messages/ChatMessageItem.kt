@@ -34,6 +34,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 
 /**
  * Component that displays a single chat message.
@@ -43,20 +44,21 @@ internal fun ChatMessageItem(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (MultimodalElement) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {},
+    onSuggestionClick: (String) -> Unit = {}
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message, onFeedback)
+            RenderTextMessage(message, onFeedback, onSuggestionClick)
         }
         is MessageContent.Mixed -> {
-            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick)
+            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick, onSuggestionClick)
         }
     }
 }
 
 @Composable
-private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit) {
+private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,6 +105,14 @@ private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) 
             }
         }
     }
+
+    // Show prompt suggestions for concierge responses
+    if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
+        PromptSuggestions(
+            suggestions = message.promptSuggestions,
+            onSuggestionClick = onSuggestionClick
+        )
+    }
 }
 
 @Composable
@@ -110,7 +120,8 @@ private fun RenderMixedMessage(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit,
     onActionClick: (ProductActionButton) -> Unit,
-    onImageClick: (MultimodalElement) -> Unit
+    onImageClick: (MultimodalElement) -> Unit,
+    onSuggestionClick: (String) -> Unit
 ) {
     if (message.content is MessageContent.Mixed) {
         Card(
@@ -165,6 +176,14 @@ private fun RenderMixedMessage(
                     }
                 }
             }
+        }
+
+        // Show prompt suggestions for concierge responses
+        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
+            PromptSuggestions(
+                suggestions = message.promptSuggestions,
+                onSuggestionClick = onSuggestionClick
+            )
         }
     }
 }

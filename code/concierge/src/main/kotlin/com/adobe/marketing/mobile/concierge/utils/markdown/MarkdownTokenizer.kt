@@ -36,7 +36,7 @@ internal object MarkdownTokenizer {
         // Process block-level elements first (these have higher priority)
         val blockPatterns = mapOf(
             TokenType.CODE_BLOCK to """```([\s\S]*?)```""".toRegex(),
-            TokenType.HEADING to """^(#{1,2})\s*(.*)""".toRegex(RegexOption.MULTILINE),
+            TokenType.HEADING to """^(#{1,3})\s*(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.LIST to """^(\s*)([-•]|\d+\.)\s+(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE)
         )

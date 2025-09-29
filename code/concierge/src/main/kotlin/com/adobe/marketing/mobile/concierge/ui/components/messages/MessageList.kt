@@ -16,7 +16,9 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -33,9 +35,20 @@ internal fun MessageList(
     messages: List<ChatMessage>,
     onFeedback: (FeedbackEvent) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
-    onImageClick: (MultimodalElement) -> Unit = {}
+    onImageClick: (MultimodalElement) -> Unit = {},
+    onSuggestionClick: (String) -> Unit = {}
 ) {
+    val listState = rememberLazyListState()
+
+    // Auto-scroll to the newest message when concierge responses are received
+    LaunchedEffect(messages) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier.animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -45,7 +58,8 @@ internal fun MessageList(
                 message = message,
                 onFeedback = onFeedback,
                 onActionClick = onActionClick,
-                onImageClick = onImageClick
+                onImageClick = onImageClick,
+                onSuggestionClick = onSuggestionClick
             )
         }
     }
