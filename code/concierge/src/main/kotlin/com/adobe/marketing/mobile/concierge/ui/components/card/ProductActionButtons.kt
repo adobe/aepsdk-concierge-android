@@ -16,24 +16,21 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.Log
 
 /**
@@ -54,11 +51,14 @@ internal fun ProductActionButtons(
         return
     }
 
+    val style = ConciergeStyles.productActionButtonsStyle
+    val cardStyle = ConciergeStyles.productCardStyle
+    
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(style.spacing),
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp)
+            .padding(bottom = cardStyle.captionBottomPadding)
     ) {
         actionButtons.forEach { button ->
             val isPrimary = actionButtons.indexOf(button) == 0
@@ -83,16 +83,18 @@ private fun ProductActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val style = ConciergeStyles.productActionButtonsStyle
+    
     if (isPrimary) {
         // Primary button - filled blue button
         Button(
             onClick = onClick,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = style.primaryBackgroundColor,
+                contentColor = style.primaryContentColor
             ),
-            shape = RoundedCornerShape(20.dp),
-            modifier = modifier.height(40.dp)
+            shape = style.shape,
+            modifier = modifier.height(style.height)
                 .width(IntrinsicSize.Min)
         ) {
             ProductButtonText(text = button.text)
@@ -102,15 +104,15 @@ private fun ProductActionButton(
         OutlinedButton(
             onClick = onClick,
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface
+                containerColor = style.secondaryBackgroundColor,
+                contentColor = style.secondaryContentColor
             ),
-            shape = RoundedCornerShape(20.dp),
+            shape = style.shape,
             border = BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                width = style.secondaryBorderWidth,
+                color = style.secondaryBorderColor
             ),
-            modifier = modifier.height(40.dp)
+            modifier = modifier.height(style.height)
                 .width(IntrinsicSize.Min)
         ) {
             ProductButtonText(text = button.text)
@@ -123,11 +125,13 @@ private fun ProductActionButton(
  */
 @Composable
 private fun ProductButtonText(text: String) {
+    val style = ConciergeStyles.productActionButtonsStyle
+    
     Text(
         text = text,
         textAlign = TextAlign.Center,
-        fontSize = 12.sp,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Medium
+        fontSize = style.fontSize.value.sp,
+        style = style.textStyle,
+        fontWeight = style.fontWeight
     )
 }

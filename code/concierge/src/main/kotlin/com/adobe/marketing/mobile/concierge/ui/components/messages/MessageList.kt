@@ -25,6 +25,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Component that displays a list of chat messages.
@@ -38,6 +39,7 @@ internal fun MessageList(
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {}
 ) {
+    val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
 
     // Auto-scroll to the newest message when concierge responses are received
@@ -50,7 +52,7 @@ internal fun MessageList(
     LazyColumn(
         state = listState,
         modifier = modifier.animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(style.verticalSpacing),
     ) {
         // Show messages in chronological order (oldest first, newest last)
         items(messages) { message ->

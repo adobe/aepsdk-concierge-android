@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Icon
@@ -44,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Chat input panel with text field, microphone button, and send button.
@@ -73,6 +73,8 @@ internal fun ChatInputPanel(
     onVoiceCancel: (() -> Unit)? = null,
     borderColors: List<Color> = emptyList()
 ) {
+    val style = ConciergeStyles.inputPanelStyle
+    
     // Static pulse value for mic button
     val waveformPulse = remember { 1.0f }
 
@@ -82,29 +84,25 @@ internal fun ChatInputPanel(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
+            animation = tween(style.recordingBorderAnimationDuration, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         )
     )
 
     val brush = if (inputState is UserInputState.Recording) Brush.sweepGradient(
-        listOf(
-            Color(0xFF2196F3), // Blue
-            Color.White,
-            Color.White,
-            Color(0xFF2196F3)  // Blue again to complete the loop
-        )
+        style.recordingBorderColors
     ) else Brush.sweepGradient(listOf(Color.Transparent))
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
+        shape = style.outerShape,
+        color = style.backgroundColor
     ) {
         Surface(
             modifier = Modifier
                 .clipToBounds()
                 .fillMaxWidth()
-                .padding(2.dp)
+                .padding(style.outerPadding)
                 .let { baseModifier ->
                     if (inputState is UserInputState.Recording) {
                         baseModifier.drawWithContent {
@@ -121,13 +119,13 @@ internal fun ChatInputPanel(
                         baseModifier
                     }
                 },
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(10.dp)
+            color = style.backgroundColor,
+            shape = style.innerShape
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(4.dp),
+                    .padding(style.innerPadding),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ChatTextField(
@@ -135,7 +133,7 @@ internal fun ChatInputPanel(
                     value = text,
                     onValueChange = onTextChange,
                     isEnabled = enable,
-                    placeholder = if (inputState is UserInputState.Recording) "Listening..." else placeholder
+                    placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
                 )
 
                 // Show different buttons based on state
@@ -144,20 +142,20 @@ internal fun ChatInputPanel(
                         // During recording, transform mic button to cancel button
                         IconButton(
                             onClick = { onVoiceCancel?.invoke() },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(ConciergeStyles.micButtonStyle.size)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.StopCircle,
                                 contentDescription = "Stop recording",
-                                tint = MaterialTheme.colorScheme.secondary
+                                tint = ConciergeStyles.micButtonStyle.iconColor
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(style.buttonSpacing))
 
                         // Send button remains but is disabled during recording
                         SendButton(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(ConciergeStyles.sendButtonStyle.size),
                             isEnabled = false, // Disabled during recording
                             onSend = { /* No-op during recording */ }
                         )
@@ -166,17 +164,17 @@ internal fun ChatInputPanel(
                     else -> {
                         // Normal state - show mic and send buttons
                         MicButton(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(ConciergeStyles.micButtonStyle.size),
                             userInputState = inputState,
                             isEnabled = enable,
                             waveformPulse = waveformPulse,
                             onClick = onMicPressed
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(style.buttonSpacing))
 
                         SendButton(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(ConciergeStyles.sendButtonStyle.size),
                             isEnabled = text.isNotBlank() && !isProcessing,
                             onSend = {
                                 if (text.isNotBlank()) {

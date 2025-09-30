@@ -97,11 +97,25 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     constructor(application: Application) : this(application, AndroidSpeechCapturing(application))
 
-    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, DefaultImageProvider(), ConciergeConversationServiceClient())
+    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing) : this(
+        application,
+        speechCapturing,
+        DefaultImageProvider(),
+        ConciergeConversationServiceClient()
+    )
 
-    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatClient: ConciergeConversationServiceClient): this(application, speechCapturing, DefaultImageProvider(), chatClient)
+    internal constructor(
+        application: Application,
+        speechCapturing: SpeechCapturing,
+        chatClient: ConciergeConversationServiceClient
+    ) : this(application, speechCapturing, DefaultImageProvider(), chatClient)
 
-    internal constructor(application: Application, speechCapturing: SpeechCapturing, imageProvider: ImageProvider, chatService: ConciergeConversationServiceClient) : super(application) {
+    internal constructor(
+        application: Application,
+        speechCapturing: SpeechCapturing,
+        imageProvider: ImageProvider,
+        chatService: ConciergeConversationServiceClient
+    ) : super(application) {
         this.speechCapturing = speechCapturing
         this.imageProvider = imageProvider
         this.chatService = chatService
@@ -301,7 +315,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         // Start the conversation stream from the API
-        initiateConversation(messageText)
+        initiateConversation(messageText.trim())
     }
 
     /**

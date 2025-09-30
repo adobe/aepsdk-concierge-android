@@ -16,7 +16,7 @@ import android.content.Intent
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -43,8 +43,7 @@ internal fun ConciergeResponseText(
         onLinkClick = { url ->
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             context.startActivity(intent)
-        },
-        onTextLayout = { textLayoutResult = it }
+        }
     )
 }
 
@@ -55,10 +54,9 @@ internal fun ConciergeResponseText(
 internal fun ClickableText(
     text: androidx.compose.ui.text.AnnotatedString,
     onLinkClick: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    onTextLayout: (TextLayoutResult) -> Unit = {}
+    modifier: Modifier = Modifier
 ) {
-    BasicText(
+    Text(
         text = text,
         modifier = modifier
             .padding(end = ListSpacing.END_PADDING)
@@ -72,7 +70,6 @@ internal fun ClickableText(
                             onLinkClick(annotation.item)
                         }
                 }
-            },
-        onTextLayout = onTextLayout
+            }
     )
 }

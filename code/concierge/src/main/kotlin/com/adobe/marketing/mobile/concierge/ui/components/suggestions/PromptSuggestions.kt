@@ -19,20 +19,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.Log
 
 /**
@@ -50,12 +48,14 @@ internal fun PromptSuggestions(
 ) {
     if (suggestions.isEmpty()) return
 
+    val style = ConciergeStyles.promptSuggestionsStyle
+    
     Log.debug(ConciergeConstants.EXTENSION_NAME, "PromptSuggestions", "Rendering ${suggestions.size} suggestions")
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 6.dp, start = 12.dp, end = 48.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(top = style.containerTopPadding, start = style.containerStartPadding, end = style.containerEndPadding),
+        verticalArrangement = Arrangement.spacedBy(style.itemSpacing)
     ) {
         suggestions.forEach { suggestion ->
             PromptSuggestionItem(
@@ -76,35 +76,37 @@ private fun PromptSuggestionItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val style = ConciergeStyles.promptSuggestionsStyle
+    
     Card(
         modifier = modifier
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = style.itemBackgroundColor
         ),
-        shape = RoundedCornerShape(8.dp)
+        shape = style.itemShape
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = style.itemHorizontalPadding, vertical = style.itemVerticalPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(style.iconSpacing)
         ) {
             // Arrow icon
             Icon(
                 painter = painterResource(id = R.drawable.arrow_curved),
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(style.iconSize),
+                tint = style.iconColor
             )
             
             // Suggestion text
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
+                style = style.textStyle,
+                color = style.textColor,
+                maxLines = style.textMaxLines,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )

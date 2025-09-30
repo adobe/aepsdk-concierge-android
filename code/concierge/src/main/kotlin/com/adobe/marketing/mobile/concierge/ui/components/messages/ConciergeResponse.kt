@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import androidx.core.net.toUri
 
 /**
@@ -68,6 +69,7 @@ private fun ConciergeResponseWithLists(
     listTokens: List<MarkdownToken>,
     modifier: Modifier = Modifier
 ) {
+    val style = ConciergeStyles.messageBubbleStyle
     val context = LocalContext.current
     val contentSegments = remember(text, listTokens) {
         ContentSegmentParser.createSegments(text, listTokens)
@@ -75,7 +77,7 @@ private fun ConciergeResponseWithLists(
 
     Column(modifier = modifier) {
         contentSegments.forEach { segment ->
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(style.segmentSpacing))
             when (segment) {
                 is ContentSegment.Text -> {
                     ConciergeResponseText(

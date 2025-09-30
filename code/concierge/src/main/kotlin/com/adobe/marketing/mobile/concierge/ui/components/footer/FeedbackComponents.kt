@@ -17,14 +17,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Feedback buttons component with a thumbs up and thumbs down button.
@@ -39,34 +38,36 @@ internal fun FeedbackButtons(
     interactionId: String,
     onFeedback: (FeedbackEvent) -> Unit
 ) {
+    val style = ConciergeStyles.feedbackButtonsStyle
+    
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(style.spacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Thumbs up button
         IconButton(
             onClick = { onFeedback(FeedbackEvent.ThumbsUp(interactionId)) },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(style.buttonSize)
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.thumbs_up),
                 contentDescription = "Thumbs up",
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(style.iconSize),
+                tint = style.iconColor
             )
         }
 
         // Thumbs down button
         IconButton(
             onClick = { onFeedback(FeedbackEvent.ThumbsDown(interactionId)) },
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(style.buttonSize)
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.thumbs_down),
                 contentDescription = "Thumbs down",
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                modifier = Modifier.size(style.iconSize),
+                tint = style.iconColor
             )
         }
     }

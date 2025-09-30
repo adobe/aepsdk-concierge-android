@@ -14,27 +14,28 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
+import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
-import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
-import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.services.Log
 
 /**
  * Component that displays a single chat message.
@@ -59,22 +60,25 @@ internal fun ChatMessageItem(
 
 @Composable
 private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit) {
+    val style = ConciergeStyles.messageBubbleStyle
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
-            .padding(8.dp),
+            .padding(style.padding),
         colors = CardDefaults.cardColors(
             containerColor = if (message.isFromUser) {
-                MaterialTheme.colorScheme.primary
+                style.userMessageBackgroundColor
             } else {
-                MaterialTheme.colorScheme.surfaceContainer
+                style.botMessageBackgroundColor
             }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+        shape = style.shape
     ) {
         Box(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(style.innerPadding)
         ) {
             Column(
                 modifier = Modifier
@@ -84,14 +88,15 @@ private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) 
                 if (message.isFromUser) {
                     Text(
                         text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        style = style.textStyle,
+                        color = style.userMessageTextColor
                     )
                 } else {
                     ConciergeResponse(
                         text = message.text,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Log.debug(ConciergeConstants.EXTENSION_NAME,"ChatMessageItem", "Prompt suggestions: ${message.promptSuggestions}")
                 }
 
                 // If we have a response message and citations are available then show the footer
@@ -123,19 +128,22 @@ private fun RenderMixedMessage(
     onImageClick: (MultimodalElement) -> Unit,
     onSuggestionClick: (String) -> Unit
 ) {
+    val style = ConciergeStyles.messageBubbleStyle
+    
     if (message.content is MessageContent.Mixed) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentWidth(Alignment.Start)
-                .padding(8.dp),
+                .padding(style.padding),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                containerColor = style.botMessageBackgroundColor
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+            shape = style.shape
         ) {
             Box(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(style.innerPadding)
             ) {
                 Column(
                     modifier = Modifier
@@ -152,7 +160,7 @@ private fun RenderMixedMessage(
                     // Add spacing between text and recommendation cards if both are present
                     if (message.content.text.isNotEmpty() && 
                         !message.content.multimodalElements.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(style.contentSpacing))
                     }
                     
                     // Render multi-modal elements if present

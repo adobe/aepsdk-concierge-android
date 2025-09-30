@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Composable that displays a carousel of product images with navigation controls.
@@ -54,6 +55,7 @@ internal fun ProductCarousel (
     elements: List<MultimodalElement>,
     onImageClick: (MultimodalElement) -> Unit
 ) {
+    val style = ConciergeStyles.productCarouselStyle
     var currentPage by remember { mutableIntStateOf(0) }
     val totalPages = elements.size
     val listState = rememberLazyListState()
@@ -69,15 +71,15 @@ internal fun ProductCarousel (
         // Product carousel
         LazyRow(
             state = listState,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
+            contentPadding = PaddingValues(horizontal = style.horizontalPadding, vertical = style.verticalPadding)
         ) {
             items(elements) { element ->
                 ProductImage(
                     element = element,
                     modifier = Modifier
-                        .width(200.dp)
-                        .height(150.dp),
+                        .width(style.imageWidth)
+                        .height(style.imageHeight),
                     onImageClick = onImageClick,
                     isMultiElement = true
                 )
@@ -113,6 +115,8 @@ internal fun CarouselSwitcher(
     onPageClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val style = ConciergeStyles.productCarouselStyle
+    
     Row(
         modifier = modifier
             .fillMaxWidth(),
@@ -128,29 +132,29 @@ internal fun CarouselSwitcher(
                 imageVector = Icons.Default.ChevronLeft,
                 contentDescription = "Previous",
                 tint = if (currentPage > 0) {
-                    MaterialTheme.colorScheme.onSurface
+                    style.navigationIconActiveColor
                 } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    style.navigationIconInactiveColor
                 }
             )
         }
-        Box(modifier = Modifier.width(8.dp))
+        Box(modifier = Modifier.width(style.navigationSpacing))
         
         // Page indicators
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(style.indicatorSpacing),
             verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(totalPages) { page ->
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(style.indicatorSize)
                         .clip(CircleShape)
                         .background(
                             if (page == currentPage) {
-                                MaterialTheme.colorScheme.onSurface
+                                style.indicatorActiveColor
                             } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                style.indicatorInactiveColor
                             }
                         )
                         .clickable { onPageClick(page) }
@@ -159,7 +163,7 @@ internal fun CarouselSwitcher(
         }
 
         // Next button
-        Box(modifier = Modifier.width(8.dp))
+        Box(modifier = Modifier.width(style.navigationSpacing))
         IconButton(
             onClick = onNextClick,
             enabled = currentPage < totalPages - 1
@@ -168,9 +172,9 @@ internal fun CarouselSwitcher(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = "Next",
                 tint = if (currentPage < totalPages - 1) {
-                    MaterialTheme.colorScheme.onSurface
+                    style.navigationIconActiveColor
                 } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                    style.navigationIconInactiveColor
                 }
             )
         }
