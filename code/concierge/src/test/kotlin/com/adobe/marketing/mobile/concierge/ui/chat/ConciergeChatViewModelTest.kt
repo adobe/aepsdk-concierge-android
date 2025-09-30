@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 import android.app.Application
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -45,6 +46,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -526,6 +528,57 @@ class ConciergeChatViewModelTest {
         fun emitPartialTranscription(text: String) { listener?.onPartialTranscription(text) }
         fun emitTranscriptionResult(text: String) { listener?.onTranscriptionResult(text) }
         fun emitError(error: SpeechCaptureError) { listener?.onError(error) }
+    }
+
+    @Test
+    fun `sources are parsed and included in chat messages`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        
+        val testSources = listOf(
+            Citation(
+                title = "Adobe Firefly - Free Generative AI for creatives",
+                url = "https://www.adobe.com/products/firefly.html",
+                citationNumber = 1,
+                startIndex = 66,
+                endIndex = 78  // "Adobe Firefly" - corrected to actual text length
+            ),
+            Citation(
+                title = "AI painting Generator - Adobe Firefly",
+                url = "https://www.adobe.com/products/firefly/features/ai-painting-generator.html",
+                citationNumber = 2,
+                startIndex = 90,  // "AI painting" - corrected position
+                endIndex = 101    // corrected to actual text length
+            )
+        )
+        
+        val parsedMessage = ParsedConversationMessage(
+            messageContent = "Here are some popular types to look for: Adobe Firefly is a great tool for AI painting generation.",
+            state = ConversationState.COMPLETED,
+            sources = testSources
+        )
+        
+        every { chatClient.chat("test") } returns flow { emit(parsedMessage) }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("test"))
+
+        // Wait for all coroutines to complete
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        assertEquals(2, messages.size) // User message + assistant message
+        
+        val assistantMessage = messages[1]
+        assertTrue(!assistantMessage.isFromUser)
+        assertNotNull(assistantMessage.citations)
+        assertEquals(2, assistantMessage.citations?.size)
+        
+        val citations = assistantMessage.citations!!
+        assertEquals("Adobe Firefly - Free Generative AI for creatives", citations[0].title)
+        assertEquals("AI painting Generator - Adobe Firefly", citations[1].title)
+        assertEquals(1, citations[0].citationNumber)
+        assertEquals(2, citations[1].citationNumber)
     }
 }
 

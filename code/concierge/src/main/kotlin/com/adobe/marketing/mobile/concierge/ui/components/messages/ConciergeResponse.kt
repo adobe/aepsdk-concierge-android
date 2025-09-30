@@ -25,34 +25,54 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
+import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotator
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.network.Citation
 
 /**
  * Component that renders brand concierge responses containing markdown text
  * with proper styling and clickable links.
+ * 
+ * This composable determines whether to render text as plain content
+ * or as lists based on the presence of markdown list tokens. It uses
+ * [CitationAnnotator] to process citations and applies them across both text and list
+ * rendering modes.
  *
  * @param text The markdown text to be rendered
- * @param modifier Optional modifier for the text component
+ * @param sources Optional list of [Citation] objects for generating citation annotations
+ * @param modifier Optional [Modifier] for the text component
  */
 @Composable
 internal fun ConciergeResponse(
     text: String,
+    sources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    val tokens = remember(text) { MarkdownTokenizer.tokenize(text) }
+    // Apply citation annotations to the complete text first
+    val annotatedText = remember(text, sources) {
+        if (sources.isNotEmpty()) {
+            CitationAnnotator.annotateText(text, sources)
+        } else {
+            CitationAnnotator.annotateText(text, emptyList())
+        }
+    }
+    
+    val tokens = remember(annotatedText.text) { MarkdownTokenizer.tokenize(annotatedText.text) }
     val listTokens = remember(tokens) { 
         tokens.filter { it.type == TokenType.LIST }
     }
     
     if (listTokens.isNotEmpty()) {
         ConciergeResponseWithLists(
-            text = text,
+            text = annotatedText.text,
             listTokens = listTokens,
+            citationAnnotations = annotatedText.citationAnnotations,
             modifier = modifier
         )
     } else {
         ConciergeResponseText(
-            text = text,
+            text = annotatedText.text,
+            citationAnnotations = annotatedText.citationAnnotations,
             modifier = modifier
         )
     }
@@ -66,6 +86,7 @@ internal fun ConciergeResponse(
 private fun ConciergeResponseWithLists(
     text: String,
     listTokens: List<MarkdownToken>,
+    citationAnnotations: List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -78,8 +99,16 @@ private fun ConciergeResponseWithLists(
             Spacer(modifier = Modifier.height(4.dp))
             when (segment) {
                 is ContentSegment.Text -> {
+                    // Adjust citation annotations for this text segment
+                    val segmentAnnotations = adjustAnnotationsForSegment(
+                        citationAnnotations, 
+                        segment.startIndex, 
+                        segment.endIndex
+                    )
+                    
                     ConciergeResponseText(
                         text = segment.content,
+                        citationAnnotations = segmentAnnotations,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -89,10 +118,34 @@ private fun ConciergeResponseWithLists(
                         onLinkClick = { url ->
                             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                             context.startActivity(intent)
-                        }
+                        },
+                        citationAnnotations = citationAnnotations
                     )
                 }
             }
         }
+    }
+}
+
+/**
+ * Adjusts citation annotations for a text segment by offsetting their positions
+ * relative to the segment's start position in the complete text. This is necessary
+ * because annotations indexes are based on the full markdown text, but need to be applied
+ * to individual segments when rendering.
+ */
+private fun adjustAnnotationsForSegment(
+    annotations: List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation>,
+    segmentStartIndex: Int,
+    segmentEndIndex: Int
+): List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation> {
+    return annotations.filter { annotation ->
+        // Check if annotation overlaps with this segment
+        annotation.startIndex < segmentEndIndex && annotation.endIndex > segmentStartIndex
+    }.map { annotation ->
+        // Adjust annotation positions relative to segment start
+        annotation.copy(
+            startIndex = maxOf(0, annotation.startIndex - segmentStartIndex),
+            endIndex = minOf(segmentEndIndex - segmentStartIndex, annotation.endIndex - segmentStartIndex)
+        )
     }
 }

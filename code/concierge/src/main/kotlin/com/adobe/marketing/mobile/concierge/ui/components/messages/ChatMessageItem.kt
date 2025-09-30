@@ -90,6 +90,7 @@ private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) 
                 } else {
                     ConciergeResponse(
                         text = message.text,
+                        sources = message.citations ?: emptyList(),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -145,6 +146,7 @@ private fun RenderMixedMessage(
                     if (message.content.text.isNotEmpty()) {
                         ConciergeResponse(
                             text = message.content.text,
+                            sources = message.citations ?: emptyList(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

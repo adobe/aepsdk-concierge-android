@@ -14,29 +14,37 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 
 /**
  * Renders list content with proper indentation and spacing.
+ * 
+ * @param listTokens List of [MarkdownToken] objects representing list items
+ * @param onLinkClick Callback function for handling link clicks
+ * @param citationAnnotations List of [CitationAnnotation] objects to apply to list items
+ * @param modifier [Modifier] to be applied to the [Column] container
  */
 @Composable
 internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
     onLinkClick: (String) -> Unit,
+    citationAnnotations: List<CitationAnnotation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
         listTokens.forEach { token ->
             ListItem(
                 token = token,
-                onLinkClick = onLinkClick
+                onLinkClick = onLinkClick,
+                citationAnnotations = citationAnnotations
             )
         }
     }
@@ -44,17 +52,34 @@ internal fun ConciergeResponseList(
 
 /**
  * Renders a single list item with proper indentation and clickable links.
+ * 
+ * This composable processes a [MarkdownToken] and renders it as a list item with
+ * citation annotations applied using [CitationStylingUtils].
+ * 
+ * @param token The [MarkdownToken] representing the list item
+ * @param onLinkClick Callback function for handling link clicks within the list item
+ * @param citationAnnotations List of [CitationAnnotation] objects to apply to this list item
  */
 @Composable
 private fun ListItem(
     token: MarkdownToken,
-    onLinkClick: (String) -> Unit
+    onLinkClick: (String) -> Unit,
+    citationAnnotations: List<CitationAnnotation> = emptyList()
 ) {
     val listItemContent = token.groups.firstOrNull() ?: ""
     val listMarker = token.groups.getOrNull(1) ?: "•"
     val indentationLevel = token.indentationLevel
     val annotatedString = MarkdownParser.parse(listItemContent)
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    
+    // Create citation annotations for list item content
+    val listItemAnnotations = createListItemAnnotations(annotatedString.text, citationAnnotations)
+    
+    // Get theme colors for citation styling based on device's light/dark mode
+    val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
+    val textColor = MaterialTheme.colorScheme.primary
+    
+    // Apply citation annotations
+    val finalAnnotatedString = CitationStylingUtils.applyCitationAnnotations(annotatedString, listItemAnnotations, backgroundColor, textColor)
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -65,11 +90,21 @@ private fun ListItem(
             indentationLevel = indentationLevel
         )
         
-        ClickableText(
-            text = annotatedString,
-            onLinkClick = onLinkClick,
-            onTextLayout = { textLayoutResult = it }
-        )
+            ClickableText(
+                text = finalAnnotatedString,
+                onClick = { offset ->
+                    // Find the annotation at the clicked position
+                    val allAnnotations = finalAnnotatedString.getStringAnnotations(start = 0, end = finalAnnotatedString.length)
+                    val clickedAnnotation = allAnnotations.firstOrNull { annotation ->
+                        offset >= annotation.start && offset <= annotation.end
+                    }
+
+                    // Handle the clicked annotation
+                    clickedAnnotation?.let { annotation ->
+                        onLinkClick(annotation.item)
+                    }
+                }
+            )
     }
 }
 
@@ -109,4 +144,46 @@ internal object ListSpacing {
     val BASE_INDENTATION = 16.dp
     val INDENTATION_PER_LEVEL = 16
     val END_PADDING = 16.dp
+}
+
+/**
+ * Creates citation annotations for the given list item content.
+ * 
+ * This function searches for citation numbers within the list item content and creates
+ * corresponding [CitationAnnotation] objects by matching them with the provided
+ * annotation list. It uses regex pattern matching to find citation numbers.
+ * 
+ * @param listItemContent The text content of the list item to search for citations
+ * @param allAnnotations List of all available [CitationAnnotation] objects to match against
+ * @return List of [CitationAnnotation] objects that apply to this specific list item
+ */
+private fun createListItemAnnotations(
+    listItemContent: String,
+    allAnnotations: List<CitationAnnotation>
+): List<CitationAnnotation> {
+    val annotations = mutableListOf<CitationAnnotation>()
+    
+    // Look for citation numbers in the list item content
+    val citationPattern = Regex("\\d+")
+    val matches = citationPattern.findAll(listItemContent)
+    
+    matches.forEach { match ->
+        val citationNumber = match.value.toIntOrNull()
+        if (citationNumber != null) {
+            // Find the corresponding annotation from the original list
+            val originalAnnotation = allAnnotations.find { it.citationNumber == citationNumber }
+            if (originalAnnotation != null) {
+                annotations.add(
+                    CitationAnnotation(
+                        citationNumber = citationNumber,
+                        startIndex = match.range.first,
+                        endIndex = match.range.last + 1,
+                        url = originalAnnotation.url
+                    )
+                )
+            }
+        }
+    }
+    
+    return annotations
 }

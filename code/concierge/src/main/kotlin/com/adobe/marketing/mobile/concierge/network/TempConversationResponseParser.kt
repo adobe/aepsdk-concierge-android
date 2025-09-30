@@ -38,6 +38,10 @@ internal object TempConversationResponseParser {
     private const val FIELD_STATE = "state"
     private const val FIELD_PROMPT_SUGGESTIONS = "promptSuggestions"
     private const val FIELD_MULTIMODAL_ELEMENTS = "multimodalElements"
+    private const val FIELD_SOURCES = "sources"
+    private const val FIELD_START_INDEX = "start_index"
+    private const val FIELD_END_INDEX = "end_index"
+    private const val FIELD_CITATION_NUMBER = "citation_number"
     private const val FIELD_ELEMENTS = "elements"
     private const val FIELD_WIDTH = "width"
     private const val FIELD_HEIGHT = "height"
@@ -148,13 +152,17 @@ internal object TempConversationResponseParser {
         // Extract multimodal elements
         val multimodalElements = extractMultimodalElements(response)
 
+        // Extract sources
+        val sources = extractSources(response)
+
         return ParsedConversationMessage(
             messageContent = message,
             state = state,
             conversationId = conversationId,
             interactionId = interactionId,
             promptSuggestions = promptSuggestions,
-            multimodalElements = multimodalElements
+            multimodalElements = multimodalElements,
+            sources = sources
         )
     }
 
@@ -298,6 +306,72 @@ internal object TempConversationResponseParser {
             caption = description,
             transcript = productDescription,
             content = content
+        )
+    }
+
+    /**
+     * Extracts sources from the response object
+     */
+    private fun extractSources(response: JSONObject): List<Citation> {
+        val sourcesArray = response.optJSONArray(FIELD_SOURCES)
+        if (sourcesArray == null) {
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "No sources found in response."
+            )
+            return emptyList()
+        }
+
+        val sources = mutableListOf<Citation>()
+        for (i in 0 until sourcesArray.length()) {
+            val sourceObj = sourcesArray.optJSONObject(i) ?: continue
+            val source = parseSource(sourceObj)
+            if (source != null) {
+                sources.add(source)
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Parsed source ${i + 1}: citationNumber=${source.citationNumber}, title=${source.title}."
+                )
+            }
+        }
+
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Parsed ${sources.size} sources from response."
+        )
+
+        return sources
+    }
+
+    /**
+     * Parses a single source from a [JSONObject] and creates a [Citation].
+     * Returns the created citation or null if parsing fails.
+     */
+    private fun parseSource(sourceObj: JSONObject): Citation? {
+        val title = sourceObj.optString("title")
+        if (title.isEmpty()) {
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Source missing required title field."
+            )
+            return null
+        }
+
+        val url = sourceObj.optString("url").takeIf { it.isNotEmpty() }
+        val citationNumber = sourceObj.optInt(FIELD_CITATION_NUMBER, -1).takeIf { it > 0 }
+        val startIndex = sourceObj.optInt(FIELD_START_INDEX, -1).takeIf { it >= 0 }
+        val endIndex = sourceObj.optInt(FIELD_END_INDEX, -1).takeIf { it >= 0 }
+
+        return Citation(
+            title = title,
+            url = url,
+            citationNumber = citationNumber,
+            startIndex = startIndex,
+            endIndex = endIndex
         )
     }
 }

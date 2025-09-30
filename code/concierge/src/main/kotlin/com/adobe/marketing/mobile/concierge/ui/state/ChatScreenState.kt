@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.state
 
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 
@@ -126,11 +127,3 @@ internal data class ChatMessage(
             is MessageContent.Mixed -> content.text
         }
 }
-
-/**
- * Represents a citation source for a chat message.
- */
-internal data class Citation(
-    val title: String,
-    val url: String? = null
-)

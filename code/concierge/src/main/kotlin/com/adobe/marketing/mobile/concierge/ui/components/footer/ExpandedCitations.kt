@@ -26,10 +26,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.ui.state.Citation
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.services.ServiceProvider
 
 /**
@@ -46,19 +47,33 @@ internal fun ExpandedCitations(
     citations: List<Citation>,
     expanded: Boolean
 ) {
+    // Get unique sources with proper citation numbers
+    val uniqueSources: List<Citation> = remember(citations) {
+        if (citations.isEmpty()) {
+            emptyList()
+        } else {
+            // Group by citation number and take the first occurrence of each
+            citations
+                .filter { it.citationNumber != null }
+                .groupBy { it.citationNumber }
+                .map { (_, sources) -> sources.first() }
+                .sortedBy { it.citationNumber }
+        }
+    }
+    
     AnimatedVisibility(
         visible = expanded,
         enter = expandVertically(animationSpec = tween(200)),
         exit = shrinkVertically(animationSpec = tween(200))
     ) {
         Column(modifier = modifier) {
-            citations.forEachIndexed { index, citation ->
+            uniqueSources.forEachIndexed { index, citation ->
                 CitationItem(
                     citation = citation,
-                    index = index + 1
+                    index = citation.citationNumber ?: (index + 1)
                 )
                 // Add separator line between items
-                if (index < citations.size - 1) {
+                if (index < uniqueSources.size - 1) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

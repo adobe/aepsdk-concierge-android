@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -27,7 +28,6 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButt
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
@@ -208,30 +208,6 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
-     * Generates random citations for testing purposes
-     */
-    private fun generateRandomCitations(): List<Citation> {
-        val sampleCitations = listOf(
-            Citation(
-                title = "Adobe Experience Platform Documentation",
-                url = "https://experienceleague.adobe.com/docs/experience-platform.html"
-            ),
-            Citation(
-                title = "Mobile SDK Implementation Guide",
-                url = "https://developer.adobe.com/client-sdks/"
-            ),
-            Citation(
-                title = "Adobe Firefly Service documentation",
-                url = "https://developer.adobe.com/firefly-services/docs/guides/"
-            )
-        )
-        
-        // Randomly select 0-3 citations for variety
-        val randomCount = (0..3).random()
-        return sampleCitations.shuffled().take(randomCount)
-    }
-
-    /**
      * Handles user feedback for responses
      * @param interactionId The interaction ID to associate with the feedback
      * @param feedbackType The type of feedback ("positive" or "negative")
@@ -319,7 +295,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     content = MessageContent.Text(""),
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
-                    citations = generateRandomCitations(),
+                    citations = emptyList(),
                     interactionId = "sample-interaction-${System.currentTimeMillis()}"
                 )
                 _messages.update { currentMessages -> currentMessages + assistantMessage }
@@ -423,19 +399,23 @@ class ConciergeChatViewModel : AndroidViewModel {
             logMessage
         )
         
-        updateAssistantMessageContent(messageContent, parsedMessage.promptSuggestions)
+        updateAssistantMessageContent(messageContent, parsedMessage.promptSuggestions, parsedMessage.sources)
     }
 
     /**
      * Updates the assistant message content in the UI
      * @param content The new content for the assistant message
      * @param promptSuggestions Optional prompt suggestions to include with the message
+     * @param sources Optional sources to include with the message
      */
-    private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList()) {
+    private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList(), sources: List<Citation> = emptyList()) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, 
+            "Updating message content with sources count: ${sources.size}")
+        
         _messages.update { currentMessages ->
             currentMessages.mapIndexed { index, message ->
                 if (index == currentMessages.lastIndex && !message.isFromUser) {
-                    message.copy(content = content, promptSuggestions = promptSuggestions)
+                    message.copy(content = content, promptSuggestions = promptSuggestions, citations = sources)
                 } else {
                     message
                 }

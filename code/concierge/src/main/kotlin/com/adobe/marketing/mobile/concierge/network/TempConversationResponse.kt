@@ -61,7 +61,7 @@ internal data class ConversationResponse(
 /**
  * Multimodal elements for rich content
  */
-data class MultimodalElement(
+internal data class MultimodalElement(
     val id: String,
     val url: String? = null,
     val width: Int? = null,
@@ -74,6 +74,17 @@ data class MultimodalElement(
     val caption: String? = null,
     val transcript: String? = null,
     val content: Map<String, Any> = emptyMap()
+)
+
+/**
+ * Represents a citation source for a chat message.
+ */
+internal data class Citation(
+    val title: String,
+    val url: String? = null,
+    val citationNumber: Int? = null,
+    val startIndex: Int? = null,
+    val endIndex: Int? = null
 )
 
 /**
@@ -106,5 +117,6 @@ internal data class ParsedConversationMessage(
     val conversationId: String? = null,
     val interactionId: String? = null,
     val promptSuggestions: List<String> = emptyList(),
-    val multimodalElements: List<MultimodalElement> = emptyList()
+    val multimodalElements: List<MultimodalElement> = emptyList(),
+    val sources: List<Citation> = emptyList()
 )
