@@ -467,16 +467,10 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
-        // Add error message to chat
-        val errorChatMessage = ChatMessage(
-            content = MessageContent.Text("Sorry, I encountered an error: $errorMessage"),
-            isFromUser = false,
-            timestamp = System.currentTimeMillis()
-        )
-
-        _messages.update { currentMessages ->
-            currentMessages + errorChatMessage
-        }
+        replaceAssistantMessageContent(ParsedConversationMessage(
+            messageContent = "Sorry, I encountered an error: $errorMessage",
+            state = ConversationState.COMPLETED,
+        ))
 
         // Return to idle state
         _state.update {
