@@ -36,11 +36,11 @@ import kotlin.random.Random
  * Configuration for the conversation service request.
  */
 internal data class ConversationConfig(
-    val configId: String = "3849362c-f325-4418-8cc8-993342b254f7",
-    val sessionId: String = "6da2015f-28ab-4ecf-99ee-4936bf3623de",
-    val requestId: String = "2a6ca36e-40db-42fb-a2bd-30b5ede8e60e",
-    val baseUrl: String = "https://edge-int.adobedc.net",
-    val surfaces: List<String> = listOf("web://edge-int.adobedc.net/brand-concierge/pages/745F37C35E4B776E0A49421B@AdobeOrg/ao/index.html"),
+    val configId: String = "",
+    val sessionId: String = "",
+    val requestId: String = "",
+    val baseUrl: String = "",
+    val surfaces: List<String> = listOf(""),
     // generate a mockEcid for the request, 38 characters long, numeric only
     val mockEcid: String = (1..38)
         .map { Random.nextInt(0, 10) }
@@ -92,11 +92,6 @@ internal class ConciergeConversationServiceClient(
 
                 is StreamingEvent.DataReceived -> {
                     val parsed = TempConversationResponseParser.parseConversationData(event.data)
-                    Log.debug(
-                        LOG_TAG,
-                        TAG,
-                        "Data received. Final state: ${parsed.last().state}"
-                    )
                     eventOrDataReceived = true
                     parsed.forEach { emit(it) }
                 }
