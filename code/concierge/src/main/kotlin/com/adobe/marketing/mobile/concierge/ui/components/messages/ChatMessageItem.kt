@@ -60,81 +60,20 @@ internal fun ChatMessageItem(
 private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit) {
     val style = ConciergeStyles.messageBubbleStyle
     
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
-            .padding(style.padding),
-        colors = CardDefaults.cardColors(
-            containerColor = if (message.isFromUser) {
-                style.userMessageBackgroundColor
-            } else {
-                style.botMessageBackgroundColor
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-        shape = style.shape
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier.padding(style.innerPadding)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                // Use ConciergeResponse composable for response messages to support markdown formatting
-                if (message.isFromUser) {
-                    Text(
-                        text = message.text,
-                        style = style.textStyle,
-                        color = style.userMessageTextColor
-                    )
-                } else {
-                    ConciergeResponse(
-                        text = message.text,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                // If we have a response message and citations are available then show the footer
-                if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
-                    ChatFooter(
-                        citations = message.citations,
-                        interactionId = message.interactionId,
-                        onFeedback = onFeedback
-                    )
-                }
-            }
-        }
-    }
-
-    // Show prompt suggestions for concierge responses
-    if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-        PromptSuggestions(
-            suggestions = message.promptSuggestions,
-            onSuggestionClick = onSuggestionClick
-        )
-    }
-}
-
-@Composable
-private fun RenderMixedMessage(
-    message: ChatMessage,
-    onFeedback: (FeedbackEvent) -> Unit,
-    onActionClick: (ProductActionButton) -> Unit,
-    onImageClick: (MultimodalElement) -> Unit,
-    onSuggestionClick: (String) -> Unit
-) {
-    val style = ConciergeStyles.messageBubbleStyle
-    
-    if (message.content is MessageContent.Mixed) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentWidth(Alignment.Start)
+                .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
                 .padding(style.padding),
             colors = CardDefaults.cardColors(
-                containerColor = style.botMessageBackgroundColor
+                containerColor = if (message.isFromUser) {
+                    style.userMessageBackgroundColor
+                } else {
+                    style.botMessageBackgroundColor
+                }
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
             shape = style.shape
@@ -146,29 +85,18 @@ private fun RenderMixedMessage(
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
-                    // Render text content if present
-                    if (message.content.text.isNotEmpty()) {
+                    // Use ConciergeResponse composable for response messages to support markdown formatting
+                    if (message.isFromUser) {
+                        Text(
+                            text = message.text,
+                            style = style.textStyle,
+                            color = style.userMessageTextColor
+                        )
+                    } else {
                         ConciergeResponse(
-                            text = message.content.text,
+                            text = message.text,
                             modifier = Modifier.fillMaxWidth()
                         )
-                    }
-                    
-                    // Add spacing between text and recommendation cards if both are present
-                    if (message.content.text.isNotEmpty() && 
-                        !message.content.multimodalElements.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(style.contentSpacing))
-                    }
-                    
-                    // Render multi-modal elements if present
-                    message.content.multimodalElements?.let { multimodalElements ->
-                        if (multimodalElements.isNotEmpty()) {
-                            RecommendationCards(
-                                elements = multimodalElements,
-                                onImageClick = onImageClick,
-                                onActionClick = onActionClick
-                            )
-                        }
                     }
 
                     // If we have a response message and citations are available then show the footer
@@ -189,6 +117,86 @@ private fun RenderMixedMessage(
                 suggestions = message.promptSuggestions,
                 onSuggestionClick = onSuggestionClick
             )
+        }
+    }
+}
+
+@Composable
+private fun RenderMixedMessage(
+    message: ChatMessage,
+    onFeedback: (FeedbackEvent) -> Unit,
+    onActionClick: (ProductActionButton) -> Unit,
+    onImageClick: (MultimodalElement) -> Unit,
+    onSuggestionClick: (String) -> Unit
+) {
+    val style = ConciergeStyles.messageBubbleStyle
+    
+    if (message.content is MessageContent.Mixed) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth(Alignment.Start)
+                    .padding(style.padding),
+                colors = CardDefaults.cardColors(
+                    containerColor = style.botMessageBackgroundColor
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+                shape = style.shape
+            ) {
+                Box(
+                    modifier = Modifier.padding(style.innerPadding)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        // Render text content if present
+                        if (message.content.text.isNotEmpty()) {
+                            ConciergeResponse(
+                                text = message.content.text,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        
+                        // Add spacing between text and recommendation cards if both are present
+                        if (message.content.text.isNotEmpty() && 
+                            !message.content.multimodalElements.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(style.contentSpacing))
+                        }
+                        
+                        // Render multi-modal elements if present
+                        message.content.multimodalElements?.let { multimodalElements ->
+                            if (multimodalElements.isNotEmpty()) {
+                                RecommendationCards(
+                                    elements = multimodalElements,
+                                    onImageClick = onImageClick,
+                                    onActionClick = onActionClick
+                                )
+                            }
+                        }
+
+                        // If we have a response message and citations are available then show the footer
+                        if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                            ChatFooter(
+                                citations = message.citations,
+                                interactionId = message.interactionId,
+                                onFeedback = onFeedback
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Show prompt suggestions for concierge responses
+            if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
+                PromptSuggestions(
+                    suggestions = message.promptSuggestions,
+                    onSuggestionClick = onSuggestionClick
+                )
+            }
         }
     }
 }
