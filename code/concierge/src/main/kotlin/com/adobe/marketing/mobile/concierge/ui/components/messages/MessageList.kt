@@ -14,13 +14,17 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -42,10 +46,15 @@ internal fun MessageList(
     val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
 
-    // Auto-scroll to the newest message when concierge responses are received
-    LaunchedEffect(messages) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    // Keep track of the last user message index we've scrolled to
+    var lastScrolledUserMessageIndex by remember { mutableStateOf<Int?>(null) }
+
+    // When a new user message arrives, scroll so that it is anchored at the top
+    LaunchedEffect(messages.size) {
+        val currentLastUserIndex = messages.indexOfLast { it.isFromUser }
+        if (currentLastUserIndex >= 0 && currentLastUserIndex != lastScrolledUserMessageIndex) {
+            listState.animateScrollToItem(currentLastUserIndex)
+            lastScrolledUserMessageIndex = currentLastUserIndex
         }
     }
 
@@ -55,14 +64,29 @@ internal fun MessageList(
         verticalArrangement = Arrangement.spacedBy(style.verticalSpacing),
     ) {
         // Show messages in chronological order (oldest first, newest last)
-        items(messages) { message ->
-            ChatMessageItem(
-                message = message,
-                onFeedback = onFeedback,
-                onActionClick = onActionClick,
-                onImageClick = onImageClick,
-                onSuggestionClick = onSuggestionClick
-            )
+        itemsIndexed(messages) { index, message ->
+            // If the last item is an assistant message immediately following the latest user message,
+            // make it fill the remaining viewport height so the response "fills the screen".
+            val lastUserIndex = messages.indexOfLast { it.isFromUser }
+            val shouldFillRemaining = (index == messages.lastIndex &&
+                !message.isFromUser &&
+                lastUserIndex == index - 1)
+
+            Box(
+                modifier = (
+                    if (shouldFillRemaining) Modifier.then(
+                        Modifier.fillParentMaxHeight()
+                    ) else Modifier
+                )
+            ) {
+                ChatMessageItem(
+                    message = message,
+                    onFeedback = onFeedback,
+                    onActionClick = onActionClick,
+                    onImageClick = onImageClick,
+                    onSuggestionClick = onSuggestionClick
+                )
+            }
         }
     }
 }

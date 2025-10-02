@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -52,8 +53,8 @@ private fun ListItem(
     token: MarkdownToken,
     onLinkClick: (String) -> Unit
 ) {
-    val listItemContent = token.groups.firstOrNull() ?: ""
-    val listMarker = token.groups.getOrNull(1) ?: "•"
+    val listItemContent = remember {  token.groups.firstOrNull() ?: "" }
+    val listMarker = remember {  token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
     val annotatedString = MarkdownParser.parse(listItemContent)
     

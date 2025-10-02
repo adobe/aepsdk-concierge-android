@@ -446,13 +446,18 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param promptSuggestions Optional prompt suggestions to include with the message
      */
     private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList()) {
-        _messages.update { currentMessages ->
-            currentMessages.mapIndexed { index, message ->
-                if (index == currentMessages.lastIndex && !message.isFromUser) {
-                    message.copy(content = content, promptSuggestions = promptSuggestions)
-                } else {
-                    message
-                }
+        _messages.update { existingMessages ->
+            val lastIndex = existingMessages.lastIndex
+            if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
+                val updatedMessages = existingMessages.toMutableList()
+                val lastAssistantMessage = existingMessages[lastIndex]
+                updatedMessages[lastIndex] = lastAssistantMessage.copy(
+                    content = content,
+                    promptSuggestions = promptSuggestions
+                )
+                updatedMessages
+            } else {
+                existingMessages
             }
         }
     }
