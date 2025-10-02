@@ -35,7 +35,6 @@ internal fun ConciergeResponseText(
 ) {
     val context = LocalContext.current
     val annotatedString = MarkdownParser.parse(text)
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     ClickableText(
         text = annotatedString,
@@ -56,19 +55,26 @@ internal fun ClickableText(
     onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    
     Text(
         text = text,
+        onTextLayout = { textLayoutResult = it },
         modifier = modifier
             .padding(end = ListSpacing.END_PADDING)
             .pointerInput(text) {
-                // TODO: This is messing with focus handling in the UserInput field. Fix it.
                 detectTapGestures { tapOffsetPosition ->
-                    // Link click handling logic
-                    text.getStringAnnotations(start = 0, end = text.length)
-                        .firstOrNull { it.tag == "URL" }
-                        ?.let { annotation ->
-                            onLinkClick(annotation.item)
-                        }
+                    // Get the character offset at the tap position
+                    textLayoutResult?.let { layoutResult ->
+                        val offset = layoutResult.getOffsetForPosition(tapOffsetPosition)
+                        
+                        // Find URL annotation at the clicked position
+                        text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                            .firstOrNull()
+                            ?.let { annotation ->
+                                onLinkClick(annotation.item)
+                            }
+                    }
                 }
             }
     )
