@@ -170,6 +170,40 @@ object ConciergeStyles {
         }
 
     /**
+     * Styling for thinking animation
+     */
+    @Immutable
+    data class ThinkingAnimationStyle(
+        val dotSize: Dp,
+        val dotSpacing: Dp,
+        val textDotSpacing: Dp,
+        val dotColorAlpha: Float,
+        val dotAnimationDuration: Int,
+        val dotAnimationDelay: Int,
+        val textStyle: TextStyle,
+        val textColor: Color,
+        val dotColor: Color,
+        val thinkingText: String
+    )
+
+    val thinkingAnimationStyle: ThinkingAnimationStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            return ThinkingAnimationStyle(
+                dotSize = 8.dp,
+                dotSpacing = 8.dp,
+                textDotSpacing = 8.dp,
+                dotColorAlpha = 0.7f,
+                dotAnimationDuration = 600,
+                dotAnimationDelay = 200,
+                textStyle = MaterialTheme.typography.bodyLarge,
+                textColor = themeColors.onSurface,
+                dotColor = themeColors.onSurface.copy(alpha = 0.7f),
+                thinkingText = "Thinking"
+            )
+        }
+
+    /**
      * Styling for product cards
      */
     @Immutable

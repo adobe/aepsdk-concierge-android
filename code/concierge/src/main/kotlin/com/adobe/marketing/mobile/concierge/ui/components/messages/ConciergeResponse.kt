@@ -40,6 +40,12 @@ internal fun ConciergeResponse(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    // Show thinking animation when text is empty
+    if (text.isEmpty()) {
+        ConciergeThinking(modifier = modifier)
+        return
+    }
+    
     val tokens = remember(text) { MarkdownTokenizer.tokenize(text) }
     val listTokens = remember(tokens) { 
         tokens.filter { it.type == TokenType.LIST }

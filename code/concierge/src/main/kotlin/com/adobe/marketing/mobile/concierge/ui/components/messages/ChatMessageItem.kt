@@ -25,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
@@ -96,7 +95,6 @@ private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) 
                         text = message.text,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Log.debug(ConciergeConstants.EXTENSION_NAME,"ChatMessageItem", "Prompt suggestions: ${message.promptSuggestions}")
                 }
 
                 // If we have a response message and citations are available then show the footer
