@@ -15,6 +15,8 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -58,34 +60,36 @@ internal fun MessageList(
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(style.verticalSpacing),
-    ) {
-        // Show messages in chronological order (oldest first, newest last)
-        itemsIndexed(messages) { index, message ->
-            // If the last item is an assistant message immediately following the latest user message,
-            // make it fill the remaining viewport height so the response "fills the screen".
-            val lastUserIndex = messages.indexOfLast { it.isFromUser }
-            val shouldFillRemaining = (index == messages.lastIndex &&
-                !message.isFromUser &&
-                lastUserIndex == index - 1)
+    BoxWithConstraints(modifier = modifier) {
+        LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(style.verticalSpacing),
+        ) {
+            // Show messages in chronological order (oldest first, newest last)
+            itemsIndexed(messages) { index, message ->
+                // If the last item is an assistant message immediately following the latest user message,
+                // set its minimum height to the parent height so the response "fills the screen",
+                // but allow it to extend beyond if the content is larger.
+                val lastUserIndex = messages.indexOfLast { it.isFromUser }
+                val shouldFillRemaining = (index == messages.lastIndex &&
+                    !message.isFromUser &&
+                    lastUserIndex == index - 1)
 
-            Box(
-                modifier = (
-                    if (shouldFillRemaining) Modifier.then(
-                        Modifier.fillParentMaxHeight()
-                    ) else Modifier
-                )
-            ) {
-                ChatMessageItem(
-                    message = message,
-                    onFeedback = onFeedback,
-                    onActionClick = onActionClick,
-                    onImageClick = onImageClick,
-                    onSuggestionClick = onSuggestionClick
-                )
+                Box(
+                    modifier = (
+                        if (shouldFillRemaining) Modifier.then(
+                            Modifier.heightIn(min = this@BoxWithConstraints.maxHeight).animateContentSize()
+                        ) else Modifier
+                    )
+                ) {
+                    ChatMessageItem(
+                        message = message,
+                        onFeedback = onFeedback,
+                        onActionClick = onActionClick,
+                        onImageClick = onImageClick,
+                        onSuggestionClick = onSuggestionClick
+                    )
+                }
             }
         }
     }
