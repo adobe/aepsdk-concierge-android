@@ -12,14 +12,17 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 
@@ -50,11 +53,10 @@ private fun ListItem(
     token: MarkdownToken,
     onLinkClick: (String) -> Unit
 ) {
-    val listItemContent = token.groups.firstOrNull() ?: ""
-    val listMarker = token.groups.getOrNull(1) ?: "•"
+    val listItemContent = remember {  token.groups.firstOrNull() ?: "" }
+    val listMarker = remember {  token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
     val annotatedString = MarkdownParser.parse(listItemContent)
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -67,8 +69,7 @@ private fun ListItem(
         
         ClickableText(
             text = annotatedString,
-            onLinkClick = onLinkClick,
-            onTextLayout = { textLayoutResult = it }
+            onLinkClick = onLinkClick
         )
     }
 }
@@ -92,10 +93,11 @@ private fun ListMarker(
         val bulletPoint = if (indentationLevel % 2 == 0) "•" else "◦"
         "$bulletPoint "
     }
-    
-    BasicText(
+
+    Text(
         text = displayMarker,
-        style = TextStyle(color = MaterialTheme.colorScheme.onSurface),
+        style = ConciergeStyles.messageBubbleStyle.textStyle,
+        color = ConciergeStyles.messageBubbleStyle.botMessageTextColor,
         modifier = Modifier.padding(
             start = ListSpacing.BASE_INDENTATION + (indentationLevel * ListSpacing.INDENTATION_PER_LEVEL).dp
         )

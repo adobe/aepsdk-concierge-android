@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.utils.markdown
 
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
@@ -22,13 +23,20 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class MarkdownRendererTest {
+    
+    // Default text style for tests (matches bodyLarge)
+    private val testTextStyle = TextStyle(
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    )
 
     @Test
     fun `test render bold token`() {
         val markdown = "This is **bold** text"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertTrue(result.text.contains("bold"))
         // Should have styles for regular text + bold text
@@ -46,7 +54,7 @@ class MarkdownRendererTest {
         val markdown = "This is *italic* text"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertTrue(result.text.contains("italic"))
         // Should have styles for regular text + italic text
@@ -65,7 +73,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertTrue(result.text.contains("fun test() {}"))
         assertEquals(1, result.spanStyles.size)
@@ -83,7 +91,7 @@ class MarkdownRendererTest {
         val markdown = "[Click here](https://example.com)"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertEquals("Click here", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -106,7 +114,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("Main Heading", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -125,7 +133,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("Sub Heading", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -144,7 +152,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("Photoshop", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -162,7 +170,7 @@ class MarkdownRendererTest {
         val markdown = "- List item"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertEquals("• List item", result.text)
         // Should have at least 1 span style for the regular text color
@@ -174,7 +182,7 @@ class MarkdownRendererTest {
         val markdown = "- This is **bold** text with *italic* and `code`"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertTrue(result.text.contains("• This is"))
         assertTrue(result.text.contains("bold"))
@@ -191,7 +199,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("This is a quote", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -208,7 +216,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertTrue(result.text.contains("println()"))
         // Should have styles for regular text + inline code
@@ -230,7 +238,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("Main Heading", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -249,7 +257,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("Sub Heading", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -268,7 +276,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("Photoshop", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -287,7 +295,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertTrue(result.text.contains("bold"))
         // Should have styles for regular text + bold text
@@ -308,7 +316,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertTrue(result.text.contains("italic"))
         // Should have styles for regular text + italic text
@@ -328,7 +336,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertTrue(result.text.contains("fun test() {}"))
         assertEquals(1, result.spanStyles.size)
@@ -347,7 +355,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertTrue(result.text.contains("println()"))
         // Should have styles for regular text + inline code
@@ -369,7 +377,7 @@ class MarkdownRendererTest {
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = darkColorScheme()
         
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, testTextStyle)
         
         assertEquals("This is a quote", result.text)
         assertEquals(1, result.spanStyles.size)
@@ -402,7 +410,7 @@ class MarkdownRendererTest {
         """.trimIndent()
         
         val tokens = MarkdownTokenizer.tokenize(markdown)
-        val result = MarkdownRenderer.render(markdown, tokens, darkColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, darkColorScheme(), testTextStyle)
         
         // Check that all elements are properly processed
         assertTrue(result.text.contains("Main Heading"))
@@ -439,7 +447,7 @@ class MarkdownRendererTest {
         val markdown = "Plain text without markdown"
         val tokens = emptyList<MarkdownToken>()
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertEquals(markdown, result.text)
         // Should have 1 span style for the regular text color
@@ -452,7 +460,7 @@ class MarkdownRendererTest {
         val markdown = "**bold *italic* bold**"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         
-        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme())
+        val result = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
         
         assertTrue(result.text.contains("bold"))
         assertTrue(result.text.contains("italic"))

@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * A text input field for chat messages with support for different states.
@@ -46,6 +47,7 @@ internal fun ChatTextField(
     isEnabled: Boolean,
     placeholder: String = "Type a message..."
 ) {
+    val style = ConciergeStyles.chatTextFieldStyle
     val focusManager = LocalFocusManager.current
 
     OutlinedTextField(
@@ -53,16 +55,16 @@ internal fun ChatTextField(
         onValueChange = onValueChange,
         modifier = modifier
             .animateContentSize()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = style.horizontalPadding),
         placeholder = {
             Text(
                 text = placeholder,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = style.placeholderColor
             )
         },
         enabled = isEnabled,
         singleLine = false,
-        maxLines = 7,
+        maxLines = style.maxLines,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done
@@ -80,6 +82,6 @@ internal fun ChatTextField(
             unfocusedBorderColor = Color.Transparent,
             disabledBorderColor = Color.Transparent
         ),
-        textStyle = MaterialTheme.typography.bodyLarge
+        textStyle = style.textStyle
     )
 }

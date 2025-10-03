@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.utils.markdown
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -34,12 +35,14 @@ internal object MarkdownRenderer {
      * @param markdown The original markdown string.
      * @param tokens The list of [MarkdownToken]s to render.
      * @param colorScheme The Material Design color scheme.
+     * @param baseTextStyle The base text style to apply to regular text.
      * @return An [AnnotatedString] with the appropriate styling applied.
      */
     fun render(
         markdown: String, 
         tokens: List<MarkdownToken>,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ): AnnotatedString {
         Log.debug(ConciergeConstants.EXTENSION_NAME, "render", "Starting rendering of ${tokens.size} tokens")
         
@@ -49,13 +52,13 @@ internal object MarkdownRenderer {
         tokens.forEach { token ->
             if (token.start < currentIndex) return@forEach
             
-            appendGapText(markdown, currentIndex, token.start, builder, colorScheme)
+            appendGapText(markdown, currentIndex, token.start, builder, colorScheme, baseTextStyle)
             currentIndex = token.start
-            renderToken(token, builder, colorScheme)
+            renderToken(token, builder, colorScheme, baseTextStyle)
             currentIndex = token.end
         }
         
-        appendGapText(markdown, currentIndex, markdown.length, builder, colorScheme)
+        appendGapText(markdown, currentIndex, markdown.length, builder, colorScheme, baseTextStyle)
 
         Log.debug(ConciergeConstants.EXTENSION_NAME, "render", "Rendering completed, final text length: ${builder.length}")
         return builder.toAnnotatedString()
@@ -66,32 +69,38 @@ internal object MarkdownRenderer {
         from: Int, 
         to: Int, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         if (from < to) {
             val text = markdown.substring(from, to)
             val styleStart = builder.length
             builder.append(text)
             
-            // Apply theme-aware color to regular text
-            builder.addStyle(SpanStyle(color = colorScheme.onSurface), styleStart, builder.length)
+            // Apply base text style with theme-aware color to regular text
+            builder.addStyle(
+                baseTextStyle.toSpanStyle().copy(color = colorScheme.onSurface), 
+                styleStart, 
+                builder.length
+            )
         }
     }
     
     private fun renderToken(
         token: MarkdownToken, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         when (token.type) {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme)
-            TokenType.LINK -> renderLink(token, builder, colorScheme)
-            TokenType.BOLD -> renderBold(token, builder, colorScheme)
-            TokenType.ITALIC -> renderItalic(token, builder, colorScheme)
+            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle)
+            TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
+            TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
             TokenType.HEADING -> renderHeading(token, builder, colorScheme)
-            TokenType.LIST -> renderList(token, builder, colorScheme)
-            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme)
+            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle)
+            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle)
         }
     }
     
@@ -140,14 +149,15 @@ internal object MarkdownRenderer {
     private fun renderLink(
         token: MarkdownToken, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
         
         builder.append(linkText)
         builder.addStyle(
-            SpanStyle(
+            baseTextStyle.toSpanStyle().copy(
                 color = colorScheme.primary,
                 textDecoration = TextDecoration.Underline
             ), 
@@ -166,14 +176,15 @@ internal object MarkdownRenderer {
     private fun renderBold(
         token: MarkdownToken, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val boldContent = token.groups[0]
         val styleStart = builder.length
         
         builder.append(boldContent)
         builder.addStyle(
-            SpanStyle(
+            baseTextStyle.toSpanStyle().copy(
                 fontWeight = FontWeight.Bold,
                 color = colorScheme.onSurface
             ), 
@@ -185,14 +196,15 @@ internal object MarkdownRenderer {
     private fun renderItalic(
         token: MarkdownToken, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val italicContent = token.groups[0]
         val styleStart = builder.length
         
         builder.append(italicContent)
         builder.addStyle(
-            SpanStyle(
+            baseTextStyle.toSpanStyle().copy(
                 fontStyle = FontStyle.Italic,
                 color = colorScheme.onSurface
             ), 
@@ -240,7 +252,8 @@ internal object MarkdownRenderer {
     private fun renderList(
         token: MarkdownToken, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val listItem = token.groups[0]
         val listMarker = token.groups.getOrNull(1) ?: "•"
@@ -253,21 +266,22 @@ internal object MarkdownRenderer {
             builder.append("• ")
         }
         
-        renderNestedMarkdown(listItem, builder, colorScheme)
+        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle)
     }
     
     private fun renderBlockquote(
         token: MarkdownToken, 
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val quoteText = token.groups[0]
         
-        renderNestedMarkdown(quoteText, builder, colorScheme) { text, _, _ ->
+        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle) { text, _, _ ->
             val styleStart = builder.length
             builder.append(text)
             builder.addStyle(
-                SpanStyle(
+                baseTextStyle.toSpanStyle().copy(
                     background = colorScheme.surfaceContainer,
                     fontStyle = FontStyle.Italic,
                     color = colorScheme.onSurface
@@ -290,6 +304,7 @@ internal object MarkdownRenderer {
         content: String, 
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
+        baseTextStyle: TextStyle,
         textRenderer: ((String, Int, Int) -> Unit)? = null
     ) {
         val nestedTokens = MarkdownTokenizer.tokenize(content)
@@ -306,12 +321,16 @@ internal object MarkdownRenderer {
                 } else {
                     val styleStart = builder.length
                     builder.append(textBefore)
-                    builder.addStyle(SpanStyle(color = colorScheme.onSurface), styleStart, builder.length)
+                    builder.addStyle(
+                        baseTextStyle.toSpanStyle().copy(color = colorScheme.onSurface), 
+                        styleStart, 
+                        builder.length
+                    )
                 }
             }
             
             // Render the nested token
-            renderToken(nestedToken, builder, colorScheme)
+            renderToken(nestedToken, builder, colorScheme, baseTextStyle)
             currentIndex = nestedToken.end
         }
         
@@ -323,7 +342,11 @@ internal object MarkdownRenderer {
             } else {
                 val styleStart = builder.length
                 builder.append(remainingText)
-                builder.addStyle(SpanStyle(color = colorScheme.onSurface), styleStart, builder.length)
+                builder.addStyle(
+                    baseTextStyle.toSpanStyle().copy(color = colorScheme.onSurface), 
+                    styleStart, 
+                    builder.length
+                )
             }
         }
     }

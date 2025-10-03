@@ -22,15 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Composable that displays a single product recommendation in a card element containing
@@ -43,14 +42,16 @@ internal fun ProductCard(
     onImageClick: (MultimodalElement) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {}
 ) {
+    val style = ConciergeStyles.productCardStyle
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clickable { onImageClick(element) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            containerColor = style.backgroundColor
         )
     ) {
         // Background image (if available)
@@ -65,22 +66,23 @@ internal fun ProductCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
+                .padding(4.dp)
                 .align(Alignment.End)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp)
+                    .padding(top = style.textTopPadding)
                     .align(Alignment.TopStart)
             ) {
                 // Title
                 if (element.title != null) {
                     Text(
                         text = element.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
+                        style = style.titleStyle,
+                        fontWeight = style.titleFontWeight,
+                        color = style.titleColor,
+                        maxLines = style.titleMaxLines,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -89,10 +91,10 @@ internal fun ProductCard(
                 if (element.caption != null && element.caption != element.title) {
                     Text(
                         text = element.caption,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                        style = style.captionStyle,
+                        color = style.captionColor,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 16.dp)
+                        modifier = Modifier.padding(top = style.captionTopPadding, bottom = style.captionBottomPadding)
                     )
                 }
 

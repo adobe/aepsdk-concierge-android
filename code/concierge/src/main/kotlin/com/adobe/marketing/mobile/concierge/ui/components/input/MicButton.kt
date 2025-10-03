@@ -14,7 +14,6 @@ package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.Image
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -22,6 +21,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * A voice input button that supports recording, transcribing, and idle states.
@@ -41,6 +41,7 @@ internal fun MicButton(
     waveformPulse: Float,
     onClick: () -> Unit = {},
 ) {
+    val style = ConciergeStyles.micButtonStyle
 
     IconButton(
         onClick = onClick,
@@ -56,7 +57,7 @@ internal fun MicButton(
                 is UserInputState.Recording -> "Stop recording"
                 else -> "Start voice input"
             },
-            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+            colorFilter = ColorFilter.tint(style.iconColor)
         )
     }
 }

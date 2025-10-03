@@ -16,7 +16,7 @@ import android.content.Intent
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -35,7 +35,6 @@ internal fun ConciergeResponseText(
 ) {
     val context = LocalContext.current
     val annotatedString = MarkdownParser.parse(text)
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     ClickableText(
         text = annotatedString,
@@ -43,8 +42,7 @@ internal fun ConciergeResponseText(
         onLinkClick = { url ->
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             context.startActivity(intent)
-        },
-        onTextLayout = { textLayoutResult = it }
+        }
     )
 }
 
@@ -55,24 +53,29 @@ internal fun ConciergeResponseText(
 internal fun ClickableText(
     text: androidx.compose.ui.text.AnnotatedString,
     onLinkClick: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    onTextLayout: (TextLayoutResult) -> Unit = {}
+    modifier: Modifier = Modifier
 ) {
-    BasicText(
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    
+    Text(
         text = text,
+        onTextLayout = { textLayoutResult = it },
         modifier = modifier
             .padding(end = ListSpacing.END_PADDING)
             .pointerInput(text) {
-                // TODO: This is messing with focus handling in the UserInput field. Fix it.
                 detectTapGestures { tapOffsetPosition ->
-                    // Link click handling logic
-                    text.getStringAnnotations(start = 0, end = text.length)
-                        .firstOrNull { it.tag == "URL" }
-                        ?.let { annotation ->
-                            onLinkClick(annotation.item)
-                        }
+                    // Get the character offset at the tap position
+                    textLayoutResult?.let { layoutResult ->
+                        val offset = layoutResult.getOffsetForPosition(tapOffsetPosition)
+                        
+                        // Find URL annotation at the clicked position
+                        text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                            .firstOrNull()
+                            ?.let { annotation ->
+                                onLinkClick(annotation.item)
+                            }
+                    }
                 }
-            },
-        onTextLayout = onTextLayout
+            }
     )
 }

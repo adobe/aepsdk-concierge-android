@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 
 /**
@@ -52,6 +53,7 @@ internal fun ChatInputField(
     onSend: (String) -> Unit,
     onVoiceCancel: () -> Unit
 ) {
+    val style = ConciergeStyles.chatInputFieldStyle
     // Local text state to manage input field content
     val text = remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -82,7 +84,7 @@ internal fun ChatInputField(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(style.padding)
     ) {
         // Always show ChatInputPanel - no more separate VoiceRecordingPanel
         ChatInputPanel(

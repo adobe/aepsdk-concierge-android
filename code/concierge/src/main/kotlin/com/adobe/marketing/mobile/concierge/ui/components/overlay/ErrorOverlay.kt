@@ -18,12 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Component that displays error messages as an overlay.
@@ -34,31 +33,33 @@ internal fun ErrorOverlay(
     errorMessage: String,
     onDismiss: () -> Unit
 ) {
+    val style = ConciergeStyles.errorOverlayStyle
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(style.padding),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
+            containerColor = style.backgroundColor
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(style.contentPadding)
         ) {
             Text(
                 text = errorMessage,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                style = style.messageTextStyle,
+                color = style.messageTextColor
             )
 
             Text(
                 text = "Dismiss",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = style.dismissTextStyle,
+                color = style.dismissTextColor,
                 modifier = Modifier
-                    .padding(start = 8.dp)
+                    .padding(start = style.dismissStartPadding)
                     .pointerInput(Unit) {
                         detectDragGestures { _, _ ->
                             onDismiss()
