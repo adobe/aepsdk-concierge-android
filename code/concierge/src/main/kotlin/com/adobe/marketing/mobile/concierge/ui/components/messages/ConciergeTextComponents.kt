@@ -18,6 +18,9 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
@@ -68,6 +71,44 @@ internal fun ConciergeResponseText(
                 val intent = Intent(Intent.ACTION_VIEW, clickedAnnotation.item.toUri())
                 context.startActivity(intent)
             }
+        },
+        onLinkClick = { url ->
+            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+            context.startActivity(intent)
         }
+    )
+}
+
+/**
+ * Reusable composable for rendering text with clickable links.
+ */
+@Composable
+internal fun ClickableText(
+    text: androidx.compose.ui.text.AnnotatedString,
+    onLinkClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    
+    Text(
+        text = text,
+        onTextLayout = { textLayoutResult = it },
+        modifier = modifier
+            .padding(end = ListSpacing.END_PADDING)
+            .pointerInput(text) {
+                detectTapGestures { tapOffsetPosition ->
+                    // Get the character offset at the tap position
+                    textLayoutResult?.let { layoutResult ->
+                        val offset = layoutResult.getOffsetForPosition(tapOffsetPosition)
+                        
+                        // Find URL annotation at the clicked position
+                        text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                            .firstOrNull()
+                            ?.let { annotation ->
+                                onLinkClick(annotation.item)
+                            }
+                    }
+                }
+            }
     )
 }

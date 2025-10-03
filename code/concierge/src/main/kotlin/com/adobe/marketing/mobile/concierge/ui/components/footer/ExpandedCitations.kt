@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -31,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.ServiceProvider
 
 /**
@@ -60,11 +60,12 @@ internal fun ExpandedCitations(
                 .sortedBy { it.citationNumber }
         }
     }
+    val style = ConciergeStyles.citationStyle
     
     AnimatedVisibility(
         visible = expanded,
-        enter = expandVertically(animationSpec = tween(200)),
-        exit = shrinkVertically(animationSpec = tween(200))
+        enter = expandVertically(animationSpec = tween(style.expandAnimationDuration)),
+        exit = shrinkVertically(animationSpec = tween(style.collapseAnimationDuration))
     ) {
         Column(modifier = modifier) {
             uniqueSources.forEachIndexed { index, citation ->
@@ -77,8 +78,8 @@ internal fun ExpandedCitations(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                            .height(style.separatorHeight)
+                            .background(style.separatorColor)
                     )
                 }
             }
@@ -99,27 +100,29 @@ internal fun CitationItem(
     citation: Citation,
     index: Int
 ) {
+    val style = ConciergeStyles.citationStyle
+    
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(style.containerPadding)
     ) {
         // Citation title
         Text(
             text = "$index. ${citation.title}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            style = style.titleStyle,
+            color = style.titleColor
         )
         
         // URL with clickable styling if it exists
         if (!citation.url.isNullOrBlank()) {
             Text(
                 text = citation.url,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = style.urlStyle,
+                color = style.urlColor,
                 textDecoration = TextDecoration.Underline,
                 modifier = Modifier
-                    .padding(top = 4.dp)
+                    .padding(top = style.urlTopPadding)
                     .clickable {
                         citation.url.let { url ->
                             ServiceProvider.getInstance().uriService.openUri(url)

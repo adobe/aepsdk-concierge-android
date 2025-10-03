@@ -26,6 +26,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotator
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.network.Citation
 
@@ -57,7 +58,14 @@ internal fun ConciergeResponse(
         }
     }
     
+    // Show thinking animation when text is empty
+    if (text.isEmpty()) {
+        ConciergeThinking(modifier = modifier)
+        return
+    }
+    
     val tokens = remember(annotatedText.text) { MarkdownTokenizer.tokenize(annotatedText.text) }
+
     val listTokens = remember(tokens) { 
         tokens.filter { it.type == TokenType.LIST }
     }
@@ -89,6 +97,7 @@ private fun ConciergeResponseWithLists(
     citationAnnotations: List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
+    val style = ConciergeStyles.messageBubbleStyle
     val context = LocalContext.current
     val contentSegments = remember(text, listTokens) {
         ContentSegmentParser.createSegments(text, listTokens)
@@ -96,7 +105,7 @@ private fun ConciergeResponseWithLists(
 
     Column(modifier = modifier) {
         contentSegments.forEach { segment ->
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(style.segmentSpacing))
             when (segment) {
                 is ContentSegment.Text -> {
                     // Adjust citation annotations for this text segment

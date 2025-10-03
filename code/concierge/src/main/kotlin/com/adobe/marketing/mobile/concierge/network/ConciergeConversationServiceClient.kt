@@ -30,6 +30,7 @@ import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.random.Random
 
 /**
  * Configuration for the conversation service request.
@@ -39,7 +40,11 @@ internal data class ConversationConfig(
     val sessionId: String = "",
     val requestId: String = "",
     val baseUrl: String = "",
-    val surfaces: List<String> = listOf("")
+    val surfaces: List<String> = listOf(""),
+    // generate a mockEcid for the request, 38 characters long, numeric only
+    val mockEcid: String = (1..38)
+        .map { Random.nextInt(0, 10) }
+        .joinToString(separator = "") { it.toString() }
 )
 
 internal class ConciergeConversationServiceClient(
@@ -123,6 +128,15 @@ internal class ConciergeConversationServiceClient(
                             "fetchConversationalExperience": true,
                             "surfaces": ${config.surfaces.joinToString(",", "[\"", "\"]") { it }},
                             "message": "${message.replace("\"", "\\\"")}"
+                        }
+                    },
+                    "xdm": {
+                        "identityMap": {
+                            "ECID": [
+                                {
+                                    "id": "${config.mockEcid}"
+                                }
+                            ]
                         }
                     }
                 }

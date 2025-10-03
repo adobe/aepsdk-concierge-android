@@ -19,15 +19,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Header component for the chat interface with title and close button.
@@ -41,29 +39,31 @@ internal fun ChatHeader(
     title: String = "Brand",
     onClose: () -> Unit
 ) {
+    val style = ConciergeStyles.headerStyle
+    
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(style.padding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            style = style.titleStyle,
+            fontWeight = style.titleFontWeight,
+            color = style.titleColor
         )
 
         // Close button
         IconButton(
             onClick = onClose,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(style.iconSize)
         ) {
             Icon(
                 painter = painterResource(R.drawable.close),
                 contentDescription = "Close chat",
-                tint = MaterialTheme.colorScheme.primary
+                tint = style.iconColor
             )
         }
     }

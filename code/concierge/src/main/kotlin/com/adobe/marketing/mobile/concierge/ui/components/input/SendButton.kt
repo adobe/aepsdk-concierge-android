@@ -14,12 +14,12 @@ package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.Image
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * A send button for submitting chat messages.
@@ -35,6 +35,8 @@ internal fun SendButton(
     isEnabled: Boolean,
     onSend: () -> Unit
 ) {
+    val style = ConciergeStyles.sendButtonStyle
+    
     IconButton(
         onClick = {
             if (isEnabled) {
@@ -49,9 +51,9 @@ internal fun SendButton(
             contentDescription = "Send message",
             colorFilter = ColorFilter.tint(
                 if (isEnabled) {
-                    MaterialTheme.colorScheme.primary
+                    style.enabledIconColor
                 } else {
-                    MaterialTheme.colorScheme.primary.copy(0.3f)
+                    style.enabledIconColor.copy(alpha = style.disabledIconAlpha)
                 }
             )
         )

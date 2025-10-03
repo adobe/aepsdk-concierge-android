@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.Log
 
 /**
@@ -50,15 +51,18 @@ internal fun ProductImage(
     onImageClick: (MultimodalElement) -> Unit = {},
     isMultiElement: Boolean = false
 ) {
+    val imageStyle = ConciergeStyles.productImageStyle
+    val cardStyle = ConciergeStyles.productCardStyle
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clickable { onImageClick(element) },
-        shape = if (isMultiElement) RoundedCornerShape(16.dp) else RoundedCornerShape(0.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = if (isMultiElement) imageStyle.multiImageShape else imageStyle.singleImageShape,
+        elevation = CardDefaults.cardElevation(defaultElevation = imageStyle.elevation),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = imageStyle.backgroundColor
         )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -75,19 +79,16 @@ internal fun ProductImage(
                             "Failed to load image: $imageUrl, error: $error"
                         )
                     },
-                    modifier = Modifier.height(280.dp)
+                    modifier = Modifier.height(cardStyle.imageHeight)
                 )
             } else {
                 // Fallback to a gradient background if no image URL is available
                 Box(
                     modifier = Modifier
-                        .height(280.dp)
+                        .height(cardStyle.imageHeight)
                         .background(
                             Brush.horizontalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
-                                )
+                                colors = cardStyle.fallbackGradientColors
                             )
                         )
                 )
@@ -98,22 +99,22 @@ internal fun ProductImage(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(12.dp)
+                        .padding(imageStyle.overlayPadding)
                 ) {
                     Box(
                         modifier = Modifier
                             .background(
-                                color = Color.White.copy(alpha = 0.95f),
-                                shape = RoundedCornerShape(8.dp)
+                                color = imageStyle.overlayBackgroundColor,
+                                shape = imageStyle.overlayShape
                             )
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(imageStyle.overlayInnerPadding)
                     ) {
                         Text(
                             text = element.content["productName"] as? String ?: element.id,
-                            color = Color.Black,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            style = MaterialTheme.typography.bodyMedium
+                            color = imageStyle.overlayTextColor,
+                            fontSize = imageStyle.overlayTextSize.value.sp,
+                            fontWeight = imageStyle.overlayTextFontWeight,
+                            style = imageStyle.overlayTextStyle
                         )
                     }
                 }

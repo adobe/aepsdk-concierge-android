@@ -97,11 +97,25 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     constructor(application: Application) : this(application, AndroidSpeechCapturing(application))
 
-    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing): this(application, speechCapturing, DefaultImageProvider(), ConciergeConversationServiceClient())
+    internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing) : this(
+        application,
+        speechCapturing,
+        DefaultImageProvider(),
+        ConciergeConversationServiceClient()
+    )
 
-    internal constructor(application: Application, speechCapturing: SpeechCapturing, chatClient: ConciergeConversationServiceClient): this(application, speechCapturing, DefaultImageProvider(), chatClient)
+    internal constructor(
+        application: Application,
+        speechCapturing: SpeechCapturing,
+        chatClient: ConciergeConversationServiceClient
+    ) : this(application, speechCapturing, DefaultImageProvider(), chatClient)
 
-    internal constructor(application: Application, speechCapturing: SpeechCapturing, imageProvider: ImageProvider, chatService: ConciergeConversationServiceClient) : super(application) {
+    internal constructor(
+        application: Application,
+        speechCapturing: SpeechCapturing,
+        imageProvider: ImageProvider,
+        chatService: ConciergeConversationServiceClient
+    ) : super(application) {
         this.speechCapturing = speechCapturing
         this.imageProvider = imageProvider
         this.chatService = chatService
@@ -277,7 +291,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         // Start the conversation stream from the API
-        initiateConversation(messageText)
+        initiateConversation(messageText.trim())
     }
 
     /**
@@ -409,16 +423,19 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param sources Optional sources to include with the message
      */
     private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList(), sources: List<Citation> = emptyList()) {
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, 
-            "Updating message content with sources count: ${sources.size}")
-        
-        _messages.update { currentMessages ->
-            currentMessages.mapIndexed { index, message ->
-                if (index == currentMessages.lastIndex && !message.isFromUser) {
-                    message.copy(content = content, promptSuggestions = promptSuggestions, citations = sources)
-                } else {
-                    message
-                }
+        _messages.update { existingMessages ->
+            val lastIndex = existingMessages.lastIndex
+            if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
+                val updatedMessages = existingMessages.toMutableList()
+                val lastAssistantMessage = existingMessages[lastIndex]
+                updatedMessages[lastIndex] = lastAssistantMessage.copy(
+                    content = content,
+                    promptSuggestions = promptSuggestions,
+                    citations = sources
+                )
+                updatedMessages
+            } else {
+                existingMessages
             }
         }
     }
@@ -428,16 +445,10 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
-        // Add error message to chat
-        val errorChatMessage = ChatMessage(
-            content = MessageContent.Text("Sorry, I encountered an error: $errorMessage"),
-            isFromUser = false,
-            timestamp = System.currentTimeMillis()
-        )
-
-        _messages.update { currentMessages ->
-            currentMessages + errorChatMessage
-        }
+        replaceAssistantMessageContent(ParsedConversationMessage(
+            messageContent = "Sorry, I encountered an error: $errorMessage",
+            state = ConversationState.COMPLETED,
+        ))
 
         // Return to idle state
         _state.update {

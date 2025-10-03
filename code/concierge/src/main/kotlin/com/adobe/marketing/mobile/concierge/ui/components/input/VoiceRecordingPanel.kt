@@ -22,12 +22,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,9 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * Voice recording panel that shows listening/transcribing states with action buttons.
@@ -50,48 +48,50 @@ internal fun VoiceRecordingPanel(
     onCancel: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val style = ConciergeStyles.voiceRecordingPanelStyle
+    
     // Animation for listening state
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = 1.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000)
+            animation = tween(style.pulseAnimationDuration)
         ),
         label = "pulse"
     )
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = style.shape,
+        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = style.backgroundColor
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(style.padding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Cancel button (X)
             IconButton(
                 onClick = onCancel,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(style.iconSize)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.close),
                     contentDescription = "Cancel recording",
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = style.cancelIconColor
                 )
             }
 
             // Center content (icon + text)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(style.contentSpacing)
             ) {
                 // Animated microphone/waveform icon
                 Icon(
@@ -100,20 +100,20 @@ internal fun VoiceRecordingPanel(
                         else -> painterResource(R.drawable.microphone)
                     },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = style.iconColor,
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(style.iconSize)
                         .scale(if (inputState is UserInputState.Recording) pulseScale else 1.0f)
                 )
 
                 // Status text
                 Text(
                     text = when (inputState) {
-                        is UserInputState.Recording -> "Listening"
+                        is UserInputState.Recording -> style.listeningText
                         else -> ""
                     },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = style.textStyle,
+                    color = style.textColor
                 )
             }
 
@@ -121,17 +121,17 @@ internal fun VoiceRecordingPanel(
             if (inputState is UserInputState.Recording) {
                 IconButton(
                     onClick = onConfirm,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(style.iconSize)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.checkmark),
                         contentDescription = "Confirm recording",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = style.iconColor
                     )
                 }
             } else {
                 // Spacer to maintain layout balance when confirm button is not shown
-                Spacer(modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.size(style.iconSize))
             }
         }
     }
