@@ -12,10 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.unit.dp
-import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation
+import com.adobe.marketing.mobile.concierge.network.Citation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,23 +22,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
+import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 
 /**
  * Renders list content with proper indentation and spacing.
  * 
  * @param listTokens List of [MarkdownToken] objects representing list items
  * @param onLinkClick Callback function for handling link clicks
- * @param citationAnnotations List of [CitationAnnotation] objects to apply to list items
+ * @param uniqueSources List of [Citation] objects for generating citation annotations
  * @param modifier [Modifier] to be applied to the [Column] container
  */
 @Composable
 internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
     onLinkClick: (String) -> Unit,
-    citationAnnotations: List<CitationAnnotation> = emptyList(),
+    uniqueSources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -49,7 +49,7 @@ internal fun ConciergeResponseList(
             ListItem(
                 token = token,
                 onLinkClick = onLinkClick,
-                citationAnnotations = citationAnnotations
+                uniqueSources = uniqueSources
             )
         }
     }
@@ -59,32 +59,34 @@ internal fun ConciergeResponseList(
  * Renders a single list item with proper indentation and clickable links.
  * 
  * This composable processes a [MarkdownToken] and renders it as a list item with
- * citation annotations applied using [CitationStylingUtils].
+ * citation annotations applied.
  * 
  * @param token The [MarkdownToken] representing the list item
  * @param onLinkClick Callback function for handling link clicks within the list item
- * @param citationAnnotations List of [CitationAnnotation] objects to apply to this list item
+ * @param uniqueSources List of [Citation] objects for generating citation annotations
  */
 @Composable
 private fun ListItem(
     token: MarkdownToken,
     onLinkClick: (String) -> Unit,
-    citationAnnotations: List<CitationAnnotation> = emptyList()
+    uniqueSources: List<Citation> = emptyList()
 ) {
-    val listItemContent = remember {  token.groups.firstOrNull() ?: "" }
-    val listMarker = remember {  token.groups.getOrNull(1) ?: "•" }
+    val context = LocalContext.current
+    val style = ConciergeStyles.citationBadgeStyle
+
+    val listItemContent = remember { token.groups.firstOrNull() ?: "" }
+    val listMarker = remember { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
+    
+    // Parse markdown first to get the rendered text with inline content placeholders
     val annotatedString = MarkdownParser.parse(listItemContent)
     
-    // Create citation annotations for list item content
-    val listItemAnnotations = createListItemAnnotations(annotatedString.text, citationAnnotations)
-    
-    // Get theme colors for citation styling based on device's light/dark mode
-    val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-    val textColor = MaterialTheme.colorScheme.primary
-    
-    // Apply citation annotations
-    val finalAnnotatedString = CitationStylingUtils.applyCitationAnnotations(annotatedString, listItemAnnotations, backgroundColor, textColor)
+    // Create inline content map for circular citations
+    val inlineContentMap = remember(uniqueSources) {
+        CitationUtils.createInlineContentMap(uniqueSources,
+            style.size,
+            context)
+    }
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -95,21 +97,12 @@ private fun ListItem(
             indentationLevel = indentationLevel
         )
         
-            ClickableText(
-                text = finalAnnotatedString,
-                onClick = { offset ->
-                    // Find the annotation at the clicked position
-                    val allAnnotations = finalAnnotatedString.getStringAnnotations(start = 0, end = finalAnnotatedString.length)
-                    val clickedAnnotation = allAnnotations.firstOrNull { annotation ->
-                        offset >= annotation.start && offset <= annotation.end
-                    }
-
-                    // Handle the clicked annotation
-                    clickedAnnotation?.let { annotation ->
-                        onLinkClick(annotation.item)
-                    }
-                }
-            )
+        ClickableText(
+            text = annotatedString,
+            inlineContent = inlineContentMap,
+            onLinkClick = onLinkClick,
+            modifier = Modifier.padding(end = ListSpacing.END_PADDING)
+        )
     }
 }
 
@@ -150,46 +143,4 @@ internal object ListSpacing {
     val BASE_INDENTATION = 16.dp
     val INDENTATION_PER_LEVEL = 16
     val END_PADDING = 16.dp
-}
-
-/**
- * Creates citation annotations for the given list item content.
- * 
- * This function searches for citation numbers within the list item content and creates
- * corresponding [CitationAnnotation] objects by matching them with the provided
- * annotation list. It uses regex pattern matching to find citation numbers.
- * 
- * @param listItemContent The text content of the list item to search for citations
- * @param allAnnotations List of all available [CitationAnnotation] objects to match against
- * @return List of [CitationAnnotation] objects that apply to this specific list item
- */
-private fun createListItemAnnotations(
-    listItemContent: String,
-    allAnnotations: List<CitationAnnotation>
-): List<CitationAnnotation> {
-    val annotations = mutableListOf<CitationAnnotation>()
-    
-    // Look for citation numbers in the list item content
-    val citationPattern = Regex("\\d+")
-    val matches = citationPattern.findAll(listItemContent)
-    
-    matches.forEach { match ->
-        val citationNumber = match.value.toIntOrNull()
-        if (citationNumber != null) {
-            // Find the corresponding annotation from the original list
-            val originalAnnotation = allAnnotations.find { it.citationNumber == citationNumber }
-            if (originalAnnotation != null) {
-                annotations.add(
-                    CitationAnnotation(
-                        citationNumber = citationNumber,
-                        startIndex = match.range.first,
-                        endIndex = match.range.last + 1,
-                        url = originalAnnotation.url
-                    )
-                )
-            }
-        }
-    }
-    
-    return annotations
 }

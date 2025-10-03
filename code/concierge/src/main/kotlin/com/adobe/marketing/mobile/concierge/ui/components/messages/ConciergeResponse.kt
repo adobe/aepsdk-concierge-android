@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
@@ -74,13 +73,13 @@ internal fun ConciergeResponse(
         ConciergeResponseWithLists(
             text = annotatedText.text,
             listTokens = listTokens,
-            citationAnnotations = annotatedText.citationAnnotations,
+            uniqueSources = annotatedText.uniqueSources,
             modifier = modifier
         )
     } else {
         ConciergeResponseText(
             text = annotatedText.text,
-            citationAnnotations = annotatedText.citationAnnotations,
+            uniqueSources = annotatedText.uniqueSources,
             modifier = modifier
         )
     }
@@ -94,7 +93,7 @@ internal fun ConciergeResponse(
 private fun ConciergeResponseWithLists(
     text: String,
     listTokens: List<MarkdownToken>,
-    citationAnnotations: List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation> = emptyList(),
+    uniqueSources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -108,16 +107,9 @@ private fun ConciergeResponseWithLists(
             Spacer(modifier = Modifier.height(style.segmentSpacing))
             when (segment) {
                 is ContentSegment.Text -> {
-                    // Adjust citation annotations for this text segment
-                    val segmentAnnotations = adjustAnnotationsForSegment(
-                        citationAnnotations, 
-                        segment.startIndex, 
-                        segment.endIndex
-                    )
-                    
                     ConciergeResponseText(
                         text = segment.content,
-                        citationAnnotations = segmentAnnotations,
+                        uniqueSources = uniqueSources,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -128,33 +120,10 @@ private fun ConciergeResponseWithLists(
                             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                             context.startActivity(intent)
                         },
-                        citationAnnotations = citationAnnotations
+                        uniqueSources = uniqueSources
                     )
                 }
             }
         }
-    }
-}
-
-/**
- * Adjusts citation annotations for a text segment by offsetting their positions
- * relative to the segment's start position in the complete text. This is necessary
- * because annotations indexes are based on the full markdown text, but need to be applied
- * to individual segments when rendering.
- */
-private fun adjustAnnotationsForSegment(
-    annotations: List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation>,
-    segmentStartIndex: Int,
-    segmentEndIndex: Int
-): List<com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation> {
-    return annotations.filter { annotation ->
-        // Check if annotation overlaps with this segment
-        annotation.startIndex < segmentEndIndex && annotation.endIndex > segmentStartIndex
-    }.map { annotation ->
-        // Adjust annotation positions relative to segment start
-        annotation.copy(
-            startIndex = maxOf(0, annotation.startIndex - segmentStartIndex),
-            endIndex = minOf(segmentEndIndex - segmentStartIndex, annotation.endIndex - segmentStartIndex)
-        )
     }
 }

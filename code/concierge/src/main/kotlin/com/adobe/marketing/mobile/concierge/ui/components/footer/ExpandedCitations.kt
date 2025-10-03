@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 import com.adobe.marketing.mobile.services.ServiceProvider
 
 /**
@@ -49,16 +50,7 @@ internal fun ExpandedCitations(
 ) {
     // Get unique sources with proper citation numbers
     val uniqueSources: List<Citation> = remember(citations) {
-        if (citations.isEmpty()) {
-            emptyList()
-        } else {
-            // Group by citation number and take the first occurrence of each
-            citations
-                .filter { it.citationNumber != null }
-                .groupBy { it.citationNumber }
-                .map { (_, sources) -> sources.first() }
-                .sortedBy { it.citationNumber }
-        }
+        CitationUtils.createUniqueSources(citations)
     }
     val style = ConciergeStyles.citationStyle
     

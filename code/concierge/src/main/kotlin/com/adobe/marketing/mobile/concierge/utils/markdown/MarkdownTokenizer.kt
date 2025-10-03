@@ -46,8 +46,10 @@ internal object MarkdownTokenizer {
         }
         
         // Process inline elements, allowing them to be nested within block elements
+        // Note: Order matters! Process citations BEFORE links to avoid conflicts
         val inlinePatterns = mapOf(
-            TokenType.LINK to """\[(.*?)\]\((.*?)\)""".toRegex(),
+            TokenType.CITATION to """\[\^(\d+)\]""".toRegex(),
+            TokenType.LINK to """\[([^\^][^\]]*)\]\((.*?)\)""".toRegex(),  // Updated to exclude [^ patterns
             TokenType.INLINE_CODE to """`(.*?)`""".toRegex(),
             TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex(),
             TokenType.ITALIC to """\*(.*?)\*""".toRegex()
@@ -126,7 +128,7 @@ internal object MarkdownTokenizer {
             // For inline elements, allow them to be nested within block elements
             // but prevent them from overlapping with other inline elements
             val hasInlineOverlap = tokens.any { existing ->
-                val isInlineElement = existing.type in listOf(TokenType.LINK, TokenType.INLINE_CODE, TokenType.BOLD, TokenType.ITALIC)
+                val isInlineElement = existing.type in listOf(TokenType.LINK, TokenType.INLINE_CODE, TokenType.BOLD, TokenType.ITALIC, TokenType.CITATION)
                 isInlineElement && (newToken.start < existing.end && newToken.end > existing.start)
             }
             
@@ -159,5 +161,6 @@ internal enum class TokenType {
     ITALIC,
     HEADING,
     LIST,
-    BLOCKQUOTE
+    BLOCKQUOTE,
+    CITATION
 }

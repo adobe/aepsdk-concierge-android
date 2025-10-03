@@ -158,6 +158,7 @@ private fun RenderMixedMessage(
                         if (message.content.text.isNotEmpty()) {
                             ConciergeResponse(
                                 text = message.content.text,
+                                sources = message.citations ?: emptyList(),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }

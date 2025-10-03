@@ -15,11 +15,10 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 import android.content.Intent
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -29,64 +28,66 @@ import androidx.compose.ui.text.TextLayoutResult
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
-import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation
+import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 
 /**
- * Renders brand concierge content with clickable links and citation annotations.
- * 
- * This composable processes markdown text and applies citation styling using
- * [CitationStylingUtils].
- * 
- * @param text The markdown text content to render
- * @param citationAnnotations Pre-computed citation annotations to apply
- * @param modifier [Modifier] to be applied to the [ClickableText] component
+ * Renders concierge response text with markdown formatting and circular citation components.
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
-    citationAnnotations: List<CitationAnnotation> = emptyList(),
+    uniqueSources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-
-    // Get theme colors for citation styling
-    val style = ConciergeStyles.messageBubbleStyle
-    val backgroundColor = style.botMessageBackgroundColor
-    val textColor = style.botMessageTextColor
+    val style = ConciergeStyles.citationBadgeStyle
     
+    // Parse markdown first to get the rendered text with inline content placeholders
     val markdownAnnotatedString = MarkdownParser.parse(text)
     
-    val finalAnnotatedString = remember(markdownAnnotatedString, citationAnnotations, backgroundColor, textColor) {
-        // Apply citation annotations if available
-        CitationStylingUtils.applyCitationAnnotations(markdownAnnotatedString, citationAnnotations, backgroundColor, textColor)
-    }
+    // Create inline content map for circular citations
+    val inlineContentMap = CitationUtils.createInlineContentMap(
+        uniqueSources,
+        style.size,
+        context
+    )
     
     ClickableText(
-        text = finalAnnotatedString,
-        modifier = modifier.fillMaxWidth(),
+        text = markdownAnnotatedString,
+        inlineContent = inlineContentMap,
         onLinkClick = { url ->
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             context.startActivity(intent)
-        }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(end = ListSpacing.END_PADDING)
     )
 }
 
 /**
- * Reusable composable for rendering text with clickable links.
+ * Reusable composable for rendering text with clickable links and optional inline content.
+ * 
+ * @param text The annotated string to render
+ * @param onLinkClick Callback for handling link clicks
+ * @param modifier Optional modifier for the component
+ * @param inlineContent Optional map of inline content for embedded composables (e.g., citations)
  */
 @Composable
 internal fun ClickableText(
     text: androidx.compose.ui.text.AnnotatedString,
     onLinkClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    inlineContent: Map<String, InlineTextContent> = emptyMap()
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     
     Text(
         text = text,
+        inlineContent = inlineContent,
         onTextLayout = { textLayoutResult = it },
         modifier = modifier
-            .padding(end = ListSpacing.END_PADDING)
             .pointerInput(text) {
                 detectTapGestures { tapOffsetPosition ->
                     // Get the character offset at the tap position
