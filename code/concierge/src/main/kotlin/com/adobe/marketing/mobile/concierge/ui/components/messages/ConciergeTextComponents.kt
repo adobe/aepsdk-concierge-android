@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import android.content.Intent
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.MaterialTheme
@@ -22,9 +23,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextLayoutResult
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotation
 
 /**
@@ -44,10 +48,11 @@ internal fun ConciergeResponseText(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    
+
     // Get theme colors for citation styling
-    val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
-    val textColor = MaterialTheme.colorScheme.primary
+    val style = ConciergeStyles.messageBubbleStyle
+    val backgroundColor = style.botMessageBackgroundColor
+    val textColor = style.botMessageTextColor
     
     val markdownAnnotatedString = MarkdownParser.parse(text)
     
@@ -59,19 +64,6 @@ internal fun ConciergeResponseText(
     ClickableText(
         text = finalAnnotatedString,
         modifier = modifier.fillMaxWidth(),
-        onClick = { offset ->
-            // Find the annotation at the clicked position
-            val allAnnotations = finalAnnotatedString.getStringAnnotations(start = 0, end = finalAnnotatedString.length)
-            val clickedAnnotation = allAnnotations.firstOrNull { annotation ->
-                offset >= annotation.start && offset <= annotation.end
-            }
-
-            // Handle the clicked annotation
-            clickedAnnotation?.let { annotation ->
-                val intent = Intent(Intent.ACTION_VIEW, clickedAnnotation.item.toUri())
-                context.startActivity(intent)
-            }
-        },
         onLinkClick = { url ->
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             context.startActivity(intent)
