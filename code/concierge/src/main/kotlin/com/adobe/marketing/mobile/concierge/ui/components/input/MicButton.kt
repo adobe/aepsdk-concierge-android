@@ -12,26 +12,40 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * A voice input button that supports recording, transcribing, and idle states.
+ * Shows a subtle pulsing background during recording.
  *
  * @param modifier Modifier for the composable
  * @param userInputState The current state of the input stream
  * @param isEnabled Whether the button is enabled
- * @param waveformPulse The current pulse scale value for animation
- * @param onVoiceInputStart Callback when voice recording should start
- * @param onVoiceInputStop Callback when voice recording should stop
+ * @param waveformPulse The current pulse scale value for animation (deprecated, kept for compatibility)
+ * @param onClick Callback when button is clicked
  */
 @Composable
 internal fun MicButton(
@@ -43,21 +57,29 @@ internal fun MicButton(
 ) {
     val style = ConciergeStyles.micButtonStyle
 
-    IconButton(
-        onClick = onClick,
-        enabled = isEnabled,
-        modifier = modifier.scale(if (userInputState is UserInputState.Recording) waveformPulse else 1.0f)
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = when (userInputState) {
-                is UserInputState.Recording -> painterResource(R.drawable.audiowave)
-                else -> painterResource(R.drawable.microphone)
+        IconButton(
+            onClick = {
+                if (isEnabled) {
+                    onClick()
+                }
             },
-            contentDescription = when (userInputState) {
-                is UserInputState.Recording -> "Stop recording"
-                else -> "Start voice input"
-            },
-            colorFilter = ColorFilter.tint(style.iconColor)
-        )
+            modifier = Modifier.size(style.size)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.microphone),
+                contentDescription = when (userInputState) {
+                    is UserInputState.Recording -> "Stop recording"
+                    else -> "Start voice input"
+                },
+                colorFilter = ColorFilter.tint(
+                    if (isEnabled) style.iconColor 
+                    else style.iconColor.copy(alpha = 0.38f)
+                )
+            )
+        }
     }
 }
