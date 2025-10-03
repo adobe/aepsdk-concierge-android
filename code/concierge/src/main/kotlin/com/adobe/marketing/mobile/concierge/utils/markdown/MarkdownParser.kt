@@ -12,12 +12,12 @@
 
 package com.adobe.marketing.mobile.concierge.utils.markdown
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.services.Log
 
 /**
@@ -35,7 +35,7 @@ internal object MarkdownParser {
     @Composable
     fun parse(markdown: String): AnnotatedString {
         val tokens = remember(markdown) { MarkdownTokenizer.tokenize(markdown) }
-        val colorScheme = MaterialTheme.colorScheme
+        val colorScheme = ConciergeTheme.colorScheme
         val messageTextStyle = ConciergeStyles.messageBubbleStyle.textStyle
         
         Log.debug(
