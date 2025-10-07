@@ -29,7 +29,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.network.Citation
-import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
+import com.adobe.marketing.mobile.concierge.ui.components.messages.CitationUiUtils
 
 /**
  * Renders concierge response text with markdown formatting and circular citation components.
@@ -47,7 +47,7 @@ internal fun ConciergeResponseText(
     val markdownAnnotatedString = MarkdownParser.parse(text)
     
     // Create inline content map for circular citations
-    val inlineContentMap = CitationUtils.createInlineContentMap(
+    val inlineContentMap = CitationUiUtils.createInlineContentMap(
         uniqueSources,
         style.size,
         context

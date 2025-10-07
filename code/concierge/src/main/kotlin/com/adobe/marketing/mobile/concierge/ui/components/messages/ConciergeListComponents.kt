@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
-import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
+import com.adobe.marketing.mobile.concierge.ui.components.messages.CitationUiUtils
 
 /**
  * Renders list content with proper indentation and spacing.
@@ -83,7 +83,7 @@ private fun ListItem(
     
     // Create inline content map for circular citations
     val inlineContentMap = remember(uniqueSources) {
-        CitationUtils.createInlineContentMap(uniqueSources,
+        CitationUiUtils.createInlineContentMap(uniqueSources,
             style.size,
             context)
     }
