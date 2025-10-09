@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -43,7 +44,8 @@ internal fun MessageList(
     onFeedback: (FeedbackEvent) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
-    onSuggestionClick: (String) -> Unit = {}
+    onSuggestionClick: (String) -> Unit = {},
+    feedbackStates: Map<String, FeedbackState> = emptyMap()
 ) {
     val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
@@ -87,7 +89,8 @@ internal fun MessageList(
                         onFeedback = onFeedback,
                         onActionClick = onActionClick,
                         onImageClick = onImageClick,
-                        onSuggestionClick = onSuggestionClick
+                        onSuggestionClick = onSuggestionClick,
+                        feedbackState = message.interactionId?.let { feedbackStates[it] } ?: FeedbackState.None
                     )
                 }
             }

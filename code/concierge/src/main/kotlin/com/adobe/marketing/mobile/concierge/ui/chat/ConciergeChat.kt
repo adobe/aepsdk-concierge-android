@@ -29,7 +29,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackToast
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
@@ -37,6 +41,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
@@ -53,6 +58,7 @@ fun ConciergeChat(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val feedbackStates by viewModel.feedbackStates.collectAsStateWithLifecycle()
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
 
@@ -68,6 +74,8 @@ fun ConciergeChat(
                 errorMessage = errorMessage,
                 inputState = inputState,
                 hasAudioPermission = hasAudioPermission,
+                feedbackStates = feedbackStates,
+                state = state,
                 onTextChanged = viewModel::onTextStateChanged,
                 onEvent = viewModel::processEvent,
                 onPermissionResult = { granted ->
@@ -86,6 +94,8 @@ internal fun ConciergeChat(
     errorMessage: String?,
     inputState: UserInputState,
     hasAudioPermission: Boolean,
+    feedbackStates: Map<String, FeedbackState>,
+    state: ChatScreenState,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
@@ -128,6 +138,7 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
+                    feedbackStates = feedbackStates,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -147,6 +158,20 @@ internal fun ConciergeChat(
                 onPermissionResult = onPermissionResult,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Feedback toast overlay
+            if (state is ChatScreenState.ShowingFeedbackToast) {
+                FeedbackToast(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    isVisible = true,
+                    message = state.message,
+                    onDismiss = {
+                        onEvent(FeedbackEvent.DismissFeedbackToast)
+                    }
+                )
+            }
         }
 
         // Error overlay if there's an error
@@ -158,6 +183,23 @@ internal fun ConciergeChat(
                 errorMessage = it,
                 onDismiss = {
                     onEvent(ChatEvent.Reset)
+                }
+            )
+        }
+
+        // Feedback dialog overlay
+        if (state is ChatScreenState.ShowingFeedbackDialog) {
+            FeedbackDialog(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                interactionId = state.interactionId,
+                feedbackType = state.feedbackType,
+                onDismiss = {
+                    onEvent(FeedbackEvent.DismissFeedbackDialog(state.interactionId))
+                },
+                onSubmit = { submission ->
+                    onEvent(FeedbackEvent.SubmitFeedback(submission))
                 }
             )
         }

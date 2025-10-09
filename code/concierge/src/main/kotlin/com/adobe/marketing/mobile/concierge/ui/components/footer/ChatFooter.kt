@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 
 /**
  * Footer component for chat messages that includes a sources accordion and feedback buttons.
@@ -34,13 +35,15 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
  * @param citations List of [Citation] to display in the sources accordion.
  * @param interactionId interaction ID for feedback buttons.
  * @param onFeedback Callback invoked when a feedback button is pressed.
+ * @param feedbackState Current feedback state for this interaction.
  */
 @Composable
 internal fun ChatFooter(
     modifier: Modifier = Modifier,
     citations: List<Citation>,
     interactionId: String?,
-    onFeedback: (FeedbackEvent) -> Unit
+    onFeedback: (FeedbackEvent) -> Unit,
+    feedbackState: FeedbackState = FeedbackState.None
 ) {
     var sourcesExpanded by remember { mutableStateOf(false) }
     if (citations.isNotEmpty()) {
@@ -62,7 +65,8 @@ internal fun ChatFooter(
                 if (interactionId != null) {
                     FeedbackButtons(
                         interactionId = interactionId,
-                        onFeedback = onFeedback
+                        onFeedback = onFeedback,
+                        feedbackState = feedbackState
                     )
                 }
             }

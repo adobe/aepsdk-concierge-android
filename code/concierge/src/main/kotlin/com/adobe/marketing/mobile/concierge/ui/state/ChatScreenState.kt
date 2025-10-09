@@ -15,6 +15,8 @@ package com.adobe.marketing.mobile.concierge.ui.state
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackType
 
 /**
  * Represents the overall state of the chat screen.
@@ -34,6 +36,16 @@ internal sealed class ChatScreenState {
      * Chat is in an error state.
      */
     data class Error(val error: String) : ChatScreenState()
+    
+    /**
+     * Chat is showing a feedback dialog.
+     */
+    data class ShowingFeedbackDialog(val interactionId: String, val feedbackType: FeedbackType) : ChatScreenState()
+    
+    /**
+     * Chat is showing a feedback toast.
+     */
+    data class ShowingFeedbackToast(val interactionId: String, val message: String, val feedbackType: FeedbackType) : ChatScreenState()
 }
 
 /**
@@ -76,6 +88,21 @@ internal sealed class FeedbackEvent : ChatEvent() {
      * User provided negative feedback for a response.
      */
     data class ThumbsDown(val interactionId: String) : FeedbackEvent()
+    
+    /**
+     * User submitted feedback through the dialog.
+     */
+    data class SubmitFeedback(val submission: FeedbackSubmission) : FeedbackEvent()
+    
+    /**
+     * User dismissed the feedback dialog.
+     */
+    data class DismissFeedbackDialog(val interactionId: String) : FeedbackEvent()
+    
+    /**
+     * User dismissed the feedback toast (manually or auto-dismiss).
+     */
+    object DismissFeedbackToast : FeedbackEvent()
 }
 
 /**

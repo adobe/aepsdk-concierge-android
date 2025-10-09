@@ -29,6 +29,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
@@ -44,20 +45,21 @@ internal fun ChatMessageItem(
     onFeedback: (FeedbackEvent) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
-    onSuggestionClick: (String) -> Unit = {}
+    onSuggestionClick: (String) -> Unit = {},
+    feedbackState: FeedbackState = FeedbackState.None
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message, onFeedback, onSuggestionClick)
+            RenderTextMessage(message, onFeedback, onSuggestionClick, feedbackState)
         }
         is MessageContent.Mixed -> {
-            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick, onSuggestionClick)
+            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick, onSuggestionClick, feedbackState)
         }
     }
 }
 
 @Composable
-private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit) {
+private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit, feedbackState: FeedbackState) {
     val style = ConciergeStyles.messageBubbleStyle
     
     Column(
@@ -105,7 +107,8 @@ private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) 
                         ChatFooter(
                             citations = message.citations,
                             interactionId = message.interactionId,
-                            onFeedback = onFeedback
+                            onFeedback = onFeedback,
+                            feedbackState = feedbackState
                         )
                     }
                 }
@@ -128,7 +131,8 @@ private fun RenderMixedMessage(
     onFeedback: (FeedbackEvent) -> Unit,
     onActionClick: (ProductActionButton) -> Unit,
     onImageClick: (MultimodalElement) -> Unit,
-    onSuggestionClick: (String) -> Unit
+    onSuggestionClick: (String) -> Unit,
+    feedbackState: FeedbackState
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     
@@ -185,7 +189,8 @@ private fun RenderMixedMessage(
                             ChatFooter(
                                 citations = message.citations,
                                 interactionId = message.interactionId,
-                                onFeedback = onFeedback
+                                onFeedback = onFeedback,
+                                feedbackState = feedbackState
                             )
                         }
                     }

@@ -25,6 +25,9 @@ import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackType
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -73,6 +76,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    /**
+     * State for tracking feedback states per interaction
+     */
+    private val _feedbackStates = MutableStateFlow<Map<String, FeedbackState>>(emptyMap())
+    internal val feedbackStates: StateFlow<Map<String, FeedbackState>> = _feedbackStates.asStateFlow()
 
     /**
      * Tracks whether the app has audio recording permission
@@ -175,6 +184,9 @@ class ConciergeChatViewModel : AndroidViewModel {
 
             is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
             is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+            is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.submission)
+            is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
+            is FeedbackEvent.DismissFeedbackToast -> handleDismissFeedbackToast()
 
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
@@ -227,10 +239,56 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param feedbackType The type of feedback ("positive" or "negative")
      */
     private fun handleFeedback(interactionId: String, feedbackType: String) {
-        // TODO: Implement Edge send event with interaction ID in XDM
+        // Show feedback dialog based on the type
+        val feedbackTypeEnum = when (feedbackType) {
+            ConciergeConstants.ChatInteraction.POSITIVE -> FeedbackType.POSITIVE
+            ConciergeConstants.ChatInteraction.NEGATIVE -> FeedbackType.NEGATIVE
+            else -> return
+        }
+        
+        _state.update { ChatScreenState.ShowingFeedbackDialog(interactionId, feedbackTypeEnum) }
+    }
+    
+    /**
+     * Handles feedback submission from the dialog
+     * @param submission The feedback submission data
+     */
+    private fun handleFeedbackSubmission(submission: FeedbackSubmission) {
+        // Update feedback state
+        val feedbackState = when (submission.feedbackType) {
+            FeedbackType.POSITIVE -> FeedbackState.Positive
+            FeedbackType.NEGATIVE -> FeedbackState.Negative
+        }
+        
+        _feedbackStates.update { currentStates ->
+            currentStates + (submission.interactionId to feedbackState)
+        }
+        
+        // Hide dialog and show toast with appropriate message
+        val toastMessage = when (submission.feedbackType) {
+            FeedbackType.POSITIVE -> "Thank you for your feedback."
+            FeedbackType.NEGATIVE -> "Thank you for your feedback. We strive to improve future results."
+        }
+        
+        _state.update { ChatScreenState.ShowingFeedbackToast(submission.interactionId, toastMessage, submission.feedbackType) }
+        
+        // TODO: Implement Edge send event with detailed feedback data
         // Edge.sendEvent(...)
-        // For now, just log the feedback
-        Log.debug(TAG, "handleFeedback", "Received feedback: $feedbackType for interactionId: $interactionId")
+        Log.debug(TAG, "handleFeedbackSubmission", "Received detailed feedback: ${submission.feedbackType} for interactionId: ${submission.interactionId}, categories: ${submission.selectedCategories}, notes: ${submission.notes}")
+    }
+    
+    /**
+     * Handles dismissing the feedback dialog
+     */
+    private fun handleDismissFeedbackDialog() {
+        _state.update { ChatScreenState.Idle }
+    }
+    
+    /**
+     * Handles dismissing the feedback toast
+     */
+    private fun handleDismissFeedbackToast() {
+        _state.update { ChatScreenState.Idle }
     }
 
     /**

@@ -512,7 +512,7 @@ object ConciergeStyles {
                 buttonSize = 32.dp,
                 iconSize = 16.dp,
                 spacing = 4.dp,
-                iconColor = themeColors.onSurfaceVariant
+                iconColor = themeColors.onSurface
             )
         }
 
@@ -649,4 +649,119 @@ object ConciergeStyles {
         @Composable get() = ChatInputFieldStyle(
             padding = 16.dp
         )
+
+    /**
+     * Styling for feedback dialog
+     */
+    @Immutable
+    data class FeedbackDialogStyle(
+        val padding: Dp,
+        val backgroundColor: Color,
+        val elevation: Dp,
+        val shape: Shape,
+        val contentPadding: Dp,
+        val titleStyle: TextStyle,
+        val titleColor: Color,
+        val titleSpacing: Dp,
+        val questionStyle: TextStyle,
+        val questionColor: Color,
+        val questionSpacing: Dp,
+        val categorySpacing: Dp,
+        val checkboxCheckedColor: Color,
+        val checkboxUncheckedColor: Color,
+        val checkboxSpacing: Dp,
+        val categoryTextStyle: TextStyle,
+        val categoryTextColor: Color,
+        val categoriesNotesSpacing: Dp,
+        val notesLabelStyle: TextStyle,
+        val notesLabelColor: Color,
+        val notesLabelSpacing: Dp,
+        val notesPlaceholderStyle: TextStyle,
+        val notesPlaceholderColor: Color,
+        val notesButtonsSpacing: Dp,
+        val textFieldBorderColor: Color,
+        val textFieldTextColor: Color,
+        val buttonSpacing: Dp,
+        val cancelButtonColor: Color,
+        val submitButtonColor: Color,
+        val submitButtonTextColor: Color,
+        val buttonTextStyle: TextStyle
+    )
+
+    val feedbackDialogStyle: FeedbackDialogStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            return FeedbackDialogStyle(
+                padding = 16.dp,
+                backgroundColor = themeColors.surface,
+                elevation = 8.dp,
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = 20.dp,
+                titleStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                titleColor = themeColors.onSurface,
+                titleSpacing = 12.dp,
+                questionStyle = MaterialTheme.typography.bodyMedium,
+                questionColor = themeColors.onSurface,
+                questionSpacing = 6.dp,
+                categorySpacing = 0.dp,
+                checkboxCheckedColor = themeColors.primary,
+                checkboxUncheckedColor = themeColors.onSurfaceVariant,
+                checkboxSpacing = 8.dp,
+                categoryTextStyle = MaterialTheme.typography.bodyMedium,
+                categoryTextColor = themeColors.onSurface,
+                categoriesNotesSpacing = 6.dp,
+                notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                notesLabelColor = themeColors.onSurface,
+                notesLabelSpacing = 8.dp,
+                notesPlaceholderStyle = MaterialTheme.typography.bodyMedium,
+                notesPlaceholderColor = themeColors.onSurfaceVariant,
+                notesButtonsSpacing = 24.dp,
+                textFieldBorderColor = themeColors.outline,
+                textFieldTextColor = themeColors.onSurface,
+                buttonSpacing = 8.dp,
+                cancelButtonColor = themeColors.onSurfaceVariant,
+                submitButtonColor = themeColors.primary,
+                submitButtonTextColor = themeColors.onPrimary,
+                buttonTextStyle = MaterialTheme.typography.labelMedium
+            )
+        }
+
+    /**
+     * Styling for feedback toast notification
+     */
+    @Immutable
+    data class FeedbackToastStyle(
+        val backgroundColor: Color,
+        val elevation: Dp,
+        val shape: Shape,
+        val contentPadding: Dp,
+        val iconSize: Dp,
+        val iconColor: Color,
+        val iconSpacing: Dp,
+        val messageTextStyle: TextStyle,
+        val messageTextColor: Color,
+        val messageCloseSpacing: Dp,
+        val closeButtonSize: Dp,
+        val closeIconSize: Dp,
+        val closeIconColor: Color
+    )
+
+    val feedbackToastStyle: FeedbackToastStyle
+        @Composable get() {
+            return FeedbackToastStyle(
+                backgroundColor = Color(0xFF4CAF50),
+                elevation = 4.dp,
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = 16.dp,
+                iconSize = 20.dp,
+                iconColor = Color.White,
+                iconSpacing = 12.dp,
+                messageTextStyle = MaterialTheme.typography.bodyMedium,
+                messageTextColor = Color.White,
+                messageCloseSpacing = 8.dp,
+                closeButtonSize = 24.dp,
+                closeIconSize = 16.dp,
+                closeIconColor = Color.White
+            )
+        }
 }
