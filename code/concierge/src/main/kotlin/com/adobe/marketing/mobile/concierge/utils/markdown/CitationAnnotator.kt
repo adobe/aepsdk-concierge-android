@@ -12,21 +12,20 @@
 
 package com.adobe.marketing.mobile.concierge.utils.markdown
 
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
-import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.services.Log
-
 
 /**
  * Utility class for annotating text with citation numbers based on source positions.
  */
 internal object CitationAnnotator {
     private const val TAG = "CitationAnnotator"
-    
+
     /**
      * Annotates text with citation numbers based on the provided sources.
-     * 
+     *
      * @param text The original markdown text to annotate
      * @param sources List of sources with citation positions based on the original markdown text
      * @return AnnotatedText containing the annotated text with citation numbers inserted
@@ -35,40 +34,32 @@ internal object CitationAnnotator {
         if (sources.isEmpty()) {
             return AnnotatedText(text, emptyList())
         }
-        
+
         // Filter sources that have valid citation numbers and positions
         val validSources = sources.filter { source ->
-            source.citationNumber != null && 
-            source.startIndex != null && 
-            source.endIndex != null &&
-            source.startIndex >= 0 && 
-            source.endIndex > source.startIndex &&
-            source.endIndex <= text.length
+            source.citationNumber != null &&
+                    source.startIndex != null &&
+                    source.endIndex != null &&
+                    source.startIndex >= 0 &&
+                    source.endIndex > source.startIndex &&
+                    source.endIndex <= text.length
         }
-        
+
         if (validSources.isEmpty()) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG,
-                "No valid sources found for text of length ${text.length}")
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "No valid sources found for text of length ${text.length}"
+            )
             return AnnotatedText(text, emptyList())
         }
-        
+
         // Sort sources by start index in reverse order to maintain correct indices when inserting
         val sortedSources = validSources.sortedByDescending { it.startIndex }
-        
-        // Track unique sources by citation number
-        val uniqueSources = mutableMapOf<Int, Citation>()
-        validSources.forEach { source ->
-            if (source.citationNumber == null) {
-                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG,
-                    "Skipping source with missing citation number: $source")
-                return@forEach
-            }
-            uniqueSources[source.citationNumber] = source
-        }
-        
+
         // Insert citation numbers into the original markdown text
         val annotatedText = CitationUtils.insertCitationNumbersInMarkdown(text, sortedSources)
-        
+
         return AnnotatedText(
             text = annotatedText,
             uniqueSources = CitationUtils.createUniqueSources(validSources)

@@ -50,11 +50,7 @@ internal fun ConciergeResponse(
 ) {
     // Apply citation annotations to the complete text first
     val annotatedText = remember(text, sources) {
-        if (sources.isNotEmpty()) {
-            CitationAnnotator.annotateText(text, sources)
-        } else {
-            CitationAnnotator.annotateText(text, emptyList())
-        }
+        CitationAnnotator.annotateText(text, sources)
     }
     
     // Show thinking animation when text is empty
