@@ -204,6 +204,30 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `blank COMPLETED does not overwrite assistant and transitions to Idle`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi") } returns flow {
+            emit(ParsedConversationMessage("You're welcome!", ConversationState.IN_PROGRESS))
+            // final completed with empty message
+            emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        assertEquals(2, messages.size)
+        assertTrue(!messages[1].isFromUser)
+        // Expect the last non-blank content to remain
+        assertEquals("You're welcome!", messages[1].text)
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+    }
+
+    @Test
     fun `mic stop calls endCapture`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
