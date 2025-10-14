@@ -20,7 +20,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
@@ -32,7 +31,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -57,10 +55,42 @@ internal fun MicButton(
 ) {
     val style = ConciergeStyles.micButtonStyle
 
+    // Drive the pulse when recording
+    val infiniteTransition = rememberInfiniteTransition(label = "mic_pulse")
+    val innerBaseScale = 1.3f // inner disc is 30% larger than mic
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = innerBaseScale,
+        targetValue = style.pulseScaleRange.second,
+        animationSpec = infiniteRepeatable(
+            animation = tween(style.pulseAnimationDuration),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mic_pulse_anim"
+    )
+
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
+        // Two filled circles while recording: inner static disc and outer pulsing disc
+        if (userInputState is UserInputState.Recording) {
+            Box(
+                modifier = Modifier
+                    .size(style.size * innerBaseScale)
+                    .clip(CircleShape)
+                    .background(style.pulsingBackgroundColor)
+            )
+
+            // Outer pulsing disc with lower opacity
+            Box(
+                modifier = Modifier
+                    .size(style.size)
+                    .scale(pulseScale)
+                    .clip(CircleShape)
+                    .background(style.pulsingBackgroundColor.copy(alpha = style.ringAlpha))
+            )
+        }
+
         IconButton(
             onClick = {
                 if (isEnabled) {
@@ -69,16 +99,17 @@ internal fun MicButton(
             },
             modifier = Modifier.size(style.size)
         ) {
+            // Choose icon tint based on state and enabled flag
+            val baseIconColor = if (userInputState is UserInputState.Recording) style.recordingIconColor else style.iconColor
+            val tintColor = if (isEnabled) baseIconColor else baseIconColor.copy(alpha = 0.38f)
+
             Image(
                 painter = painterResource(R.drawable.microphone),
                 contentDescription = when (userInputState) {
                     is UserInputState.Recording -> "Stop recording"
                     else -> "Start voice input"
                 },
-                colorFilter = ColorFilter.tint(
-                    if (isEnabled) style.iconColor 
-                    else style.iconColor.copy(alpha = 0.38f)
-                )
+                colorFilter = ColorFilter.tint(tintColor)
             )
         }
     }

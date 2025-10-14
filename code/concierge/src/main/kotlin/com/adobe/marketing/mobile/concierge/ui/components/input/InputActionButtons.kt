@@ -41,7 +41,6 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * @param inputState The current user input state (determines button visibility and behavior)
  * @param text Current text in the input field (used to enable/disable send button)
  * @param isProcessing Whether a message is currently being processed
- * @param isEnabled Whether the buttons are enabled
  * @param onMicPressed Callback when microphone button is pressed (to start recording)
  * @param onVoiceCancel Callback when recording should be stopped
  * @param onSend Callback when send button is pressed
@@ -62,18 +61,16 @@ internal fun InputActionButtons(
     val waveformPulse = remember { 1.0f }
 
     Row(
-        modifier = modifier.animateContentSize(
-            animationSpec = spring(
-                dampingRatio = 0.8f,
-                stiffness = 380f
-            )
-        ).padding(end = if (inputState is UserInputState.Recording) 8.dp else 0.dp)
+        modifier = modifier
+            .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 300f))
+            .padding(end = 8.dp)
         ,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Mic button - always visible and enabled
+        val micContainerSize = micButtonStyle.size * micButtonStyle.pulseScaleRange.second
+
         MicButton(
-            modifier = Modifier.size(micButtonStyle.size),
+            modifier = Modifier.size(micContainerSize),
             userInputState = inputState,
             isEnabled = true,
             waveformPulse = waveformPulse,
@@ -95,9 +92,9 @@ internal fun InputActionButtons(
                         animationSpec = tween(durationMillis = 200),
                         initialOffsetX = { it / 2 }
                     ),
-            exit = fadeOut(animationSpec = tween(durationMillis = 150)) +
+            exit = fadeOut(animationSpec = tween(durationMillis = 200)) +
                     slideOutHorizontally(
-                        animationSpec = tween(durationMillis = 150),
+                        animationSpec = tween(durationMillis = 200),
                         targetOffsetX = { it / 2 }
                     )
         ) {

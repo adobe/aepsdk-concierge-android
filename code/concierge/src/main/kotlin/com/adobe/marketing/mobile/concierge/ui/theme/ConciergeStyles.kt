@@ -12,11 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
@@ -534,10 +531,12 @@ object ConciergeStyles {
     data class MicButtonStyle(
         val size: Dp,
         val iconColor: Color,
+        val recordingIconColor: Color,
         val pulsingBackgroundColor: Color,
         val pulsingBackgroundAlpha: Float,
         val pulseAnimationDuration: Int,
-        val pulseScaleRange: Pair<Float, Float>
+        val pulseScaleRange: Pair<Float, Float>,
+        val ringAlpha: Float
     )
 
     val micButtonStyle: MicButtonStyle
@@ -546,10 +545,12 @@ object ConciergeStyles {
             return MicButtonStyle(
                 size = 24.dp,
                 iconColor = themeColors.primary,
+                recordingIconColor = themeColors.onPrimary,
                 pulsingBackgroundColor = themeColors.primary,
-                pulsingBackgroundAlpha = 0.15f, // Subtle semi-transparent
-                pulseAnimationDuration = 1500, // Slow pulse
-                pulseScaleRange = 1.0f to 1.3f // Covers mic dimensions with slight expansion
+                pulsingBackgroundAlpha = 0.25f,
+                pulseAnimationDuration = 1000,
+                pulseScaleRange = 1.5f to 2.0f,
+                ringAlpha = 0.30f,
             )
         }
 
