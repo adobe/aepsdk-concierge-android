@@ -12,7 +12,14 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import android.content.Intent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
+import kotlin.math.min
 
 /**
  * Renders brand concierge content with clickable links.
@@ -36,14 +44,32 @@ internal fun ConciergeResponseText(
     val context = LocalContext.current
     val annotatedString = MarkdownParser.parse(text)
 
-    ClickableText(
-        text = annotatedString,
-        modifier = modifier.fillMaxWidth(),
-        onLinkClick = { url ->
-            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-            context.startActivity(intent)
-        }
-    )
+    AnimatedContent(
+        targetState = annotatedString,
+        transitionSpec = {
+            fadeIn(
+                animationSpec = tween(
+                    durationMillis = 220,
+                    easing = FastOutSlowInEasing
+                )
+            ) togetherWith fadeOut(
+                animationSpec = tween(
+                    durationMillis = 200,
+                    easing = LinearOutSlowInEasing
+                )
+            )
+        },
+        label = "responseFadeIn"
+    ) { rendered ->
+        ClickableText(
+            text = rendered,
+            modifier = modifier.fillMaxWidth(),
+            onLinkClick = { url ->
+                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                context.startActivity(intent)
+            }
+        )
+    }
 }
 
 /**
