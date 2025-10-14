@@ -24,10 +24,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.random.Random
@@ -45,6 +50,17 @@ internal data class ConversationConfig(
     val mockEcid: String = (1..38)
         .map { Random.nextInt(0, 10) }
         .joinToString(separator = "") { it.toString() }
+)
+
+/**
+ * Data class for feedback payload
+ */
+internal data class FeedbackPayload(
+    val turnId: String,
+    val conversationId: String?,
+    val isPositive: Boolean,
+    val selectedCategories: List<String>,
+    val notes: String
 )
 
 internal class ConciergeConversationServiceClient(
@@ -273,6 +289,121 @@ internal class ConciergeConversationServiceClient(
         if (responseCode !in 200..299) {
             throw IOException("HTTP error: $responseCode ${connection.responseMessage}")
         }
+    }
+
+    /**
+     * Sends feedback for a conversation turn to the conversation service.
+     *
+     * @param feedback The feedback payload containing turnId, rating, categories, and notes
+     * @return true if the feedback was successfully sent, false otherwise
+     */
+    suspend fun sendFeedback(feedback: FeedbackPayload): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val requestBody = createFeedbackRequestBody(feedback)
+            val request = createFeedbackRequest(endpoint, requestBody)
+
+            val connection = connect(request)
+
+            try {
+                validateResponseCode(connection)
+                true
+            } finally {
+                connection.close()
+            }
+        } catch (e: Exception) {
+            Log.error(LOG_TAG, TAG, "Failed to send feedback: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Creates the feedback request body in XDM format
+     */
+    private fun createFeedbackRequestBody(feedback: FeedbackPayload): String {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date())
+
+        val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date())
+        val timeZoneOffset =
+            TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
+
+        val score = if (feedback.isPositive) 1 else 0
+        val classification = if (feedback.isPositive) "Thumbs Up" else "Thumbs Down"
+
+        val reasonsJson = feedback.selectedCategories.joinToString(",") { "\"$it\"" }
+        val notesJson = if (feedback.notes.isNotBlank()) {
+            "\"${feedback.notes.replace("\"", "\\\"")}\""
+        } else {
+            "\"\""
+        }
+
+        val conversationIdField = if (feedback.conversationId != null) {
+            """"conversationID": "${feedback.conversationId}","""
+        } else {
+            ""
+        }
+
+        return """
+{
+    "events": [{
+        "xdm": {
+            "identityMap": {
+                "ECID": [{
+                    "id": "${config.mockEcid}"
+                }]
+            },
+            "conversation": {
+                "feedback": {
+                    "source": "end-user",
+                    "raw": [$notesJson],
+                    "rating": {
+                        "score": $score,
+                        "classification": "$classification",
+                        "reasons": [$reasonsJson]
+                    }
+                },
+                $conversationIdField
+                "turnID": "${feedback.turnId}"
+            },
+            "eventType": "conversation.feedback",
+            "timestamp": "$timestamp",
+            "placeContext": {
+                "localTimezoneOffset": $timeZoneOffset,
+                "localTime": "$localTime"
+            },
+            "implementationDetails": {
+                "name": "https://ns.adobe.com/experience/mobilesdk/android",
+                "version": "1.0.0",
+                "environment": "app"
+            }
+        }
+    }]
+}
+""".trimIndent()
+    }
+
+    /**
+     * Creates a POST [NetworkRequest] for sending feedback.
+     */
+    private fun createFeedbackRequest(
+        url: String,
+        body: String,
+        connectTimeout: Int = DEFAULT_CONNECT_TIMEOUT,
+        readTimeout: Int = DEFAULT_READ_TIMEOUT
+    ): NetworkRequest {
+        val headers = mapOf(
+            "Content-Type" to "application/json",
+        )
+
+        return NetworkRequest(
+            url,
+            HttpMethod.POST,
+            body.toByteArray(StandardCharsets.UTF_8),
+            headers,
+            connectTimeout,
+            readTimeout
+        )
     }
 
     /**

@@ -22,6 +22,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.FeedbackPayload
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
@@ -82,6 +83,11 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private val _feedbackStates = MutableStateFlow<Map<String, FeedbackState>>(emptyMap())
     internal val feedbackStates: StateFlow<Map<String, FeedbackState>> = _feedbackStates.asStateFlow()
+
+    /**
+     * Tracks the current conversation ID from the backend response
+     */
+    private var currentConversationId: String? = null
 
     /**
      * Tracks whether the app has audio recording permission
@@ -272,9 +278,23 @@ class ConciergeChatViewModel : AndroidViewModel {
         
         _state.update { ChatScreenState.ShowingFeedbackToast(submission.interactionId, toastMessage, submission.feedbackType) }
         
-        // TODO: Implement Edge send event with detailed feedback data
-        // Edge.sendEvent(...)
-        Log.debug(TAG, "handleFeedbackSubmission", "Received detailed feedback: ${submission.feedbackType} for interactionId: ${submission.interactionId}, categories: ${submission.selectedCategories}, notes: ${submission.notes}")
+        // Send feedback to the conversation service
+        viewModelScope.launch {
+            val feedbackPayload = FeedbackPayload(
+                turnId = submission.interactionId,
+                conversationId = currentConversationId,
+                isPositive = submission.feedbackType == FeedbackType.POSITIVE,
+                selectedCategories = submission.selectedCategories,
+                notes = submission.notes
+            )
+            
+            val success = chatService.sendFeedback(feedbackPayload)
+            if (success) {
+                Log.debug(TAG, "handleFeedbackSubmission", "Feedback sent successfully for turnId: ${submission.interactionId}, conversationId: $currentConversationId")
+            } else {
+                Log.warning(TAG, "handleFeedbackSubmission", "Failed to send feedback for turnId: ${submission.interactionId}, conversationId: $currentConversationId")
+            }
+        }
     }
     
     /**
@@ -401,6 +421,14 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Parsed message: ${parsedMessage.messageContent}, state: ${parsedMessage.state}"
         )
+
+        // Capture conversationId if present in the response
+        parsedMessage.conversationId?.let { conversationId ->
+            if (currentConversationId == null) {
+                currentConversationId = conversationId
+                Log.debug(TAG, "onParsedMessage", "Captured conversationId: $conversationId")
+            }
+        }
 
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
