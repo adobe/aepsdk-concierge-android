@@ -331,11 +331,33 @@ internal class ConciergeConversationServiceClient(
         val score = if (feedback.isPositive) 1 else 0
         val classification = if (feedback.isPositive) "Thumbs Up" else "Thumbs Down"
 
-        val reasonsJson = feedback.selectedCategories.joinToString(",") { "\"$it\"" }
-        val notesJson = if (feedback.notes.isNotBlank()) {
-            "\"${feedback.notes.replace("\"", "\\\"")}\""
+        // Map category IDs to full labels
+        val categoryLabels = mapOf(
+            "helpful" to "Helpful and relevant recommendations",
+            "clear" to "Clear and easy to understand",
+            "friendly" to "Friendly and conversational tone",
+            "visual" to "Visually appealing presentation",
+            "unclear" to "Didn't understand my request",
+            "irrelevant" to "Unhelpful or irrelevant information",
+            "vague" to "Too vague or lacking detail",
+            "errors" to "Errors or poor quality response",
+            "other" to "Other"
+        )
+        
+        val reasonsJson = feedback.selectedCategories
+            .mapNotNull { categoryLabels[it] }
+            .joinToString(",") { "\"$it\"" }
+        
+        // Format raw field as an array of objects with text and purpose
+        val rawJson = if (feedback.notes.isNotBlank()) {
+            """
+            {
+                "text": "${feedback.notes.replace("\"", "\\\"")}",
+                "purpose": "user input"
+            }
+            """.trimIndent()
         } else {
-            "\"\""
+            ""
         }
 
         val conversationIdField = if (feedback.conversationId != null) {
@@ -356,7 +378,7 @@ internal class ConciergeConversationServiceClient(
             "conversation": {
                 "feedback": {
                     "source": "end-user",
-                    "raw": [$notesJson],
+                    "raw": [$rawJson],
                     "rating": {
                         "score": $score,
                         "classification": "$classification",

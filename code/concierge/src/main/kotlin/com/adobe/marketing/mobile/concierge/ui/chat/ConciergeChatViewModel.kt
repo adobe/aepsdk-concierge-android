@@ -468,7 +468,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Appending text content with length (${contentBuilder.length} chars)"
         )
         
-        updateAssistantMessageContent(messageContent)
+        // Use the interactionId as the turnId for feedback
+        updateAssistantMessageContent(messageContent, interactionId = parsedMessage.interactionId)
     }
 
     /**
@@ -498,8 +499,13 @@ class ConciergeChatViewModel : AndroidViewModel {
             "ConciergeChatViewModel",
             logMessage
         )
-        
-        updateAssistantMessageContent(messageContent, parsedMessage.promptSuggestions, parsedMessage.sources)
+
+        updateAssistantMessageContent(
+            messageContent, 
+            parsedMessage.promptSuggestions, 
+            parsedMessage.sources,
+            parsedMessage.interactionId
+        )
     }
 
     /**
@@ -507,8 +513,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param content The new content for the assistant message
      * @param promptSuggestions Optional prompt suggestions to include with the message
      * @param sources Optional sources to include with the message
+     * @param interactionId Optional interaction ID from the backend to use as a turnId for feedback
      */
-    private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList(), sources: List<Citation> = emptyList()) {
+    private fun updateAssistantMessageContent(
+        content: MessageContent, 
+        promptSuggestions: List<String> = emptyList(), 
+        sources: List<Citation> = emptyList(),
+        interactionId: String? = null
+    ) {
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
             if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
@@ -517,7 +529,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 updatedMessages[lastIndex] = lastAssistantMessage.copy(
                     content = content,
                     promptSuggestions = promptSuggestions,
-                    citations = sources
+                    citations = sources,
+                    interactionId = interactionId ?: lastAssistantMessage.interactionId
                 )
                 updatedMessages
             } else {
