@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -366,8 +368,11 @@ object ConciergeStyles {
         val secondaryBorderColor: Color,
         val secondaryBorderAlpha: Float,
         val textStyle: TextStyle,
+        val textAlign: TextAlign,
         val fontSize: Dp,
-        val fontWeight: FontWeight
+        val fontWeight: FontWeight,
+        val maxLines: Int,
+        val overflow: TextOverflow
     )
 
     val productActionButtonsStyle: ProductActionButtonsStyle
@@ -385,8 +390,11 @@ object ConciergeStyles {
                 secondaryBorderColor = themeColors.outline.copy(alpha = 0.5f),
                 secondaryBorderAlpha = 0.5f,
                 textStyle = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
                 fontSize = 12.dp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Visible
             )
         }
 
