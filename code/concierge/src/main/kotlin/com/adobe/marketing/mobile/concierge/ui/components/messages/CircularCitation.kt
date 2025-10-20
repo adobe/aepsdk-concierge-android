@@ -27,7 +27,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * A circular citation component that displays a citation number.
- * 
+ *
  * @param citationNumber The citation number to display
  * @param onClick Callback when the citation is clicked
  * @param modifier Optional [Modifier] for the component

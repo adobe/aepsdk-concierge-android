@@ -32,7 +32,7 @@ import com.adobe.marketing.mobile.concierge.network.Citation
 /**
  * Component that renders brand concierge responses containing markdown text
  * with proper styling and clickable links.
- * 
+ *
  * This composable determines whether to render text as plain content
  * or as lists based on the presence of markdown list tokens. It uses
  * [CitationAnnotator] to process citations and applies them across both text and list
@@ -52,19 +52,19 @@ internal fun ConciergeResponse(
     val annotatedText = remember(text, sources) {
         CitationAnnotator.annotateText(text, sources)
     }
-    
+
     // Show thinking animation when text is empty
     if (text.isEmpty()) {
         ConciergeThinking(modifier = modifier)
         return
     }
-    
+
     val tokens = remember(annotatedText.text) { MarkdownTokenizer.tokenize(annotatedText.text) }
 
-    val listTokens = remember(tokens) { 
+    val listTokens = remember(tokens) {
         tokens.filter { it.type == TokenType.LIST }
     }
-    
+
     if (listTokens.isNotEmpty()) {
         ConciergeResponseWithLists(
             text = annotatedText.text,
@@ -109,6 +109,7 @@ private fun ConciergeResponseWithLists(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+
                 is ContentSegment.List -> {
                     ConciergeResponseList(
                         listTokens = segment.tokens,

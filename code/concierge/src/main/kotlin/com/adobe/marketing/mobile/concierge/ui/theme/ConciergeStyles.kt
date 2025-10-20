@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
-import android.health.connect.datatypes.units.Length
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme

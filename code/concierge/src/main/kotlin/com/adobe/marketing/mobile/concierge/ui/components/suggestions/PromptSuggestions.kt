@@ -33,9 +33,11 @@ import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.Log
 
+private const val TAG = "PromptSuggestions"
+
 /**
  * Component that displays prompt suggestions as a vertical list of clickable items.
- * 
+ *
  * @param suggestions List of prompt suggestion strings to display
  * @param onSuggestionClick Callback when a suggestion is clicked, receives the suggestion text
  * @param modifier Optional modifier for the component
@@ -49,12 +51,16 @@ internal fun PromptSuggestions(
     if (suggestions.isEmpty()) return
 
     val style = ConciergeStyles.promptSuggestionsStyle
-    
-    Log.debug(ConciergeConstants.EXTENSION_NAME, "PromptSuggestions", "Rendering ${suggestions.size} suggestions")
+
+    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Rendering ${suggestions.size} suggestions")
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = style.containerTopPadding, start = style.containerStartPadding, end = style.containerEndPadding),
+            .padding(
+                top = style.containerTopPadding,
+                start = style.containerStartPadding,
+                end = style.containerEndPadding
+            ),
         verticalArrangement = Arrangement.spacedBy(style.itemSpacing)
     ) {
         suggestions.forEach { suggestion ->
@@ -77,7 +83,7 @@ private fun PromptSuggestionItem(
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.promptSuggestionsStyle
-    
+
     Card(
         modifier = modifier
             .clickable { onClick() },
@@ -89,7 +95,10 @@ private fun PromptSuggestionItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = style.itemHorizontalPadding, vertical = style.itemVerticalPadding),
+                .padding(
+                    horizontal = style.itemHorizontalPadding,
+                    vertical = style.itemVerticalPadding
+                ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(style.iconSpacing)
         ) {
@@ -100,7 +109,7 @@ private fun PromptSuggestionItem(
                 modifier = Modifier.size(style.iconSize),
                 tint = style.iconColor
             )
-            
+
             // Suggestion text
             Text(
                 text = text,

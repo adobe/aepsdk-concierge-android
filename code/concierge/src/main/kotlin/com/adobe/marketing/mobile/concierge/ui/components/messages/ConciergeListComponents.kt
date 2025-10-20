@@ -27,11 +27,10 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
-import com.adobe.marketing.mobile.concierge.ui.components.messages.CitationUiUtils
 
 /**
  * Renders list content with proper indentation and spacing.
- * 
+ *
  * @param listTokens List of [MarkdownToken] objects representing list items
  * @param onLinkClick Callback function for handling link clicks
  * @param uniqueSources List of [Citation] objects for generating citation annotations
@@ -57,10 +56,10 @@ internal fun ConciergeResponseList(
 
 /**
  * Renders a single list item with proper indentation and clickable links.
- * 
+ *
  * This composable processes a [MarkdownToken] and renders it as a list item with
  * citation annotations applied.
- * 
+ *
  * @param token The [MarkdownToken] representing the list item
  * @param onLinkClick Callback function for handling link clicks within the list item
  * @param uniqueSources List of [Citation] objects for generating citation annotations
@@ -77,17 +76,19 @@ private fun ListItem(
     val listItemContent = remember { token.groups.firstOrNull() ?: "" }
     val listMarker = remember { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
-    
+
     // Parse markdown first to get the rendered text with inline content placeholders
     val annotatedString = MarkdownParser.parse(listItemContent)
-    
+
     // Create inline content map for circular citations
     val inlineContentMap = remember(uniqueSources) {
-        CitationUiUtils.createInlineContentMap(uniqueSources,
+        CitationUiUtils.createInlineContentMap(
+            uniqueSources,
             style.size,
-            context)
+            context
+        )
     }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start
@@ -96,7 +97,7 @@ private fun ListItem(
             marker = listMarker,
             indentationLevel = indentationLevel
         )
-        
+
         ClickableText(
             text = annotatedString,
             inlineContent = inlineContentMap,

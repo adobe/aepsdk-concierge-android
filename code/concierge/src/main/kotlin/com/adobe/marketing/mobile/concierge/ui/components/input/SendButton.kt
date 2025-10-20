@@ -36,7 +36,7 @@ internal fun SendButton(
     onSend: () -> Unit
 ) {
     val style = ConciergeStyles.sendButtonStyle
-    
+
     IconButton(
         onClick = {
             if (isEnabled) {
