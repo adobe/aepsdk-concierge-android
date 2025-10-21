@@ -12,6 +12,10 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
@@ -32,28 +36,33 @@ internal fun RecommendationCards(
     onActionClick: (ProductActionButton) -> Unit = {}
 ) {
     if (elements.isEmpty()) {
-        Log.debug(ConciergeConstants.EXTENSION_NAME, "RecommendationCards", "No elements to display, returning early")
-        return
+        Log.debug(ConciergeConstants.EXTENSION_NAME, "RecommendationCards", "No elements to display")
+    } else {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, "RecommendationCards", "Rendering ImageCarousel with ${elements.size} elements")
     }
-    
-    Log.debug(ConciergeConstants.EXTENSION_NAME, "RecommendationCards", "Rendering ImageCarousel with ${elements.size} elements")
 
-    Column(
-        modifier = modifier.fillMaxWidth()
+    AnimatedVisibility(
+        visible = elements.isNotEmpty(),
+        enter = fadeIn(animationSpec = tween(durationMillis = 220)),
+        exit = fadeOut(animationSpec = tween(durationMillis = 180))
     ) {
-        // Special handling for single element - display as a product card
-        if (elements.size == 1) {
-            ProductCard(
-                element = elements[0],
-                onImageClick = onImageClick,
-                onActionClick = onActionClick
-            )
-        } else {
-            // Multiple elements - display in a product carousel with navigation controls
-            ProductCarousel(
-                elements = elements,
-                onImageClick = onImageClick
-            )
+        Column(
+            modifier = modifier.fillMaxWidth()
+        ) {
+            // Special handling for single element - display as a product card
+            if (elements.size == 1) {
+                ProductCard(
+                    element = elements[0],
+                    onImageClick = onImageClick,
+                    onActionClick = onActionClick
+                )
+            } else {
+                // Multiple elements - display in a product carousel with navigation controls
+                ProductCarousel(
+                    elements = elements,
+                    onImageClick = onImageClick
+                )
+            }
         }
     }
 }
