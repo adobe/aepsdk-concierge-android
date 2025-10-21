@@ -81,6 +81,7 @@ internal fun ProductImage(
                 // Fallback to a gradient background if no image URL is available
                 Box(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .height(cardStyle.imageHeight)
                         .background(
                             Brush.horizontalGradient(
