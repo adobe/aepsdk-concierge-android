@@ -27,34 +27,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
-import com.adobe.marketing.mobile.concierge.network.Citation
 
 /**
- * Renders concierge response text with markdown formatting and circular citation components.
+ * Renders concierge response text with markdown formatting.
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
-    uniqueSources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val style = ConciergeStyles.citationBadgeStyle
 
-    // Parse markdown first to get the rendered text with inline content placeholders
+    // Parse markdown to get the rendered text
     val markdownAnnotatedString = MarkdownParser.parse(text)
-
-    // Create inline content map for circular citations
-    val inlineContentMap = CitationUiUtils.createInlineContentMap(
-        uniqueSources,
-        style.size,
-        context
-    )
 
     ClickableText(
         text = markdownAnnotatedString,
-        inlineContent = inlineContentMap,
         onLinkClick = { url ->
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             context.startActivity(intent)

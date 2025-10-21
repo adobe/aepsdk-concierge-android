@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.appendInlineContent
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.services.Log
 
@@ -105,7 +104,6 @@ internal object MarkdownRenderer {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme)
             TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle)
-            TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
             TokenType.HEADING -> renderHeading(token, builder, colorScheme)
@@ -157,24 +155,24 @@ internal object MarkdownRenderer {
     }
 
     private fun renderLink(
-        token: MarkdownToken,
+        token: MarkdownToken, 
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
-
+        
         builder.append(linkText)
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = colorScheme.primary,
                 textDecoration = TextDecoration.Underline
-            ),
-            styleStart,
+            ), 
+            styleStart, 
             builder.length
         )
-
+        
         builder.addStringAnnotation(
             tag = "URL",
             annotation = linkUrl,
@@ -182,31 +180,7 @@ internal object MarkdownRenderer {
             end = builder.length
         )
     }
-
-    private fun renderCitation(
-        token: MarkdownToken,
-        builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
-    ) {
-        val citationNumber = token.groups[0] // This contains the number from [^1]
-        val styleStart = builder.length
-
-        // Create a unique citation ID for inline content
-        val citationId = "citation_$citationNumber"
-
-        // Add inline content placeholder for the circular citation
-        builder.appendInlineContent(citationId, "[^$citationNumber]")
-
-        // Add annotation to track this citation for click handling
-        builder.addStringAnnotation(
-            tag = "CITATION",
-            annotation = citationNumber,
-            start = styleStart,
-            end = builder.length
-        )
-    }
-
+    
     private fun renderBold(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
