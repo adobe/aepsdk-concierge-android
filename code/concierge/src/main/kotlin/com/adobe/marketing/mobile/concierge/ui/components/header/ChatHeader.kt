@@ -40,7 +40,7 @@ internal fun ChatHeader(
     onClose: () -> Unit
 ) {
     val style = ConciergeStyles.headerStyle
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()

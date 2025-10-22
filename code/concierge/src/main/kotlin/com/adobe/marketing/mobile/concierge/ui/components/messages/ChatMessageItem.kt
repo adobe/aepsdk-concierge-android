@@ -52,16 +52,29 @@ internal fun ChatMessageItem(
         is MessageContent.Text -> {
             RenderTextMessage(message, onFeedback, onSuggestionClick, feedbackState)
         }
+
         is MessageContent.Mixed -> {
-            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick, onSuggestionClick, feedbackState)
+            RenderMixedMessage(
+                message,
+                onFeedback,
+                onActionClick,
+                onImageClick,
+                onSuggestionClick,
+                feedbackState
+            )
         }
     }
 }
 
 @Composable
-private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit, feedbackState: FeedbackState) {
+private fun RenderTextMessage(
+    message: ChatMessage,
+    onFeedback: (FeedbackEvent) -> Unit,
+    onSuggestionClick: (String) -> Unit,
+    feedbackState: FeedbackState
+) {
     val style = ConciergeStyles.messageBubbleStyle
-    
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -97,7 +110,6 @@ private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) 
                     } else {
                         ConciergeResponse(
                             text = message.text,
-                            sources = message.citations ?: emptyList(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -135,7 +147,7 @@ private fun RenderMixedMessage(
     feedbackState: FeedbackState
 ) {
     val style = ConciergeStyles.messageBubbleStyle
-    
+
     if (message.content is MessageContent.Mixed) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -162,17 +174,17 @@ private fun RenderMixedMessage(
                         if (message.content.text.isNotEmpty()) {
                             ConciergeResponse(
                                 text = message.content.text,
-                                sources = message.citations ?: emptyList(),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        
+
                         // Add spacing between text and recommendation cards if both are present
-                        if (message.content.text.isNotEmpty() && 
-                            !message.content.multimodalElements.isNullOrEmpty()) {
+                        if (message.content.text.isNotEmpty() &&
+                            !message.content.multimodalElements.isNullOrEmpty()
+                        ) {
                             Spacer(modifier = Modifier.height(style.contentSpacing))
                         }
-                        
+
                         // Render multi-modal elements if present
                         message.content.multimodalElements?.let { multimodalElements ->
                             if (multimodalElements.isNotEmpty()) {

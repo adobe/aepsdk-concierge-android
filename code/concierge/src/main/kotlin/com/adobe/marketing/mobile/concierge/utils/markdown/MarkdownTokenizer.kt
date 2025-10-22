@@ -19,6 +19,7 @@ import com.adobe.marketing.mobile.services.Log
  * Handles the tokenization of markdown text into structured tokens.
  */
 internal object MarkdownTokenizer {
+    private const val TAG = "MarkdownTokenizer"
 
     /**
      * Tokenizes the given markdown string into a list of [MarkdownToken] objects.
@@ -32,7 +33,7 @@ internal object MarkdownTokenizer {
      */
     fun tokenize(markdown: String): List<MarkdownToken> {
         val tokens = mutableListOf<MarkdownToken>()
-        
+
         // Process block-level elements first (these have higher priority)
         val blockPatterns = mapOf(
             TokenType.CODE_BLOCK to """```([\s\S]*?)```""".toRegex(),
@@ -40,50 +41,52 @@ internal object MarkdownTokenizer {
             TokenType.LIST to """^(\s*)([-•]|\d+\.)\s+(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE)
         )
-        
+
         blockPatterns.forEach { (type, pattern) ->
             addMatchesIfNoOverlap(markdown, pattern, type, tokens)
         }
-        
+
         // Process inline elements, allowing them to be nested within block elements
-        // Note: Order matters! Process citations BEFORE links to avoid conflicts
         val inlinePatterns = mapOf(
-            TokenType.CITATION to """\[\^(\d+)\]""".toRegex(),
-            TokenType.LINK to """\[([^\^][^\]]*)\]\((.*?)\)""".toRegex(),  // Updated to exclude [^ patterns
+            TokenType.LINK to """\[([^\]]*)\]\((.*?)\)""".toRegex(),
             TokenType.INLINE_CODE to """`(.*?)`""".toRegex(),
             TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex(),
             TokenType.ITALIC to """\*(.*?)\*""".toRegex()
         )
-        
+
         inlinePatterns.forEach { (type, pattern) ->
             addInlineMatches(markdown, pattern, type, tokens)
         }
-        
+
         val sortedTokens = tokens.sortedBy { it.start }
-        Log.debug(ConciergeConstants.EXTENSION_NAME, "tokenize", "Total tokens found: ${sortedTokens.size}")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Total tokens found: ${sortedTokens.size}"
+        )
         sortedTokens.forEach { token ->
-            Log.debug(ConciergeConstants.EXTENSION_NAME, "tokenize", "Token: $token")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Token: $token")
         }
-        
+
         return sortedTokens
     }
-    
+
     private fun addMatchesIfNoOverlap(
-        markdown: String, 
-        pattern: Regex, 
-        type: TokenType, 
+        markdown: String,
+        pattern: Regex,
+        type: TokenType,
         tokens: MutableList<MarkdownToken>
     ) {
         pattern.findAll(markdown).forEach { result ->
             val groups = (1..result.groups.size - 1).map { i -> result.groups[i]?.value ?: "" }
-            
+
             val newToken = when (type) {
                 TokenType.LIST -> {
                     val indentation = groups.firstOrNull() ?: ""
                     val listMarker = groups.getOrNull(1) ?: ""
                     val content = groups.getOrNull(2) ?: ""
                     val indentationLevel = indentation.length / 2 // Assuming 2 spaces per level
-                    
+
                     MarkdownToken(
                         type = type,
                         start = result.range.first,
@@ -92,6 +95,7 @@ internal object MarkdownTokenizer {
                         indentationLevel = indentationLevel
                     )
                 }
+
                 else -> MarkdownToken(
                     type = type,
                     start = result.range.first,
@@ -99,22 +103,22 @@ internal object MarkdownTokenizer {
                     groups = groups
                 )
             }
-            
+
             // Only add if it doesn't overlap with existing tokens
             val hasOverlap = tokens.any { existing ->
                 (newToken.start < existing.end && newToken.end > existing.start)
             }
-            
+
             if (!hasOverlap) {
                 tokens += newToken
             }
         }
     }
-    
+
     private fun addInlineMatches(
-        markdown: String, 
-        pattern: Regex, 
-        type: TokenType, 
+        markdown: String,
+        pattern: Regex,
+        type: TokenType,
         tokens: MutableList<MarkdownToken>
     ) {
         pattern.findAll(markdown).forEach { result ->
@@ -124,14 +128,19 @@ internal object MarkdownTokenizer {
                 end = result.range.last + 1,
                 groups = (1..result.groups.size - 1).map { i -> result.groups[i]?.value ?: "" }
             )
-            
+
             // For inline elements, allow them to be nested within block elements
             // but prevent them from overlapping with other inline elements
             val hasInlineOverlap = tokens.any { existing ->
-                val isInlineElement = existing.type in listOf(TokenType.LINK, TokenType.INLINE_CODE, TokenType.BOLD, TokenType.ITALIC, TokenType.CITATION)
+                val isInlineElement = existing.type in listOf(
+                    TokenType.LINK,
+                    TokenType.INLINE_CODE,
+                    TokenType.BOLD,
+                    TokenType.ITALIC
+                )
                 isInlineElement && (newToken.start < existing.end && newToken.end > existing.start)
             }
-            
+
             if (!hasInlineOverlap) {
                 tokens += newToken
             }
@@ -161,6 +170,5 @@ internal enum class TokenType {
     ITALIC,
     HEADING,
     LIST,
-    BLOCKQUOTE,
-    CITATION
+    BLOCKQUOTE
 }

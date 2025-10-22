@@ -27,35 +27,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
-import com.adobe.marketing.mobile.concierge.network.Citation
-import com.adobe.marketing.mobile.concierge.ui.components.messages.CitationUiUtils
 
 /**
- * Renders concierge response text with markdown formatting and circular citation components.
+ * Renders concierge response text with markdown formatting.
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
-    uniqueSources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val style = ConciergeStyles.citationBadgeStyle
-    
-    // Parse markdown first to get the rendered text with inline content placeholders
+
+    // Parse markdown to get the rendered text
     val markdownAnnotatedString = MarkdownParser.parse(text)
-    
-    // Create inline content map for circular citations
-    val inlineContentMap = CitationUiUtils.createInlineContentMap(
-        uniqueSources,
-        style.size,
-        context
-    )
-    
+
     ClickableText(
         text = markdownAnnotatedString,
-        inlineContent = inlineContentMap,
         onLinkClick = { url ->
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             context.startActivity(intent)
@@ -68,7 +55,7 @@ internal fun ConciergeResponseText(
 
 /**
  * Reusable composable for rendering text with clickable links and optional inline content.
- * 
+ *
  * @param text The annotated string to render
  * @param onLinkClick Callback for handling link clicks
  * @param modifier Optional modifier for the component
@@ -82,7 +69,7 @@ internal fun ClickableText(
     inlineContent: Map<String, InlineTextContent> = emptyMap()
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    
+
     Text(
         text = text,
         inlineContent = inlineContent,
@@ -93,7 +80,7 @@ internal fun ClickableText(
                     // Get the character offset at the tap position
                     textLayoutResult?.let { layoutResult ->
                         val offset = layoutResult.getOffsetForPosition(tapOffsetPosition)
-                        
+
                         // Find URL annotation at the clicked position
                         text.getStringAnnotations(tag = "URL", start = offset, end = offset)
                             .firstOrNull()

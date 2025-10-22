@@ -82,7 +82,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * State for tracking feedback states per interaction
      */
     private val _feedbackStates = MutableStateFlow<Map<String, FeedbackState>>(emptyMap())
-    internal val feedbackStates: StateFlow<Map<String, FeedbackState>> = _feedbackStates.asStateFlow()
+    internal val feedbackStates: StateFlow<Map<String, FeedbackState>> =
+        _feedbackStates.asStateFlow()
 
     /**
      * Tracks the current conversation ID from the backend response
@@ -188,8 +189,16 @@ class ConciergeChatViewModel : AndroidViewModel {
                 }
             }
 
-            is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
-            is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+            is FeedbackEvent.ThumbsUp -> handleFeedback(
+                event.interactionId,
+                ConciergeConstants.ChatInteraction.POSITIVE
+            )
+
+            is FeedbackEvent.ThumbsDown -> handleFeedback(
+                event.interactionId,
+                ConciergeConstants.ChatInteraction.NEGATIVE
+            )
+
             is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.submission)
             is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
             is FeedbackEvent.DismissFeedbackToast -> handleDismissFeedbackToast()
@@ -206,11 +215,15 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleProductActionClick(button: ProductActionButton) {
         if (button.url.isNullOrEmpty()) {
-            Log.debug(TAG, "handleProductActionClick", "Invalid url found, cannot open.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid url found, cannot open.")
             return
         }
 
-        Log.debug(TAG, "handleProductActionClick", "Button pressed: ${button.text}, opening URL: ${button.url}")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Button pressed: ${button.text}, opening URL: ${button.url}"
+        )
         ServiceProvider.getInstance().uriService.openUri(button.url.toString())
     }
 
@@ -221,11 +234,15 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleProductImageClick(element: MultimodalElement) {
         val url = element.content["productPageURL"] as? String
         if (url.isNullOrEmpty()) {
-            Log.debug(TAG, "handleProductImageClick", "Invalid url found, cannot open.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid url found, cannot open.")
             return
         }
 
-        Log.debug(TAG, "handleProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}"
+        )
         ServiceProvider.getInstance().uriService.openUri(url)
     }
 
@@ -234,7 +251,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param suggestion The suggestion text that was clicked
      */
     private fun handlePromptSuggestionClick(suggestion: String) {
-        Log.debug(TAG, "handlePromptSuggestionClick", "Prompt suggestion clicked: $suggestion")
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
         // Set the suggestion text in the input field
         _inputState.update { UserInputState.Editing(suggestion) }
     }
@@ -251,10 +268,10 @@ class ConciergeChatViewModel : AndroidViewModel {
             ConciergeConstants.ChatInteraction.NEGATIVE -> FeedbackType.NEGATIVE
             else -> return
         }
-        
+
         _state.update { ChatScreenState.ShowingFeedbackDialog(interactionId, feedbackTypeEnum) }
     }
-    
+
     /**
      * Handles feedback submission from the dialog
      * @param submission The feedback submission data
@@ -265,19 +282,25 @@ class ConciergeChatViewModel : AndroidViewModel {
             FeedbackType.POSITIVE -> FeedbackState.Positive
             FeedbackType.NEGATIVE -> FeedbackState.Negative
         }
-        
+
         _feedbackStates.update { currentStates ->
             currentStates + (submission.interactionId to feedbackState)
         }
-        
+
         // Hide dialog and show toast with appropriate message
         val toastMessage = when (submission.feedbackType) {
             FeedbackType.POSITIVE -> "Thank you for your feedback."
             FeedbackType.NEGATIVE -> "Thank you for your feedback. We strive to improve future results."
         }
-        
-        _state.update { ChatScreenState.ShowingFeedbackToast(submission.interactionId, toastMessage, submission.feedbackType) }
-        
+
+        _state.update {
+            ChatScreenState.ShowingFeedbackToast(
+                submission.interactionId,
+                toastMessage,
+                submission.feedbackType
+            )
+        }
+
         // Send feedback to the conversation service
         viewModelScope.launch {
             val feedbackPayload = FeedbackPayload(
@@ -287,23 +310,31 @@ class ConciergeChatViewModel : AndroidViewModel {
                 selectedCategories = submission.selectedCategories,
                 notes = submission.notes
             )
-            
+
             val success = chatService.sendFeedback(feedbackPayload)
             if (success) {
-                Log.debug(TAG, "handleFeedbackSubmission", "Feedback sent successfully for turnId: ${submission.interactionId}, conversationId: $currentConversationId")
+                Log.debug(
+                    TAG,
+                    "handleFeedbackSubmission",
+                    "Feedback sent successfully for turnId: ${submission.interactionId}, conversationId: $currentConversationId"
+                )
             } else {
-                Log.warning(TAG, "handleFeedbackSubmission", "Failed to send feedback for turnId: ${submission.interactionId}, conversationId: $currentConversationId")
+                Log.warning(
+                    TAG,
+                    "handleFeedbackSubmission",
+                    "Failed to send feedback for turnId: ${submission.interactionId}, conversationId: $currentConversationId"
+                )
             }
         }
     }
-    
+
     /**
      * Handles dismissing the feedback dialog
      */
     private fun handleDismissFeedbackDialog() {
         _state.update { ChatScreenState.Idle }
     }
-    
+
     /**
      * Handles dismissing the feedback toast
      */
@@ -454,20 +485,23 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param parsedMessage The parsed message containing content
      * @param contentBuilder StringBuilder tracking the full content
      */
-    private fun appendToAssistantMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
+    private fun appendToAssistantMessage(
+        parsedMessage: ParsedConversationMessage,
+        contentBuilder: StringBuilder
+    ) {
         if (parsedMessage.messageContent.isNotBlank()) {
             contentBuilder.append(parsedMessage.messageContent)
         }
-        
+
         // Create text-only message content for streaming updates
         val messageContent = MessageContent.Text(contentBuilder.toString())
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
-            "ConciergeChatViewModel",
+            TAG,
             "Appending text content with length (${contentBuilder.length} chars)"
         )
-        
+
         // Use the interactionId as the turnId for feedback
         updateAssistantMessageContent(messageContent, interactionId = parsedMessage.interactionId)
     }
@@ -496,13 +530,13 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
-            "ConciergeChatViewModel",
+            TAG,
             logMessage
         )
 
         updateAssistantMessageContent(
-            messageContent, 
-            parsedMessage.promptSuggestions, 
+            messageContent,
+            parsedMessage.promptSuggestions,
             parsedMessage.sources,
             parsedMessage.interactionId
         )
@@ -516,8 +550,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param interactionId Optional interaction ID from the backend to use as a turnId for feedback
      */
     private fun updateAssistantMessageContent(
-        content: MessageContent, 
-        promptSuggestions: List<String> = emptyList(), 
+        content: MessageContent,
+        promptSuggestions: List<String> = emptyList(),
         sources: List<Citation> = emptyList(),
         interactionId: String? = null
     ) {
@@ -544,10 +578,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
-        replaceAssistantMessageContent(ParsedConversationMessage(
-            messageContent = "Sorry, I encountered an error: $errorMessage",
-            state = ConversationState.COMPLETED,
-        ))
+        replaceAssistantMessageContent(
+            ParsedConversationMessage(
+                messageContent = "Sorry, I encountered an error: $errorMessage",
+                state = ConversationState.COMPLETED,
+            )
+        )
 
         // Return to idle state
         _state.update {

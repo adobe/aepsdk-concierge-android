@@ -49,7 +49,7 @@ internal fun VoiceRecordingPanel(
     onConfirm: () -> Unit
 ) {
     val style = ConciergeStyles.voiceRecordingPanelStyle
-    
+
     // Animation for listening state
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(

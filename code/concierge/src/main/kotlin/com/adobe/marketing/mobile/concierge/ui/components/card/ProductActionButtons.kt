@@ -31,6 +31,8 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.Log
 
+private const val TAG = "ProductActionButtons"
+
 /**
  * Composable that displays action buttons for product recommendations.
  */
@@ -43,7 +45,7 @@ internal fun ProductActionButtons(
     if (actionButtons.isEmpty()) {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
-            "ProductActionButtons",
+            TAG,
             "No action buttons to display"
         )
         return
@@ -51,7 +53,7 @@ internal fun ProductActionButtons(
 
     val style = ConciergeStyles.productActionButtonsStyle
     val cardStyle = ConciergeStyles.productCardStyle
-    
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(style.spacing),
         modifier = modifier
@@ -82,7 +84,7 @@ private fun ProductActionButton(
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.productActionButtonsStyle
-    
+
     if (isPrimary) {
         // Primary button - filled blue button
         Button(
@@ -92,7 +94,8 @@ private fun ProductActionButton(
                 contentColor = style.primaryContentColor
             ),
             shape = style.shape,
-            modifier = modifier.height(style.height)
+            modifier = modifier
+                .height(style.height)
                 .width(IntrinsicSize.Min)
         ) {
             ProductButtonText(text = button.text)
@@ -110,7 +113,8 @@ private fun ProductActionButton(
                 width = style.secondaryBorderWidth,
                 color = style.secondaryBorderColor
             ),
-            modifier = modifier.height(style.height)
+            modifier = modifier
+                .height(style.height)
                 .width(IntrinsicSize.Min)
         ) {
             ProductButtonText(text = button.text)
@@ -124,7 +128,7 @@ private fun ProductActionButton(
 @Composable
 private fun ProductButtonText(text: String) {
     val style = ConciergeStyles.productActionButtonsStyle
-    
+
     Text(
         text = text,
         textAlign = style.textAlign,
