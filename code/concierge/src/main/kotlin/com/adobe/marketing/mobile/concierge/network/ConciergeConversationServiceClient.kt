@@ -326,7 +326,7 @@ internal class ConciergeConversationServiceClient(
                 connection.close()
             }
         } catch (e: Exception) {
-            Log.error(LOG_TAG, TAG, "Failed to send feedback: ${e.message}")
+            Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to send feedback: ${e.message}")
             false
         }
     }
