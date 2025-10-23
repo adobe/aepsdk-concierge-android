@@ -323,19 +323,18 @@ internal object TempConversationResponseParser {
             return emptyList()
         }
 
-        val sources = mutableListOf<Citation>()
-        for (i in 0 until sourcesArray.length()) {
-            val sourceObj = sourcesArray.optJSONObject(i) ?: continue
-            val source = parseSource(sourceObj)
-            if (source != null) {
-                sources.add(source)
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Parsed source ${i + 1}: citationNumber=${source.citationNumber}, title=${source.title}."
-                )
+        val sources = (0 until sourcesArray.length())
+            .mapNotNull { i ->
+                sourcesArray.optJSONObject(i)?.let { sourceObj ->
+                    parseSource(sourceObj)?.also { source ->
+                        Log.debug(
+                            ConciergeConstants.EXTENSION_NAME,
+                            TAG,
+                            "Parsed source ${i + 1}: citationNumber=${source.citationNumber}, title=${source.title}."
+                        )
+                    }
+                }
             }
-        }
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
@@ -361,17 +360,22 @@ internal object TempConversationResponseParser {
             return null
         }
 
-        val url = sourceObj.optString("url").takeIf { it.isNotEmpty() }
-        val citationNumber = sourceObj.optInt(FIELD_CITATION_NUMBER, -1).takeIf { it > 0 }
-        val startIndex = sourceObj.optInt(FIELD_START_INDEX, -1).takeIf { it >= 0 }
-        val endIndex = sourceObj.optInt(FIELD_END_INDEX, -1).takeIf { it >= 0 }
+        val url = sourceObj.optString("url")
+        if (url.isEmpty()) {
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Source missing required url field."
+            )
+            return null
+        }
 
         return Citation(
             title = title,
             url = url,
-            citationNumber = citationNumber,
-            startIndex = startIndex,
-            endIndex = endIndex
+            citationNumber = sourceObj.optInt(FIELD_CITATION_NUMBER, -1).takeIf { it > 0 },
+            startIndex = sourceObj.optInt(FIELD_START_INDEX, -1).takeIf { it >= 0 },
+            endIndex = sourceObj.optInt(FIELD_END_INDEX, -1).takeIf { it >= 0 }
         )
     }
 }

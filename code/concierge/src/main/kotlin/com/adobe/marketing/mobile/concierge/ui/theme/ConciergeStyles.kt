@@ -171,27 +171,6 @@ object ConciergeStyles {
         }
 
     /**
-     * Styling for circular citation badges
-     */
-    @Immutable
-    data class CitationBadgeStyle(
-        val backgroundColor: Color,
-        val textColor: Color,
-        val shape: Shape,
-        val size: Dp
-    )
-
-    val citationBadgeStyle: CitationBadgeStyle
-        @Composable get() {
-            return CitationBadgeStyle(
-                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                textColor = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-                size = 18.dp
-            )
-        }
-
-    /**
      * Styling for thinking animation
      */
     @Immutable
