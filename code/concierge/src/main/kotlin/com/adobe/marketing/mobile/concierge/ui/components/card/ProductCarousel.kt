@@ -20,10 +20,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,19 +33,36 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlin.math.abs
+
+/**
+ * Finds the item closest to the center of the viewport.
+ * @return The index of the centered item, or null if no items are visible.
+ */
+private fun LazyListLayoutInfo.findCenteredItemIndex(): Int? {
+    val viewportCenter = viewportStartOffset + viewportSize.width / 2
+    return visibleItemsInfo.minByOrNull { item ->
+        val itemCenter = item.offset + item.size / 2
+        abs(itemCenter - viewportCenter)
+    }?.index
+}
 
 /**
  * Composable that displays a carousel of product images with navigation controls.
@@ -59,10 +76,38 @@ internal fun ProductCarousel (
     var currentPage by remember { mutableIntStateOf(0) }
     val totalPages = elements.size
     val listState = rememberLazyListState()
-    
-    // Scroll to the selected page when currentPage changes
-    LaunchedEffect(currentPage) {
-        listState.animateScrollToItem(currentPage)
+    val coroutineScope = rememberCoroutineScope()
+    // Use a Job to track programmatic scrolls and to avoid conflicts with user initiated scrolls
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
+
+    // Helper function for scrolling to a page when page indicators or arrows are clicked
+    val scrollToPage: (Int) -> Unit = remember {
+        { page ->
+            currentPage = page
+            scrollJob?.cancel()
+            scrollJob = coroutineScope.launch {
+                listState.animateScrollToItem(page)
+            }
+        }
+    }
+
+    // Update the page indicator when user manually scrolls
+    LaunchedEffect(listState) {
+        snapshotFlow { 
+            listState.isScrollInProgress to listState.layoutInfo
+        }
+            .distinctUntilChanged()
+            .collect { (isScrolling, layoutInfo) ->
+                if (!isScrolling) {
+                    val newPage = layoutInfo.findCenteredItemIndex() ?: return@collect
+                    val isProgrammaticScrollActive = scrollJob?.isActive == true
+                    
+                    // Only update if no programmatic scroll is active and page changed
+                    if (newPage != currentPage && !isProgrammaticScrollActive) {
+                        currentPage = newPage
+                    }
+                }
+            }
     }
     
     Column(
@@ -91,13 +136,13 @@ internal fun ProductCarousel (
             currentPage = currentPage,
             totalPages = totalPages,
             onPreviousClick = { 
-                if (currentPage > 0) currentPage-- 
+                if (currentPage > 0) scrollToPage(currentPage - 1)
             },
             onNextClick = { 
-                if (currentPage < totalPages - 1) currentPage++ 
+                if (currentPage < totalPages - 1) scrollToPage(currentPage + 1)
             },
             onPageClick = { page -> 
-                currentPage = page 
+                scrollToPage(page)
             }
         )
     }
