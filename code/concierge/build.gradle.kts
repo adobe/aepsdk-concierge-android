@@ -17,6 +17,8 @@ plugins {
 }
 
 val mavenCoreVersion: String by project
+val mavenEdgeVersion: String by project
+val mavenEdgeIdentityVersion: String by project
 val material3Version = "1.2.0"
 
 aepLibrary {
@@ -29,6 +31,8 @@ aepLibrary {
     publishing {
         gitRepoName = "aepsdk-concierge-android"
         addCoreDependency(mavenCoreVersion)
+        addEdgeDependency(mavenEdgeVersion)
+        addEdgeIdentityDependency(mavenEdgeIdentityVersion)
 
         addMavenDependency("org.jetbrains.kotlin", "kotlin-stdlib-jdk8", BuildConstants.Versions.KOTLIN)
         addMavenDependency("androidx.appcompat", "appcompat", BuildConstants.Versions.ANDROIDX_APPCOMPAT)
@@ -54,6 +58,8 @@ dependencies {
 
     // AEP SDK
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
+    implementation("com.adobe.marketing.mobile:edge:$mavenEdgeVersion")
+    implementation("com.adobe.marketing.mobile:edgeidentity:$mavenEdgeIdentityVersion")
 
     // Test dependencies
     testImplementation("junit:junit:4.13.2")
