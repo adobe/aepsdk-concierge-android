@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -81,6 +82,18 @@ class ConciergeChatViewModel : AndroidViewModel {
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
 
     /**
+     * Tracks whether the welcome card should be shown
+     */
+    private val _showWelcomeCard = MutableStateFlow(false)
+    val showWelcomeCard: StateFlow<Boolean> = _showWelcomeCard.asStateFlow()
+
+    /**
+     * Configuration for the welcome card
+     */
+    internal var config: WelcomeConfig = WelcomeConfig()
+        private set
+
+    /**
      * Speech capturing implementation that will be used for this session
      */
     private val speechCapturing: SpeechCapturing
@@ -120,6 +133,48 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.imageProvider = imageProvider
         this.chatService = chatService
         speechCapturing.setListener(captureListener)
+
+        // Initialize welcome card state based on config and user history
+        checkAndShowWelcomeCard()
+    }
+
+    /**
+     * Checks if the welcome card should be shown based on configuration
+     */
+    private fun checkAndShowWelcomeCard() {
+        // Show welcome card every time chat is opened if config allows
+        if (config.showWelcomeCard) {
+            _showWelcomeCard.value = true
+        }
+    }
+
+    /**
+     * Returns whether the user is a returning user (has seen the welcome card before)
+     */
+    internal fun isReturningUser(): Boolean {
+        val sharedPrefs = getApplication<Application>().getSharedPreferences(
+            ConciergeConstants.SharedPreferences.PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        return sharedPrefs.getBoolean(ConciergeConstants.SharedPreferences.KEY_HAS_SEEN_WELCOME, false)
+    }
+
+    /**
+     * Marks the user as a returning user (has seen and interacted with the welcome card)
+     */
+    private fun markUserAsReturning() {
+        val sharedPrefs = getApplication<Application>().getSharedPreferences(
+            ConciergeConstants.SharedPreferences.PREFS_NAME,
+            Application.MODE_PRIVATE
+        )
+        sharedPrefs.edit().putBoolean(ConciergeConstants.SharedPreferences.KEY_HAS_SEEN_WELCOME, true).apply()
+    }
+
+    /**
+     * Dismisses the welcome card
+     */
+    fun dismissWelcomeCard() {
+        _showWelcomeCard.value = false
     }
 
     private val captureListener = object : SpeechCaptureListener {
@@ -295,6 +350,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
+
+        // Dismiss welcome card when user sends their first message
+        if (_showWelcomeCard.value) {
+            dismissWelcomeCard()
+        }
+        
+        // Mark user as returning (has seen and interacted with welcome)
+        markUserAsReturning()
 
         // Add user message to the list
         val userMessage = ChatMessage(
