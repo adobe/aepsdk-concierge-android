@@ -161,7 +161,6 @@ fun WelcomeCard(
                             prompt = prompt,
                             onClick = {
                                 onPromptClick(prompt.text)
-                                onDismiss()
                             }
                         )
                         Spacer(modifier = Modifier.height(style.promptsSpacing))

@@ -78,7 +78,7 @@ fun ConciergeChat(
                 inputState = inputState,
                 hasAudioPermission = hasAudioPermission,
                 showWelcomeCard = showWelcomeCard,
-                welcomeConfig = viewModel.config,
+                welcomeConfig = viewModel.welcomeConfig,
                 isReturningUser = isReturningUser,
                 onTextChanged = viewModel::onTextStateChanged,
                 onEvent = viewModel::processEvent,

@@ -35,7 +35,7 @@ data class WelcomeConfig(
     /**
      * Brand name to display in the welcome card
      */
-    val brandName: String = "Concierge",
+    val brandName: String = "BrandName",
 
     /**
      * Custom welcome message for first-time users
@@ -56,29 +56,7 @@ data class WelcomeConfig(
 
     /**
      * List of suggested prompts to show in the welcome card
-     * TODO: Make this configurable via backend
      */
-    val suggestedPrompts: List<PromptConfig> = listOf(
-        PromptConfig(
-            text = "I'd like to explore templates to see what I can create.",
-            imageUrl = "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
-            backgroundColor = "#FFFFFF"
-        ),
-        PromptConfig(
-            text = "I want to touch up and enhance my photos.",
-            imageUrl = "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
-            backgroundColor = "#FFFFFF"
-        ),
-        PromptConfig(
-            text = "I'd like to edit PDFs and make them interactive.",
-            imageUrl = "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
-            backgroundColor = "#FFFFFF"
-        ),
-        PromptConfig(
-            text = "I want to turn my clips into polished videos.",
-            imageUrl = "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
-            backgroundColor = "#FFFFFF"
-        )
-    )
+    val suggestedPrompts: List<PromptConfig> = emptyList()
 )
 

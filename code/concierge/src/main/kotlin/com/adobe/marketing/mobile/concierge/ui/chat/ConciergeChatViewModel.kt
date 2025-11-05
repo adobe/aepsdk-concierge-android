@@ -23,6 +23,7 @@ import com.adobe.marketing.mobile.concierge.network.ConciergeConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.network.WelcomeResponseParserExample
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
@@ -51,6 +52,23 @@ import kotlinx.coroutines.launch
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
+        
+        /**
+         * Initializes the welcome config using the parser example
+         * In a real implementation, this would fetch from a backend API
+         */
+        private fun initializeWelcomeConfig(): WelcomeConfig {
+            // Get the mock welcome response
+            val mockResponse = WelcomeResponseParserExample.getMockWelcomeResponse()
+            
+            // Parse and create config
+            val parsedConfig = WelcomeResponseParserExample.parseAndCreateConfig(
+                jsonResponse = mockResponse
+            )
+            
+            // Return parsed config or fall back to default
+            return parsedConfig ?: WelcomeConfig()
+        }
     }
 
     /**
@@ -90,7 +108,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Configuration for the welcome card
      */
-    internal var config: WelcomeConfig = WelcomeConfig()
+    internal var welcomeConfig: WelcomeConfig = initializeWelcomeConfig()
         private set
 
     /**
@@ -143,7 +161,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun checkAndShowWelcomeCard() {
         // Show welcome card every time chat is opened if config allows
-        if (config.showWelcomeCard) {
+        if (welcomeConfig.showWelcomeCard) {
             _showWelcomeCard.value = true
         }
     }
