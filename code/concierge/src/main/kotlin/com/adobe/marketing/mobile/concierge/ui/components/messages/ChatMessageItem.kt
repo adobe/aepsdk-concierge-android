@@ -50,6 +50,7 @@ internal fun ChatMessageItem(
         is MessageContent.Text -> {
             RenderTextMessage(message, onFeedback, onSuggestionClick)
         }
+
         is MessageContent.Mixed -> {
             RenderMixedMessage(message, onFeedback, onActionClick, onImageClick, onSuggestionClick)
         }
@@ -57,9 +58,13 @@ internal fun ChatMessageItem(
 }
 
 @Composable
-private fun RenderTextMessage(message: ChatMessage, onFeedback: (FeedbackEvent) -> Unit, onSuggestionClick: (String) -> Unit) {
+private fun RenderTextMessage(
+    message: ChatMessage,
+    onFeedback: (FeedbackEvent) -> Unit,
+    onSuggestionClick: (String) -> Unit
+) {
     val style = ConciergeStyles.messageBubbleStyle
-    
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -130,7 +135,7 @@ private fun RenderMixedMessage(
     onSuggestionClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
-    
+
     if (message.content is MessageContent.Mixed) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -160,13 +165,14 @@ private fun RenderMixedMessage(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        
+
                         // Add spacing between text and recommendation cards if both are present
-                        if (message.content.text.isNotEmpty() && 
-                            !message.content.multimodalElements.isNullOrEmpty()) {
+                        if (message.content.text.isNotEmpty() &&
+                            !message.content.multimodalElements.isNullOrEmpty()
+                        ) {
                             Spacer(modifier = Modifier.height(style.contentSpacing))
                         }
-                        
+
                         // Render multi-modal elements if present
                         message.content.multimodalElements?.let { multimodalElements ->
                             if (multimodalElements.isNotEmpty()) {

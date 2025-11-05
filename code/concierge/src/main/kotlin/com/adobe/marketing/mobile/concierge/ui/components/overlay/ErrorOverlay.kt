@@ -34,7 +34,7 @@ internal fun ErrorOverlay(
     onDismiss: () -> Unit
 ) {
     val style = ConciergeStyles.errorOverlayStyle
-    
+
     Card(
         modifier = modifier
             .fillMaxWidth()

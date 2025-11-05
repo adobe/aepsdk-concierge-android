@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
@@ -33,7 +32,6 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
@@ -51,7 +48,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * Composable that displays a carousel of product images with navigation controls.
  */
 @Composable
-internal fun ProductCarousel (
+internal fun ProductCarousel(
     elements: List<MultimodalElement>,
     onImageClick: (MultimodalElement) -> Unit
 ) {
@@ -59,12 +56,12 @@ internal fun ProductCarousel (
     var currentPage by remember { mutableIntStateOf(0) }
     val totalPages = elements.size
     val listState = rememberLazyListState()
-    
+
     // Scroll to the selected page when currentPage changes
     LaunchedEffect(currentPage) {
         listState.animateScrollToItem(currentPage)
     }
-    
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -72,7 +69,10 @@ internal fun ProductCarousel (
         LazyRow(
             state = listState,
             horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
-            contentPadding = PaddingValues(horizontal = style.horizontalPadding, vertical = style.verticalPadding)
+            contentPadding = PaddingValues(
+                horizontal = style.horizontalPadding,
+                vertical = style.verticalPadding
+            )
         ) {
             items(elements) { element ->
                 ProductImage(
@@ -85,19 +85,19 @@ internal fun ProductCarousel (
                 )
             }
         }
-        
+
         // Carousel switcher controls
         CarouselSwitcher(
             currentPage = currentPage,
             totalPages = totalPages,
-            onPreviousClick = { 
-                if (currentPage > 0) currentPage-- 
+            onPreviousClick = {
+                if (currentPage > 0) currentPage--
             },
-            onNextClick = { 
-                if (currentPage < totalPages - 1) currentPage++ 
+            onNextClick = {
+                if (currentPage < totalPages - 1) currentPage++
             },
-            onPageClick = { page -> 
-                currentPage = page 
+            onPageClick = { page ->
+                currentPage = page
             }
         )
     }
@@ -116,7 +116,7 @@ internal fun CarouselSwitcher(
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.productCarouselStyle
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth(),
@@ -139,7 +139,7 @@ internal fun CarouselSwitcher(
             )
         }
         Box(modifier = Modifier.width(style.navigationSpacing))
-        
+
         // Page indicators
         Row(
             horizontalArrangement = Arrangement.spacedBy(style.indicatorSpacing),

@@ -25,6 +25,8 @@ import com.adobe.marketing.mobile.services.Log
  * objects.
  */
 internal object MarkdownParser {
+    private const val TAG = "MarkdownParser"
+
     /**
      * Parses the provided markdown string and returns an [AnnotatedString] with the appropriate
      * styling applied.
@@ -37,13 +39,13 @@ internal object MarkdownParser {
         val tokens = remember(markdown) { MarkdownTokenizer.tokenize(markdown) }
         val colorScheme = MaterialTheme.colorScheme
         val messageTextStyle = ConciergeStyles.messageBubbleStyle.textStyle
-        
+
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
-            "parse",
+            TAG,
             "Parsed ${tokens.size} tokens, starting rendering."
         )
-        
+
         val result = MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle)
         return result
     }
