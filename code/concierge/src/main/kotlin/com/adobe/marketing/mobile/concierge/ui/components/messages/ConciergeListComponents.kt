@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import com.adobe.marketing.mobile.concierge.network.Citation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
@@ -31,19 +33,22 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
  *
  * @param listTokens List of [MarkdownToken] objects representing list items
  * @param onLinkClick Callback function for handling link clicks
+ * @param uniqueSources List of [Citation] objects for generating citation annotations
  * @param modifier [Modifier] to be applied to the [Column] container
  */
 @Composable
 internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
     onLinkClick: (String) -> Unit,
+    uniqueSources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
         listTokens.forEach { token ->
             ListItem(
                 token = token,
-                onLinkClick = onLinkClick
+                onLinkClick = onLinkClick,
+                uniqueSources = uniqueSources
             )
         }
     }
@@ -52,22 +57,37 @@ internal fun ConciergeResponseList(
 /**
  * Renders a single list item with proper indentation and clickable links.
  *
- * This composable processes a [MarkdownToken] and renders it as a list item.
+ * This composable processes a [MarkdownToken] and renders it as a list item with
+ * citation annotations applied.
  *
  * @param token The [MarkdownToken] representing the list item
  * @param onLinkClick Callback function for handling link clicks within the list item
+ * @param uniqueSources List of [Citation] objects for generating citation annotations
  */
 @Composable
 private fun ListItem(
     token: MarkdownToken,
-    onLinkClick: (String) -> Unit
+    onLinkClick: (String) -> Unit,
+    uniqueSources: List<Citation> = emptyList()
 ) {
+    val context = LocalContext.current
+    val style = ConciergeStyles.citationBadgeStyle
+
     val listItemContent = remember { token.groups.firstOrNull() ?: "" }
     val listMarker = remember { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
 
-    // Parse markdown to get the rendered text
+    // Parse markdown first to get the rendered text with inline content placeholders
     val annotatedString = MarkdownParser.parse(listItemContent)
+
+    // Create inline content map for circular citations
+    val inlineContentMap = remember(uniqueSources) {
+        CitationUiUtils.createInlineContentMap(
+            uniqueSources,
+            style.size,
+            context
+        )
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -80,6 +100,7 @@ private fun ListItem(
 
         ClickableText(
             text = annotatedString,
+            inlineContent = inlineContentMap,
             onLinkClick = onLinkClick,
             modifier = Modifier.padding(end = ListSpacing.END_PADDING)
         )
