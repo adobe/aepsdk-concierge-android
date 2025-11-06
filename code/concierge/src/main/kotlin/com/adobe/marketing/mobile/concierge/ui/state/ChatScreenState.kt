@@ -132,7 +132,7 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
 internal sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
     data class Mixed(
-        val text: String, 
+        val text: String,
         val multimodalElements: List<MultimodalElement>? = null
     ) : MessageContent()
 }

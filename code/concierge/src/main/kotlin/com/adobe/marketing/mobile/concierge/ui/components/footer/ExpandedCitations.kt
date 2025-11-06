@@ -53,7 +53,7 @@ internal fun ExpandedCitations(
         CitationUtils.createUniqueSources(citations)
     }
     val style = ConciergeStyles.citationStyle
-    
+
     AnimatedVisibility(
         visible = expanded,
         enter = expandVertically(animationSpec = tween(style.expandAnimationDuration)),
@@ -93,7 +93,7 @@ internal fun CitationItem(
     index: Int
 ) {
     val style = ConciergeStyles.citationStyle
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -105,7 +105,7 @@ internal fun CitationItem(
             style = style.textStyle,
             color = style.textColor
         )
-        
+
         // Source link, clickable if URL is present
         Text(
             text = citation.title,

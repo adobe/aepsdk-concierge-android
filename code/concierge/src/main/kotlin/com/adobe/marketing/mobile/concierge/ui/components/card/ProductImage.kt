@@ -20,26 +20,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.Log
+
+private const val TAG = "ProductImage"
 
 /**
  * Composable that displays an image for a product returned in a [MultimodalElement].
@@ -53,7 +49,7 @@ internal fun ProductImage(
 ) {
     val imageStyle = ConciergeStyles.productImageStyle
     val cardStyle = ConciergeStyles.productCardStyle
-    
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -75,7 +71,7 @@ internal fun ProductImage(
                     onError = { error ->
                         Log.warning(
                             ConciergeConstants.EXTENSION_NAME,
-                            "ProductImage",
+                            TAG,
                             "Failed to load image: $imageUrl, error: $error"
                         )
                     },
@@ -85,6 +81,7 @@ internal fun ProductImage(
                 // Fallback to a gradient background if no image URL is available
                 Box(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .height(cardStyle.imageHeight)
                         .background(
                             Brush.horizontalGradient(

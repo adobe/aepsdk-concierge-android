@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
-import android.health.connect.datatypes.units.Length
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -170,27 +169,6 @@ object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyLarge,
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp
-            )
-        }
-
-    /**
-     * Styling for circular citation badges
-     */
-    @Immutable
-    data class CitationBadgeStyle(
-        val backgroundColor: Color,
-        val textColor: Color,
-        val shape: Shape,
-        val size: Dp
-    )
-
-    val citationBadgeStyle: CitationBadgeStyle
-        @Composable get() {
-            return CitationBadgeStyle(
-                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                textColor = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-                size = 18.dp
             )
         }
 

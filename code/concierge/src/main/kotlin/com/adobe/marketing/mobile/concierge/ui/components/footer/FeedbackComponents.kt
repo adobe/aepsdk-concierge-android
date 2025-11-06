@@ -41,7 +41,7 @@ internal fun FeedbackButtons(
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val style = ConciergeStyles.feedbackButtonsStyle
-    
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(style.spacing),

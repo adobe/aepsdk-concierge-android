@@ -52,7 +52,6 @@ internal class ConciergeConversationServiceClient(
 ) {
 
     companion object {
-        private const val LOG_TAG = ConciergeConstants.EXTENSION_FRIENDLY_NAME
         private const val TAG = "ConciergeConversationServiceClient"
 
         private const val DEFAULT_CONNECT_TIMEOUT = 30
@@ -167,7 +166,7 @@ internal class ConciergeConversationServiceClient(
             ServiceProvider.getInstance().networkService.connectAsync(request, callback)
 
             continuation.invokeOnCancellation {
-                Log.debug(LOG_TAG, TAG, "Connection cancelled")
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Connection cancelled")
             }
         }
 
@@ -227,20 +226,28 @@ internal class ConciergeConversationServiceClient(
                 SSEParser().process(reader).collect { event ->
                     when (event) {
                         is StreamingEvent.Started -> {
-                            Log.trace(LOG_TAG, TAG, "Streaming connection started")
+                            Log.trace(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Streaming connection started"
+                            )
                         }
 
                         is StreamingEvent.DataReceived -> emit(event)
                         is StreamingEvent.EventReceived -> emit(event)
                         is StreamingEvent.Error -> {
-                            Log.error(LOG_TAG, TAG, "Streaming error: ${event.exception.message}")
+                            Log.error(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Streaming error: ${event.exception.message}"
+                            )
                             connection.close()
                             throw event.exception
                         }
 
                         is StreamingEvent.Retry -> {
                             Log.debug(
-                                LOG_TAG,
+                                ConciergeConstants.EXTENSION_NAME,
                                 TAG,
                                 "Server requested retry interval: ${event.delayMillis} ms"
                             )
@@ -248,7 +255,11 @@ internal class ConciergeConversationServiceClient(
                         }
 
                         is StreamingEvent.Closed -> {
-                            Log.debug(LOG_TAG, TAG, "Streaming connection closed: ${event.reason}")
+                            Log.debug(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Streaming connection closed: ${event.reason}"
+                            )
                             connection.close()
                             emit(event)
                         }
@@ -256,7 +267,11 @@ internal class ConciergeConversationServiceClient(
                 }
             }
         } catch (e: Exception) {
-            Log.warning(LOG_TAG, TAG, "Streaming response processing error: ${e.message}")
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Streaming response processing error: ${e.message}"
+            )
             throw e
         } finally {
             connection.close()
@@ -280,6 +295,10 @@ internal class ConciergeConversationServiceClient(
      * Should be called when the client is no longer needed to prevent memory leaks.
      */
     fun cleanup() {
-        Log.debug(LOG_TAG, TAG, "ConciergeConversationServiceClient cleanup completed")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "ConciergeConversationServiceClient cleanup completed"
+        )
     }
 }

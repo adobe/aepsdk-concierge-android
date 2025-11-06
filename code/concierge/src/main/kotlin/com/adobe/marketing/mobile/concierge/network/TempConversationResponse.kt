@@ -81,7 +81,7 @@ internal data class MultimodalElement(
  */
 internal data class Citation(
     val title: String,
-    val url: String? = null,
+    val url: String,
     val citationNumber: Int? = null,
     val startIndex: Int? = null,
     val endIndex: Int? = null

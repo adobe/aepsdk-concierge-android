@@ -35,7 +35,7 @@ fun ConciergeTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkConciergeColors else LightConciergeColors
-    
+
     CompositionLocalProvider(
         LocalConciergeColors provides colors,
         content = content
