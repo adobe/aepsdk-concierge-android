@@ -28,6 +28,10 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 
 /**
  * Renders list content with proper indentation and spacing.
+ *
+ * @param listTokens List of [MarkdownToken] objects representing list items
+ * @param onLinkClick Callback function for handling link clicks
+ * @param modifier [Modifier] to be applied to the [Column] container
  */
 @Composable
 internal fun ConciergeResponseList(
@@ -47,17 +51,24 @@ internal fun ConciergeResponseList(
 
 /**
  * Renders a single list item with proper indentation and clickable links.
+ *
+ * This composable processes a [MarkdownToken] and renders it as a list item.
+ *
+ * @param token The [MarkdownToken] representing the list item
+ * @param onLinkClick Callback function for handling link clicks within the list item
  */
 @Composable
 private fun ListItem(
     token: MarkdownToken,
     onLinkClick: (String) -> Unit
 ) {
-    val listItemContent = remember {  token.groups.firstOrNull() ?: "" }
-    val listMarker = remember {  token.groups.getOrNull(1) ?: "•" }
+    val listItemContent = remember { token.groups.firstOrNull() ?: "" }
+    val listMarker = remember { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
+
+    // Parse markdown to get the rendered text
     val annotatedString = MarkdownParser.parse(listItemContent)
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start
@@ -66,10 +77,11 @@ private fun ListItem(
             marker = listMarker,
             indentationLevel = indentationLevel
         )
-        
+
         ClickableText(
             text = annotatedString,
-            onLinkClick = onLinkClick
+            onLinkClick = onLinkClick,
+            modifier = Modifier.padding(end = ListSpacing.END_PADDING)
         )
     }
 }

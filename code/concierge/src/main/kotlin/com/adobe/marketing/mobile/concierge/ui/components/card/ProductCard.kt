@@ -43,7 +43,7 @@ internal fun ProductCard(
     onActionClick: (ProductActionButton) -> Unit = {}
 ) {
     val style = ConciergeStyles.productCardStyle
-    
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -94,7 +94,10 @@ internal fun ProductCard(
                         style = style.captionStyle,
                         color = style.captionColor,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = style.captionTopPadding, bottom = style.captionBottomPadding)
+                        modifier = Modifier.padding(
+                            top = style.captionTopPadding,
+                            bottom = style.captionBottomPadding
+                        )
                     )
                 }
 

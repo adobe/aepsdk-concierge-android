@@ -77,15 +77,17 @@ internal fun MessageList(
                 // but allow it to extend beyond if the content is larger.
                 val lastUserIndex = messages.indexOfLast { it.isFromUser }
                 val shouldFillRemaining = (index == messages.lastIndex &&
-                    !message.isFromUser &&
-                    lastUserIndex == index - 1)
+                        !message.isFromUser &&
+                        lastUserIndex == index - 1)
 
                 Box(
                     modifier = (
-                        if (shouldFillRemaining) Modifier.then(
-                            Modifier.heightIn(min = this@BoxWithConstraints.maxHeight).animateContentSize()
-                        ) else Modifier
-                    )
+                            if (shouldFillRemaining) Modifier.then(
+                                Modifier
+                                    .heightIn(min = this@BoxWithConstraints.maxHeight)
+                                    .animateContentSize()
+                            ) else Modifier
+                            )
                 ) {
                     ChatMessageItem(
                         message = message,

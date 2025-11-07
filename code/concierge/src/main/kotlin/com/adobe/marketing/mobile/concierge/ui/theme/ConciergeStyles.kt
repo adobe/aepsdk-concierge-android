@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -418,12 +419,10 @@ object ConciergeStyles {
         val containerPadding: Dp,
         val separatorHeight: Dp,
         val separatorColor: Color,
-        val separatorAlpha: Float,
-        val titleStyle: TextStyle,
-        val titleColor: Color,
-        val urlStyle: TextStyle,
+        val textStyle: TextStyle,
+        val textColor: Color,
+        val textLength: Int,
         val urlColor: Color,
-        val urlTopPadding: Dp,
         val expandAnimationDuration: Int,
         val collapseAnimationDuration: Int
     )
@@ -432,15 +431,13 @@ object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             return CitationStyle(
-                containerPadding = 16.dp,
+                containerPadding = 8.dp,
                 separatorHeight = 1.dp,
                 separatorColor = themeColors.outline.copy(alpha = 0.3f),
-                separatorAlpha = 0.3f,
-                titleStyle = MaterialTheme.typography.bodyMedium,
-                titleColor = themeColors.onSurface,
-                urlStyle = MaterialTheme.typography.bodySmall,
+                textStyle = MaterialTheme.typography.bodyMedium,
+                textColor = themeColors.onSurface,
+                textLength = 2,
                 urlColor = themeColors.primary,
-                urlTopPadding = 4.dp,
                 expandAnimationDuration = 200,
                 collapseAnimationDuration = 200
             )

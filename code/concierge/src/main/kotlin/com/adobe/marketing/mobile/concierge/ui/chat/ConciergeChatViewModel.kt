@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -27,7 +28,6 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButt
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-import com.adobe.marketing.mobile.concierge.ui.state.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
@@ -158,8 +158,15 @@ class ConciergeChatViewModel : AndroidViewModel {
 
             is MicEvent.StopRecording -> { handleStopRecording() }
 
-            is FeedbackEvent.ThumbsUp -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.POSITIVE)
-            is FeedbackEvent.ThumbsDown -> handleFeedback(event.interactionId, ConciergeConstants.ChatInteraction.NEGATIVE)
+            is FeedbackEvent.ThumbsUp -> handleFeedback(
+                event.interactionId,
+                ConciergeConstants.ChatInteraction.POSITIVE
+            )
+
+            is FeedbackEvent.ThumbsDown -> handleFeedback(
+                event.interactionId,
+                ConciergeConstants.ChatInteraction.NEGATIVE
+            )
 
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
@@ -173,11 +180,15 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleProductActionClick(button: ProductActionButton) {
         if (button.url.isNullOrEmpty()) {
-            Log.debug(TAG, "handleProductActionClick", "Invalid url found, cannot open.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid url found, cannot open.")
             return
         }
 
-        Log.debug(TAG, "handleProductActionClick", "Button pressed: ${button.text}, opening URL: ${button.url}")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Button pressed: ${button.text}, opening URL: ${button.url}"
+        )
         ServiceProvider.getInstance().uriService.openUri(button.url.toString())
     }
 
@@ -188,11 +199,15 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleProductImageClick(element: MultimodalElement) {
         val url = element.content["productPageURL"] as? String
         if (url.isNullOrEmpty()) {
-            Log.debug(TAG, "handleProductImageClick", "Invalid url found, cannot open.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid url found, cannot open.")
             return
         }
 
-        Log.debug(TAG, "handleProductImageClick", "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}"
+        )
         ServiceProvider.getInstance().uriService.openUri(url)
     }
 
@@ -201,33 +216,9 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param suggestion The suggestion text that was clicked
      */
     private fun handlePromptSuggestionClick(suggestion: String) {
-        Log.debug(TAG, "handlePromptSuggestionClick", "Prompt suggestion clicked: $suggestion")
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
         // Set the suggestion text in the input field
         _inputState.update { UserInputState.Editing(suggestion) }
-    }
-
-    /**
-     * Generates random citations for testing purposes
-     */
-    private fun generateRandomCitations(): List<Citation> {
-        val sampleCitations = listOf(
-            Citation(
-                title = "Adobe Experience Platform Documentation",
-                url = "https://experienceleague.adobe.com/docs/experience-platform.html"
-            ),
-            Citation(
-                title = "Mobile SDK Implementation Guide",
-                url = "https://developer.adobe.com/client-sdks/"
-            ),
-            Citation(
-                title = "Adobe Firefly Service documentation",
-                url = "https://developer.adobe.com/firefly-services/docs/guides/"
-            )
-        )
-        
-        // Randomly select 0-3 citations for variety
-        val randomCount = (0..3).random()
-        return sampleCitations.shuffled().take(randomCount)
     }
 
     /**
@@ -239,7 +230,11 @@ class ConciergeChatViewModel : AndroidViewModel {
         // TODO: Implement Edge send event with interaction ID in XDM
         // Edge.sendEvent(...)
         // For now, just log the feedback
-        Log.debug(TAG, "handleFeedback", "Received feedback: $feedbackType for interactionId: $interactionId")
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Received feedback: $feedbackType for interactionId: $interactionId"
+        )
     }
 
     /**
@@ -318,7 +313,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     content = MessageContent.Text(""),
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
-                    citations = generateRandomCitations(),
+                    citations = emptyList(),
                     interactionId = "sample-interaction-${System.currentTimeMillis()}"
                 )
                 _messages.update { currentMessages -> currentMessages + assistantMessage }
@@ -380,11 +375,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param parsedMessage The parsed message containing content
      * @param contentBuilder StringBuilder tracking the full content
      */
-    private fun appendToAssistantMessage(parsedMessage: ParsedConversationMessage, contentBuilder: StringBuilder) {
+    private fun appendToAssistantMessage(
+        parsedMessage: ParsedConversationMessage,
+        contentBuilder: StringBuilder
+    ) {
         if (parsedMessage.messageContent.isNotBlank()) {
             contentBuilder.append(parsedMessage.messageContent)
         }
-        
+
         // Create text-only message content for streaming updates
         val messageContent = MessageContent.Text(contentBuilder.toString())
 
@@ -393,7 +391,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Appending text content with length (${contentBuilder.length} chars)"
         )
-        
+
         updateAssistantMessageContent(messageContent)
     }
 
@@ -421,19 +419,28 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
-            "ConciergeChatViewModel",
+            TAG,
             logMessage
         )
-        
-        updateAssistantMessageContent(messageContent, parsedMessage.promptSuggestions)
+
+        updateAssistantMessageContent(
+            messageContent,
+            parsedMessage.promptSuggestions,
+            parsedMessage.sources
+        )
     }
 
     /**
      * Updates the assistant message content in the UI
      * @param content The new content for the assistant message
      * @param promptSuggestions Optional prompt suggestions to include with the message
+     * @param sources Optional sources to include with the message
      */
-    private fun updateAssistantMessageContent(content: MessageContent, promptSuggestions: List<String> = emptyList()) {
+    private fun updateAssistantMessageContent(
+        content: MessageContent,
+        promptSuggestions: List<String> = emptyList(),
+        sources: List<Citation> = emptyList()
+    ) {
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
             if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
@@ -441,7 +448,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 val lastAssistantMessage = existingMessages[lastIndex]
                 updatedMessages[lastIndex] = lastAssistantMessage.copy(
                     content = content,
-                    promptSuggestions = promptSuggestions
+                    promptSuggestions = promptSuggestions,
+                    citations = sources
                 )
                 updatedMessages
             } else {
@@ -455,10 +463,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
-        replaceAssistantMessageContent(ParsedConversationMessage(
-            messageContent = "Sorry, I encountered an error: $errorMessage",
-            state = ConversationState.COMPLETED,
-        ))
+        replaceAssistantMessageContent(
+            ParsedConversationMessage(
+                messageContent = "Sorry, I encountered an error: $errorMessage",
+                state = ConversationState.COMPLETED,
+            )
+        )
 
         // Return to idle state
         _state.update {

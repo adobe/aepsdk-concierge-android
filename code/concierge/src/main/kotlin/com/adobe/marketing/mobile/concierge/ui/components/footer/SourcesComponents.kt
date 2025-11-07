@@ -39,9 +39,9 @@ internal fun SourcesAccordionButton(
     onExpandedChange: (Boolean) -> Unit
 ) {
     val style = ConciergeStyles.chatFooterStyle
-    
+
     TextButton(
-        onClick = { 
+        onClick = {
             onExpandedChange(!expanded)
         },
         contentPadding = PaddingValues(style.sourcesButtonPadding)

@@ -23,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
@@ -34,8 +33,11 @@ import androidx.core.net.toUri
  * Component that renders brand concierge responses containing markdown text
  * with proper styling and clickable links.
  *
+ * This composable determines whether to render text as plain content
+ * or as lists based on the presence of markdown list tokens.
+ *
  * @param text The markdown text to be rendered
- * @param modifier Optional modifier for the text component
+ * @param modifier Optional [Modifier] for the text component
  */
 @Composable
 internal fun ConciergeResponse(
@@ -96,6 +98,7 @@ private fun ConciergeResponseWithLists(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+
                 is ContentSegment.List -> {
                     ConciergeResponseList(
                         listTokens = segment.tokens,
