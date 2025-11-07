@@ -62,6 +62,9 @@ interface ImageProvider {
 internal class DefaultImageProvider(
     maxEntries: Int = 64
 ) : ImageProvider {
+    private companion object {
+        private const val TAG = "DefaultImageProvider"
+    }
 
     private val cache = object : LruCache<String, Bitmap>(maxEntries) {
         /* If we want to set max size based on memory instead of entry count, we can use this:
@@ -83,7 +86,7 @@ internal class DefaultImageProvider(
         ) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
-                "DefaultImageProvider",
+                TAG,
                 "Image removed from cache: $key"
             )
         }
@@ -122,14 +125,14 @@ internal class DefaultImageProvider(
             } catch (e: IOException) {
                 Log.error(
                     ConciergeConstants.EXTENSION_NAME,
-                    "DefaultImageProvider",
+                    TAG,
                     "IOException while downloading image: ${e.message}"
                 )
                 throw e
             } catch (e: Exception) {
                 Log.error(
                     ConciergeConstants.EXTENSION_NAME,
-                    "DefaultImageProvider",
+                    TAG,
                     "Unexpected error while downloading image: ${e.message}"
                 )
                 throw IOException("Failed to download image: ${e.message}", e)
@@ -139,7 +142,7 @@ internal class DefaultImageProvider(
             cache.put(url, bitmap)
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
-                "DefaultImageProvider",
+                TAG,
                 "Image downloaded and cached from: $url"
             )
         }
@@ -186,6 +189,7 @@ internal class DefaultImageProvider(
                         connection == null -> continuation.resumeWithException(
                             IOException("Failed to establish connection")
                         )
+
                         continuation.isActive -> continuation.resume(connection)
                     }
                 }
@@ -196,7 +200,7 @@ internal class DefaultImageProvider(
             continuation.invokeOnCancellation {
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
-                    "DefaultImageProvider",
+                    TAG,
                     "Connection cancelled"
                 )
             }

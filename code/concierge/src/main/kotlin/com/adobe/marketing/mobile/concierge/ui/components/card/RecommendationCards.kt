@@ -20,6 +20,8 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.services.Log
 
+private const val TAG = "RecommendationCards"
+
 /**
  * Composable that displays product recommendation cards containing one or more [MultimodalElement]s
  * in a single card or carousel style layout.
@@ -32,11 +34,15 @@ internal fun RecommendationCards(
     onActionClick: (ProductActionButton) -> Unit = {}
 ) {
     if (elements.isEmpty()) {
-        Log.debug(ConciergeConstants.EXTENSION_NAME, "RecommendationCards", "No elements to display, returning early")
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements to display, returning early")
         return
     }
-    
-    Log.debug(ConciergeConstants.EXTENSION_NAME, "RecommendationCards", "Rendering ImageCarousel with ${elements.size} elements")
+
+    Log.debug(
+        ConciergeConstants.EXTENSION_NAME,
+        TAG,
+        "Rendering ImageCarousel with ${elements.size} elements"
+    )
 
     Column(
         modifier = modifier.fillMaxWidth()

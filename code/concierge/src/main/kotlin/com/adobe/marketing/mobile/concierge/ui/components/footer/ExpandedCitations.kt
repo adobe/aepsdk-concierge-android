@@ -20,15 +20,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
-import com.adobe.marketing.mobile.concierge.ui.state.Citation
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 import com.adobe.marketing.mobile.services.ServiceProvider
 
 /**
@@ -45,21 +48,25 @@ internal fun ExpandedCitations(
     citations: List<Citation>,
     expanded: Boolean
 ) {
+    // Get unique sources with proper citation numbers
+    val uniqueSources: List<Citation> = remember(citations) {
+        CitationUtils.createUniqueSources(citations)
+    }
     val style = ConciergeStyles.citationStyle
-    
+
     AnimatedVisibility(
         visible = expanded,
         enter = expandVertically(animationSpec = tween(style.expandAnimationDuration)),
         exit = shrinkVertically(animationSpec = tween(style.collapseAnimationDuration))
     ) {
         Column(modifier = modifier) {
-            citations.forEachIndexed { index, citation ->
+            uniqueSources.forEachIndexed { index, citation ->
                 CitationItem(
                     citation = citation,
-                    index = index + 1
+                    index = citation.citationNumber ?: (index + 1)
                 )
                 // Add separator line between items
-                if (index < citations.size - 1) {
+                if (index < uniqueSources.size - 1) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -73,7 +80,7 @@ internal fun ExpandedCitations(
 }
 
 /**
- * A citation item component that displays a title and clickable url.
+ * A citation item component that displays a source link.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citation The [Citation] to display.
@@ -86,34 +93,37 @@ internal fun CitationItem(
     index: Int
 ) {
     val style = ConciergeStyles.citationStyle
-    
-    Column(
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(style.containerPadding)
     ) {
-        // Citation title
+        // Citation index number
         Text(
-            text = "$index. ${citation.title}",
-            style = style.titleStyle,
-            color = style.titleColor
+            text = "$index. ",
+            style = style.textStyle,
+            color = style.textColor
         )
-        
-        // URL with clickable styling if it exists
-        if (!citation.url.isNullOrBlank()) {
-            Text(
-                text = citation.url,
-                style = style.urlStyle,
-                color = style.urlColor,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier
-                    .padding(top = style.urlTopPadding)
-                    .clickable {
-                        citation.url.let { url ->
+
+        // Source link, clickable if URL is present
+        Text(
+            text = citation.title,
+            style = style.textStyle,
+            maxLines = style.textLength,
+            color = if (!citation.url.isNullOrBlank()) style.urlColor else style.textColor,
+            textDecoration = if (!citation.url.isNullOrBlank()) TextDecoration.Underline else null,
+            modifier = Modifier.then(
+                if (!citation.url.isNullOrBlank()) {
+                    Modifier.clickable {
+                        citation.url?.let { url ->
                             ServiceProvider.getInstance().uriService.openUri(url)
                         }
                     }
+                } else {
+                    Modifier
+                }
             )
-        }
+        )
     }
 }
