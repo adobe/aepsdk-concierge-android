@@ -42,7 +42,6 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * @param modifier Modifier for the composable
  * @param userInputState The current state of the input stream
  * @param isEnabled Whether the button is enabled
- * @param waveformPulse The current pulse scale value for animation (deprecated, kept for compatibility)
  * @param onClick Callback when button is clicked
  */
 @Composable
@@ -50,7 +49,6 @@ internal fun MicButton(
     modifier: Modifier = Modifier,
     userInputState: UserInputState,
     isEnabled: Boolean,
-    waveformPulse: Float,
     onClick: () -> Unit = {},
 ) {
     val style = ConciergeStyles.micButtonStyle

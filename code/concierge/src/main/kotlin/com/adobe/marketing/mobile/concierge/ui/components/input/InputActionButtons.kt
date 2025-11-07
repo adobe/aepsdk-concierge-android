@@ -58,7 +58,6 @@ internal fun InputActionButtons(
     val micButtonStyle = ConciergeStyles.micButtonStyle
     val sendButtonStyle = ConciergeStyles.sendButtonStyle
     val panelStyle = ConciergeStyles.inputPanelStyle
-    val waveformPulse = remember { 1.0f }
 
     Row(
         modifier = modifier
@@ -73,7 +72,6 @@ internal fun InputActionButtons(
             modifier = Modifier.size(micContainerSize),
             userInputState = inputState,
             isEnabled = true,
-            waveformPulse = waveformPulse,
             onClick = {
                 if (inputState is UserInputState.Recording) {
                     onVoiceCancel()
