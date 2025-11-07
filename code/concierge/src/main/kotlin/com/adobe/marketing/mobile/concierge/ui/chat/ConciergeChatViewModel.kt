@@ -154,24 +154,9 @@ class ConciergeChatViewModel : AndroidViewModel {
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
 
-            is MicEvent.StartRecording -> {
-                startSpeechRecognition()
-            }
+            is MicEvent.StartRecording -> { startSpeechRecognition() }
 
-            is MicEvent.StopRecording -> {
-                stopSpeechRecognition()
-                // Immediately transition UI state based on current partial text
-                val currentState = _inputState.value
-                if (currentState is UserInputState.Recording) {
-                    if (currentState.transcription.isNotBlank()) {
-                        // If we have partial text, transition to Editing state
-                        _inputState.update { UserInputState.Editing(currentState.transcription) }
-                    } else {
-                        // If no partial text, go back to Empty
-                        _inputState.update { UserInputState.Empty }
-                    }
-                }
-            }
+            is MicEvent.StopRecording -> { handleStopRecording() }
 
             is FeedbackEvent.ThumbsUp -> handleFeedback(
                 event.interactionId,
@@ -369,8 +354,11 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
 
             ConversationState.COMPLETED -> {
-                // For COMPLETED state, replace the content with the final message
-                replaceAssistantMessageContent(parsedMessage)
+                // For COMPLETED state, if final message is blank, keep existing content and just transition to Idle.
+                // Otherwise, replace with the final message.
+                if (parsedMessage.messageContent.isNotBlank()) {
+                    replaceAssistantMessageContent(parsedMessage)
+                }
                 _state.update { ChatScreenState.Idle }
             }
 
@@ -501,11 +489,34 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
+
     /**
-     * Stops speech recognition
+     * Handles stopping speech recognition
      */
-    private fun stopSpeechRecognition() {
+    private fun handleStopRecording() {
         speechCapturing.endCapture()
+
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Stopped speech recognition, current input state: ${_inputState.value}"
+        )
+        // Immediately transition UI state based on current partial text
+        val currentState = _inputState.value
+        if (currentState is UserInputState.Recording) {
+            if (currentState.transcription.isNotBlank()) {
+                // If we have partial text, transition to Editing state and keep accepting late partials
+                _inputState.update { UserInputState.Editing(currentState.transcription, isPendingTranscription = true) }
+            } else {
+                // If no partial text, go back to Empty
+                _inputState.update { UserInputState.Empty }
+            }
+        }
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Input state after stopping recording: ${_inputState.value}"
+        )
     }
 
     /**
@@ -518,7 +529,29 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "handlePartialTranscription: partialText='$partialText'"
         )
-        _inputState.update { UserInputState.Recording(partialText) }
+        val current = _inputState.value
+        when (current) {
+            is UserInputState.Recording -> {
+                // Normal streaming while recording
+                _inputState.update { UserInputState.Recording(partialText) }
+            }
+            is UserInputState.Editing -> {
+                if (current.isPendingTranscription) {
+                    // After stop: continue showing latest partials while staying in Editing
+                    _inputState.update { UserInputState.Editing(partialText, isPendingTranscription = true) }
+                } else {
+                    // Stay in current state
+                    _inputState.update { current }
+                }
+            }
+            else -> {
+                Log.trace(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Ignoring partial transcription in state: $current"
+                )
+            }
+        }
     }
 
     /**
@@ -539,7 +572,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 TAG,
                 "Transitioning to Editing state with transcription: '$transcription'"
             )
-            _inputState.update { UserInputState.Editing(transcription) }
+            _inputState.update { UserInputState.Editing(transcription, isPendingTranscription = false) }
         } else {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,

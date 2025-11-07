@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +49,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 /**
  * Composable that displays a carousel of product images with navigation controls.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
@@ -74,7 +77,10 @@ internal fun ProductCarousel(
                 vertical = style.verticalPadding
             )
         ) {
-            items(elements) { element ->
+            items(
+                items = elements,
+                key = { it.id }
+            ) { element ->
                 ProductImage(
                     element = element,
                     modifier = Modifier

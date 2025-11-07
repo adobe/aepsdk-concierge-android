@@ -128,12 +128,12 @@ internal object TempConversationResponseParser {
     private fun extractMessageFromPayload(payload: JSONObject): ParsedConversationMessage? {
         val response = payload.optJSONObject(FIELD_RESPONSE) ?: return null
 
+        // Determine conversation state first to handle blank final messages on completion
+        val state = ConversationState.fromString(payload.optString(FIELD_STATE))
         val message = response.optString(FIELD_MESSAGE, "")
-        if (message.isEmpty()) {
+        if (message.isEmpty() && state != ConversationState.COMPLETED) {
             return null
         }
-
-        val state = ConversationState.fromString(payload.optString(FIELD_STATE))
         val conversationId = payload.optString(FIELD_CONVERSATION_ID).takeIf { it.isNotEmpty() }
         val interactionId = payload.optString(FIELD_INTERACTION_ID).takeIf { it.isNotEmpty() }
 
