@@ -343,43 +343,15 @@ internal class ConciergeConversationServiceClient(
         val timeZoneOffset =
             TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
 
-        val score = if (feedback.isPositive) 1 else 0
-        val classification = if (feedback.isPositive) "Thumbs Up" else "Thumbs Down"
-
-        // Map category IDs to full labels
-        val categoryLabels = mapOf(
-            "helpful" to "Helpful and relevant recommendations",
-            "clear" to "Clear and easy to understand",
-            "friendly" to "Friendly and conversational tone",
-            "visual" to "Visually appealing presentation",
-            "unclear" to "Didn't understand my request",
-            "irrelevant" to "Unhelpful or irrelevant information",
-            "vague" to "Too vague or lacking detail",
-            "errors" to "Errors or poor quality response",
-            "other" to "Other"
-        )
-        
-        val reasonsJson = feedback.selectedCategories
-            .mapNotNull { categoryLabels[it] }
-            .joinToString(",") { "\"$it\"" }
-        
-        // Format raw field as an array of objects with text and purpose
-        val rawJson = if (feedback.notes.isNotBlank()) {
-            """
-            {
-                "text": "${feedback.notes.replace("\"", "\\\"")}",
-                "purpose": "user input"
-            }
-            """.trimIndent()
+        val rawArray = if (feedback.notes.isNotBlank()) {
+            """[{"text": "${feedback.notes.replace("\"", "\\\"")}","purpose": "user input"}]"""
         } else {
-            ""
+            "[]"
         }
 
-        val conversationIdField = if (feedback.conversationId != null) {
-            """"conversationID": "${feedback.conversationId}","""
-        } else {
-            ""
-        }
+        val conversationIdLine = feedback.conversationId?.let {
+            """"conversationID": "$it","""
+        } ?: ""
 
         return """
 {
@@ -393,14 +365,14 @@ internal class ConciergeConversationServiceClient(
             "conversation": {
                 "feedback": {
                     "source": "end-user",
-                    "raw": [$rawJson],
+                    "raw": $rawArray,
                     "rating": {
-                        "score": $score,
-                        "classification": "$classification",
-                        "reasons": [$reasonsJson]
+                        "score": ${if (feedback.isPositive) 1 else 0},
+                        "classification": "${if (feedback.isPositive) "Thumbs Up" else "Thumbs Down"}",
+                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"$it\"" }}]
                     }
                 },
-                $conversationIdField
+                $conversationIdLine
                 "turnID": "${feedback.turnId}"
             },
             "eventType": "conversation.feedback",
@@ -410,9 +382,9 @@ internal class ConciergeConversationServiceClient(
                 "localTime": "$localTime"
             },
             "implementationDetails": {
-                "name": "https://ns.adobe.com/experience/mobilesdk/android",
-                "version": "1.0.0",
-                "environment": "app"
+            	"environment": "app",
+            	"name": "https:\/\/ns.adobe.com\/experience\/mobilesdk\/android",
+                "version": "3.5.0+3.0.0"
             }
         }
     }]
@@ -428,20 +400,14 @@ internal class ConciergeConversationServiceClient(
         body: String,
         connectTimeout: Int = DEFAULT_CONNECT_TIMEOUT,
         readTimeout: Int = DEFAULT_READ_TIMEOUT
-    ): NetworkRequest {
-        val headers = mapOf(
-            "Content-Type" to "application/json",
-        )
-
-        return NetworkRequest(
-            url,
-            HttpMethod.POST,
-            body.toByteArray(StandardCharsets.UTF_8),
-            headers,
-            connectTimeout,
-            readTimeout
-        )
-    }
+    ): NetworkRequest = NetworkRequest(
+        url,
+        HttpMethod.POST,
+        body.toByteArray(StandardCharsets.UTF_8),
+        mapOf("Content-Type" to "application/json"),
+        connectTimeout,
+        readTimeout
+    )
 
     /**
      * Cleanup method to cancel any ongoing network operations.

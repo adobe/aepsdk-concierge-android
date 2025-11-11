@@ -16,7 +16,6 @@ import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
-import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackType
 
 /**
  * Represents the overall state of the chat screen.
@@ -40,12 +39,12 @@ internal sealed class ChatScreenState {
     /**
      * Chat is showing a feedback dialog.
      */
-    data class ShowingFeedbackDialog(val interactionId: String, val feedbackType: FeedbackType) : ChatScreenState()
+    data class ShowingFeedbackDialog(val interactionId: String, val isPositive: Boolean) : ChatScreenState()
     
     /**
      * Chat is showing a feedback toast.
      */
-    data class ShowingFeedbackToast(val interactionId: String, val message: String, val feedbackType: FeedbackType) : ChatScreenState()
+    data class ShowingFeedbackToast(val interactionId: String, val message: String, val isPositive: Boolean) : ChatScreenState()
 }
 
 /**

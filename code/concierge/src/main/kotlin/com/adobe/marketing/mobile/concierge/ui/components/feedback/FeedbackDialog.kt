@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.feedback
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,11 +48,25 @@ import androidx.compose.ui.text.style.TextAlign
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Data class representing a feedback category
+ * Positive feedback categories
  */
-data class FeedbackCategory(
-    val id: String,
-    val label: String
+private val POSITIVE_CATEGORIES = listOf(
+    "Helpful and relevant recommendations",
+    "Clear and easy to understand",
+    "Friendly and conversational tone",
+    "Visually appealing presentation",
+    "Other"
+)
+
+/**
+ * Negative feedback categories
+ */
+private val NEGATIVE_CATEGORIES = listOf(
+    "Didn't understand my request",
+    "Unhelpful or irrelevant information",
+    "Too vague or lacking detail",
+    "Errors or poor quality response",
+    "Other"
 )
 
 /**
@@ -59,18 +74,10 @@ data class FeedbackCategory(
  */
 data class FeedbackSubmission(
     val interactionId: String,
-    val feedbackType: FeedbackType,
+    val isPositive: Boolean,
     val selectedCategories: List<String>,
     val notes: String
 )
-
-/**
- * Enum representing the type of feedback
- */
-enum class FeedbackType {
-    POSITIVE,
-    NEGATIVE
-}
 
 /**
  * Feedback dialog component that captures user feedback with selectable categories
@@ -78,7 +85,7 @@ enum class FeedbackType {
  *
  * @param modifier Optional [Modifier] for this component.
  * @param interactionId The interaction ID for the feedback.
- * @param feedbackType The type of feedback (positive or negative).
+ * @param isPositive Whether this is positive (true) or negative (false) feedback.
  * @param onDismiss Callback invoked when the dialog is dismissed.
  * @param onSubmit Callback invoked when feedback is submitted.
  */
@@ -86,7 +93,7 @@ enum class FeedbackType {
 internal fun FeedbackDialog(
     modifier: Modifier = Modifier,
     interactionId: String,
-    feedbackType: FeedbackType,
+    isPositive: Boolean,
     onDismiss: () -> Unit,
     onSubmit: (FeedbackSubmission) -> Unit
 ) {
@@ -96,26 +103,11 @@ internal fun FeedbackDialog(
     var selectedCategories by remember { mutableStateOf(setOf<String>()) }
     var notesText by remember { mutableStateOf("") }
 
-    val categories = when (feedbackType) {
-        FeedbackType.POSITIVE -> listOf(
-            FeedbackCategory("helpful", "Helpful and relevant recommendations"),
-            FeedbackCategory("clear", "Clear and easy to understand"),
-            FeedbackCategory("friendly", "Friendly and conversational tone"),
-            FeedbackCategory("visual", "Visually appealing presentation"),
-            FeedbackCategory("other", "Other")
-        )
-        FeedbackType.NEGATIVE -> listOf(
-            FeedbackCategory("unclear", "Didn't understand my request"),
-            FeedbackCategory("irrelevant", "Unhelpful or irrelevant information"),
-            FeedbackCategory("vague", "Too vague or lacking detail"),
-            FeedbackCategory("errors", "Errors or poor quality response"),
-            FeedbackCategory("other", "Other")
-        )
-    }
-    
-    val questionText = when (feedbackType) {
-        FeedbackType.POSITIVE -> "What went well? Select all that apply."
-        FeedbackType.NEGATIVE -> "What went wrong? Select all that apply."
+    val categories = if (isPositive) POSITIVE_CATEGORIES else NEGATIVE_CATEGORIES
+    val questionText = if (isPositive) {
+        "What went well? Select all that apply."
+    } else {
+        "What went wrong? Select all that apply."
     }
 
     Card(
@@ -159,18 +151,20 @@ internal fun FeedbackDialog(
             Column {
                 categories.forEach { category ->
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedCategories = if (category in selectedCategories) {
+                                    selectedCategories - category
+                                } else {
+                                    selectedCategories + category
+                                }
+                            },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = selectedCategories.contains(category.id),
-                            onCheckedChange = { isChecked ->
-                                selectedCategories = if (isChecked) {
-                                    selectedCategories + category.id
-                                } else {
-                                    selectedCategories - category.id
-                                }
-                            },
+                            checked = category in selectedCategories,
+                            onCheckedChange = null,
                             colors = CheckboxDefaults.colors(
                                 checkedColor = style.checkboxCheckedColor,
                                 uncheckedColor = style.checkboxUncheckedColor
@@ -180,7 +174,7 @@ internal fun FeedbackDialog(
                         Spacer(modifier = Modifier.width(style.checkboxSpacing))
                         
                         Text(
-                            text = category.label,
+                            text = category,
                             style = style.categoryTextStyle,
                             color = style.categoryTextColor,
                             modifier = Modifier.weight(1f)
@@ -252,7 +246,7 @@ internal fun FeedbackDialog(
                         onSubmit(
                             FeedbackSubmission(
                                 interactionId = interactionId,
-                                feedbackType = feedbackType,
+                                isPositive = isPositive,
                                 selectedCategories = selectedCategories.toList(),
                                 notes = notesText.trim()
                             )

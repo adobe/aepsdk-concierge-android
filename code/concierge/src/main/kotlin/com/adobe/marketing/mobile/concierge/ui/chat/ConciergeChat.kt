@@ -194,7 +194,7 @@ internal fun ConciergeChat(
                     .fillMaxWidth()
                     .align(Alignment.Center),
                 interactionId = state.interactionId,
-                feedbackType = state.feedbackType,
+                isPositive = state.isPositive,
                 onDismiss = {
                     onEvent(FeedbackEvent.DismissFeedbackDialog(state.interactionId))
                 },

@@ -27,7 +27,6 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
-import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -263,13 +262,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleFeedback(interactionId: String, feedbackType: String) {
         // Show feedback dialog based on the type
-        val feedbackTypeEnum = when (feedbackType) {
-            ConciergeConstants.ChatInteraction.POSITIVE -> FeedbackType.POSITIVE
-            ConciergeConstants.ChatInteraction.NEGATIVE -> FeedbackType.NEGATIVE
+        val isPositive = when (feedbackType) {
+            ConciergeConstants.ChatInteraction.POSITIVE -> true
+            ConciergeConstants.ChatInteraction.NEGATIVE -> false
             else -> return
         }
 
-        _state.update { ChatScreenState.ShowingFeedbackDialog(interactionId, feedbackTypeEnum) }
+        _state.update { ChatScreenState.ShowingFeedbackDialog(interactionId, isPositive) }
     }
 
     /**
@@ -278,9 +277,10 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleFeedbackSubmission(submission: FeedbackSubmission) {
         // Update feedback state
-        val feedbackState = when (submission.feedbackType) {
-            FeedbackType.POSITIVE -> FeedbackState.Positive
-            FeedbackType.NEGATIVE -> FeedbackState.Negative
+        val feedbackState = if (submission.isPositive) {
+            FeedbackState.Positive
+        } else {
+            FeedbackState.Negative
         }
 
         _feedbackStates.update { currentStates ->
@@ -288,16 +288,17 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         // Hide dialog and show toast with appropriate message
-        val toastMessage = when (submission.feedbackType) {
-            FeedbackType.POSITIVE -> "Thank you for your feedback."
-            FeedbackType.NEGATIVE -> "Thank you for your feedback. We strive to improve future results."
+        val toastMessage = if (submission.isPositive) {
+            "Thank you for your feedback."
+        } else {
+            "Thank you for your feedback. We strive to improve future results."
         }
 
         _state.update {
             ChatScreenState.ShowingFeedbackToast(
                 submission.interactionId,
                 toastMessage,
-                submission.feedbackType
+                submission.isPositive
             )
         }
 
@@ -306,7 +307,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             val feedbackPayload = FeedbackPayload(
                 turnId = submission.interactionId,
                 conversationId = currentConversationId,
-                isPositive = submission.feedbackType == FeedbackType.POSITIVE,
+                isPositive = submission.isPositive,
                 selectedCategories = submission.selectedCategories,
                 notes = submission.notes
             )
