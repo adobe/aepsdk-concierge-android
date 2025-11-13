@@ -21,42 +21,42 @@ import com.adobe.marketing.mobile.conciergeapp.R
 
 /**
  * Example Activity showing how to integrate ConciergeChatView into an XML-based application.
- * This demonstrates the integration approach for apps that use traditional XML layouts.
+ * This demonstrates two integration approaches:
+ * 
+ * 1. Direct Chat Mode (current): Full-screen chat that shows immediately
+ * 2. Dialog Mode (commented): Show a trigger view that opens chat in a dialog
  */
 class XmlChatActivity : AppCompatActivity() {
 
     private lateinit var chatView: ConciergeChatView
-    private lateinit var toggleButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_xml_chat)
         enableEdgeToEdge()
 
-        // Get references to views from layout
         chatView = findViewById(R.id.concierge_chat)
 
-        // Bind the chat view - this is where the magic happens!
+        // --- MODE 1: Direct Chat (Full-screen) ---
+        // Shows the chat interface directly without a  wrapper
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
-            onClose = {
-                finish()
-//                // Handle close button press
-//                chatView.visibility = View.GONE
-//                toggleButton.text = "Show Chat"
-            }
+            onClose = { finish() }
         )
-//
-//        // Toggle chat visibility
-//        toggleButton.setOnClickListener {
-//            if (chatView.isVisible) {
-//                chatView.visibility = View.GONE
-//                toggleButton.text = "Show Chat"
-//            } else {
-//                chatView.visibility = View.VISIBLE
-//                toggleButton.text = "Hide Chat"
-//            }
-//        }
+
+        // --- MODE 2: Dialog-based Chat ---
+        // Uncomment this and comment out Mode 1 above to test dialog mode
+        /*val triggerButton = Button(this).apply {
+            text = "Start Chat"
+            textSize = 38f
+            setPadding(32, 16, 32, 16)
+        }
+
+        chatView.bind(
+            lifecycleOwner = this,
+            viewModelStoreOwner = this,
+            triggerView = triggerButton
+        )*/
     }
 }

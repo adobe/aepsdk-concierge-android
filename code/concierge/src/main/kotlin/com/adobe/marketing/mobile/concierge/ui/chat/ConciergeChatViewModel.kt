@@ -81,6 +81,12 @@ class ConciergeChatViewModel : AndroidViewModel {
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
 
     /**
+     * Tracks whether the Concierge chat interface is active/open
+     */
+    private val _isConciergeActive = MutableStateFlow(false)
+    val isConciergeActive: StateFlow<Boolean> = _isConciergeActive.asStateFlow()
+
+    /**
      * Speech capturing implementation that will be used for this session
      */
     private val speechCapturing: SpeechCapturing
@@ -608,6 +614,20 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     fun refreshPermissionStatus() {
         _hasAudioPermission.update { checkAudioPermission() }
+    }
+
+    /**
+     * Opens the Concierge chat interface
+     */
+    fun openConcierge() {
+        _isConciergeActive.value = true
+    }
+
+    /**
+     * Closes the Concierge chat interface
+     */
+    fun closeConcierge() {
+        _isConciergeActive.value = false
     }
 
     override fun onCleared() {

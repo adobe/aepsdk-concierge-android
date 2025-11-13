@@ -20,6 +20,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+/**
+ * Represents the state of the Concierge extension.
+ *
+ * @property experienceCloudId The Experience Cloud ID (ECID) from the EdgeIdentity extension.
+ *                              Null indicates the ECID is not yet available or failed to load.
+ * @property configurationReady Indicates whether the configuration is ready.
+ */
+internal data class ConciergeState(
+    val experienceCloudId: String? = null,
+    val configurationReady: Boolean = false
+)
 
 /**
  * Thread-safe singleton repository that holds shared state for the Concierge extension.
@@ -31,21 +42,15 @@ import kotlinx.coroutines.flow.update
  */
 internal class ConciergeStateRepository private constructor() {
 
-    /**
-     * The Experience Cloud ID (ECID) from the EdgeIdentity extension.
-     * Null indicates the ECID is not yet available or failed to load.
-     */
-    private val _experienceCloudId = MutableStateFlow<String?>(null)
-    val experienceCloudId: StateFlow<String?> = _experienceCloudId.asStateFlow()
-
-    private val _configurationReady = MutableStateFlow(false)
-    val configurationReady: StateFlow<Boolean> = _configurationReady.asStateFlow()
+    private val _state = MutableStateFlow(ConciergeState())
+    val state: StateFlow<ConciergeState> = _state.asStateFlow()
 
     /**
      * Updates the Experience Cloud ID.
      * This should be called by the ConciergeExtension when ECID becomes available.
      *
-     * @param ecid The Experience Cloud ID, or null if unavailable
+     * @param api The ExtensionApi instance
+     * @param event The event that triggered the update
      */
     fun updateExperienceCloudId(api: ExtensionApi, event: Event) {
         val edgeIdentitySharedState = getXDMSharedState(
@@ -74,11 +79,15 @@ internal class ConciergeStateRepository private constructor() {
         val ecid =
             DataReader.optString(ecidMap, ConciergeConstants.SharedState.EdgeIdentity.ID, null)
                 ?.takeIf { it.isNotEmpty() }
-        _experienceCloudId.update { ecid }
+        _state.update { it.copy(experienceCloudId = ecid) }
     }
 
+    /**
+     * Updates the configuration ready state.
+     * This should be called by the ConciergeExtension when configuration becomes available.
+     */
     fun onConfigurationAvailable() {
-        _configurationReady.update { true }
+        _state.update { it.copy(configurationReady = true) }
     }
 
     /**
@@ -86,8 +95,7 @@ internal class ConciergeStateRepository private constructor() {
      * This can be called when the extension is unregistered or for testing purposes.
      */
     fun clear() {
-        _experienceCloudId.value = null
-        _configurationReady.value = false
+        _state.value = ConciergeState()
     }
 
     private fun getXDMSharedState(
@@ -100,10 +108,6 @@ internal class ConciergeStateRepository private constructor() {
         )?.value
 
     companion object {
-        /**
-         * Thread-safe singleton instance using Kotlin's lazy delegate.
-         * The lazy delegate uses double-checked locking by default (LazyThreadSafetyMode.SYNCHRONIZED).
-         */
         internal val instance: ConciergeStateRepository by lazy {
             ConciergeStateRepository()
         }
