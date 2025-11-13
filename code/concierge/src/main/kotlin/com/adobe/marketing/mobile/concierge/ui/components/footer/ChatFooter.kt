@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
-import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 
 /**
  * Footer component for chat messages that includes a sources accordion and feedback buttons.
@@ -40,39 +39,52 @@ import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 @Composable
 internal fun ChatFooter(
     modifier: Modifier = Modifier,
-    citations: List<Citation>,
+    citations: List<Citation>?,
     interactionId: String?,
     onFeedback: (FeedbackEvent) -> Unit,
     feedbackState: FeedbackState = FeedbackState.None
 ) {
+    val hasCitations = !citations.isNullOrEmpty()
+    val hasInteractionId = !interactionId.isNullOrEmpty()
+    
+    // Early return if no sources to show or if unable to send feedback due to no interaction id
+    if (!hasCitations && !hasInteractionId) return
+    
     var sourcesExpanded by remember { mutableStateOf(false) }
-    if (citations.isNotEmpty()) {
-        Column(modifier = modifier) {
-            // Top row: Sources label and feedback buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Sources accordion button (left side)
+    val arrangement = remember(hasCitations) {
+        if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
+    }
+
+    Column(modifier = modifier) {
+        // Top row: Sources label and feedback buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = arrangement,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Sources accordion button (left side)
+            if (hasCitations) {
                 SourcesAccordionButton(
                     expanded = sourcesExpanded,
                     onExpandedChange = { sourcesExpanded = it },
                     modifier = Modifier.weight(1f)
                 )
-
-                // Feedback buttons (right side)
-                if (interactionId != null) {
-                    FeedbackButtons(
-                        interactionId = interactionId,
-                        onFeedback = onFeedback,
-                        feedbackState = feedbackState
-                    )
-                }
             }
 
+            // Feedback buttons (right side)
+            if (hasInteractionId) {
+                FeedbackButtons(
+                    interactionId = interactionId!!,
+                    onFeedback = onFeedback,
+                    feedbackState = feedbackState
+                )
+            }
+        }
+
+        // Only compose ExpandedCitations when actually needed
+        if (hasCitations) {
             ExpandedCitations(
-                citations = citations,
+                citations = citations!!,
                 expanded = sourcesExpanded
             )
         }

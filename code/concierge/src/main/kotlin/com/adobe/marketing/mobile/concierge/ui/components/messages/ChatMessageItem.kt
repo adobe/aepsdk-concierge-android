@@ -114,8 +114,8 @@ private fun RenderTextMessage(
                         )
                     }
 
-                    // If we have a response message and citations are available then show the footer
-                    if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                    // Show footer if we have citations or have an interaction id for providing feedback
+                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                         ChatFooter(
                             citations = message.citations,
                             interactionId = message.interactionId,
@@ -196,8 +196,8 @@ private fun RenderMixedMessage(
                             }
                         }
 
-                        // If we have a response message and citations are available then show the footer
-                        if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                        // Show footer if we have citations or have an interaction id for providing feedback
+                        if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                             ChatFooter(
                                 citations = message.citations,
                                 interactionId = message.interactionId,
