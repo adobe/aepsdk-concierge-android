@@ -13,14 +13,22 @@
 package com.adobe.marketing.mobile.concierge.network
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
-import com.adobe.marketing.mobile.concierge.ui.config.PromptConfig
+import com.adobe.marketing.mobile.concierge.ui.config.SuggestedPrompt
 import com.adobe.marketing.mobile.services.Log
 import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * Parser for welcome API responses that extracts welcome configuration from JSON data.
- * This parser handles the JSON structure returned by the welcome API.
+ * Data class to hold parsed welcome data from the API response
+ */
+data class WelcomeData(
+    val heading: String? = null,
+    val subheading: String? = null,
+    val prompts: List<SuggestedPrompt> = emptyList()
+)
+
+/**
+ * This parser handles the JSON structure returned by the concierge configuration.
  */
 internal object WelcomeResponseParser {
     private const val TAG = "WelcomeResponseParser"
@@ -30,13 +38,18 @@ internal object WelcomeResponseParser {
     private const val FIELD_TEXT = "text"
     private const val FIELD_IMAGE = "image"
     private const val FIELD_BACKGROUND_COLOR = "backgroundColor"
+    private const val FIELD_WELCOME_HEADER = "welcome.heading"
+    private const val FIELD_SUB_HEADER = "welcome.subheading"
 
     /**
-     * Parses a JSON string from the welcome API and extracts prompt configurations.
+     * Parses a JSON string from the concierge configuration and extracts welcome data including
+     * heading, subheading, and prompt configurations.
      *
      * Expected JSON structure:
      * ```
      * {
+     *   "welcome.heading": "Explore what you can do with Adobe apps.",
+     *   "welcome.subheading": "Choose an option or tell us what interests you and we'll point you in the right direction.",
      *   "welcome.examples": [
      *     {
      *       "text": "I'd like to explore templates to see what I can create.",
@@ -49,100 +62,74 @@ internal object WelcomeResponseParser {
      * ```
      *
      * @param jsonData The raw JSON string from the welcome API response
-     * @return List of parsed prompt configurations, empty if parsing fails or no data found
+     * @return WelcomeData containing heading, subheading, and prompts, or null if parsing fails
      */
-    fun parseWelcomeData(jsonData: String): List<PromptConfig> {
+    fun parseWelcomeData(jsonData: String): WelcomeData? {
         if (jsonData.isBlank()) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
                 "Empty JSON data provided"
             )
-            return emptyList()
+            return null
         }
 
         return try {
             val jsonObject = JSONObject(jsonData)
-            extractPromptConfigs(jsonObject)
+            extractWelcomeData(jsonObject)
         } catch (e: JSONException) {
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
                 "Failed to parse welcome JSON: ${e.message}"
             )
-            emptyList()
+            null
         } catch (e: Exception) {
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
                 "Unexpected error parsing welcome data: ${e.message}"
             )
-            emptyList()
+            null
         }
     }
 
     /**
-     * Extracts prompt configurations from the parsed JSON object.
+     * Extracts welcome data from the parsed JSON object.
      */
-    private fun extractPromptConfigs(jsonObject: JSONObject): List<PromptConfig> {
-        val promptConfigs = mutableListOf<PromptConfig>()
-
-        val examplesArray = jsonObject.optJSONArray(FIELD_WELCOME_EXAMPLES)
-        if (examplesArray == null) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "No '$FIELD_WELCOME_EXAMPLES' array found in welcome response"
-            )
-            return emptyList()
-        }
-
-        for (i in 0 until examplesArray.length()) {
-            val exampleObj = examplesArray.optJSONObject(i)
-            if (exampleObj != null) {
-                val promptConfig = parsePromptConfig(exampleObj)
-                if (promptConfig != null) {
-                    promptConfigs.add(promptConfig)
-                    Log.debug(
-                        ConciergeConstants.EXTENSION_NAME,
-                        TAG,
-                        "Parsed prompt config ${i + 1}: text='${promptConfig.text}', " +
-                                "hasImage=${promptConfig.imageUrl != null}, " +
-                                "backgroundColor=${promptConfig.backgroundColor}"
-                    )
-                }
+    private fun extractWelcomeData(jsonObject: JSONObject): WelcomeData {
+        val heading = jsonObject.optString(FIELD_WELCOME_HEADER).takeIf { it.isNotEmpty() }
+        val subheading = jsonObject.optString(FIELD_SUB_HEADER).takeIf { it.isNotEmpty() }
+        
+        val prompts = jsonObject.optJSONArray(FIELD_WELCOME_EXAMPLES)?.let { examplesArray ->
+            (0 until examplesArray.length()).mapNotNull { i ->
+                examplesArray.optJSONObject(i)?.let { parseSuggestedPrompt(it) }
             }
-        }
+        } ?: emptyList()
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
-            "Successfully parsed ${promptConfigs.size} prompt configurations from welcome response"
+            "Parsed welcome data: heading='$heading', subheading='$subheading', ${prompts.size} prompts"
         )
 
-        return promptConfigs
+        return WelcomeData(
+            heading = heading,
+            subheading = subheading,
+            prompts = prompts
+        )
     }
 
     /**
-     * Parses a single prompt configuration from a JSONObject.
+     * Parses a suggested prompt from a JSONObject.
      * Returns null if required fields are missing.
      */
-    private fun parsePromptConfig(jsonObject: JSONObject): PromptConfig? {
-        val text = jsonObject.optString(FIELD_TEXT)
-        if (text.isEmpty()) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Skipping prompt config with empty text"
-            )
-            return null
-        }
-
-        // Map 'image' field to 'imageUrl' in PromptConfig
+    private fun parseSuggestedPrompt(jsonObject: JSONObject): SuggestedPrompt? {
+        val text = jsonObject.optString(FIELD_TEXT).takeIf { it.isNotEmpty() } ?: return null
         val imageUrl = jsonObject.optString(FIELD_IMAGE).takeIf { it.isNotEmpty() }
         val backgroundColor = jsonObject.optString(FIELD_BACKGROUND_COLOR).takeIf { it.isNotEmpty() }
 
-        return PromptConfig(
+        return SuggestedPrompt(
             text = text,
             imageUrl = imageUrl,
             backgroundColor = backgroundColor

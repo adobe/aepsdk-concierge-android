@@ -17,7 +17,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 /**
  * Data class representing a suggested prompt with image and styling
  */
-data class PromptConfig(
+data class SuggestedPrompt(
     val text: String,
     val imageUrl: String? = null,
     val backgroundColor: String? = null
@@ -50,13 +50,18 @@ data class WelcomeConfig(
     val returningUserWelcomeMessage: String? = null,
 
     /**
-     * Description text shown in the welcome card
+     * Header text shown in the welcome card
      */
-    val welcomeDescription: String = ConciergeConstants.WelcomeCard.DEFAULT_DESCRIPTION,
+    val welcomeHeader: String = ConciergeConstants.WelcomeCard.DEFAULT_HEADING,
+
+    /**
+     * Sub-Header text shown in the welcome card
+     */
+    val subHeader: String = ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING,
 
     /**
      * List of suggested prompts to show in the welcome card
      */
-    val suggestedPrompts: List<PromptConfig> = emptyList()
+    val suggestedPrompts: List<SuggestedPrompt> = emptyList()
 )
 

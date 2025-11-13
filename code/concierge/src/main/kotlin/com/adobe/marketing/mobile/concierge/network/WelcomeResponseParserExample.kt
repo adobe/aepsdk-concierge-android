@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 
 /**
@@ -24,26 +25,25 @@ internal object WelcomeResponseParserExample {
      * Example: Parse a mock welcome API response and create a WelcomeConfig
      */
     fun parseAndCreateConfig(jsonResponse: String): WelcomeConfig? {
-        // Parse the JSON response
-        val promptConfigs = WelcomeResponseParser.parseWelcomeData(jsonResponse)
+        // Parse the mock JSON response, return null if no prompts were parsed
+        val welcomeData = WelcomeResponseParser.parseWelcomeData(jsonResponse) ?: return null
         
-        // Return null if no prompts were parsed
-        if (promptConfigs.isEmpty()) {
-            return null
-        }
-        
-        // Create and return a WelcomeConfig with the parsed prompts
         return WelcomeConfig(
             showWelcomeCard = true,
-            suggestedPrompts = promptConfigs
+            welcomeHeader = welcomeData.heading ?: ConciergeConstants.WelcomeCard.DEFAULT_HEADING,
+            subHeader = welcomeData.subheading ?: ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING,
+            suggestedPrompts = welcomeData.prompts
         )
     }
 
     /**
      * Example: Mock API response matching the expected format
+     * TODO: Update this mock with the actual payload returned for the Welcome screen config
      */
     fun getMockWelcomeResponse(): String = """
         {
+            "welcome.heading": "Explore what you can do with Adobe apps.",
+            "welcome.subheading": "Choose an option or tell us what interests you and we'll point you in the right direction.",
             "welcome.examples": [
                 {
                     "text": "I'd like to explore templates to see what I can create.",

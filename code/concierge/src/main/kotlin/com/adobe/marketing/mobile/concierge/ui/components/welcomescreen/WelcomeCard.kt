@@ -36,23 +36,11 @@ import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Parse a hex color string to a Color object
- */
-private fun parseColor(colorString: String): Color? {
-    return try {
-        Color(android.graphics.Color.parseColor(colorString))
-    } catch (e: IllegalArgumentException) {
-        null
-    }
-}
-
-/**
  * Welcome card that blends into the chat screen.
  * Displays a welcome message, description, and suggested prompts for the user to explore.
  * 
  * @param config Configuration for the welcome card content
  * @param isReturningUser Whether the user is a returning user
- * @param onDismiss Callback when the card is dismissed
  * @param onPromptClick Callback when a suggested prompt is clicked
  * @param modifier Optional modifier for the component
  */
@@ -60,7 +48,6 @@ private fun parseColor(colorString: String): Color? {
 fun WelcomeCard(
     config: WelcomeConfig,
     isReturningUser: Boolean,
-    onDismiss: () -> Unit,
     onPromptClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -72,8 +59,13 @@ fun WelcomeCard(
             SuggestedPrompt(
                 text = promptConfig.text,
                 imageUrl = promptConfig.imageUrl,
-                backgroundColor = promptConfig.backgroundColor?.let { parseColor(it) },
-                imageVector = getDefaultIconForPrompt(promptConfig.text)
+                backgroundColor = promptConfig.backgroundColor?.let { 
+                    try {
+                        Color(android.graphics.Color.parseColor(it))
+                    } catch (e: IllegalArgumentException) {
+                        null
+                    }
+                }
             )
         }
     }
@@ -88,13 +80,12 @@ fun WelcomeCard(
             defaultElevation = style.elevation
         )
     ) {
-        Box {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(style.contentPadding),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(style.contentPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
                 // Brand Logo placeholder
                 Box(
                     modifier = Modifier
@@ -137,7 +128,7 @@ fun WelcomeCard(
 
                 // Description
                 Text(
-                    text = config.welcomeDescription,
+                    text = config.welcomeHeader,
                     style = style.descriptionTextStyle,
                     color = style.descriptionTextColor,
                     textAlign = TextAlign.Center
@@ -148,7 +139,7 @@ fun WelcomeCard(
                     Spacer(modifier = Modifier.height(style.promptsTopSpacing))
 
                     Text(
-                        text = ConciergeConstants.WelcomeCard.PROMPTS_HEADER,
+                        text = config.subHeader,
                         style = style.promptsHeaderTextStyle,
                         color = style.promptsHeaderTextColor,
                         textAlign = TextAlign.Center
@@ -159,9 +150,7 @@ fun WelcomeCard(
                     suggestedPrompts.forEach { prompt ->
                         SuggestedPromptItem(
                             prompt = prompt,
-                            onClick = {
-                                onPromptClick(prompt.text)
-                            }
+                            onClick = { onPromptClick(prompt.text) }
                         )
                         Spacer(modifier = Modifier.height(style.promptsSpacing))
                     }
@@ -169,4 +158,3 @@ fun WelcomeCard(
             }
         }
     }
-}

@@ -85,7 +85,6 @@ fun ConciergeChat(
                 onPermissionResult = { granted ->
                     viewModel.refreshPermissionStatus()
                 },
-                onWelcomeCardDismiss = viewModel::dismissWelcomeCard,
                 onClose = onClose
             )
         }
@@ -105,7 +104,6 @@ internal fun ConciergeChat(
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
-    onWelcomeCardDismiss: () -> Unit,
     onClose: () -> Unit
 ) {
     val style = ConciergeStyles.chatScreenStyle
@@ -169,7 +167,6 @@ internal fun ConciergeChat(
                         WelcomeCard(
                             config = welcomeConfig,
                             isReturningUser = isReturningUser,
-                            onDismiss = onWelcomeCardDismiss,
                             onPromptClick = { prompt -> onTextChanged(prompt) },
                             modifier = Modifier
                                 .fillMaxWidth()

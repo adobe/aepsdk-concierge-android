@@ -27,9 +27,9 @@ object ConciergeConstants {
     }
 
     object WelcomeCard {
-        const val DEFAULT_DESCRIPTION = "I'm your personal guide to help you explore and find exactly what you need. Let's get started!"
+        const val DEFAULT_HEADING = "I'm your personal guide to help you explore and find exactly what you need. Let's get started!"
         const val RETURNING_USER_WELCOME = "Hey, welcome back!"
         const val FIRST_TIME_WELCOME_TEMPLATE = "Welcome to %s concierge!"
-        const val PROMPTS_HEADER = "Not sure where to start? Explore the suggested ideas below."
+        const val DEFAULT_SUBHEADING = "Not sure where to start? Explore the suggested ideas below."
     }
 }

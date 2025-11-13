@@ -683,7 +683,7 @@ object ConciergeStyles {
                 titleBottomSpacing = 8.dp,
                 descriptionTextStyle = MaterialTheme.typography.bodyMedium,
                 descriptionTextColor = themeColors.onSurface.copy(alpha = 0.8f),
-                promptsTopSpacing = 20.dp,
+                promptsTopSpacing = 8.dp,
                 promptsHeaderTextStyle = MaterialTheme.typography.bodySmall,
                 promptsHeaderTextColor = themeColors.onSurface.copy(alpha = 0.6f),
                 promptsHeaderBottomSpacing = 12.dp,
