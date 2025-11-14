@@ -86,26 +86,6 @@ fun WelcomeCard(
                 .padding(style.contentPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-                // Brand Logo placeholder
-                Box(
-                    modifier = Modifier
-                        .size(style.logoSize)
-                        .background(
-                            color = style.logoBackgroundColor,
-                            shape = RoundedCornerShape(style.logoCornerRadius)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = config.brandName.take(1),
-                        style = style.logoTextStyle,
-                        color = style.logoTextColor,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(style.logoBottomSpacing))
-
                 // Welcome message
                 val welcomeText = if (isReturningUser) {
                     config.returningUserWelcomeMessage ?: ConciergeConstants.WelcomeCard.RETURNING_USER_WELCOME
