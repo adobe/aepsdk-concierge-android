@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
