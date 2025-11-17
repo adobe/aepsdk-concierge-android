@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -42,29 +44,31 @@ internal fun ConciergeResponse(
     text: String,
     modifier: Modifier = Modifier
 ) {
-    // Show thinking animation when text is empty
-    if (text.isEmpty()) {
-        ConciergeThinking(modifier = modifier)
-        return
-    }
+    Crossfade(
+        targetState = text.isEmpty(),
+        animationSpec = tween(durationMillis = 200)
+    ) { isEmpty ->
+        if (isEmpty) {
+            ConciergeThinking(modifier = modifier)
+        } else {
+            val tokens = remember(text) { MarkdownTokenizer.tokenize(text) }
+            val listTokens = remember(tokens) {
+                tokens.filter { it.type == TokenType.LIST }
+            }
 
-    val tokens = remember(text) { MarkdownTokenizer.tokenize(text) }
-
-    val listTokens = remember(tokens) {
-        tokens.filter { it.type == TokenType.LIST }
-    }
-
-    if (listTokens.isNotEmpty()) {
-        ConciergeResponseWithLists(
-            text = text,
-            listTokens = listTokens,
-            modifier = modifier
-        )
-    } else {
-        ConciergeResponseText(
-            text = text,
-            modifier = modifier
-        )
+            if (listTokens.isNotEmpty()) {
+                ConciergeResponseWithLists(
+                    text = text,
+                    listTokens = listTokens,
+                    modifier = modifier
+                )
+            } else {
+                ConciergeResponseText(
+                    text = text,
+                    modifier = modifier
+                )
+            }
+        }
     }
 }
 

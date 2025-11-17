@@ -83,6 +83,11 @@ internal class SSEParser {
             reader.useLines { lines ->
                 lines.forEach { line ->
                     try {
+                        Log.debug(
+                            ConciergeConstants.EXTENSION_NAME,
+                            TAG,
+                            "SSE raw line: $line"
+                        )
                         val events = feed(line)
                         events.forEach { sseEvent ->
                             emit(convertToStreamingEvent(sseEvent))
@@ -195,6 +200,11 @@ internal class SSEParser {
      * Converts a raw SSEEvent to a StreamingEvent with proper defaults.
      */
     private fun convertToStreamingEvent(sseEvent: SSEEvent): StreamingEvent {
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "SSE Event - type: ${sseEvent.eventType}, id: ${sseEvent.id}, data: ${sseEvent.data}, retry: ${sseEvent.retry}"
+        )
         return when {
             sseEvent.hasEventType() -> StreamingEvent.EventReceived(
                 sseEvent.eventType!!,
