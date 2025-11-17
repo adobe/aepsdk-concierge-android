@@ -45,6 +45,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 /**
  * Composable that displays a carousel of product images with navigation controls.
  */
+// HorizontalPager must be used with the experimental opt-in annotation but has been stabilized
+// in the next available compose version.
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ProductCarousel(
