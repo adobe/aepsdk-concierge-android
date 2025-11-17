@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,9 +24,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -35,11 +34,8 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +45,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 /**
  * Composable that displays a carousel of product images with navigation controls.
  */
+// HorizontalPager must be used with the experimental opt-in annotation but has been stabilized
+// in the next available compose version.
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ProductCarousel(
@@ -56,54 +54,60 @@ internal fun ProductCarousel(
     onImageClick: (MultimodalElement) -> Unit
 ) {
     val style = ConciergeStyles.productCarouselStyle
-    var currentPage by remember { mutableIntStateOf(0) }
-    val totalPages = elements.size
-    val listState = rememberLazyListState()
-
-    // Scroll to the selected page when currentPage changes
-    LaunchedEffect(currentPage) {
-        listState.animateScrollToItem(currentPage)
-    }
+    val pagerState = rememberPagerState(pageCount = { elements.size })
+    val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Product carousel
-        LazyRow(
-            state = listState,
-            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
+        // Use a HorizontalPager to show the elements in a carousel
+        HorizontalPager(
+            state = pagerState,
+            pageSize = PageSize.Fixed(style.imageWidth),
+            // Use the image width for the end padding to allow the page indicator to scroll to
+            // the last recommendation in the carousel
             contentPadding = PaddingValues(
-                horizontal = style.horizontalPadding,
-                vertical = style.verticalPadding
+                start = style.horizontalPadding,
+                end = style.imageWidth,
+                top = style.verticalPadding,
+                bottom = style.verticalPadding
+            ),
+            pageSpacing = style.itemSpacing,
+            beyondBoundsPageCount = 1,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            ProductImage(
+                element = elements[page],
+                modifier = Modifier
+                    .width(style.imageWidth)
+                    .height(style.imageHeight),
+                onImageClick = onImageClick,
+                isMultiElement = true
             )
-        ) {
-            items(
-                items = elements,
-                key = { it.id }
-            ) { element ->
-                ProductImage(
-                    element = element,
-                    modifier = Modifier
-                        .width(style.imageWidth)
-                        .height(style.imageHeight),
-                    onImageClick = onImageClick,
-                    isMultiElement = true
-                )
-            }
         }
 
         // Carousel switcher controls
         CarouselSwitcher(
-            currentPage = currentPage,
-            totalPages = totalPages,
+            currentPage = pagerState.settledPage,
+            totalPages = elements.size,
             onPreviousClick = {
-                if (currentPage > 0) currentPage--
+                if (pagerState.settledPage > 0) {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.settledPage - 1)
+                    }
+                }
             },
             onNextClick = {
-                if (currentPage < totalPages - 1) currentPage++
+                if (pagerState.settledPage < elements.size - 1) {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.settledPage + 1)
+                    }
+                }
             },
             onPageClick = { page ->
-                currentPage = page
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(page)
+                }
             }
         )
     }
@@ -136,7 +140,7 @@ internal fun CarouselSwitcher(
         ) {
             Icon(
                 imageVector = Icons.Default.ChevronLeft,
-                contentDescription = "Previous",
+                contentDescription = "Previous page",
                 tint = if (currentPage > 0) {
                     style.navigationIconActiveColor
                 } else {
@@ -144,6 +148,7 @@ internal fun CarouselSwitcher(
                 }
             )
         }
+
         Box(modifier = Modifier.width(style.navigationSpacing))
 
         // Page indicators
@@ -168,15 +173,16 @@ internal fun CarouselSwitcher(
             }
         }
 
-        // Next button
         Box(modifier = Modifier.width(style.navigationSpacing))
+
+        // Next button
         IconButton(
             onClick = onNextClick,
             enabled = currentPage < totalPages - 1
         ) {
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Next",
+                contentDescription = "Next page",
                 tint = if (currentPage < totalPages - 1) {
                     style.navigationIconActiveColor
                 } else {
