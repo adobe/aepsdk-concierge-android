@@ -527,7 +527,13 @@ object ConciergeStyles {
     @Immutable
     data class MicButtonStyle(
         val size: Dp,
-        val iconColor: Color
+        val iconColor: Color,
+        val recordingIconColor: Color,
+        val pulsingBackgroundColor: Color,
+        val pulsingBackgroundAlpha: Float,
+        val pulseAnimationDuration: Int,
+        val pulseScaleRange: Pair<Float, Float>,
+        val ringAlpha: Float
     )
 
     val micButtonStyle: MicButtonStyle
@@ -535,7 +541,13 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return MicButtonStyle(
                 size = 24.dp,
-                iconColor = themeColors.primary
+                iconColor = themeColors.primary,
+                recordingIconColor = themeColors.onPrimary,
+                pulsingBackgroundColor = themeColors.primary,
+                pulsingBackgroundAlpha = 0.25f,
+                pulseAnimationDuration = 1000,
+                pulseScaleRange = 1.5f to 2.0f,
+                ringAlpha = 0.30f,
             )
         }
 
