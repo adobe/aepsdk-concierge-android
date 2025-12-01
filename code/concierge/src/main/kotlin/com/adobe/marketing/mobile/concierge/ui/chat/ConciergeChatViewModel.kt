@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import androidx.compose.material3.SnackbarHostState
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,6 +33,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackUIState
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
@@ -70,6 +72,19 @@ class ConciergeChatViewModel : AndroidViewModel {
         UserInputState.Empty
     )
     internal val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
+
+    /**
+     * Tracks the UI state for feedback dialog
+     */
+    private val _feedbackUIState = MutableStateFlow<FeedbackUIState>(
+        FeedbackUIState.None
+    )
+    internal val feedbackUIState: StateFlow<FeedbackUIState> = _feedbackUIState.asStateFlow()
+
+    /**
+     * Snackbar state for showing feedback toast notifications
+     */
+    internal val snackbarHostState = SnackbarHostState()
 
     /**
      * List of chat messages in the conversation
@@ -185,7 +200,6 @@ class ConciergeChatViewModel : AndroidViewModel {
 
             is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.submission)
             is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
-            is FeedbackEvent.DismissFeedbackToast -> handleDismissFeedbackToast()
 
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
@@ -253,7 +267,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             else -> return
         }
 
-        _state.update { ChatScreenState.ShowingFeedbackDialog(interactionId, isPositive) }
+        _feedbackUIState.update { FeedbackUIState.ShowingDialog(interactionId, isPositive) }
     }
 
     /**
@@ -272,18 +286,20 @@ class ConciergeChatViewModel : AndroidViewModel {
             currentStates + (submission.interactionId to feedbackState)
         }
 
-        // Hide dialog and show toast with appropriate message
-        val toastMessage = if (submission.isPositive) {
+        // Hide dialog
+        _feedbackUIState.update { FeedbackUIState.None }
+
+        // Show snackbar with appropriate message
+        val snackbarMessage = if (submission.isPositive) {
             "Thank you for your feedback."
         } else {
             "Thank you for your feedback. We strive to improve future results."
         }
 
-        _state.update {
-            ChatScreenState.ShowingFeedbackToast(
-                submission.interactionId,
-                toastMessage,
-                submission.isPositive
+        viewModelScope.launch {
+            snackbarHostState.showSnackbar(
+                message = snackbarMessage,
+                withDismissAction = true
             )
         }
 
@@ -318,14 +334,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Handles dismissing the feedback dialog
      */
     private fun handleDismissFeedbackDialog() {
-        _state.update { ChatScreenState.Idle }
-    }
-
-    /**
-     * Handles dismissing the feedback toast
-     */
-    private fun handleDismissFeedbackToast() {
-        _state.update { ChatScreenState.Idle }
+        _feedbackUIState.update { FeedbackUIState.None }
     }
 
     /**

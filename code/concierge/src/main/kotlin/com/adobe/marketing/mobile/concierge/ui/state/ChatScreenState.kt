@@ -35,16 +35,6 @@ internal sealed class ChatScreenState {
      * Chat is in an error state.
      */
     data class Error(val error: String) : ChatScreenState()
-    
-    /**
-     * Chat is showing a feedback dialog.
-     */
-    data class ShowingFeedbackDialog(val interactionId: String, val isPositive: Boolean) : ChatScreenState()
-    
-    /**
-     * Chat is showing a feedback toast.
-     */
-    data class ShowingFeedbackToast(val interactionId: String, val message: String, val isPositive: Boolean) : ChatScreenState()
 }
 
 /**
@@ -97,11 +87,6 @@ internal sealed class FeedbackEvent : ChatEvent() {
      * User dismissed the feedback dialog.
      */
     data class DismissFeedbackDialog(val interactionId: String) : FeedbackEvent()
-    
-    /**
-     * User dismissed the feedback toast (manually or auto-dismiss).
-     */
-    object DismissFeedbackToast : FeedbackEvent()
 }
 
 /**

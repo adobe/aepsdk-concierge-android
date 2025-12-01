@@ -722,41 +722,22 @@ object ConciergeStyles {
         }
 
     /**
-     * Styling for feedback toast notification
+     * Styling for feedback snackbar notification
      */
     @Immutable
-    data class FeedbackToastStyle(
-        val backgroundColor: Color,
-        val elevation: Dp,
-        val shape: Shape,
-        val contentPadding: Dp,
-        val iconSize: Dp,
-        val iconColor: Color,
-        val iconSpacing: Dp,
-        val messageTextStyle: TextStyle,
-        val messageTextColor: Color,
-        val messageCloseSpacing: Dp,
-        val closeButtonSize: Dp,
-        val closeIconSize: Dp,
-        val closeIconColor: Color
+    data class SnackbarStyle(
+        val containerColor: Color,
+        val contentColor: Color,
+        val actionColor: Color
     )
 
-    val feedbackToastStyle: FeedbackToastStyle
+    val snackbarStyle: SnackbarStyle
         @Composable get() {
-            return FeedbackToastStyle(
-                backgroundColor = Color(0xFF4CAF50),
-                elevation = 4.dp,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = 16.dp,
-                iconSize = 20.dp,
-                iconColor = Color.White,
-                iconSpacing = 12.dp,
-                messageTextStyle = MaterialTheme.typography.bodyMedium,
-                messageTextColor = Color.White,
-                messageCloseSpacing = 8.dp,
-                closeButtonSize = 24.dp,
-                closeIconSize = 16.dp,
-                closeIconColor = Color.White
+            return SnackbarStyle(
+                containerColor = Color(0xFF4CAF50), // Green
+                contentColor = Color.White,
+                actionColor = Color.White
             )
         }
+
 }

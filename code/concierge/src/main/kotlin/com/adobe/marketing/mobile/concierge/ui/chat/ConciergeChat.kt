@@ -22,17 +22,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
-import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackToast
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
@@ -42,6 +45,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackUIState
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
@@ -57,6 +61,7 @@ fun ConciergeChat(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
+    val feedbackUIState by viewModel.feedbackUIState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val feedbackStates by viewModel.feedbackStates.collectAsStateWithLifecycle()
     // TODO: Need to expose this permission to the app level to handle permission requests
@@ -75,7 +80,8 @@ fun ConciergeChat(
                 inputState = inputState,
                 hasAudioPermission = hasAudioPermission,
                 feedbackStates = feedbackStates,
-                state = state,
+                feedbackUIState = feedbackUIState,
+                snackbarHostState = viewModel.snackbarHostState,
                 onTextChanged = viewModel::onTextStateChanged,
                 onEvent = viewModel::processEvent,
                 onPermissionResult = { granted ->
@@ -95,113 +101,115 @@ internal fun ConciergeChat(
     inputState: UserInputState,
     hasAudioPermission: Boolean,
     feedbackStates: Map<String, FeedbackState>,
-    state: ChatScreenState,
+    feedbackUIState: FeedbackUIState,
+    snackbarHostState: SnackbarHostState,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit
 ) {
     val style = ConciergeStyles.chatScreenStyle
+    val snackbarStyle = ConciergeStyles.snackbarStyle
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(style.backgroundColor)
-            .navigationBarsPadding()
-            .statusBarsPadding()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null // No ripple effect
-            ) {
-                focusManager.clearFocus() // Dismiss keyboard when tapping outside
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = snackbarStyle.containerColor,
+                    contentColor = snackbarStyle.contentColor,
+                    actionColor = snackbarStyle.actionColor
+                )
             }
-    ) {
-        Column(
+        },
+        containerColor = Color.Transparent
+    ) { paddingValues ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(style.backgroundColor)
+                .navigationBarsPadding()
+                .statusBarsPadding()
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null // No ripple effect
+                ) {
+                    focusManager.clearFocus() // Dismiss keyboard when tapping outside
+                }
         ) {
-
-            ChatHeader(onClose = onClose)
-
-            // Messages list
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxSize()
             ) {
-                val messageListStyle = ConciergeStyles.messageListStyle
-                MessageList(
-                    messages = messages,
-                    onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
-                    onActionClick = { button -> onEvent(ProductActionClick(button)) },
-                    onImageClick = { element -> onEvent(ProductImageClick(element)) },
-                    onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
-                    feedbackStates = feedbackStates,
+
+                ChatHeader(onClose = onClose)
+
+                // Messages list
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = messageListStyle.horizontalPadding)
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    val messageListStyle = ConciergeStyles.messageListStyle
+                    MessageList(
+                        messages = messages,
+                        onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
+                        onActionClick = { button -> onEvent(ProductActionClick(button)) },
+                        onImageClick = { element -> onEvent(ProductImageClick(element)) },
+                        onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
+                        feedbackStates = feedbackStates,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = messageListStyle.horizontalPadding)
+                    )
+                }
+
+                // User input
+                UserInput(
+                    inputState = inputState,
+                    onTextChange = onTextChanged,
+                    isProcessing = isProcessing,
+                    hasAudioPermission = hasAudioPermission,
+                    onSend = { text ->
+                        onEvent(ChatEvent.SendMessage(text))
+                    },
+                    onMicEvent = onEvent,
+                    onPermissionResult = onPermissionResult,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // User input
-            UserInput(
-                inputState = inputState,
-                onTextChange = onTextChanged,
-                isProcessing = isProcessing,
-                hasAudioPermission = hasAudioPermission,
-                onSend = { text ->
-                    onEvent(ChatEvent.SendMessage(text))
-                },
-                onMicEvent = onEvent,
-                onPermissionResult = onPermissionResult,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Feedback toast overlay
-            if (state is ChatScreenState.ShowingFeedbackToast) {
-                FeedbackToast(
+            // Error overlay if there's an error
+            errorMessage?.let {
+                ErrorOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    isVisible = true,
-                    message = state.message,
+                        .align(Alignment.Center),
+                    errorMessage = it,
                     onDismiss = {
-                        onEvent(FeedbackEvent.DismissFeedbackToast)
+                        onEvent(ChatEvent.Reset)
                     }
                 )
             }
-        }
 
-        // Error overlay if there's an error
-        errorMessage?.let {
-            ErrorOverlay(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                errorMessage = it,
-                onDismiss = {
-                    onEvent(ChatEvent.Reset)
-                }
-            )
-        }
-
-        // Feedback dialog overlay
-        if (state is ChatScreenState.ShowingFeedbackDialog) {
-            FeedbackDialog(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                interactionId = state.interactionId,
-                isPositive = state.isPositive,
-                onDismiss = {
-                    onEvent(FeedbackEvent.DismissFeedbackDialog(state.interactionId))
-                },
-                onSubmit = { submission ->
-                    onEvent(FeedbackEvent.SubmitFeedback(submission))
-                }
-            )
+            // Feedback dialog overlay
+            if (feedbackUIState is FeedbackUIState.ShowingDialog) {
+                FeedbackDialog(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center),
+                    interactionId = feedbackUIState.interactionId,
+                    isPositive = feedbackUIState.isPositive,
+                    onDismiss = {
+                        onEvent(FeedbackEvent.DismissFeedbackDialog(feedbackUIState.interactionId))
+                    },
+                    onSubmit = { submission ->
+                        onEvent(FeedbackEvent.SubmitFeedback(submission))
+                    }
+                )
+            }
         }
     }
 }
