@@ -10,7 +10,7 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.network
+package com.adobe.marketing.mobile.concierge.utils
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.config.SuggestedPrompt
@@ -100,7 +100,7 @@ internal object WelcomeResponseParser {
     private fun extractWelcomeData(jsonObject: JSONObject): WelcomeData {
         val heading = jsonObject.optString(FIELD_WELCOME_HEADER).takeIf { it.isNotEmpty() }
         val subheading = jsonObject.optString(FIELD_SUB_HEADER).takeIf { it.isNotEmpty() }
-        
+
         val prompts = jsonObject.optJSONArray(FIELD_WELCOME_EXAMPLES)?.let { examplesArray ->
             (0 until examplesArray.length()).mapNotNull { i ->
                 examplesArray.optJSONObject(i)?.let { parseSuggestedPrompt(it) }
@@ -136,4 +136,3 @@ internal object WelcomeResponseParser {
         )
     }
 }
-

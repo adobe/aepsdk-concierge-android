@@ -23,7 +23,6 @@ import com.adobe.marketing.mobile.concierge.network.ConciergeConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
-import com.adobe.marketing.mobile.concierge.network.WelcomeResponseParserExample
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
@@ -41,6 +40,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
+import com.adobe.marketing.mobile.concierge.utils.WelcomeResponseParser
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,16 +58,45 @@ class ConciergeChatViewModel : AndroidViewModel {
          * In a real implementation, this would fetch from a backend API
          */
         private fun initializeWelcomeConfig(): WelcomeConfig {
-            // Get the mock welcome response
-            val mockResponse = WelcomeResponseParserExample.getMockWelcomeResponse()
-            
-            // Parse and create config
-            val parsedConfig = WelcomeResponseParserExample.parseAndCreateConfig(
-                jsonResponse = mockResponse
+            // Setup a mock welcome response
+            val mockResponse = """
+                {
+                "welcome.heading": "Explore what you can do with Adobe apps.",
+                "welcome.subheading": "Choose an option or tell us what interests you and we'll point you in the right direction.",
+                "welcome.examples": [
+                    {
+                        "text": "I'd like to explore templates to see what I can create.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
+                        "backgroundColor": "#FFFFFF"
+                    },
+                    {
+                        "text": "I want to touch up and enhance my photos.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
+                        "backgroundColor": "#FFFFFF"
+                    },
+                    {
+                        "text": "I'd like to edit PDFs and make them interactive.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
+                        "backgroundColor": "#FFFFFF"
+                    },
+                    {
+                        "text": "I want to turn my clips into polished videos.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
+                        "backgroundColor": "#FFFFFF"
+                    }
+                ]
+            }
+            """.trimIndent()
+
+            val welcomeData = WelcomeResponseParser.parseWelcomeData(mockResponse)
+
+            // Use default values if none are configured
+            return WelcomeConfig(
+                showWelcomeCard = true,
+                welcomeHeader = welcomeData?.heading ?: ConciergeConstants.WelcomeCard.DEFAULT_HEADING,
+                subHeader = welcomeData?.subheading ?: ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING,
+                suggestedPrompts = welcomeData?.prompts ?: emptyList()
             )
-            
-            // Return parsed config or fall back to default
-            return parsedConfig ?: WelcomeConfig()
         }
     }
 
