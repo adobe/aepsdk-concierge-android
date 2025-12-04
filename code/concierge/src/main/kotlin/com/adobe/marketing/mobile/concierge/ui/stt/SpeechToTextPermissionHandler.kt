@@ -23,6 +23,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,9 @@ import androidx.core.app.ActivityCompat
  * 4. Handle result:
  *    - If allowed (once or while using) → Start recording
  *    - If denied → Show settings dialog
+ * 
+ * Note: Permission status is refreshed by parent component on lifecycle resume.
+ * This handler reacts to permission state changes to clean up UI state.
  */
 @Composable
 internal fun SpeechPermissionHandler(
@@ -53,6 +57,16 @@ internal fun SpeechPermissionHandler(
     var isInPermissionFlow by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = context as? Activity
+
+    // React to permission changes - if granted while in flow, clean up state
+    LaunchedEffect(hasPermission) {
+        if (hasPermission && isInPermissionFlow) {
+            // Permission was granted (likely from settings), reset all flow states
+            isInPermissionFlow = false
+            showSettingsDialog = false
+            showRationaleDialog = false
+        }
+    }
 
     // System permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -129,7 +143,6 @@ internal fun SpeechPermissionHandler(
             confirmButton = {
                 Button(onClick = {
                     showSettingsDialog = false
-                    isInPermissionFlow = false
                     // Navigate to app settings
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                         data = Uri.fromParts("package", context.packageName, null)
