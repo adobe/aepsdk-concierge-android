@@ -44,7 +44,7 @@ import androidx.lifecycle.ViewModelStoreOwner
  *
  * ## Mode 2: Dialog-based Chat (With trigger view)
  * Shows a trigger view (like a button) that opens the chat in a dialog when clicked.
- * Only shows the trigger view when the Concierge repository is ready.
+ * Only shows the trigger view when the Concierge extension is ready.
  *
  * Usage in Activity/Fragment:
  * ```kotlin
@@ -113,7 +113,7 @@ class ConciergeChatView @JvmOverloads constructor(
      * Binds the chat view to show a trigger view that opens chat in a dialog (Mode 2: Dialog-based).
      *
      * This mode:
-     * - Checks if Concierge repository is ready (configuration loaded and ECID available)
+     * - Checks if Concierge extension is ready (configuration loaded and ECID available)
      * - Shows the trigger view only when ready
      * - Opens chat in a full-screen dialog when trigger view is clicked
      * - Reuses the same dialog implementation as the Compose wrapper

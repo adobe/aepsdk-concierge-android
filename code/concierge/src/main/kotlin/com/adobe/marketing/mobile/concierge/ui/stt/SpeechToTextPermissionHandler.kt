@@ -91,7 +91,7 @@ internal fun SpeechPermissionHandler(
             },
             title = { Text("Microphone & Speech Recognition Permission Required") },
             text = { 
-                Text("This app needs access to your microphone to enable voice input. \n Your audio will be recorded and sent to Google servers for speech recognition processing.")
+                Text("This app needs access to your microphone to enable voice input. \nYour audio will be recorded and sent to Google servers for speech recognition processing.")
             },
             confirmButton = {
                 Button(onClick = {
@@ -123,7 +123,7 @@ internal fun SpeechPermissionHandler(
             },
             title = { Text("Permission Required") },
             text = { 
-                Text("Microphone & Speech Recognition is essential for using voice input. \n " +
+                Text("Microphone & Speech Recognition is essential for using voice input. \n" +
                         "Please enable it in the app settings to use this feature.")
             },
             confirmButton = {
