@@ -33,12 +33,12 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
-import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
+import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,6 +79,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private val _hasAudioPermission = MutableStateFlow(checkAudioPermission())
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
+
+    /**
+     * Tracks whether the Concierge chat interface is active/open
+     */
+    private val _isConciergeActive = MutableStateFlow(false)
+    val isConciergeActive: StateFlow<Boolean> = _isConciergeActive.asStateFlow()
 
     /**
      * Speech capturing implementation that will be used for this session
@@ -608,6 +614,20 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     fun refreshPermissionStatus() {
         _hasAudioPermission.update { checkAudioPermission() }
+    }
+
+    /**
+     * Opens the Concierge chat interface
+     */
+    fun openConcierge() {
+        _isConciergeActive.value = true
+    }
+
+    /**
+     * Closes the Concierge chat interface
+     */
+    fun closeConcierge() {
+        _isConciergeActive.value = false
     }
 
     override fun onCleared() {
