@@ -15,6 +15,19 @@ object ConciergeConstants {
     const val EXTENSION_NAME = "concierge"
     const val EXTENSION_FRIENDLY_NAME = "Concierge"
     const val EXTENSION_VERSION = "3.0.0"
+    const val LOG_TAG = "Concierge"
+
+    object SharedState {
+        object EdgeIdentity {
+            const val EXTENSION_NAME = "com.adobe.edge.identity"
+            const val IDENTITY_MAP = "identityMap"
+            const val ECID = "ECID"
+            const val ID = "id"
+        }
+        object Configuration {
+            const val EXTENSION_NAME = "com.adobe.module.configuration"
+        }
+    }
 
     object ChatInteraction {
         const val POSITIVE = "positive"
