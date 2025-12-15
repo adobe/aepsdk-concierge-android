@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.Scaffold
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -220,8 +220,66 @@ internal fun ConciergeChat(
     val isProcessing = chatState is ChatScreenState.Processing
     val errorMessage = (chatState as? ChatScreenState.Error)?.error
 
-    Scaffold(
-        snackbarHost = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(style.backgroundColor)
+            .navigationBarsPadding()
+            .statusBarsPadding()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            ChatHeader(onClose = onClose)
+
+            // Messages list
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                val messageListStyle = ConciergeStyles.messageListStyle
+                MessageList(
+                    messages = messages,
+                    onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
+                    onActionClick = { button -> onEvent(ProductActionClick(button)) },
+                    onImageClick = { element -> onEvent(ProductImageClick(element)) },
+                    onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
+                    feedbackStates = feedbackStates,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = messageListStyle.horizontalPadding)
+                )
+            }
+
+            // User input
+            UserInput(
+                inputState = inputState,
+                onTextChange = onTextChanged,
+                isProcessing = isProcessing,
+                hasAudioPermission = hasAudioPermission,
+                onSend = { text ->
+                    onEvent(ChatEvent.SendMessage(text))
+                },
+                onMicEvent = onEvent,
+                onPermissionResult = onPermissionResult,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Snackbar positioned at the bottom
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
                     snackbarData = data,
@@ -230,93 +288,36 @@ internal fun ConciergeChat(
                     actionColor = snackbarStyle.actionColor
                 )
             }
-        },
-        containerColor = Color.Transparent
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(style.backgroundColor)
-                .navigationBarsPadding()
-                .statusBarsPadding()
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null // No ripple effect
-                ) {
-                    focusManager.clearFocus() // Dismiss keyboard when tapping outside
-                }
-        ) {
-            Column(
+        }
+
+        // Error overlay if there's an error
+        errorMessage?.let {
+            ErrorOverlay(
                 modifier = Modifier
-                    .fillMaxSize()
-            ) {
-
-                ChatHeader(onClose = onClose)
-
-                // Messages list
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    val messageListStyle = ConciergeStyles.messageListStyle
-                    MessageList(
-                        messages = messages,
-                        onFeedback = { feedbackEvent -> onEvent(feedbackEvent) },
-                        onActionClick = { button -> onEvent(ProductActionClick(button)) },
-                        onImageClick = { element -> onEvent(ProductImageClick(element)) },
-                        onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
-                        feedbackStates = feedbackStates,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = messageListStyle.horizontalPadding)
-                    )
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                errorMessage = it,
+                onDismiss = {
+                    onEvent(ChatEvent.Reset)
                 }
+            )
+        }
 
-                // User input
-                UserInput(
-                    inputState = inputState,
-                    onTextChange = onTextChanged,
-                    isProcessing = isProcessing,
-                    hasAudioPermission = hasAudioPermission,
-                    onSend = { text ->
-                        onEvent(ChatEvent.SendMessage(text))
-                    },
-                    onMicEvent = onEvent,
-                    onPermissionResult = onPermissionResult,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Error overlay if there's an error
-            errorMessage?.let {
-                ErrorOverlay(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center),
-                    errorMessage = it,
-                    onDismiss = {
-                        onEvent(ChatEvent.Reset)
-                    }
-                )
-            }
-
-            // Feedback dialog overlay
-            if (feedbackUIState is FeedbackUIState.ShowingDialog) {
-                FeedbackDialog(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center),
-                    interactionId = feedbackUIState.interactionId,
-                    isPositive = feedbackUIState.isPositive,
-                    onDismiss = {
-                        onEvent(FeedbackEvent.DismissFeedbackDialog(feedbackUIState.interactionId))
-                    },
-                    onSubmit = { submission ->
-                        onEvent(FeedbackEvent.SubmitFeedback(submission))
-                    }
-                )
-            }
+        // Feedback dialog overlay
+        if (feedbackUIState is FeedbackUIState.ShowingDialog) {
+            FeedbackDialog(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                interactionId = feedbackUIState.interactionId,
+                isPositive = feedbackUIState.isPositive,
+                onDismiss = {
+                    onEvent(FeedbackEvent.DismissFeedbackDialog(feedbackUIState.interactionId))
+                },
+                onSubmit = { submission ->
+                    onEvent(FeedbackEvent.SubmitFeedback(submission))
+                }
+            )
         }
     }
 }
