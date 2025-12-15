@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.image
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -78,14 +80,19 @@ internal fun AsyncImage(
             }
 
             ImageLoadingState.Success -> {
-                // Show the loaded image
-                imageResult.image?.let { bitmap ->
-                    Image(
-                        painter = BitmapPainter(bitmap),
-                        contentDescription = contentDescription,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = contentScale
-                    )
+                Crossfade(
+                    targetState = imageResult.image,
+                    animationSpec = tween(durationMillis = 220),
+                    label = "imageFadeIn"
+                ) { bitmap ->
+                    bitmap?.let {
+                        Image(
+                            painter = BitmapPainter(it),
+                            contentDescription = contentDescription,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = contentScale
+                        )
+                    }
                 }
             }
         }

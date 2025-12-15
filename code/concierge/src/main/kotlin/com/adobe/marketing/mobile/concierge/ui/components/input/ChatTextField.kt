@@ -16,7 +16,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -26,8 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * A text input field for chat messages with support for different states.
@@ -48,6 +47,7 @@ internal fun ChatTextField(
     placeholder: String = "Type a message..."
 ) {
     val style = ConciergeStyles.chatTextFieldStyle
+    val textColor = ConciergeTheme.colors.onSurface
     val focusManager = LocalFocusManager.current
 
     OutlinedTextField(
@@ -80,7 +80,10 @@ internal fun ChatTextField(
             disabledContainerColor = Color.Transparent,
             focusedBorderColor = Color.Transparent,
             unfocusedBorderColor = Color.Transparent,
-            disabledBorderColor = Color.Transparent
+            disabledBorderColor = Color.Transparent,
+            focusedTextColor = textColor,
+            unfocusedTextColor = textColor,
+            disabledTextColor = textColor.copy(alpha = 0.5f)
         ),
         textStyle = style.textStyle
     )

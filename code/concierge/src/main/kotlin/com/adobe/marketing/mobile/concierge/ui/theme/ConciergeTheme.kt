@@ -13,6 +13,8 @@
 package com.adobe.marketing.mobile.concierge.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -35,7 +37,7 @@ fun ConciergeTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkConciergeColors else LightConciergeColors
-    
+
     CompositionLocalProvider(
         LocalConciergeColors provides colors,
         content = content
@@ -51,4 +53,42 @@ object ConciergeTheme {
      */
     val colors: ConciergeColors
         @Composable get() = LocalConciergeColors.current
+
+    /**
+     * Material Design ColorScheme derived from ConciergeColors.
+     * Used for components that require Material ColorScheme (e.g., markdown rendering).
+     */
+    val colorScheme: ColorScheme
+        @Composable get() {
+            val colors = ConciergeTheme.colors
+            return if (isSystemInDarkTheme()) {
+                // Dark mode is not currently supported, fallback to light mode colors
+                lightColorScheme(
+                    primary = colors.primary,
+                    onPrimary = colors.onPrimary,
+                    secondary = colors.secondary,
+                    surface = colors.surface,
+                    onSurface = colors.onSurface,
+                    surfaceContainer = colors.container,
+                    surfaceContainerHighest = colors.container,
+                    background = colors.background,
+                    error = colors.error,
+                    onError = colors.onError
+                )
+            } else {
+                lightColorScheme(
+                    primary = colors.primary,
+                    onPrimary = colors.onPrimary,
+                    secondary = colors.secondary,
+                    surface = colors.surface,
+                    onSurface = colors.onSurface,
+                    surfaceContainer = colors.container,
+                    surfaceContainerHighest = colors.container,
+                    background = colors.background,
+                    error = colors.error,
+                    onError = colors.onError
+                )
+            }
+        }
+
 }

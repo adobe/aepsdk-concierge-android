@@ -18,7 +18,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
  * Sealed class representing different types of content segments in a response.
  */
 internal sealed class ContentSegment {
-    data class Text(val content: String) : ContentSegment()
+    data class Text(val content: String, val startIndex: Int, val endIndex: Int) : ContentSegment()
     data class List(val tokens: kotlin.collections.List<MarkdownToken>) : ContentSegment()
 }
 
@@ -34,35 +34,35 @@ internal object ContentSegmentParser {
         listTokens: List<MarkdownToken>
     ): List<ContentSegment> {
         if (listTokens.isEmpty()) {
-            return listOf(ContentSegment.Text(text))
+            return listOf(ContentSegment.Text(text, 0, text.length))
         }
-        
+
         val sortedTokens = listTokens.sortedBy { it.start }
         val segments = mutableListOf<ContentSegment>()
         var currentIndex = 0
-        
+
         sortedTokens.forEach { token ->
             // Add text content before the list item
             if (token.start > currentIndex) {
                 val textContent = text.substring(currentIndex, token.start).trim()
                 if (textContent.isNotEmpty()) {
-                    segments.add(ContentSegment.Text(textContent))
+                    segments.add(ContentSegment.Text(textContent, currentIndex, token.start))
                 }
             }
-            
+
             // Add the list item
             segments.add(ContentSegment.List(listOf(token)))
             currentIndex = token.end
         }
-        
+
         // Add any remaining text content after the last list item
         if (currentIndex < text.length) {
             val remainingText = text.substring(currentIndex).trim()
             if (remainingText.isNotEmpty()) {
-                segments.add(ContentSegment.Text(remainingText))
+                segments.add(ContentSegment.Text(remainingText, currentIndex, text.length))
             }
         }
-        
+
         return segments
     }
 }

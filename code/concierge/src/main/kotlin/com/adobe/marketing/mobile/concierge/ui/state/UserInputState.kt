@@ -23,7 +23,10 @@ internal sealed class UserInputState {
     data class Recording(val transcription: String = "") : UserInputState()
 
     // Text content (typed or transcribed) received and ready for editing
-    data class Editing(val content: String = "") : UserInputState()
+    data class Editing(
+        val content: String = "",
+        val isPendingTranscription: Boolean = false
+    ) : UserInputState()
 
     // Error state
     data class Error(val message: String) : UserInputState()

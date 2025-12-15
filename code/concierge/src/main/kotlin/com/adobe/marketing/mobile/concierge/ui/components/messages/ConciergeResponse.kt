@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -21,7 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
@@ -32,36 +33,42 @@ import androidx.core.net.toUri
  * Component that renders brand concierge responses containing markdown text
  * with proper styling and clickable links.
  *
+ * This composable determines whether to render text as plain content
+ * or as lists based on the presence of markdown list tokens.
+ *
  * @param text The markdown text to be rendered
- * @param modifier Optional modifier for the text component
+ * @param modifier Optional [Modifier] for the text component
  */
 @Composable
 internal fun ConciergeResponse(
     text: String,
     modifier: Modifier = Modifier
 ) {
-    // Show thinking animation when text is empty
-    if (text.isEmpty()) {
-        ConciergeThinking(modifier = modifier)
-        return
-    }
-    
-    val tokens = remember(text) { MarkdownTokenizer.tokenize(text) }
-    val listTokens = remember(tokens) { 
-        tokens.filter { it.type == TokenType.LIST }
-    }
-    
-    if (listTokens.isNotEmpty()) {
-        ConciergeResponseWithLists(
-            text = text,
-            listTokens = listTokens,
-            modifier = modifier
-        )
-    } else {
-        ConciergeResponseText(
-            text = text,
-            modifier = modifier
-        )
+    Crossfade(
+        targetState = text.isEmpty(),
+        animationSpec = tween(durationMillis = 200)
+    ) { isEmpty ->
+        if (isEmpty) {
+            ConciergeThinking(modifier = modifier)
+        } else {
+            val tokens = remember(text) { MarkdownTokenizer.tokenize(text) }
+            val listTokens = remember(tokens) {
+                tokens.filter { it.type == TokenType.LIST }
+            }
+
+            if (listTokens.isNotEmpty()) {
+                ConciergeResponseWithLists(
+                    text = text,
+                    listTokens = listTokens,
+                    modifier = modifier
+                )
+            } else {
+                ConciergeResponseText(
+                    text = text,
+                    modifier = modifier
+                )
+            }
+        }
     }
 }
 
@@ -91,6 +98,7 @@ private fun ConciergeResponseWithLists(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+
                 is ContentSegment.List -> {
                     ConciergeResponseList(
                         listTokens = segment.tokens,

@@ -172,7 +172,7 @@ internal class SpeechToTextManager(
             speechRecognizer?.destroy()
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
-                "SpeechRecognizer",
+                TAG,
                 "Speech recognizer released"
             )
             _isAvailable.value = false

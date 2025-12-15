@@ -40,7 +40,7 @@ internal fun ConciergeThinking(
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.thinkingAnimationStyle
-    
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
@@ -50,7 +50,7 @@ internal fun ConciergeThinking(
             style = style.textStyle,
             color = style.textColor
         )
-        
+
         Spacer(modifier = Modifier.width(style.textDotSpacing))
 
         // Create three pulsing dots with staggered animation
@@ -93,7 +93,7 @@ private fun PulsingDot(
     animationDuration: Int
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "dot_pulse")
-    
+
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.5f,
         targetValue = 1.0f,
@@ -106,7 +106,7 @@ private fun PulsingDot(
         ),
         label = "dot_scale"
     )
-    
+
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 1.0f,
@@ -119,7 +119,7 @@ private fun PulsingDot(
         ),
         label = "dot_alpha"
     )
-    
+
     Canvas(modifier = Modifier.size(size)) {
         drawCircle(
             color = color.copy(alpha = alpha),

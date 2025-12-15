@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -418,12 +419,10 @@ object ConciergeStyles {
         val containerPadding: Dp,
         val separatorHeight: Dp,
         val separatorColor: Color,
-        val separatorAlpha: Float,
-        val titleStyle: TextStyle,
-        val titleColor: Color,
-        val urlStyle: TextStyle,
+        val textStyle: TextStyle,
+        val textColor: Color,
+        val textLength: Int,
         val urlColor: Color,
-        val urlTopPadding: Dp,
         val expandAnimationDuration: Int,
         val collapseAnimationDuration: Int
     )
@@ -432,15 +431,13 @@ object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             return CitationStyle(
-                containerPadding = 16.dp,
+                containerPadding = 8.dp,
                 separatorHeight = 1.dp,
                 separatorColor = themeColors.outline.copy(alpha = 0.3f),
-                separatorAlpha = 0.3f,
-                titleStyle = MaterialTheme.typography.bodyMedium,
-                titleColor = themeColors.onSurface,
-                urlStyle = MaterialTheme.typography.bodySmall,
+                textStyle = MaterialTheme.typography.bodyMedium,
+                textColor = themeColors.onSurface,
+                textLength = 2,
                 urlColor = themeColors.primary,
-                urlTopPadding = 4.dp,
                 expandAnimationDuration = 200,
                 collapseAnimationDuration = 200
             )
@@ -530,7 +527,13 @@ object ConciergeStyles {
     @Immutable
     data class MicButtonStyle(
         val size: Dp,
-        val iconColor: Color
+        val iconColor: Color,
+        val recordingIconColor: Color,
+        val pulsingBackgroundColor: Color,
+        val pulsingBackgroundAlpha: Float,
+        val pulseAnimationDuration: Int,
+        val pulseScaleRange: Pair<Float, Float>,
+        val ringAlpha: Float
     )
 
     val micButtonStyle: MicButtonStyle
@@ -538,7 +541,13 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return MicButtonStyle(
                 size = 24.dp,
-                iconColor = themeColors.primary
+                iconColor = themeColors.primary,
+                recordingIconColor = themeColors.onPrimary,
+                pulsingBackgroundColor = themeColors.primary,
+                pulsingBackgroundAlpha = 0.25f,
+                pulseAnimationDuration = 1000,
+                pulseScaleRange = 1.5f to 2.0f,
+                ringAlpha = 0.30f,
             )
         }
 

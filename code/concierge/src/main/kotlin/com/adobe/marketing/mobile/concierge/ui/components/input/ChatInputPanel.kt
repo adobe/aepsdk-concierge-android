@@ -12,36 +12,14 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.StopCircle
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
@@ -74,117 +52,35 @@ internal fun ChatInputPanel(
     borderColors: List<Color> = emptyList()
 ) {
     val style = ConciergeStyles.inputPanelStyle
-    
-    // Static pulse value for mic button
-    val waveformPulse = remember { 1.0f }
-
-    // Animated border rotation
-    val infiniteTransition = rememberInfiniteTransition()
-    val angle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(style.recordingBorderAnimationDuration, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    )
-
-    val brush = if (inputState is UserInputState.Recording) Brush.sweepGradient(
-        style.recordingBorderColors
-    ) else Brush.sweepGradient(listOf(Color.Transparent))
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = style.outerShape,
+        shape = style.innerShape,
         color = style.backgroundColor
     ) {
-        Surface(
+        Row(
             modifier = Modifier
-                .clipToBounds()
                 .fillMaxWidth()
-                .padding(style.outerPadding)
-                .let { baseModifier ->
-                    if (inputState is UserInputState.Recording) {
-                        baseModifier.drawWithContent {
-                            rotate(angle) {
-                                drawCircle(
-                                    brush = brush,
-                                    radius = size.width,
-                                    blendMode = BlendMode.SrcIn,
-                                )
-                            }
-                            drawContent()
-                        }
-                    } else {
-                        baseModifier
-                    }
-                },
-            color = style.backgroundColor,
-            shape = style.innerShape
+                .padding(style.innerPadding),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(style.innerPadding),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ChatTextField(
-                    modifier = Modifier.weight(1f),
-                    value = text,
-                    onValueChange = onTextChange,
-                    isEnabled = enable,
-                    placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
-                )
+            ChatTextField(
+                modifier = Modifier.weight(1f),
+                value = text,
+                onValueChange = onTextChange,
+                isEnabled = enable,
+                placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
+            )
 
-                // Show different buttons based on state
-                when (inputState) {
-                    is UserInputState.Recording -> {
-                        // During recording, transform mic button to cancel button
-                        IconButton(
-                            onClick = { onVoiceCancel?.invoke() },
-                            modifier = Modifier.size(ConciergeStyles.micButtonStyle.size)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.StopCircle,
-                                contentDescription = "Stop recording",
-                                tint = ConciergeStyles.micButtonStyle.iconColor
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(style.buttonSpacing))
-
-                        // Send button remains but is disabled during recording
-                        SendButton(
-                            modifier = Modifier.size(ConciergeStyles.sendButtonStyle.size),
-                            isEnabled = false, // Disabled during recording
-                            onSend = { /* No-op during recording */ }
-                        )
-                    }
-
-                    else -> {
-                        // Normal state - show mic and send buttons
-                        MicButton(
-                            modifier = Modifier.size(ConciergeStyles.micButtonStyle.size),
-                            userInputState = inputState,
-                            isEnabled = enable,
-                            waveformPulse = waveformPulse,
-                            onClick = onMicPressed
-                        )
-
-                        Spacer(modifier = Modifier.width(style.buttonSpacing))
-
-                        SendButton(
-                            modifier = Modifier.size(ConciergeStyles.sendButtonStyle.size),
-                            isEnabled = text.isNotBlank() && !isProcessing,
-                            onSend = {
-                                if (text.isNotBlank()) {
-                                    onSend(text)
-                                }
-                            }
-                        )
-                    }
-                }
-            }
+            // Input action buttons (mic and send) with state-aware animations
+            InputActionButtons(
+                inputState = inputState,
+                text = text,
+                isProcessing = isProcessing,
+                onMicPressed = onMicPressed,
+                onVoiceCancel = { onVoiceCancel?.invoke() },
+                onSend = onSend
+            )
         }
     }
 }

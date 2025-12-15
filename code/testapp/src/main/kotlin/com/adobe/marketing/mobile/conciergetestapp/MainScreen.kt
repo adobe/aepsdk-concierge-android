@@ -24,11 +24,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,31 +33,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.adobe.marketing.mobile.conciergetestapp.ui.ChatScreen
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainScreenWrapper() {
-    val showChat = rememberSaveable { mutableStateOf(false) }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Main screen with chat button
-        MainScreen(
-            onStartChat = { showChat.value = true }
-        )
-
-        if (showChat.value) {
-            ChatScreen(
-                modifier = Modifier.fillMaxSize().background(Color.White),
-                onClose = { showChat.value = false },
-            )
-        }
-    }
-}
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
+import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 
 @Composable
-fun MainScreen(
-    onStartChat: () -> Unit) {
+fun MainScreen() {
     val context = LocalContext.current
     
     Box(
@@ -91,26 +69,26 @@ fun MainScreen(
             )
             
             Spacer(modifier = Modifier.height(48.dp))
-            
-            // Compose Chat button
-            Button(
-                onClick = { onStartChat() },
-                modifier = Modifier
-                    .size(width = 200.dp, height = 60.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2196F3)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    text = "💬 Compose Chat",
-                    fontSize = 16.sp,
-                    color = Color.White
-                )
-            }
-            
+
+            // Compose wrapper implementation button
+            val viewModel = viewModel<ConciergeChatViewModel>()
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
+            ConciergeChat(modifier = Modifier.fillMaxSize(), viewModel = viewModel) { showChat ->
+                Button(
+                    onClick = { showChat() },
+                    modifier = Modifier.size(width = 200.dp, height = 60.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF5E35B1)
+                    ),
+                    shape = RoundedCornerShape(12.dp)) {
+                    Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // XML Integration button
             Button(
                 onClick = { 
