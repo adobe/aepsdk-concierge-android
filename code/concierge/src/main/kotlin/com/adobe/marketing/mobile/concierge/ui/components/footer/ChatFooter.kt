@@ -46,10 +46,6 @@ internal fun ChatFooter(
 ) {
     val hasCitations = !citations.isNullOrEmpty()
     val hasInteractionId = !interactionId.isNullOrEmpty()
-    
-    // Early return if no sources to show or if unable to send feedback due to no interaction id
-    if (!hasCitations && !hasInteractionId) return
-    
     var sourcesExpanded by remember { mutableStateOf(false) }
     val arrangement = remember(hasCitations) {
         if (hasCitations) Arrangement.SpaceBetween else Arrangement.End

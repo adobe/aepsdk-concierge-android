@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
@@ -84,16 +85,14 @@ data class FeedbackSubmission(
  * and optional notes.
  *
  * @param modifier Optional [Modifier] for this component.
- * @param interactionId The interaction ID for the feedback.
- * @param isPositive Whether this is positive (true) or negative (false) feedback.
+ * @param feedbackData Feedback data comprised of the interaction ID and sentiment.
  * @param onDismiss Callback invoked when the dialog is dismissed.
  * @param onSubmit Callback invoked when feedback is submitted.
  */
 @Composable
 internal fun FeedbackDialog(
     modifier: Modifier = Modifier,
-    interactionId: String,
-    isPositive: Boolean,
+    feedbackData: FeedbackData,
     onDismiss: () -> Unit,
     onSubmit: (FeedbackSubmission) -> Unit
 ) {
@@ -103,8 +102,8 @@ internal fun FeedbackDialog(
     var selectedCategories by remember { mutableStateOf(setOf<String>()) }
     var notesText by remember { mutableStateOf("") }
 
-    val categories = if (isPositive) POSITIVE_CATEGORIES else NEGATIVE_CATEGORIES
-    val questionText = if (isPositive) {
+    val categories = if (feedbackData.isPositive) POSITIVE_CATEGORIES else NEGATIVE_CATEGORIES
+    val questionText = if (feedbackData.isPositive) {
         "What went well? Select all that apply."
     } else {
         "What went wrong? Select all that apply."
@@ -245,8 +244,8 @@ internal fun FeedbackDialog(
                     onClick = {
                         onSubmit(
                             FeedbackSubmission(
-                                interactionId = interactionId,
-                                isPositive = isPositive,
+                                interactionId = feedbackData.interactionId,
+                                isPositive = feedbackData.isPositive,
                                 selectedCategories = selectedCategories.toList(),
                                 notes = notesText.trim()
                             )

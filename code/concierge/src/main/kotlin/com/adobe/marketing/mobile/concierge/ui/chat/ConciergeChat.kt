@@ -37,7 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -58,7 +57,6 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
-import com.adobe.marketing.mobile.concierge.ui.state.FeedbackUIState
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
@@ -154,7 +152,6 @@ fun ConciergeChat(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
-    val feedbackUIState by viewModel.feedbackUIState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val feedbackStates by viewModel.feedbackStates.collectAsStateWithLifecycle()
     // TODO: Need to expose this permission to the app level to handle permission requests
@@ -182,7 +179,6 @@ fun ConciergeChat(
                 inputState = inputState,
                 hasAudioPermission = hasAudioPermission,
                 feedbackStates = feedbackStates,
-                feedbackUIState = feedbackUIState,
                 snackbarHostState = viewModel.snackbarHostState,
                 onTextChanged = viewModel::onTextStateChanged,
                 onEvent = viewModel::processEvent,
@@ -203,7 +199,6 @@ internal fun ConciergeChat(
     inputState: UserInputState,
     hasAudioPermission: Boolean,
     feedbackStates: Map<String, FeedbackState>,
-    feedbackUIState: FeedbackUIState,
     snackbarHostState: SnackbarHostState,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
@@ -304,15 +299,14 @@ internal fun ConciergeChat(
         }
 
         // Feedback dialog overlay
-        if (feedbackUIState is FeedbackUIState.ShowingDialog) {
+        chatState.feedbackData?.let { feedbackData ->
             FeedbackDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.Center),
-                interactionId = feedbackUIState.interactionId,
-                isPositive = feedbackUIState.isPositive,
+                feedbackData = feedbackData,
                 onDismiss = {
-                    onEvent(FeedbackEvent.DismissFeedbackDialog(feedbackUIState.interactionId))
+                    onEvent(FeedbackEvent.DismissFeedbackDialog)
                 },
                 onSubmit = { submission ->
                     onEvent(FeedbackEvent.SubmitFeedback(submission))

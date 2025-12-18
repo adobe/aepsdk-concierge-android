@@ -18,23 +18,40 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButt
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
 
 /**
+ * Data class for feedback dialog state
+ */
+internal data class FeedbackData(
+    val interactionId: String,
+    val isPositive: Boolean
+)
+
+/**
  * Represents the overall state of the chat screen.
  */
 internal sealed class ChatScreenState {
+    abstract val feedbackData: FeedbackData?
+
     /**
      * Chat is in idle state, waiting for user interaction.
      */
-    object Idle : ChatScreenState()
+    data class Idle(
+        override val feedbackData: FeedbackData? = null
+    ) : ChatScreenState()
 
     /**
      * Chat is actively processing a user message.
      */
-    object Processing : ChatScreenState()
+    data class Processing(
+        override val feedbackData: FeedbackData? = null
+    ) : ChatScreenState()
 
     /**
      * Chat is in an error state.
      */
-    data class Error(val error: String) : ChatScreenState()
+    data class Error(
+        val error: String,
+        override val feedbackData: FeedbackData? = null
+    ) : ChatScreenState()
 }
 
 /**
@@ -86,7 +103,7 @@ internal sealed class FeedbackEvent : ChatEvent() {
     /**
      * User dismissed the feedback dialog.
      */
-    data class DismissFeedbackDialog(val interactionId: String) : FeedbackEvent()
+    object DismissFeedbackDialog : FeedbackEvent()
 }
 
 /**
