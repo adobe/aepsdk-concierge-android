@@ -55,7 +55,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         
         /**
          * Initializes the welcome config using the parser example
-         * In a real implementation, this would fetch from a backend API
+         * In the finalized implementation, the config contained in the mock response would
+         * be fetched from a concierge configuration service.
          */
         private fun initializeWelcomeConfig(): WelcomeConfig {
             // Setup a mock welcome response
@@ -141,6 +142,12 @@ class ConciergeChatViewModel : AndroidViewModel {
         private set
 
     /**
+     * Data store collection for persisting concierge
+     */
+    private val conciergeNamedCollection =
+        ServiceProvider.getInstance().dataStoreService.getNamedCollection(ConciergeConstants.DATA_STORE_NAME)
+
+    /**
      * Tracks whether the Concierge chat interface is active/open
      */
     private val _isConciergeActive = MutableStateFlow(false)
@@ -205,22 +212,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Returns whether the user is a returning user (has seen the welcome card before)
      */
     internal fun isReturningUser(): Boolean {
-        val sharedPrefs = getApplication<Application>().getSharedPreferences(
-            ConciergeConstants.SharedPreferences.PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        return sharedPrefs.getBoolean(ConciergeConstants.SharedPreferences.KEY_HAS_SEEN_WELCOME, false)
+        return conciergeNamedCollection.getBoolean(ConciergeConstants.DataStoreKeys.KEY_HAS_SEEN_WELCOME, false)
     }
 
     /**
      * Marks the user as a returning user (has seen and interacted with the welcome card)
      */
     private fun markUserAsReturning() {
-        val sharedPrefs = getApplication<Application>().getSharedPreferences(
-            ConciergeConstants.SharedPreferences.PREFS_NAME,
-            Application.MODE_PRIVATE
-        )
-        sharedPrefs.edit().putBoolean(ConciergeConstants.SharedPreferences.KEY_HAS_SEEN_WELCOME, true).apply()
+        conciergeNamedCollection.setBoolean(ConciergeConstants.DataStoreKeys.KEY_HAS_SEEN_WELCOME, true)
     }
 
     /**

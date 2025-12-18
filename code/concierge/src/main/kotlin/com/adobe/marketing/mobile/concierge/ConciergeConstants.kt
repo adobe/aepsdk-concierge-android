@@ -16,6 +16,7 @@ object ConciergeConstants {
     const val EXTENSION_FRIENDLY_NAME = "Concierge"
     const val EXTENSION_VERSION = "3.0.0"
     const val LOG_TAG = "Concierge"
+    const val DATA_STORE_NAME = EXTENSION_NAME
 
     object SharedState {
         object EdgeIdentity {
@@ -34,8 +35,7 @@ object ConciergeConstants {
         const val NEGATIVE = "negative"
     }
 
-    object SharedPreferences {
-        const val PREFS_NAME = "concierge_prefs"
+    object DataStoreKeys {
         const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
     }
 
