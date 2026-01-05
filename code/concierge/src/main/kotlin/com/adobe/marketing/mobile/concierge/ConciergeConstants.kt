@@ -16,6 +16,7 @@ object ConciergeConstants {
     const val EXTENSION_FRIENDLY_NAME = "Concierge"
     const val EXTENSION_VERSION = "3.0.0"
     const val LOG_TAG = "Concierge"
+    const val DATA_STORE_NAME = EXTENSION_NAME
 
     object SharedState {
         object EdgeIdentity {
@@ -32,5 +33,16 @@ object ConciergeConstants {
     object ChatInteraction {
         const val POSITIVE = "positive"
         const val NEGATIVE = "negative"
+    }
+
+    object DataStoreKeys {
+        const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
+    }
+
+    object WelcomeCard {
+        const val DEFAULT_HEADING = "I'm your personal guide to help you explore and find exactly what you need. Let's get started!"
+        const val RETURNING_USER_WELCOME = "Hey, welcome back!"
+        const val FIRST_TIME_WELCOME_TEMPLATE = "Welcome to [%s] concierge!"
+        const val DEFAULT_SUBHEADING = "Not sure where to start? Explore the suggested ideas below."
     }
 }
