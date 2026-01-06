@@ -13,6 +13,9 @@
 package com.adobe.marketing.mobile.concierge.network
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
 import com.adobe.marketing.mobile.services.Log
@@ -33,34 +36,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.random.Random
 
 /**
  * Configuration for the conversation service request.
  */
 internal data class ConversationConfig(
     val configId: String = "",
-    val sessionId: String = "",
-    val requestId: String = "",
+    val sessionId: String = UUID.randomUUID().toString(),
     val baseUrl: String = "",
     val surfaces: List<String> = listOf(""),
-    // generate a mockEcid for the request, 38 characters long, numeric only
-    val mockEcid: String = (1..38)
-        .map { Random.nextInt(0, 10) }
-        .joinToString(separator = "") { it.toString() }
-)
-
-/**
- * Data class for feedback payload
- */
-internal data class FeedbackPayload(
-    val turnId: String,
-    val conversationId: String?,
-    val isPositive: Boolean,
-    val selectedCategories: List<String>,
-    val notes: String
+    val ecid: String? = ConciergeStateRepository.instance.state.value.experienceCloudId
 )
 
 internal class ConciergeConversationServiceClient(
@@ -76,7 +64,7 @@ internal class ConciergeConversationServiceClient(
 
     private val endpoint: String
         get() = "${config.baseUrl}/brand-concierge/conversations" +
-                "?configId=${config.configId}&sessionId=${config.sessionId}&requestId=${config.requestId}"
+                "?configId=${config.configId}&sessionId=${config.sessionId}&requestId=${UUID.randomUUID()}"
 
 
     /**
@@ -149,7 +137,7 @@ internal class ConciergeConversationServiceClient(
                         "identityMap": {
                             "ECID": [
                                 {
-                                    "id": "${config.mockEcid}"
+                                    "id": "${config.ecid}"
                                 }
                             ]
                         }
@@ -309,10 +297,10 @@ internal class ConciergeConversationServiceClient(
     /**
      * Sends feedback for a conversation turn to the conversation service.
      *
-     * @param feedback The feedback payload containing turnId, rating, categories, and notes
+     * @param feedback The feedback containing turnId, rating, categories, and notes
      * @return true if the feedback was successfully sent, false otherwise
      */
-    suspend fun sendFeedback(feedback: FeedbackPayload): Boolean = withContext(Dispatchers.IO) {
+    suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
         try {
             val requestBody = createFeedbackRequestBody(feedback)
             val request = createFeedbackRequest(endpoint, requestBody)
@@ -334,7 +322,7 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the feedback request body in XDM format
      */
-    private fun createFeedbackRequestBody(feedback: FeedbackPayload): String {
+    private fun createFeedbackRequestBody(feedback: Feedback): String {
         val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date())
@@ -353,13 +341,15 @@ internal class ConciergeConversationServiceClient(
             """"conversationID": "$it","""
         } ?: ""
 
+        val isPositive = feedback.feedbackType == FeedbackType.POSITIVE
+
         return """
 {
     "events": [{
         "xdm": {
             "identityMap": {
                 "ECID": [{
-                    "id": "${config.mockEcid}"
+                    "id": "${config.ecid}"
                 }]
             },
             "conversation": {
@@ -367,13 +357,13 @@ internal class ConciergeConversationServiceClient(
                     "source": "end-user",
                     "raw": $rawArray,
                     "rating": {
-                        "score": ${if (feedback.isPositive) 1 else 0},
-                        "classification": "${if (feedback.isPositive) "Thumbs Up" else "Thumbs Down"}",
+                        "score": ${if (isPositive) 1 else 0},
+                        "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
                         "reasons": [${feedback.selectedCategories.joinToString(",") { "\"$it\"" }}]
                     }
                 },
                 $conversationIdLine
-                "turnID": "${feedback.turnId}"
+                "turnID": "${feedback.interactionId}"
             },
             "eventType": "conversation.feedback",
             "timestamp": "$timestamp",
