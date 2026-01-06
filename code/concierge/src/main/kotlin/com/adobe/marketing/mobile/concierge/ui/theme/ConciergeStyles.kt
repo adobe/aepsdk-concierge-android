@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -345,8 +347,11 @@ object ConciergeStyles {
         val secondaryBorderColor: Color,
         val secondaryBorderAlpha: Float,
         val textStyle: TextStyle,
+        val textAlign: TextAlign,
         val fontSize: Dp,
-        val fontWeight: FontWeight
+        val fontWeight: FontWeight,
+        val maxLines: Int,
+        val overflow: TextOverflow
     )
 
     val productActionButtonsStyle: ProductActionButtonsStyle
@@ -364,8 +369,11 @@ object ConciergeStyles {
                 secondaryBorderColor = themeColors.outline.copy(alpha = 0.5f),
                 secondaryBorderAlpha = 0.5f,
                 textStyle = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
                 fontSize = 12.dp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Visible
             )
         }
 
@@ -487,7 +495,7 @@ object ConciergeStyles {
                 buttonSize = 32.dp,
                 iconSize = 16.dp,
                 spacing = 4.dp,
-                iconColor = themeColors.onSurfaceVariant
+                iconColor = themeColors.onSurface
             )
         }
 
@@ -636,6 +644,101 @@ object ConciergeStyles {
         @Composable get() = ChatInputFieldStyle(
             padding = 16.dp
         )
+
+    /**
+     * Styling for feedback dialog
+     */
+    @Immutable
+    data class FeedbackDialogStyle(
+        val padding: Dp,
+        val backgroundColor: Color,
+        val elevation: Dp,
+        val shape: Shape,
+        val contentPadding: Dp,
+        val titleStyle: TextStyle,
+        val titleColor: Color,
+        val titleSpacing: Dp,
+        val questionStyle: TextStyle,
+        val questionColor: Color,
+        val questionSpacing: Dp,
+        val categorySpacing: Dp,
+        val checkboxCheckedColor: Color,
+        val checkboxUncheckedColor: Color,
+        val checkboxSpacing: Dp,
+        val categoryTextStyle: TextStyle,
+        val categoryTextColor: Color,
+        val categoriesNotesSpacing: Dp,
+        val notesLabelStyle: TextStyle,
+        val notesLabelColor: Color,
+        val notesLabelSpacing: Dp,
+        val notesPlaceholderStyle: TextStyle,
+        val notesPlaceholderColor: Color,
+        val notesButtonsSpacing: Dp,
+        val textFieldBorderColor: Color,
+        val textFieldTextColor: Color,
+        val buttonSpacing: Dp,
+        val cancelButtonColor: Color,
+        val submitButtonColor: Color,
+        val submitButtonTextColor: Color,
+        val buttonTextStyle: TextStyle
+    )
+
+    val feedbackDialogStyle: FeedbackDialogStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            return FeedbackDialogStyle(
+                padding = 16.dp,
+                backgroundColor = themeColors.surface,
+                elevation = 8.dp,
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = 20.dp,
+                titleStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                titleColor = themeColors.onSurface,
+                titleSpacing = 12.dp,
+                questionStyle = MaterialTheme.typography.bodyMedium,
+                questionColor = themeColors.onSurface,
+                questionSpacing = 6.dp,
+                categorySpacing = 0.dp,
+                checkboxCheckedColor = themeColors.primary,
+                checkboxUncheckedColor = themeColors.onSurfaceVariant,
+                checkboxSpacing = 8.dp,
+                categoryTextStyle = MaterialTheme.typography.bodyMedium,
+                categoryTextColor = themeColors.onSurface,
+                categoriesNotesSpacing = 6.dp,
+                notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                notesLabelColor = themeColors.onSurface,
+                notesLabelSpacing = 8.dp,
+                notesPlaceholderStyle = MaterialTheme.typography.bodyMedium,
+                notesPlaceholderColor = themeColors.onSurfaceVariant,
+                notesButtonsSpacing = 24.dp,
+                textFieldBorderColor = themeColors.outline,
+                textFieldTextColor = themeColors.onSurface,
+                buttonSpacing = 8.dp,
+                cancelButtonColor = themeColors.onSurfaceVariant,
+                submitButtonColor = themeColors.primary,
+                submitButtonTextColor = themeColors.onPrimary,
+                buttonTextStyle = MaterialTheme.typography.labelMedium
+            )
+        }
+
+    /**
+     * Styling for feedback snackbar notification
+     */
+    @Immutable
+    data class SnackbarStyle(
+        val containerColor: Color,
+        val contentColor: Color,
+        val actionColor: Color
+    )
+
+    val snackbarStyle: SnackbarStyle
+        @Composable get() {
+            return SnackbarStyle(
+                containerColor = Color(0xFF4CAF50), // Green
+                contentColor = Color.White,
+                actionColor = Color.White
+            )
+        }
 
     /**
      * Styling for the welcome card

@@ -31,12 +31,14 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * @param modifier Optional [Modifier] for this component.
  * @param interactionId Interaction ID for the feedback buttons.
  * @param onFeedback Callback invoked when a feedback button is pressed.
+ * @param feedbackState Current state of feedback for this interaction.
  */
 @Composable
 internal fun FeedbackButtons(
     modifier: Modifier = Modifier,
     interactionId: String,
-    onFeedback: (FeedbackEvent) -> Unit
+    onFeedback: (FeedbackEvent) -> Unit,
+    feedbackState: FeedbackState = FeedbackState.None
 ) {
     val style = ConciergeStyles.feedbackButtonsStyle
 
@@ -47,11 +49,22 @@ internal fun FeedbackButtons(
     ) {
         // Thumbs up button
         IconButton(
-            onClick = { onFeedback(FeedbackEvent.ThumbsUp(interactionId)) },
-            modifier = Modifier.size(style.buttonSize)
+            onClick = { 
+                if (feedbackState == FeedbackState.None) {
+                    onFeedback(FeedbackEvent.ThumbsUp(interactionId)) 
+                }
+            },
+            modifier = Modifier.size(style.buttonSize),
+            enabled = feedbackState == FeedbackState.None
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.thumbs_up),
+                painter = painterResource(
+                        if (feedbackState == FeedbackState.Positive) {
+                            R.drawable.thumbs_up_filled
+                        } else {
+                            R.drawable.thumbs_up
+                        }
+                ),
                 contentDescription = "Thumbs up",
                 modifier = Modifier.size(style.iconSize),
                 tint = style.iconColor
@@ -60,15 +73,35 @@ internal fun FeedbackButtons(
 
         // Thumbs down button
         IconButton(
-            onClick = { onFeedback(FeedbackEvent.ThumbsDown(interactionId)) },
-            modifier = Modifier.size(style.buttonSize)
+            onClick = { 
+                if (feedbackState == FeedbackState.None) {
+                    onFeedback(FeedbackEvent.ThumbsDown(interactionId)) 
+                }
+            },
+            modifier = Modifier.size(style.buttonSize),
+            enabled = feedbackState == FeedbackState.None
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.thumbs_down),
+                painter = painterResource(
+                    id = if (feedbackState == FeedbackState.Negative) {
+                        R.drawable.thumbs_down_filled
+                    } else {
+                        R.drawable.thumbs_down
+                    }
+                ),
                 contentDescription = "Thumbs down",
                 modifier = Modifier.size(style.iconSize),
                 tint = style.iconColor
             )
         }
     }
+}
+
+/**
+ * Enum representing the current feedback state for an interaction
+ */
+enum class FeedbackState {
+    None,
+    Positive,
+    Negative
 }

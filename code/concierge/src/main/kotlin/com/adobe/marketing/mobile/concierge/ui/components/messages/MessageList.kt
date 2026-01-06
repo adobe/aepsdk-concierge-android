@@ -94,7 +94,8 @@ internal fun MessageList(
                         onFeedback = onFeedback,
                         onActionClick = onActionClick,
                         onImageClick = onImageClick,
-                        onSuggestionClick = onSuggestionClick
+                        onSuggestionClick = onSuggestionClick,
+                        feedbackState = message.feedbackState
                     )
                 }
             }

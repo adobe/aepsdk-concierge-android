@@ -25,11 +25,14 @@ import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
@@ -105,7 +108,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Tracks the overall state of the chat flow
      */
     private val _state = MutableStateFlow<ChatScreenState>(
-        ChatScreenState.Idle
+        ChatScreenState.Idle()
     )
     internal val state: StateFlow<ChatScreenState> = _state.asStateFlow()
 
@@ -122,6 +125,11 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    /**
+     * Tracks the current conversation ID from the backend response
+     */
+    private var currentConversationId: String? = null
 
     /**
      * Tracks whether the app has audio recording permission
@@ -275,6 +283,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                 ConciergeConstants.ChatInteraction.NEGATIVE
             )
 
+            is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.feedback)
+            is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
+
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
             is MessageInteractionEvent.PromptSuggestionClick -> handlePromptSuggestionClick(event.suggestion)
@@ -329,19 +340,86 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
+     * Helper to update feedback dialog state
+     * @param feedback The feedback data to set, or null to clear
+     */
+    private fun updateFeedback(feedback: Feedback?) {
+        _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Idle -> currentState.copy(feedback = feedback)
+                is ChatScreenState.Processing -> currentState.copy(feedback = feedback)
+                is ChatScreenState.Error -> currentState.copy(feedback = feedback)
+            }
+        }
+    }
+
+    /**
      * Handles user feedback for responses
      * @param interactionId The interaction ID to associate with the feedback
      * @param feedbackType The type of feedback ("positive" or "negative")
      */
     private fun handleFeedback(interactionId: String, feedbackType: String) {
-        // TODO: Implement Edge send event with interaction ID in XDM
-        // Edge.sendEvent(...)
-        // For now, just log the feedback
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            "Received feedback: $feedbackType for interactionId: $interactionId"
-        )
+        // Show feedback dialog based on the type
+        val type = when (feedbackType) {
+            ConciergeConstants.ChatInteraction.POSITIVE -> FeedbackType.POSITIVE
+            ConciergeConstants.ChatInteraction.NEGATIVE -> FeedbackType.NEGATIVE
+            else -> return
+        }
+
+        updateFeedback(Feedback(interactionId, type))
+    }
+
+    /**
+     * Handles feedback submission from the dialog
+     * @param feedback The feedback data
+     */
+    private fun handleFeedbackSubmission(feedback: Feedback) {
+        // Update feedback state
+        val feedbackState = when (feedback.feedbackType) {
+            FeedbackType.POSITIVE -> FeedbackState.Positive
+            FeedbackType.NEGATIVE -> FeedbackState.Negative
+        }
+
+        // Find and update the message with the feedback state
+        _messages.update { currentMessages ->
+            currentMessages.map { message ->
+                if (message.interactionId == feedback.interactionId) {
+                    message.copy(feedbackState = feedbackState)
+                } else {
+                    message
+                }
+            }
+        }
+
+        // Hide dialog
+        updateFeedback(null)
+
+        // Send feedback to the conversation service
+        viewModelScope.launch {
+            val feedbackWithConversationId = feedback.copy(conversationId = currentConversationId)
+            
+            val success = chatService.sendFeedback(feedbackWithConversationId)
+            if (success) {
+                Log.debug(
+                    TAG,
+                    "handleFeedbackSubmission",
+                    "Feedback sent successfully for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
+                )
+            } else {
+                Log.warning(
+                    TAG,
+                    "handleFeedbackSubmission",
+                    "Failed to send feedback for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
+                )
+            }
+        }
+    }
+
+    /**
+     * Handles dismissing the feedback dialog
+     */
+    private fun handleDismissFeedbackDialog() {
+        updateFeedback(null)
     }
 
     /**
@@ -371,7 +449,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleResetChat() {
         _state.update {
-            ChatScreenState.Idle
+            ChatScreenState.Idle()
         }
         _inputState.update { UserInputState.Empty }
     }
@@ -406,7 +484,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         // Transition to processing state
         _state.update {
-            ChatScreenState.Processing
+            ChatScreenState.Processing()
         }
 
         // Start the conversation stream from the API
@@ -463,6 +541,14 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Parsed message: ${parsedMessage.messageContent}, state: ${parsedMessage.state}"
         )
 
+        // Capture conversationId if present in the response
+        parsedMessage.conversationId?.let { conversationId ->
+            if (currentConversationId == null) {
+                currentConversationId = conversationId
+                Log.debug(TAG, "onParsedMessage", "Captured conversationId: $conversationId")
+            }
+        }
+
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
                 appendToAssistantMessage(parsedMessage, contentBuilder)
@@ -474,7 +560,14 @@ class ConciergeChatViewModel : AndroidViewModel {
                 if (parsedMessage.messageContent.isNotBlank()) {
                     replaceAssistantMessageContent(parsedMessage)
                 }
-                _state.update { ChatScreenState.Idle }
+                _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(
+                    feedback = currentState.feedback
+                )
+                        else -> currentState
+                    }
+                }
             }
 
             ConversationState.ERROR -> {
@@ -507,7 +600,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Appending text content with length (${contentBuilder.length} chars)"
         )
 
-        updateAssistantMessageContent(messageContent)
+        // Use the interactionId as the turnId for feedback
+        updateAssistantMessageContent(messageContent, interactionId = parsedMessage.interactionId)
     }
 
     /**
@@ -541,7 +635,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         updateAssistantMessageContent(
             messageContent,
             parsedMessage.promptSuggestions,
-            parsedMessage.sources
+            parsedMessage.sources,
+            parsedMessage.interactionId
         )
     }
 
@@ -550,11 +645,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param content The new content for the assistant message
      * @param promptSuggestions Optional prompt suggestions to include with the message
      * @param sources Optional sources to include with the message
+     * @param interactionId Optional interaction ID from the backend to use as a turnId for feedback
      */
     private fun updateAssistantMessageContent(
         content: MessageContent,
         promptSuggestions: List<String> = emptyList(),
-        sources: List<Citation> = emptyList()
+        sources: List<Citation> = emptyList(),
+        interactionId: String? = null
     ) {
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
@@ -564,7 +661,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 updatedMessages[lastIndex] = lastAssistantMessage.copy(
                     content = content,
                     promptSuggestions = promptSuggestions,
-                    citations = sources
+                    citations = sources,
+                    interactionId = interactionId ?: lastAssistantMessage.interactionId
                 )
                 updatedMessages
             } else {
@@ -586,8 +684,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         )
 
         // Return to idle state
-        _state.update {
-            ChatScreenState.Idle
+        _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(
+                    feedback = currentState.feedback
+                )
+                else -> ChatScreenState.Idle()
+            }
         }
     }
 

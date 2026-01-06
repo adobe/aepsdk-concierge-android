@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -45,6 +46,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
@@ -55,6 +57,7 @@ import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
@@ -216,25 +219,27 @@ internal fun ConciergeChat(
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
+    
+    // Derive UI state from ChatScreenState
+    val isProcessing = chatState is ChatScreenState.Processing
+    val errorMessage = (chatState as? ChatScreenState.Error)?.error
 
     Box(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(style.backgroundColor)
             .navigationBarsPadding()
             .statusBarsPadding()
             .clickable(
                 interactionSource = interactionSource,
-                indication = null // No ripple effect
+                indication = null
             ) {
-                focusManager.clearFocus() // Dismiss keyboard when tapping outside
+                focusManager.clearFocus()
             }
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
-
             ChatHeader(onClose = onClose)
 
             // Messages list
@@ -287,7 +292,7 @@ internal fun ConciergeChat(
             UserInput(
                 inputState = inputState,
                 onTextChange = onTextChanged,
-                isProcessing = chatState is ChatScreenState.Processing,
+                isProcessing = isProcessing,
                 hasAudioPermission = hasAudioPermission,
                 onSend = { text ->
                     onEvent(ChatEvent.SendMessage(text))
@@ -295,6 +300,22 @@ internal fun ConciergeChat(
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Feedback dialog overlay
+        chatState.feedback?.let { feedback ->
+            FeedbackDialog(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                feedback = feedback,
+                onDismiss = {
+                    onEvent(FeedbackEvent.DismissFeedbackDialog)
+                },
+                onSubmit = { submittedFeedback ->
+                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+                }
             )
         }
     }
