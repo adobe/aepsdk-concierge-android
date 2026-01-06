@@ -45,7 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import com.adobe.marketing.mobile.concierge.ui.state.FeedbackData
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
@@ -71,30 +72,20 @@ private val NEGATIVE_CATEGORIES = listOf(
 )
 
 /**
- * Data class for the submitted feedback
- */
-data class FeedbackSubmission(
-    val interactionId: String,
-    val isPositive: Boolean,
-    val selectedCategories: List<String>,
-    val notes: String
-)
-
-/**
  * Feedback dialog component that captures user feedback with selectable categories
  * and optional notes.
  *
  * @param modifier Optional [Modifier] for this component.
- * @param feedbackData Feedback data comprised of the interaction ID and sentiment.
+ * @param feedback Feedback data comprised of the interaction ID and sentiment.
  * @param onDismiss Callback invoked when the dialog is dismissed.
  * @param onSubmit Callback invoked when feedback is submitted.
  */
 @Composable
 internal fun FeedbackDialog(
     modifier: Modifier = Modifier,
-    feedbackData: FeedbackData,
+    feedback: Feedback,
     onDismiss: () -> Unit,
-    onSubmit: (FeedbackSubmission) -> Unit
+    onSubmit: (Feedback) -> Unit
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
     val focusManager = LocalFocusManager.current
@@ -102,8 +93,13 @@ internal fun FeedbackDialog(
     var selectedCategories by remember { mutableStateOf(setOf<String>()) }
     var notesText by remember { mutableStateOf("") }
 
-    val categories = if (feedbackData.isPositive) POSITIVE_CATEGORIES else NEGATIVE_CATEGORIES
-    val questionText = if (feedbackData.isPositive) {
+    val categories = if (feedback.feedbackType == FeedbackType.POSITIVE) {
+        POSITIVE_CATEGORIES
+    } else {
+        NEGATIVE_CATEGORIES
+    }
+    
+    val questionText = if (feedback.feedbackType == FeedbackType.POSITIVE) {
         "What went well? Select all that apply."
     } else {
         "What went wrong? Select all that apply."
@@ -243,9 +239,7 @@ internal fun FeedbackDialog(
                 Button(
                     onClick = {
                         onSubmit(
-                            FeedbackSubmission(
-                                interactionId = feedbackData.interactionId,
-                                isPositive = feedbackData.isPositive,
+                            feedback.copy(
                                 selectedCategories = selectedCategories.toList(),
                                 notes = notesText.trim()
                             )

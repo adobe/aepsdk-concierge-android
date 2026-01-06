@@ -15,34 +15,45 @@ package com.adobe.marketing.mobile.concierge.ui.state
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
-import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 
 /**
- * Data class for feedback dialog state
+ * Enum representing feedback sentiment type
  */
-internal data class FeedbackData(
+internal enum class FeedbackType {
+    POSITIVE,
+    NEGATIVE
+}
+
+/**
+ * Data class for feedback - used both for showing the dialog and submitting feedback
+ */
+internal data class Feedback(
     val interactionId: String,
-    val isPositive: Boolean
+    val feedbackType: FeedbackType,
+    val selectedCategories: List<String> = emptyList(),
+    val notes: String = "",
+    val conversationId: String? = null
 )
 
 /**
  * Represents the overall state of the chat screen.
  */
 internal sealed class ChatScreenState {
-    abstract val feedbackData: FeedbackData?
+    abstract val feedback: Feedback?
 
     /**
      * Chat is in idle state, waiting for user interaction.
      */
     data class Idle(
-        override val feedbackData: FeedbackData? = null
+        override val feedback: Feedback? = null
     ) : ChatScreenState()
 
     /**
      * Chat is actively processing a user message.
      */
     data class Processing(
-        override val feedbackData: FeedbackData? = null
+        override val feedback: Feedback? = null
     ) : ChatScreenState()
 
     /**
@@ -50,7 +61,7 @@ internal sealed class ChatScreenState {
      */
     data class Error(
         val error: String,
-        override val feedbackData: FeedbackData? = null
+        override val feedback: Feedback? = null
     ) : ChatScreenState()
 }
 
@@ -98,7 +109,7 @@ internal sealed class FeedbackEvent : ChatEvent() {
     /**
      * User submitted feedback through the dialog.
      */
-    data class SubmitFeedback(val submission: FeedbackSubmission) : FeedbackEvent()
+    data class SubmitFeedback(val feedback: Feedback) : FeedbackEvent()
     
     /**
      * User dismissed the feedback dialog.
@@ -147,7 +158,8 @@ internal data class ChatMessage(
     val timestamp: Long,
     val citations: List<Citation>? = null,
     val interactionId: String? = null,
-    val promptSuggestions: List<String> = emptyList()
+    val promptSuggestions: List<String> = emptyList(),
+    val feedbackState: FeedbackState = FeedbackState.None
 ) {
     val text: String
         get() = when (content) {

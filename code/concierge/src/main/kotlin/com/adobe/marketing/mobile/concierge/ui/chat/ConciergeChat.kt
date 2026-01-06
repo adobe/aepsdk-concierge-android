@@ -27,9 +27,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -47,7 +44,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
-import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
@@ -153,7 +149,6 @@ fun ConciergeChat(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
-    val feedbackStates by viewModel.feedbackStates.collectAsStateWithLifecycle()
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -178,8 +173,6 @@ fun ConciergeChat(
                 chatState = state,
                 inputState = inputState,
                 hasAudioPermission = hasAudioPermission,
-                feedbackStates = feedbackStates,
-                snackbarHostState = viewModel.snackbarHostState,
                 onTextChanged = viewModel::onTextStateChanged,
                 onEvent = viewModel::processEvent,
                 onPermissionResult = { granted ->
@@ -198,8 +191,6 @@ internal fun ConciergeChat(
     chatState: ChatScreenState,
     inputState: UserInputState,
     hasAudioPermission: Boolean,
-    feedbackStates: Map<String, FeedbackState>,
-    snackbarHostState: SnackbarHostState,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
@@ -207,7 +198,6 @@ internal fun ConciergeChat(
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.chatScreenStyle
-    val snackbarStyle = ConciergeStyles.snackbarStyle
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
     
@@ -246,7 +236,6 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
-                    feedbackStates = feedbackStates,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -268,48 +257,18 @@ internal fun ConciergeChat(
             )
         }
 
-        // Snackbar positioned at the bottom
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = snackbarStyle.containerColor,
-                    contentColor = snackbarStyle.contentColor,
-                    actionColor = snackbarStyle.actionColor
-                )
-            }
-        }
-
-        // Error overlay if there's an error
-        errorMessage?.let {
-            ErrorOverlay(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                errorMessage = it,
-                onDismiss = {
-                    onEvent(ChatEvent.Reset)
-                }
-            )
-        }
-
         // Feedback dialog overlay
-        chatState.feedbackData?.let { feedbackData ->
+        chatState.feedback?.let { feedback ->
             FeedbackDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.Center),
-                feedbackData = feedbackData,
+                feedback = feedback,
                 onDismiss = {
                     onEvent(FeedbackEvent.DismissFeedbackDialog)
                 },
-                onSubmit = { submission ->
-                    onEvent(FeedbackEvent.SubmitFeedback(submission))
+                onSubmit = { submittedFeedback ->
+                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
                 }
             )
         }

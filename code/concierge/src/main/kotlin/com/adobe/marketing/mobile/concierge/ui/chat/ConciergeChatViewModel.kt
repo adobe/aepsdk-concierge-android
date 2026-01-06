@@ -15,7 +15,6 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
-import androidx.compose.material3.SnackbarHostState
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,17 +22,16 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
-import com.adobe.marketing.mobile.concierge.network.FeedbackPayload
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
-import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackSubmission
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
-import com.adobe.marketing.mobile.concierge.ui.state.FeedbackData
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
@@ -74,22 +72,10 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
 
     /**
-     * Snackbar state for showing feedback toast notifications
-     */
-    internal val snackbarHostState = SnackbarHostState()
-
-    /**
      * List of chat messages in the conversation
      */
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
-
-    /**
-     * State for tracking feedback states per interaction
-     */
-    private val _feedbackStates = MutableStateFlow<Map<String, FeedbackState>>(emptyMap())
-    internal val feedbackStates: StateFlow<Map<String, FeedbackState>> =
-        _feedbackStates.asStateFlow()
 
     /**
      * Tracks the current conversation ID from the backend response
@@ -196,7 +182,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 ConciergeConstants.ChatInteraction.NEGATIVE
             )
 
-            is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.submission)
+            is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.feedback)
             is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
 
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
@@ -254,14 +240,14 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Helper to update feedback dialog state
-     * @param feedbackData The feedback data to set, or null to clear
+     * @param feedback The feedback data to set, or null to clear
      */
-    private fun updateFeedbackData(feedbackData: FeedbackData?) {
+    private fun updateFeedback(feedback: Feedback?) {
         _state.update { currentState ->
             when (currentState) {
-                is ChatScreenState.Idle -> currentState.copy(feedbackData = feedbackData)
-                is ChatScreenState.Processing -> currentState.copy(feedbackData = feedbackData)
-                is ChatScreenState.Error -> currentState.copy(feedbackData = feedbackData)
+                is ChatScreenState.Idle -> currentState.copy(feedback = feedback)
+                is ChatScreenState.Processing -> currentState.copy(feedback = feedback)
+                is ChatScreenState.Error -> currentState.copy(feedback = feedback)
             }
         }
     }
@@ -273,70 +259,56 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleFeedback(interactionId: String, feedbackType: String) {
         // Show feedback dialog based on the type
-        val isPositive = when (feedbackType) {
-            ConciergeConstants.ChatInteraction.POSITIVE -> true
-            ConciergeConstants.ChatInteraction.NEGATIVE -> false
+        val type = when (feedbackType) {
+            ConciergeConstants.ChatInteraction.POSITIVE -> FeedbackType.POSITIVE
+            ConciergeConstants.ChatInteraction.NEGATIVE -> FeedbackType.NEGATIVE
             else -> return
         }
 
-        updateFeedbackData(FeedbackData(interactionId, isPositive))
+        updateFeedback(Feedback(interactionId, type))
     }
 
     /**
      * Handles feedback submission from the dialog
-     * @param submission The feedback submission data
+     * @param feedback The feedback data
      */
-    private fun handleFeedbackSubmission(submission: FeedbackSubmission) {
+    private fun handleFeedbackSubmission(feedback: Feedback) {
         // Update feedback state
-        val feedbackState = if (submission.isPositive) {
-            FeedbackState.Positive
-        } else {
-            FeedbackState.Negative
+        val feedbackState = when (feedback.feedbackType) {
+            FeedbackType.POSITIVE -> FeedbackState.Positive
+            FeedbackType.NEGATIVE -> FeedbackState.Negative
         }
 
-        _feedbackStates.update { currentStates ->
-            currentStates + (submission.interactionId to feedbackState)
+        // Find and update the message with the feedback state
+        _messages.update { currentMessages ->
+            currentMessages.map { message ->
+                if (message.interactionId == feedback.interactionId) {
+                    message.copy(feedbackState = feedbackState)
+                } else {
+                    message
+                }
+            }
         }
 
         // Hide dialog
-        updateFeedbackData(null)
-
-        // Show snackbar with appropriate message
-        val snackbarMessage = if (submission.isPositive) {
-            "Thank you for your feedback."
-        } else {
-            "Thank you for your feedback. We strive to improve future results."
-        }
-
-        viewModelScope.launch {
-            snackbarHostState.showSnackbar(
-                message = snackbarMessage,
-                withDismissAction = true
-            )
-        }
+        updateFeedback(null)
 
         // Send feedback to the conversation service
         viewModelScope.launch {
-            val feedbackPayload = FeedbackPayload(
-                turnId = submission.interactionId,
-                conversationId = currentConversationId,
-                isPositive = submission.isPositive,
-                selectedCategories = submission.selectedCategories,
-                notes = submission.notes
-            )
-
-            val success = chatService.sendFeedback(feedbackPayload)
+            val feedbackWithConversationId = feedback.copy(conversationId = currentConversationId)
+            
+            val success = chatService.sendFeedback(feedbackWithConversationId)
             if (success) {
                 Log.debug(
                     TAG,
                     "handleFeedbackSubmission",
-                    "Feedback sent successfully for turnId: ${submission.interactionId}, conversationId: $currentConversationId"
+                    "Feedback sent successfully for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
                 )
             } else {
                 Log.warning(
                     TAG,
                     "handleFeedbackSubmission",
-                    "Failed to send feedback for turnId: ${submission.interactionId}, conversationId: $currentConversationId"
+                    "Failed to send feedback for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
                 )
             }
         }
@@ -346,7 +318,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Handles dismissing the feedback dialog
      */
     private fun handleDismissFeedbackDialog() {
-        updateFeedbackData(null)
+        updateFeedback(null)
     }
 
     /**
@@ -480,10 +452,10 @@ class ConciergeChatViewModel : AndroidViewModel {
                     replaceAssistantMessageContent(parsedMessage)
                 }
                 _state.update { currentState ->
-                    when (currentState) {
-                        is ChatScreenState.Processing -> ChatScreenState.Idle(
-                            feedbackData = currentState.feedbackData
-                        )
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(
+                    feedback = currentState.feedback
+                )
                         else -> currentState
                     }
                 }
@@ -606,7 +578,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         _state.update { currentState ->
             when (currentState) {
                 is ChatScreenState.Processing -> ChatScreenState.Idle(
-                    feedbackData = currentState.feedbackData
+                    feedback = currentState.feedback
                 )
                 else -> ChatScreenState.Idle()
             }
