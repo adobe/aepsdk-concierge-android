@@ -343,6 +343,7 @@ internal class ConciergeConversationServiceClient(
 
         val isPositive = feedback.feedbackType == FeedbackType.POSITIVE
 
+        // TODO: this has to be formalized in a JSON structure once the data model is finalized.
         return """
 {
     "events": [{
