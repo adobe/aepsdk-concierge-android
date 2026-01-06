@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.chat
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -35,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
@@ -49,6 +52,8 @@ import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
+import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
+import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -151,6 +156,14 @@ fun ConciergeChat(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
+    val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
+
+    // Derive UI state from ChatScreenState
+    val isProcessing = state is ChatScreenState.Processing
+    val errorMessage = (state as? ChatScreenState.Error)?.error
+    
+    // Determine if user is returning
+    val isReturningUser = viewModel.isReturningUser()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Refresh permission status when app resumes (e.g., returning from settings)
@@ -173,6 +186,9 @@ fun ConciergeChat(
                 chatState = state,
                 inputState = inputState,
                 hasAudioPermission = hasAudioPermission,
+                showWelcomeCard = showWelcomeCard,
+                welcomeConfig = viewModel.welcomeConfig,
+                isReturningUser = isReturningUser,
                 onTextChanged = viewModel::onTextStateChanged,
                 onEvent = viewModel::processEvent,
                 onPermissionResult = { granted ->
@@ -191,6 +207,9 @@ internal fun ConciergeChat(
     chatState: ChatScreenState,
     inputState: UserInputState,
     hasAudioPermission: Boolean,
+    showWelcomeCard: Boolean,
+    welcomeConfig: WelcomeConfig,
+    isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
@@ -240,6 +259,33 @@ internal fun ConciergeChat(
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
                 )
+                
+                // Welcome card, shown when no chat messages have been sent and text input is empty
+                val isInputEmpty = inputState is UserInputState.Empty || inputState is UserInputState.Error
+                val shouldShowWelcome = showWelcomeCard && messages.isEmpty() && isInputEmpty
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = shouldShowWelcome,
+                    modifier = Modifier.fillMaxSize(),
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(style.backgroundColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WelcomeCard(
+                            config = welcomeConfig,
+                            isReturningUser = isReturningUser,
+                            onPromptClick = { prompt -> onTextChanged(prompt) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+                }
             }
 
             // User input

@@ -740,4 +740,63 @@ object ConciergeStyles {
             )
         }
 
+    /**
+     * Styling for the welcome card
+     */
+    @Immutable
+    data class WelcomeCardStyle(
+        val backgroundColor: Color,
+        val shape: Shape,
+        val elevation: Dp,
+        val contentPadding: Dp,
+        val titleTextStyle: TextStyle,
+        val titleTextColor: Color,
+        val titleBottomSpacing: Dp,
+        val descriptionTextStyle: TextStyle,
+        val descriptionTextColor: Color,
+        val promptsTopSpacing: Dp,
+        val promptsHeaderTextStyle: TextStyle,
+        val promptsHeaderTextColor: Color,
+        val promptsHeaderBottomSpacing: Dp,
+        val promptsSpacing: Dp,
+        val promptBackgroundColor: Color,
+        val promptShape: Shape,
+        val promptPadding: Dp,
+        val promptImageSize: Dp,
+        val promptImageShape: Shape,
+        val promptImagePlaceholderColor: Color,
+        val promptImageSpacing: Dp,
+        val promptTextStyle: TextStyle,
+        val promptTextColor: Color
+    )
+
+    val welcomeCardStyle: WelcomeCardStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            return WelcomeCardStyle(
+                backgroundColor = Color.Transparent,
+                shape = RoundedCornerShape(12.dp),
+                elevation = 0.dp,
+                contentPadding = 20.dp,
+                titleTextStyle = MaterialTheme.typography.headlineSmall,
+                titleTextColor = themeColors.onSurface,
+                titleBottomSpacing = 8.dp,
+                descriptionTextStyle = MaterialTheme.typography.bodyMedium,
+                descriptionTextColor = themeColors.onSurface.copy(alpha = 0.8f),
+                promptsTopSpacing = 8.dp,
+                promptsHeaderTextStyle = MaterialTheme.typography.bodySmall,
+                promptsHeaderTextColor = themeColors.onSurface.copy(alpha = 0.6f),
+                promptsHeaderBottomSpacing = 12.dp,
+                promptsSpacing = 8.dp,
+                promptBackgroundColor = themeColors.surface,
+                promptShape = RoundedCornerShape(8.dp),
+                promptPadding = 0.dp,
+                promptImageSize = 75.dp,
+                promptImageShape = RoundedCornerShape(4.dp),
+                promptImagePlaceholderColor = themeColors.onSurface.copy(alpha = 0.1f),
+                promptImageSpacing = 12.dp,
+                promptTextStyle = MaterialTheme.typography.bodyMedium,
+                promptTextColor = themeColors.onSurface
+            )
+        }
 }
