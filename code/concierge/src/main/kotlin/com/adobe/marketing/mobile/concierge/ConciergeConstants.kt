@@ -27,6 +27,9 @@ object ConciergeConstants {
         }
         object Configuration {
             const val EXTENSION_NAME = "com.adobe.module.configuration"
+            const val CONCIERGE_SERVER = "concierge.server"
+            const val CONCIERGE_CONFIG_ID = "concierge.configId"
+            const val CONCIERGE_SURFACES = "concierge.surfaces"
         }
     }
 
@@ -37,6 +40,8 @@ object ConciergeConstants {
 
     object DataStoreKeys {
         const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
+        const val KEY_SESSION_ID = "concierge_session_id"
+        const val KEY_SESSION_TIMESTAMP = "concierge_session_timestamp"
     }
 
     object WelcomeCard {
