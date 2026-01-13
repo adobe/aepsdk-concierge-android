@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -24,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Central styling configuration for all Concierge UI composables.
@@ -79,21 +80,22 @@ object ConciergeStyles {
     val inputPanelStyle: InputPanelStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val themeText = ConciergeTheme.text
             return InputPanelStyle(
                 outerShape = RoundedCornerShape(12.dp),
                 innerShape = RoundedCornerShape(10.dp),
                 outerPadding = 2.dp,
                 innerPadding = 4.dp,
-                backgroundColor = themeColors.container,
+                backgroundColor = themeColors.inputBackground ?: themeColors.container,
                 recordingBorderColors = listOf(
-                    themeColors.primary,
+                    themeColors.inputOutlineFocus ?: themeColors.primary,
                     themeColors.surface,
                     themeColors.surface,
-                    themeColors.primary
+                    themeColors.inputOutlineFocus ?: themeColors.primary
                 ),
                 recordingBorderAnimationDuration = 1500,
                 buttonSpacing = 8.dp,
-                placeholderText = "How can I help",
+                placeholderText = themeText?.inputPlaceholder ?: "How can I help",
                 listeningPlaceholderText = "Listening..."
             )
         }
@@ -162,10 +164,10 @@ object ConciergeStyles {
                 innerPadding = 16.dp,
                 shape = RoundedCornerShape(12.dp),
                 elevation = 0.dp,
-                userMessageBackgroundColor = themeColors.primary,
-                botMessageBackgroundColor = themeColors.container,
-                userMessageTextColor = themeColors.onPrimary,
-                botMessageTextColor = themeColors.onSurface,
+                userMessageBackgroundColor = themeColors.userMessageBackground ?: themeColors.primary,
+                botMessageBackgroundColor = themeColors.conciergeMessageBackground ?: themeColors.container,
+                userMessageTextColor = themeColors.userMessageText ?: themeColors.onPrimary,
+                botMessageTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textStyle = MaterialTheme.typography.bodyLarge,
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp
@@ -192,6 +194,7 @@ object ConciergeStyles {
     val thinkingAnimationStyle: ThinkingAnimationStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val themeText = ConciergeTheme.text
             return ThinkingAnimationStyle(
                 dotSize = 8.dp,
                 dotSpacing = 8.dp,
@@ -202,7 +205,7 @@ object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyLarge,
                 textColor = themeColors.onSurface,
                 dotColor = themeColors.onSurface.copy(alpha = 0.7f),
-                thinkingText = "Thinking"
+                thinkingText = themeText?.loadingMessage ?: "Thinking"
             )
         }
 
@@ -361,12 +364,12 @@ object ConciergeStyles {
                 height = 40.dp,
                 shape = RoundedCornerShape(20.dp),
                 spacing = 8.dp,
-                primaryBackgroundColor = themeColors.primary,
-                primaryContentColor = themeColors.onPrimary,
+                primaryBackgroundColor = themeColors.buttonPrimaryBackground ?: themeColors.primary,
+                primaryContentColor = themeColors.buttonPrimaryText ?: themeColors.onPrimary,
                 secondaryBackgroundColor = themeColors.surface,
-                secondaryContentColor = themeColors.onSurface,
+                secondaryContentColor = themeColors.buttonSecondaryText ?: themeColors.onSurface,
                 secondaryBorderWidth = 1.dp,
-                secondaryBorderColor = themeColors.outline.copy(alpha = 0.5f),
+                secondaryBorderColor = themeColors.buttonSecondaryBorder ?: themeColors.outline.copy(alpha = 0.5f),
                 secondaryBorderAlpha = 0.5f,
                 textStyle = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
@@ -427,27 +430,35 @@ object ConciergeStyles {
         val containerPadding: Dp,
         val separatorHeight: Dp,
         val separatorColor: Color,
+        val backgroundColor: Color? = null,
         val textStyle: TextStyle,
         val textColor: Color,
         val textLength: Int,
         val urlColor: Color,
         val expandAnimationDuration: Int,
-        val collapseAnimationDuration: Int
+        val collapseAnimationDuration: Int,
+        val fontSize: TextUnit? = null
     )
 
     val citationStyle: CitationStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val themeTypography = ConciergeTheme.typography
+            val fontSize = themeTypography?.citationsFontSize?.sp
             return CitationStyle(
                 containerPadding = 8.dp,
                 separatorHeight = 1.dp,
                 separatorColor = themeColors.outline.copy(alpha = 0.3f),
-                textStyle = MaterialTheme.typography.bodyMedium,
-                textColor = themeColors.onSurface,
+                backgroundColor = themeColors.citationBackground,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize ?: MaterialTheme.typography.bodyMedium.fontSize
+                ),
+                textColor = themeColors.citationText ?: themeColors.onSurface,
                 textLength = 2,
                 urlColor = themeColors.primary,
                 expandAnimationDuration = 200,
-                collapseAnimationDuration = 200
+                collapseAnimationDuration = 200,
+                fontSize = fontSize
             )
         }
 
@@ -485,7 +496,9 @@ object ConciergeStyles {
         val buttonSize: Dp,
         val iconSize: Dp,
         val spacing: Dp,
-        val iconColor: Color
+        val iconColor: Color,
+        val backgroundColor: Color = Color.Transparent,
+        val hoverBackgroundColor: Color? = null
     )
 
     val feedbackButtonsStyle: FeedbackButtonsStyle
@@ -495,7 +508,9 @@ object ConciergeStyles {
                 buttonSize = 32.dp,
                 iconSize = 16.dp,
                 spacing = 4.dp,
-                iconColor = themeColors.onSurface
+                iconColor = themeColors.onSurface,
+                backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
+                hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground
             )
         }
 
@@ -618,17 +633,24 @@ object ConciergeStyles {
         val horizontalPadding: Dp,
         val maxLines: Int,
         val textStyle: TextStyle,
-        val placeholderColor: Color
+        val placeholderTextColor: Color,
+        val fontSize: TextUnit? = null
     )
 
     val chatTextFieldStyle: ChatTextFieldStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val themeTypography = ConciergeTheme.typography
+            val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
                 horizontalPadding = 8.dp,
                 maxLines = 7,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                placeholderColor = themeColors.onSurfaceVariant
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = themeColors.inputText ?: themeColors.onSurface,
+                    fontSize = fontSize ?: MaterialTheme.typography.bodyLarge.fontSize
+                ),
+                placeholderTextColor = themeColors.inputText?.copy(alpha = 0.7f) ?: themeColors.onSurface.copy(alpha = 0.7f),
+                fontSize = fontSize
             )
         }
 
@@ -712,31 +734,12 @@ object ConciergeStyles {
                 notesPlaceholderColor = themeColors.onSurfaceVariant,
                 notesButtonsSpacing = 24.dp,
                 textFieldBorderColor = themeColors.outline,
-                textFieldTextColor = themeColors.onSurface,
+                textFieldTextColor = themeColors.inputText ?: themeColors.onSurface,
                 buttonSpacing = 8.dp,
                 cancelButtonColor = themeColors.onSurfaceVariant,
-                submitButtonColor = themeColors.primary,
-                submitButtonTextColor = themeColors.onPrimary,
+                submitButtonColor = themeColors.buttonSubmitFill ?: themeColors.primary,
+                submitButtonTextColor = themeColors.buttonSubmitText ?: themeColors.onPrimary,
                 buttonTextStyle = MaterialTheme.typography.labelMedium
-            )
-        }
-
-    /**
-     * Styling for feedback snackbar notification
-     */
-    @Immutable
-    data class SnackbarStyle(
-        val containerColor: Color,
-        val contentColor: Color,
-        val actionColor: Color
-    )
-
-    val snackbarStyle: SnackbarStyle
-        @Composable get() {
-            return SnackbarStyle(
-                containerColor = Color(0xFF4CAF50), // Green
-                contentColor = Color.White,
-                actionColor = Color.White
             )
         }
 
@@ -774,7 +777,7 @@ object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             return WelcomeCardStyle(
-                backgroundColor = Color.Transparent,
+                backgroundColor = themeColors.background,
                 shape = RoundedCornerShape(12.dp),
                 elevation = 0.dp,
                 contentPadding = 20.dp,

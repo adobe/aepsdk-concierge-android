@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "brandName": "Concierge Demo",
+    "version": "1.0.0",
+    "language": "en-US",
+    "namespace": "brand-concierge"
+  },
+  "behavior": {
+    "multimodalCarousel": {
+      "cardClickAction": "openLink"
+    },
+    "input": {
+      "enableVoiceInput": true,
+      "disableMultiline": false,
+      "showAiChatIcon": null
+    },
+    "chat": {
+      "messageAlignment": "left",
+      "messageWidth": "100%"
+    },
+    "privacyNotice": {
+      "title": "Privacy Notice",
+      "text": "Privacy notice text."
+    }
+  },
+  "disclaimer": {
+    "text": "AI responses may be inaccurate. Check answers and sources. {Terms}",
+    "links": [
+      {
+        "text": "Terms",
+        "url": "https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html"
+      }
+    ]
+  },
+  "text": {
+    "welcome.heading": "Welcome to Brand Concierge!",
+    "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need. Let's get started!\n\nNot sure where to start? Explore the suggested ideas below.",
+    "input.placeholder": "How can I help?",
+    "input.messageInput.aria": "Message input",
+    "input.send.aria": "Send message",
+    "input.aiChatIcon.tooltip": "Ask AI",
+    "input.mic.aria": "Voice input",
+    "card.aria.select": "Select example message",
+    "carousel.prev.aria": "Previous cards",
+    "carousel.next.aria": "Next cards",
+    "scroll.bottom.aria": "Scroll to bottom",
+    "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
+    "loading.message": "Generating response from our knowledge base",
+    "feedback.dialog.title.positive": "Your feedback is appreciated",
+    "feedback.dialog.title.negative": "Your feedback is appreciated",
+    "feedback.dialog.question.positive": "What went well? Select all that apply.",
+    "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
+    "feedback.dialog.notes": "Notes",
+    "feedback.dialog.submit": "Submit",
+    "feedback.dialog.cancel": "Cancel",
+    "feedback.dialog.notes.placeholder": "Additional notes (optional)",
+    "feedback.toast.success": "Thank you for the feedback.",
+    "feedback.thumbsUp.aria": "Thumbs up",
+    "feedback.thumbsDown.aria": "Thumbs down"
+  },
+  "arrays": {
+    "welcome.examples": [
+      {
+        "text": "I'd like to explore templates to see what I can create.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
+        "backgroundColor": "#F5F5F5"
+      },
+      {
+        "text": "I want to touch up and enhance my photos.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
+        "backgroundColor": "#F5F5F5"
+      },
+      {
+        "text": "I'd like to edit PDFs and make them interactive.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
+        "backgroundColor": "#F5F5F5"
+      },
+      {
+        "text": "I want to turn my clips into polished videos.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
+        "backgroundColor": "#F5F5F5"
+      }
+    ],
+    "feedback.positive.options": [
+      "Helpful and relevant recommendations",
+      "Clear and easy to understand",
+      "Friendly and conversational tone",
+      "Visually appealing presentation",
+      "Other"
+    ],
+    "feedback.negative.options": [
+      "Didn't understand my request",
+      "Unhelpful or irrelevant information",
+      "Too vague or lacking detail",
+      "Errors or poor quality response",
+      "Other"
+    ]
+  },
+  "assets": {
+    "icons": {
+      "company": ""
+    }
+  },
+  "theme": {
+    "--welcome-input-order": "3",
+    "--welcome-cards-order": "2",
+    "--font-family": "",
+    "--color-primary": "#EB1000",
+    "--color-text": "#131313",
+    "--line-height-body": "1.75",
+    "--main-container-background": "#FFFFFF",
+    "--main-container-bottom-background": "#FFFFFF",
+    "--message-blocker-background": "#FFFFFF",
+    "--input-height": "52px",
+    "--input-height-mobile": "52px",
+    "--input-border-radius": "12px",
+    "--input-border-radius-mobile": "12px",
+    "--input-background": "#FFFFFF",
+    "--input-outline-color": null,
+    "--input-outline-width": "2px",
+    "--input-box-shadow": "0 2px 8px 0 #00000014",
+    "--input-focus-outline-width": "2px",
+    "--input-focus-outline-color": "#4B75FF",
+    "--input-font-size": "16px",
+    "--input-text-color": "#292929",
+    "--input-button-height": "32px",
+    "--input-button-width": "32px",
+    "--submit-button-fill-color": "#FFFFFF",
+    "--submit-button-fill-color-disabled": "#C6C6C6",
+    "--color-button-submit": "#292929",
+    "--color-button-submit-hover": "#292929",
+    "--input-button-border-radius": "8px",
+    "--button-disabled-background": "#FFFFFF",
+    "--disclaimer-color": "#4B4B4B",
+    "--disclaimer-font-size": "12px",
+    "--disclaimer-font-weight": "400",
+    "--message-user-background": "#EBEEFF",
+    "--message-user-text": "#292929",
+    "--message-border-radius": "10px",
+    "--message-padding": "8px 16px",
+    "--message-concierge-background": "#F5F5F5",
+    "--message-concierge-text": "#292929",
+    "--message-max-width": "100%",
+    "--chat-interface-max-width": "768px",
+    "--chat-history-padding": "16px",
+    "--chat-history-padding-top-expanded": "0",
+    "--chat-history-bottom-padding": "0",
+    "--message-blocker-height": "105px",
+    "--citations-text-font-weight": "700",
+    "--citations-desktop-button-font-size": "12px",
+    "--feedback-icon-btn-background": "#FFFFFF",
+    "--feedback-icon-btn-hover-background": "#FFFFFF",
+    "--feedback-icon-btn-size-desktop": "32px",
+    "--feedback-container-gap": "4px",
+    "--multimodal-card-box-shadow": "none",
+    "--border-radius-card": "16px",
+    "--button-height-s": "30px",
+    "--button-primary-background": "#3B63FB",
+    "--button-primary-text": "#FFFFFF",
+    "--button-primary-hover": "#274DEA",
+    "--button-secondary-border": "#2C2C2C",
+    "--button-secondary-text": "#2C2C2C",
+    "--button-secondary-hover": "#000000",
+    "--color-button-secondary-hover-text": "#FFFFFF",
+    "--message-concierge-link-color": "#274DEA",
+    "--message-alignment": "left",
+    "--message-width": "100%"
+  }
+}

@@ -37,7 +37,8 @@ internal fun UserInput(
     onMicEvent: (MicEvent) -> Unit,
     onSend: (String) -> Unit,
     hasAudioPermission: Boolean,
-    onPermissionResult: (Boolean) -> Unit
+    onPermissionResult: (Boolean) -> Unit,
+    placeholder: String? = "How can I help"
 ) {
     var shouldRequestPermission by remember { mutableStateOf(false) }
 
@@ -57,6 +58,7 @@ internal fun UserInput(
         // Input field
         ChatInputField(
             modifier = Modifier.fillMaxWidth(),
+            placeholder = placeholder ?: "How can I help",
             enable = true,
             inputState = inputState,
             isProcessing = isProcessing,

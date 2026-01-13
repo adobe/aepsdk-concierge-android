@@ -27,6 +27,8 @@ import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.toWelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -148,6 +150,16 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     internal var welcomeConfig: WelcomeConfig = initializeWelcomeConfig()
         private set
+    
+    /**
+     * Updates the welcome configuration from a theme config
+     * @param themeConfig The theme configuration containing welcome data
+     */
+    fun updateWelcomeConfigFromTheme(themeConfig: ConciergeThemeConfig?) {
+        if (themeConfig != null) {
+            welcomeConfig = themeConfig.toWelcomeConfig(showWelcomeCard = true)
+        }
+    }
 
     /**
      * Data store collection for persisting concierge
