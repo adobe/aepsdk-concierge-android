@@ -99,7 +99,7 @@ internal class ConciergeStateRepository private constructor() {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             LOG_TAG,
-            "Updated concirge state with ECID: $ecid"
+            "Updated concierge state with ECID: $ecid"
 
         )
     }
