@@ -37,7 +37,41 @@ data class ConciergeColors(
     val outline: Color,
 
     val error: Color,
-    val onError: Color
+    val onError: Color,
+    
+    // Message-specific colors (from CSS themes)
+    val userMessageBackground: Color? = null,
+    val userMessageText: Color? = null,
+    val conciergeMessageBackground: Color? = null,
+    val conciergeMessageText: Color? = null,
+    val messageConciergeLink: Color? = null,
+
+    // Button-specific colors (from CSS themes)
+    val buttonPrimaryBackground: Color? = null,
+    val buttonPrimaryText: Color? = null,
+    val buttonPrimaryHover: Color? = null,
+    val buttonSecondaryBorder: Color? = null,
+    val buttonSecondaryText: Color? = null,
+    val buttonSecondaryHover: Color? = null,
+    val buttonSecondaryHoverText: Color? = null,
+    val buttonSubmitFill: Color? = null,
+    val buttonSubmitText: Color? = null,
+    val buttonDisabled: Color? = null,
+
+    // Input-specific colors (from CSS themes)
+    val inputBackground: Color? = null,
+    val inputText: Color? = null,
+    val inputOutline: Color? = null,
+    val inputOutlineFocus: Color? = null,
+
+    // Feedback-specific colors (from CSS themes)
+    val feedbackIconButtonBackground: Color? = null,
+    val feedbackIconButtonHoverBackground: Color? = null,
+
+    // Citation/Disclaimer colors (from CSS themes)
+    val citationBackground: Color? = null,
+    val citationText: Color? = null,
+    val disclaimerColor: Color? = null
 )
 
 /**

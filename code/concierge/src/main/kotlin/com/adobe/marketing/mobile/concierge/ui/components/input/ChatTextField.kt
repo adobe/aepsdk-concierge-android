@@ -59,7 +59,7 @@ internal fun ChatTextField(
         placeholder = {
             Text(
                 text = placeholder,
-                color = style.placeholderColor
+                color = style.placeholderTextColor
             )
         },
         enabled = isEnabled,

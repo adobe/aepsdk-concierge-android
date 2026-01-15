@@ -15,6 +15,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 
 /**
  * A custom View that wraps ConciergeChat for easy integration into XML-based applications.
@@ -86,11 +88,13 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
+     * @param theme Optional theme configuration to apply
      * @param onClose Optional callback when the close button is pressed
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
+        theme: ConciergeThemeConfig? = null,
         onClose: () -> Unit
     ) {
         this.onCloseCallback = onClose
@@ -98,13 +102,15 @@ class ConciergeChatView @JvmOverloads constructor(
         // Create or get existing ViewModel
         viewModel = ViewModelProvider(viewModelStoreOwner)[ConciergeChatViewModel::class.java]
 
-        // Set the Compose content
+        // Set the Compose content with optional theme
         composeView.setContent {
-            viewModel?.let { vm ->
-                ConciergeChat(
-                    viewModel = vm,
-                    onClose = onCloseCallback
-                )
+            ConciergeTheme(theme = theme) {
+                viewModel?.let { vm ->
+                    ConciergeChat(
+                        viewModel = vm,
+                        onClose = onCloseCallback
+                    )
+                }
             }
         }
     }
@@ -120,38 +126,42 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
+     * @param theme Optional theme configuration to apply
      * @param triggerView The view (e.g., Button) that will trigger the chat dialog when clicked
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
+        theme: ConciergeThemeConfig? = null,
         triggerView: View
     ) {
         // Create or get existing ViewModel
         viewModel = ViewModelProvider(viewModelStoreOwner)[ConciergeChatViewModel::class.java]
 
-        // Set the Compose content using the wrapper composable
+        // Set the Compose content using the wrapper composable with optional theme
         composeView.setContent {
-            viewModel?.let { vm ->
-                // Use the dialog-based ConciergeChat wrapper (same as MainScreen.kt)
-                ConciergeChat(viewModel = vm) { showChat ->
-                    // Wrap trigger view in a Box to center it
-                    Box(
-                        modifier = Modifier.wrapContentSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AndroidView(
-                            factory = { triggerView },
-                            modifier = Modifier.wrapContentSize()
-                        )
+            ConciergeTheme(theme = theme) {
+                viewModel?.let { vm ->
+                    // Use the dialog-based ConciergeChat wrapper (same as MainScreen.kt)
+                    ConciergeChat(viewModel = vm) { showChat ->
+                        // Wrap trigger view in a Box to center it
+                        Box(
+                            modifier = Modifier.wrapContentSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AndroidView(
+                                factory = { triggerView },
+                                modifier = Modifier.wrapContentSize()
+                            )
 
-                        // Setup click listener to trigger chat dialog
-                        DisposableEffect(triggerView) {
-                            val clickListener = OnClickListener { showChat() }
-                            triggerView.setOnClickListener(clickListener)
+                            // Setup click listener to trigger chat dialog
+                            DisposableEffect(triggerView) {
+                                val clickListener = OnClickListener { showChat() }
+                                triggerView.setOnClickListener(clickListener)
 
-                            onDispose {
-                                triggerView.setOnClickListener(null)
+                                onDispose {
+                                    triggerView.setOnClickListener(null)
+                                }
                             }
                         }
                     }
