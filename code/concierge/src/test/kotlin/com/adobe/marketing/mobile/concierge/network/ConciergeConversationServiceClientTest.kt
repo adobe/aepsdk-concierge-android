@@ -11,6 +11,9 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeState
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
 import com.adobe.marketing.mobile.services.NetworkCallback
@@ -23,6 +26,8 @@ import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -43,6 +48,15 @@ class ConciergeConversationServiceClientTest {
 
     private lateinit var serviceProvider: ServiceProvider
     private lateinit var networkService: Networking
+    private lateinit var mockStateRepository: ConciergeStateRepository
+    private lateinit var mockSessionManager: ConciergeSessionManager
+    private val testState = ConciergeState(
+        experienceCloudId = "test-ecid",
+        configurationReady = true,
+        conciergeSurfaces = listOf("surface1", "surface2"),
+        conciergeServer = "https://test-server.com",
+        conciergeConfigId = "test-config-id"
+    )
 
     @Before
     fun setup() {
@@ -51,6 +65,15 @@ class ConciergeConversationServiceClientTest {
         networkService = mockk()
         every { ServiceProvider.getInstance() } returns serviceProvider
         every { serviceProvider.networkService } returns networkService
+        
+        // Mock ConciergeStateRepository
+        mockStateRepository = mockk(relaxed = true)
+        val stateFlow = MutableStateFlow(testState)
+        every { mockStateRepository.state } returns stateFlow
+        
+        // Mock ConciergeSessionManager
+        mockSessionManager = mockk(relaxed = true)
+        every { mockSessionManager.getSessionId() } returns "test-session-id"
     }
 
     @Test
@@ -112,7 +135,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         val emitted = mutableListOf<ParsedConversationMessage>()
         client.chat("hi").toList(emitted)
@@ -135,7 +158,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -159,7 +182,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -197,7 +220,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(0, emitted.size)
     }
@@ -215,7 +238,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(0, emitted.size)
     }
@@ -227,7 +250,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(null)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -269,7 +292,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("Hi", emitted[0].messageContent)
@@ -289,7 +312,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -328,7 +351,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("", emitted[0].messageContent)
@@ -379,7 +402,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").take(1).toList(mutableListOf())
         assertEquals(1, emitted.size)
         verify(atLeast = 1) { connection.close() }
@@ -406,7 +429,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -430,7 +453,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("", emitted[0].messageContent)
@@ -449,7 +472,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("", emitted[0].messageContent)
@@ -485,7 +508,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("Done", emitted[0].messageContent)

@@ -13,6 +13,8 @@
 package com.adobe.marketing.mobile.concierge.network
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
@@ -22,10 +24,16 @@ import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.ServiceProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -40,19 +48,10 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/**
- * Configuration for the conversation service request.
- */
-internal data class ConversationConfig(
-    val configId: String = "",
-    val sessionId: String = UUID.randomUUID().toString(),
-    val baseUrl: String = "",
-    val surfaces: List<String> = listOf(""),
-    val ecid: String? = ConciergeStateRepository.instance.state.value.experienceCloudId
-)
-
 internal class ConciergeConversationServiceClient(
-    private val config: ConversationConfig = ConversationConfig()
+    private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
+    private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
 
     companion object {
@@ -61,10 +60,24 @@ internal class ConciergeConversationServiceClient(
         private const val DEFAULT_CONNECT_TIMEOUT = 30
         private const val DEFAULT_READ_TIMEOUT = 60
     }
+    
+    // Shared StateFlow that continuously tracks state updates
+    private val conciergeState: StateFlow<ConciergeState> = stateRepository.state
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = stateRepository.state.value
+        )
 
     private val endpoint: String
-        get() = "${config.baseUrl}/brand-concierge/conversations" +
-                "?configId=${config.configId}&sessionId=${config.sessionId}&requestId=${UUID.randomUUID()}"
+        get() {
+            val currentState = conciergeState.value
+            val sessionId = sessionManager.getSessionId()
+            return "https://${currentState.conciergeServer}/brand-concierge/conversations" +
+                    "?configId=${currentState.conciergeConfigId}" +
+                    "&sessionId=$sessionId" +
+                    "&requestId=${UUID.randomUUID()}"
+        }
 
 
     /**
@@ -79,7 +92,7 @@ internal class ConciergeConversationServiceClient(
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
     fun chat(message: String): Flow<ParsedConversationMessage> = flow {
-        val requestBody = createRequestBody(message)
+        val requestBody = createRequestBody(message, stateRepository.state.value)
         val request = createConversationServiceRequest(endpoint, requestBody)
 
         val connection = connect(request)
@@ -122,14 +135,16 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the JSON request body for the conversation request.
      */
-    private fun createRequestBody(message: String): String = """
+    private fun createRequestBody(message: String, state: ConciergeState): String {
+        val surfaces = state.conciergeSurfaces ?: emptyList()
+        return """
         {
             "events": [
                 {
                     "query": {
                         "conversation": {
                             "fetchConversationalExperience": true,
-                            "surfaces": ${config.surfaces.joinToString(",", "[\"", "\"]") { it }},
+                            "surfaces": ${surfaces.joinToString(",", "[\"", "\"]") { it }},
                             "message": "${message.replace("\"", "\\\"")}"
                         }
                     },
@@ -137,7 +152,7 @@ internal class ConciergeConversationServiceClient(
                         "identityMap": {
                             "ECID": [
                                 {
-                                    "id": "${config.ecid}"
+                                    "id": "${state.experienceCloudId}"
                                 }
                             ]
                         }
@@ -146,6 +161,7 @@ internal class ConciergeConversationServiceClient(
             ]
         }
     """.trimIndent()
+    }
 
     /**
      * Establishes the network connection asynchronously and resumes with the connection.
@@ -302,7 +318,8 @@ internal class ConciergeConversationServiceClient(
      */
     suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
         try {
-            val requestBody = createFeedbackRequestBody(feedback)
+            val state = stateRepository.state.value
+            val requestBody = createFeedbackRequestBody(feedback, state)
             val request = createFeedbackRequest(endpoint, requestBody)
 
             val connection = connect(request)
@@ -322,7 +339,7 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the feedback request body in XDM format
      */
-    private fun createFeedbackRequestBody(feedback: Feedback): String {
+    private fun createFeedbackRequestBody(feedback: Feedback, state: ConciergeState): String {
         val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date())
@@ -350,7 +367,7 @@ internal class ConciergeConversationServiceClient(
         "xdm": {
             "identityMap": {
                 "ECID": [{
-                    "id": "${config.ecid}"
+                    "id": "${state.experienceCloudId}"
                 }]
             },
             "conversation": {
@@ -405,6 +422,7 @@ internal class ConciergeConversationServiceClient(
      * Should be called when the client is no longer needed to prevent memory leaks.
      */
     fun cleanup() {
+        scope.cancel()
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
