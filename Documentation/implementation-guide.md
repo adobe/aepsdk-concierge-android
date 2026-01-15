@@ -196,7 +196,7 @@ class XmlActivity : AppCompatActivity() {
 
 ### Theme Customization
 
-Conceirge chat interface can be customized by loading the theme file from `assets` directory of your app and loading it using `ConciergeThemeLoader`.
+Conceirge chat interface can be customized by loading the theme file from `assets` directory of your app by using `ConciergeThemeLoader`.
 
 ```
 @Composable
