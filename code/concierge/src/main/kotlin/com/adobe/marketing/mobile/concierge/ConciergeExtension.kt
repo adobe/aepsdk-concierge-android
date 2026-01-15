@@ -17,6 +17,7 @@ import com.adobe.marketing.mobile.EventType
 import com.adobe.marketing.mobile.Extension
 import com.adobe.marketing.mobile.ExtensionApi
 import com.adobe.marketing.mobile.SharedStateResolution
+import com.adobe.marketing.mobile.SharedStateResult
 import com.adobe.marketing.mobile.concierge.ConciergeConstants.EXTENSION_FRIENDLY_NAME
 import com.adobe.marketing.mobile.concierge.ConciergeConstants.EXTENSION_NAME
 import com.adobe.marketing.mobile.concierge.ConciergeConstants.EXTENSION_VERSION
@@ -75,11 +76,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
                 SELF_TAG,
                 "Configuration response event received."
             )
-            val hasConfigState = hasValidSharedState(
+            val configState = getSharedState(
                 ConciergeConstants.SharedState.Configuration.EXTENSION_NAME,
                 event
             )
-            if (hasConfigState) ConciergeStateRepository.instance.onConfigurationAvailable()
+            ConciergeStateRepository.instance.updateConfiguration(configState)
         }
     }
 
@@ -104,14 +105,13 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
         return sharedState != null && sharedState.isNotEmpty()
     }
 
-    private fun hasValidSharedState(extensionName: String, event: Event): Boolean {
-        val sharedState: Map<String, Any?>? = api.getSharedState(
+    private fun getSharedState(extensionName: String, event: Event): SharedStateResult? {
+        return api.getSharedState(
             extensionName,
             event,
             false,
             SharedStateResolution.LAST_SET
-        )?.value
-        return sharedState != null && sharedState.isNotEmpty()
+        )
     }
 
 }
