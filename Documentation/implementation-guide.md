@@ -2,7 +2,7 @@
 
 ## Overview
 
-Brand Concierge serves to provide an in-app conversational UI (a chat surface) that can be embedded into a host app with minimal UI wiring, connect that UI to Adobe Experience Platform by using AEP SDK shared state (Configuration + Edge Identity) to derive the service configuration needed to run a session, and enable brand controlled experiences through configuration and theming.
+The Brand Concierge extension provides an in-app conversational UI (a chat surface) that can be embedded into a host app with minimal UI wiring. The UI is connected to the Adobe Experience Platform by using AEP SDK shared state (Configuration + Edge Identity) to derive the service configuration needed to run a session and enable brand controlled experiences through configuration and theming.
 
 The Brand Concierge UI is presented through two integration approaches:
 
@@ -160,7 +160,7 @@ fun YourChatScreen() {
             }
         )
     } else {
-        // Show your intermetiate loading state or wait for SDK to be ready
+        // Show your intermediate loading state or wait for SDK to be ready
     }
 }
 ```
@@ -196,7 +196,7 @@ class XmlActivity : AppCompatActivity() {
 
 ### Theme Customization
 
-Conceirge chat interface can be customized by loading the theme file from `assets` directory of your app by using `ConciergeThemeLoader`.
+Concierge chat interface can be customized by loading the theme file from `assets` directory of your app by using `ConciergeThemeLoader`.
 
 ```
 @Composable
