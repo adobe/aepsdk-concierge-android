@@ -40,10 +40,12 @@ class ConciergeThemeLoaderTest {
 
     private val validThemeJson = """
         {
-            "name": "Test Theme",
-            "colors": {
-                "primary": "#FF0000",
-                "onPrimary": "#FFFFFF"
+            "metadata": {
+                "name": "Test Theme"
+            },
+            "theme": {
+                "--color-primary": "#FF0000",
+                "--color-text": "#FFFFFF"
             }
         }
     """.trimIndent()
@@ -74,7 +76,7 @@ class ConciergeThemeLoaderTest {
 
         assertNotNull(theme)
         assertEquals("Test Theme", theme?.name)
-        assertEquals("#FF0000", theme?.colors?.primary)
+        assertEquals("#FF0000", theme?.colors?.primaryColors?.primary)
     }
 
     @Test
@@ -164,7 +166,16 @@ class ConciergeThemeLoaderTest {
         // Load multiple themes
         loader.loadTheme(context, validThemeJson, ThemeSourceType.JSON_STRING, true)
         
-        val anotherTheme = """{"name": "Another", "colors": {"primary": "#00FF00"}}"""
+        val anotherTheme = """
+        {
+            "metadata": {
+                "name": "Another"
+            },
+            "theme": {
+                "--color-primary": "#00FF00"
+            }
+        }
+        """.trimIndent()
         loader.loadTheme(context, anotherTheme, ThemeSourceType.JSON_STRING, true)
 
         // Clear all
@@ -182,8 +193,12 @@ class ConciergeThemeLoaderTest {
     fun `loadThemeWithFallback uses fallback when primary fails`() {
         val fallbackTheme = """
             {
-                "name": "Fallback Theme",
-                "colors": {"primary": "#00FF00"}
+                "metadata": {
+                    "name": "Fallback Theme"
+                },
+                "theme": {
+                    "--color-primary": "#00FF00"
+                }
             }
         """.trimIndent()
 
@@ -202,15 +217,23 @@ class ConciergeThemeLoaderTest {
     fun `loadThemeWithFallback uses primary when it succeeds`() {
         val primaryTheme = """
             {
-                "name": "Primary Theme",
-                "colors": {"primary": "#FF0000"}
+                "metadata": {
+                    "name": "Primary Theme"
+                },
+                "theme": {
+                    "--color-primary": "#FF0000"
+                }
             }
         """.trimIndent()
 
         val fallbackTheme = """
             {
-                "name": "Fallback Theme",
-                "colors": {"primary": "#00FF00"}
+                "metadata": {
+                    "name": "Fallback Theme"
+                },
+                "theme": {
+                    "--color-primary": "#00FF00"
+                }
             }
         """.trimIndent()
 
@@ -258,8 +281,8 @@ class ConciergeThemeLoaderTest {
                 "behavior": {
                     "enableDarkMode": true
                 },
-                "colors": {
-                    "primary": "#FF0000"
+                "theme": {
+                    "--color-primary": "#FF0000"
                 }
             }
         """.trimIndent()
@@ -282,7 +305,9 @@ class ConciergeThemeLoaderTest {
         val tokensJson = """
             {
                 "metadata": {"version": "1.0.0"},
-                "colors": {"primary": "#FF0000"}
+                "theme": {
+                    "--color-primary": "#FF0000"
+                }
             }
         """.trimIndent()
 
