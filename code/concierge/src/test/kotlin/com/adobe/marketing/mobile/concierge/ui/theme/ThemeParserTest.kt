@@ -25,16 +25,12 @@ class ThemeParserTest {
     fun `parseThemeJson should parse valid complete theme`() {
         val json = """
             {
-                "name": "Test Theme",
-                "colors": {
-                    "primary": "#3949AB",
-                    "onPrimary": "#FFFFFF"
+                "metadata": {
+                    "name": "Test Theme"
                 },
-                "styles": {
-                    "header": {
-                        "padding": 16,
-                        "titleFontWeight": "bold"
-                    }
+                "theme": {
+                    "--color-primary": "#3949AB",
+                    "--color-text": "#FFFFFF"
                 }
             }
         """.trimIndent()
@@ -43,18 +39,16 @@ class ThemeParserTest {
 
         assertNotNull(config)
         assertEquals("Test Theme", config?.name)
-        assertEquals("#3949AB", config?.colors?.primary)
-        assertEquals("#FFFFFF", config?.colors?.onPrimary)
-        assertEquals(16.0, config?.styles?.header?.padding)
-        assertEquals("bold", config?.styles?.header?.titleFontWeight)
+        assertEquals("#3949AB", config?.colors?.primaryColors?.primary)
+        assertEquals("#FFFFFF", config?.colors?.primaryColors?.text)
     }
 
     @Test
     fun `parseThemeJson should handle minimal theme`() {
         val json = """
             {
-                "colors": {
-                    "primary": "#FF0000"
+                "theme": {
+                    "--color-primary": "#FF0000"
                 }
             }
         """.trimIndent()
@@ -62,8 +56,7 @@ class ThemeParserTest {
         val config = ThemeParser.parseThemeJson(json)
 
         assertNotNull(config)
-        assertEquals("#FF0000", config?.colors?.primary)
-        assertNull(config?.colors?.secondary)
+        assertEquals("#FF0000", config?.colors?.primaryColors?.primary)
         assertNull(config?.styles)
     }
 
@@ -149,30 +142,6 @@ class ThemeParserTest {
     }
 
     @Test
-    fun `parseThemeJson should handle all style objects`() {
-        val json = """
-            {
-                "styles": {
-                    "header": { "padding": 16 },
-                    "inputPanel": { "outerCornerRadius": 12 },
-                    "messageBubble": { "padding": 8 },
-                    "productCard": { "elevation": 1 },
-                    "welcomeCard": { "cornerRadius": 12 }
-                }
-            }
-        """.trimIndent()
-
-        val config = ThemeParser.parseThemeJson(json)
-
-        assertNotNull(config?.styles)
-        assertNotNull(config?.styles?.header)
-        assertNotNull(config?.styles?.inputPanel)
-        assertNotNull(config?.styles?.messageBubble)
-        assertNotNull(config?.styles?.productCard)
-        assertNotNull(config?.styles?.welcomeCard)
-    }
-
-    @Test
     fun `toDp should convert Double to Dp`() {
         val dp = 16.0.toDp()
         assertEquals(16.0f, dp.value)
@@ -189,46 +158,17 @@ class ThemeParserTest {
     fun `parseThemeJson should handle custom text values`() {
         val json = """
             {
-                "styles": {
-                    "inputPanel": {
-                        "placeholderText": "Custom placeholder",
-                        "listeningPlaceholderText": "Custom listening"
-                    },
-                    "thinkingAnimation": {
-                        "thinkingText": "Processing"
-                    }
+                "text": {
+                    "input.placeholder": "Custom placeholder",
+                    "loading.message": "Processing"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
 
-        assertEquals("Custom placeholder", config?.styles?.inputPanel?.placeholderText)
-        assertEquals("Custom listening", config?.styles?.inputPanel?.listeningPlaceholderText)
-        assertEquals("Processing", config?.styles?.thinkingAnimation?.thinkingText)
-    }
-
-    @Test
-    fun `parseThemeJson should handle animation durations`() {
-        val json = """
-            {
-                "styles": {
-                    "inputPanel": {
-                        "recordingBorderAnimationDuration": 1500
-                    },
-                    "thinkingAnimation": {
-                        "dotAnimationDuration": 600,
-                        "dotAnimationDelay": 200
-                    }
-                }
-            }
-        """.trimIndent()
-
-        val config = ThemeParser.parseThemeJson(json)
-
-        assertEquals(1500, config?.styles?.inputPanel?.recordingBorderAnimationDuration)
-        assertEquals(600, config?.styles?.thinkingAnimation?.dotAnimationDuration)
-        assertEquals(200, config?.styles?.thinkingAnimation?.dotAnimationDelay)
+        assertEquals("Custom placeholder", config?.text?.inputPlaceholder)
+        assertEquals("Processing", config?.text?.loadingMessage)
     }
 }
 

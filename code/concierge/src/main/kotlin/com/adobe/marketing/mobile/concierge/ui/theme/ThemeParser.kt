@@ -312,9 +312,13 @@ object ThemeParser {
         if (map == null) return ConciergeThemeMetadata()
         @Suppress("UNCHECKED_CAST")
         val typedMap = map as? MutableMap<String?, Any?>
+
+        val name = DataReader.optString(typedMap, "name", null) 
+            ?: DataReader.optString(typedMap, "brandName", "Brand Name")
+        
         return ConciergeThemeMetadata(
             version = DataReader.optString(typedMap, "version", "1.0.0"),
-            name = DataReader.optString(typedMap, "brandName", "Brand Name"),
+            name = name,
             description = DataReader.optString(typedMap, "description", null),
             author = DataReader.optString(typedMap, "author", null),
             lastModified = DataReader.optString(typedMap, "lastModified", null)
