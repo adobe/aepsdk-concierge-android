@@ -31,13 +31,15 @@ import kotlinx.coroutines.flow.update
  * @property conciergeSurfaces List of surface URLs from concierge.surfaces configuration.
  * @property conciergeServer Server URL from concierge.server configuration.
  * @property conciergeConfigId Configuration ID from concierge.configId configuration.
+ * @property consent Consent value from the Consent extension. Default is "in".
  */
 internal data class ConciergeState(
     val experienceCloudId: String? = null,
     val configurationReady: Boolean = false,
     val conciergeSurfaces: List<String>? = null,
     val conciergeServer: String? = null,
-    val conciergeConfigId: String? = null
+    val conciergeConfigId: String? = null,
+    val consent: String? = ConciergeConstants.ConsentValues.DEFAULT_VALUE
 )
 
 /**
@@ -174,6 +176,59 @@ internal class ConciergeStateRepository private constructor() {
                     "server: $server,\n" +
                     "surfaces: $surfaces"
         )
+    }
+
+    /**
+     * Updates the consent value from the Consent extension.
+     * This should be called by the ConciergeExtension when consent state changes.
+     *
+     * @param api The ExtensionApi instance
+     * @param event The event that triggered the update
+     */
+    fun updateConsent(api: ExtensionApi, event: Event) {
+        val consentSharedState = api.getXDMSharedState(
+            ConciergeConstants.SharedState.Consent.EXTENSION_NAME,
+            event,
+            false,
+            SharedStateResolution.LAST_SET
+        )
+
+        val consentValue = extractConsentValue(consentSharedState?.value)
+
+        _state.update { it.copy(consent = consentValue) }
+        
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            LOG_TAG,
+            "Updated consent value: $consentValue"
+        )
+    }
+
+    /**
+     * Extracts and maps the consent value from the consent shared state.
+     * 
+     * @param sharedState The consent shared state map
+     * @return Mapped consent value (in/out/unknown) or default value
+     */
+    private fun extractConsentValue(sharedState: Map<String?, Any?>?): String {
+        if (sharedState == null) return ConciergeConstants.ConsentValues.DEFAULT_VALUE
+
+        val rawConsent = DataReader.optTypedMap(Any::class.java, sharedState, 
+                ConciergeConstants.SharedState.Consent.CONSENTS, null)
+            ?.let { consents ->
+                DataReader.optTypedMap(Any::class.java, consents, 
+                    ConciergeConstants.SharedState.Consent.COLLECT, null)
+            }
+            ?.let { collect ->
+                DataReader.optString(collect, ConciergeConstants.SharedState.Consent.VAL, null)
+            }
+
+        return when(rawConsent) {
+            "y" -> ConciergeConstants.ConsentValues.IN_VALUE
+            "n" -> ConciergeConstants.ConsentValues.OUT_VALUE
+            "u" -> ConciergeConstants.ConsentValues.UNKNOWN_VALUE
+            else -> ConciergeConstants.ConsentValues.DEFAULT_VALUE
+        }
     }
 
     /**

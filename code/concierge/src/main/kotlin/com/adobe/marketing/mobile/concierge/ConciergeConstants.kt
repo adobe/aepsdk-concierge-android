@@ -11,7 +11,7 @@
 
 package com.adobe.marketing.mobile.concierge
 
-object ConciergeConstants {
+internal object ConciergeConstants {
     const val EXTENSION_NAME = "concierge"
     const val EXTENSION_FRIENDLY_NAME = "Concierge"
     const val EXTENSION_VERSION = "3.0.0"
@@ -31,6 +31,19 @@ object ConciergeConstants {
             const val CONCIERGE_CONFIG_ID = "concierge.configId"
             const val CONCIERGE_SURFACES = "concierge.surfaces"
         }
+        object Consent {
+            const val EXTENSION_NAME = "com.adobe.edge.consent"
+            const val CONSENTS = "consents"
+            const val COLLECT = "collect"
+            const val VAL = "val"
+        }
+    }
+
+    object ConsentValues {
+        const val IN_VALUE = "in"
+        const val OUT_VALUE = "out"
+        const val UNKNOWN_VALUE = "unknown"
+        const val DEFAULT_VALUE = IN_VALUE
     }
 
     object ChatInteraction {

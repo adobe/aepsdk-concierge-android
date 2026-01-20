@@ -141,6 +141,13 @@ internal class ConciergeConversationServiceClient(
         {
             "events": [
                 {
+                    "meta": {
+                         "consent": {
+                            "state": {
+                                "val": "${state.consent}"
+                            }
+                        }
+                    },
                     "query": {
                         "conversation": {
                             "fetchConversationalExperience": true,
