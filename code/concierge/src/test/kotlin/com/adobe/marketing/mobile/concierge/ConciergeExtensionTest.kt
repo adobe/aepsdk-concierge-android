@@ -55,7 +55,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `isIdentitySharedStateEvent returns true for identity shared state event`() {
-        // Given
         val event = Event.Builder(
             "Test Event",
             EventType.HUB,
@@ -64,30 +63,15 @@ class ConciergeExtensionTest {
             mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
-        // When
         val result = extension.run { event.isIdentitySharedStateEvent() }
 
-        // Then
         assertTrue(result)
-    }
-
-    @Test
-    fun `isIdentitySharedStateEvent returns false for consent event`() {
-        // Given
-        val event = createConsentSharedStateEvent()
-
-        // When
-        val result = extension.run { event.isIdentitySharedStateEvent() }
-
-        // Then
-        assertFalse(result)
     }
 
     // ========== Event Processing Tests ==========
 
     @Test
     fun `processEvent calls updateExperienceCloudId for identity shared state event`() {
-        // Given
         val event = Event.Builder(
             "Identity Event",
             EventType.HUB,
@@ -96,16 +80,13 @@ class ConciergeExtensionTest {
             mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
-        // When
         extension.processEvent(event)
 
-        // Then
         verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, event) }
     }
 
     @Test
     fun `processEvent calls updateConfiguration for configuration response event`() {
-        // Given
         val event = Event.Builder(
             "Config Event",
             EventType.CONFIGURATION,
@@ -122,16 +103,13 @@ class ConciergeExtensionTest {
             )
         } returns mockConfigState
 
-        // When
         extension.processEvent(event)
 
-        // Then
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 
     @Test
     fun `processEvent does not throw exception for unknown event type`() {
-        // Given
         val event = Event.Builder(
             "Unknown Event",
             EventType.ANALYTICS,
@@ -140,20 +118,6 @@ class ConciergeExtensionTest {
 
         // When/Then - should not throw
         extension.processEvent(event)
-    }
-
-    // ========== Integration Tests ==========
-
-    @Test
-    fun `readyForEvent always returns true`() {
-        // Given
-        val event = createConsentSharedStateEvent()
-
-        // When
-        val result = extension.readyForEvent(event)
-
-        // Then
-        assertTrue(result)
     }
 
     // ========== Extension Metadata Tests ==========
@@ -170,65 +134,53 @@ class ConciergeExtensionTest {
 
     @Test
     fun `isConfigurationResponse returns true for configuration response event`() {
-        // Given
         val event = Event.Builder(
             "Config Response",
             EventType.CONFIGURATION,
             EventSource.RESPONSE_CONTENT
         ).build()
 
-        // When
         val result = extension.run { event.isConfigurationResponse() }
 
-        // Then
         assertTrue(result)
     }
 
     @Test
     fun `isConfigurationResponse returns false for wrong event type`() {
-        // Given
         val event = Event.Builder(
             "Wrong Type",
             EventType.HUB,
             EventSource.RESPONSE_CONTENT
         ).build()
 
-        // When
         val result = extension.run { event.isConfigurationResponse() }
 
-        // Then
         assertFalse(result)
     }
 
     @Test
     fun `isConfigurationResponse returns false for wrong event source`() {
-        // Given
         val event = Event.Builder(
             "Wrong Source",
             EventType.CONFIGURATION,
             EventSource.REQUEST_CONTENT
         ).build()
 
-        // When
         val result = extension.run { event.isConfigurationResponse() }
 
-        // Then
         assertFalse(result)
     }
 
     @Test
     fun `isConfigurationResponse returns false for shared state event`() {
-        // Given
         val event = Event.Builder(
             "Shared State",
             EventType.CONFIGURATION,
             EventSource.SHARED_STATE
         ).build()
 
-        // When
         val result = extension.run { event.isConfigurationResponse() }
 
-        // Then
         assertFalse(result)
     }
 
@@ -236,7 +188,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `isIdentitySharedStateEvent returns false for wrong event type`() {
-        // Given
         val event = Event.Builder(
             "Wrong Type",
             EventType.CONFIGURATION,
@@ -245,16 +196,13 @@ class ConciergeExtensionTest {
             mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
-        // When
         val result = extension.run { event.isIdentitySharedStateEvent() }
 
-        // Then
         assertFalse(result)
     }
 
     @Test
     fun `isIdentitySharedStateEvent returns false for wrong event source`() {
-        // Given
         val event = Event.Builder(
             "Wrong Source",
             EventType.HUB,
@@ -263,16 +211,13 @@ class ConciergeExtensionTest {
             mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
-        // When
         val result = extension.run { event.isIdentitySharedStateEvent() }
 
-        // Then
         assertFalse(result)
     }
 
     @Test
     fun `isIdentitySharedStateEvent returns false for wrong stateowner`() {
-        // Given
         val event = Event.Builder(
             "Wrong Stateowner",
             EventType.HUB,
@@ -281,42 +226,34 @@ class ConciergeExtensionTest {
             mapOf("stateowner" to "com.adobe.wrong.extension")
         ).build()
 
-        // When
         val result = extension.run { event.isIdentitySharedStateEvent() }
 
-        // Then
         assertFalse(result)
     }
 
     @Test
     fun `isIdentitySharedStateEvent returns false when stateowner is null`() {
-        // Given
         val event = Event.Builder(
             "No Stateowner",
             EventType.HUB,
             EventSource.SHARED_STATE
         ).build()
 
-        // When
         val result = extension.run { event.isIdentitySharedStateEvent() }
 
-        // Then
         assertFalse(result)
     }
 
     @Test
     fun `isIdentitySharedStateEvent returns false when event data is null`() {
-        // Given
         val event = Event.Builder(
             "No Event Data",
             EventType.HUB,
             EventSource.SHARED_STATE
         ).build()
 
-        // When
         val result = extension.run { event.isIdentitySharedStateEvent() }
 
-        // Then
         assertFalse(result)
     }
 
@@ -324,7 +261,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `processEvent handles configuration event with null shared state`() {
-        // Given
         val event = Event.Builder(
             "Config Event",
             EventType.CONFIGURATION,
@@ -349,7 +285,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `processEvent handles event with empty event data map`() {
-        // Given
         val event = Event.Builder(
             "Empty Data",
             EventType.HUB,
@@ -362,7 +297,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `processEvent handles event with wrong type in stateowner`() {
-        // Given
         val event = Event.Builder(
             "Wrong Stateowner Type",
             EventType.HUB,
@@ -379,7 +313,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `processEvent handles mixed event sequence correctly`() {
-        // Given
         val identityEvent = Event.Builder(
             "Identity",
             EventType.HUB,
@@ -387,8 +320,6 @@ class ConciergeExtensionTest {
         ).setEventData(
             mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
-
-        val consentEvent = createConsentSharedStateEvent()
 
         val configEvent = Event.Builder(
             "Config",
@@ -406,12 +337,9 @@ class ConciergeExtensionTest {
             )
         } returns mockConfigState
 
-        // When
         extension.processEvent(identityEvent)
-        extension.processEvent(consentEvent)
         extension.processEvent(configEvent)
 
-        // Then
         verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
@@ -420,14 +348,12 @@ class ConciergeExtensionTest {
 
     @Test
     fun `processEvent ignores edge events`() {
-        // Given
         val event = Event.Builder(
             "Edge Event",
             EventType.EDGE,
             EventSource.REQUEST_CONTENT
         ).build()
 
-        // When
         extension.processEvent(event)
 
         // Then - no repository methods should be called
@@ -437,14 +363,12 @@ class ConciergeExtensionTest {
 
     @Test
     fun `processEvent ignores custom events`() {
-        // Given
         val event = Event.Builder(
             "Custom Event",
             EventType.CUSTOM,
             EventSource.NONE
         ).build()
 
-        // When
         extension.processEvent(event)
 
         // Then - no repository methods should be called
@@ -456,7 +380,6 @@ class ConciergeExtensionTest {
 
     @Test
     fun `readyForEvent returns true for identity event`() {
-        // Given
         val event = Event.Builder(
             "Identity",
             EventType.HUB,
@@ -465,32 +388,26 @@ class ConciergeExtensionTest {
             mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
-        // When
         val result = extension.readyForEvent(event)
 
-        // Then
         assertTrue(result)
     }
 
     @Test
     fun `readyForEvent returns true for configuration event`() {
-        // Given
         val event = Event.Builder(
             "Config",
             EventType.CONFIGURATION,
             EventSource.RESPONSE_CONTENT
         ).build()
 
-        // When
         val result = extension.readyForEvent(event)
 
-        // Then
         assertTrue(result)
     }
 
     @Test
     fun `readyForEvent returns true for any event type`() {
-        // Given
         val events = listOf(
             Event.Builder("Analytics", EventType.ANALYTICS, EventSource.REQUEST_CONTENT).build(),
             Event.Builder("Edge", EventType.EDGE, EventSource.REQUEST_CONTENT).build(),
