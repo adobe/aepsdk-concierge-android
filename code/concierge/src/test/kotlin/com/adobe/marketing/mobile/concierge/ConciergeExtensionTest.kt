@@ -51,106 +51,6 @@ class ConciergeExtensionTest {
         unmockkObject(ConciergeStateRepository)
     }
 
-    // ========== Consent Event Detection Tests ==========
-
-    @Test
-    fun `isConsentSharedStateEvent returns true for consent shared state event`() {
-        // Given
-        val event = createConsentSharedStateEvent()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then
-        assertTrue(result)
-    }
-
-    @Test
-    fun `isConsentSharedStateEvent returns false for wrong event type`() {
-        // Given
-        val event = Event.Builder(
-            "Test Event",
-            EventType.CONFIGURATION,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
-        ).build()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then
-        assertFalse(result)
-    }
-
-    @Test
-    fun `isConsentSharedStateEvent returns false for wrong event source`() {
-        // Given
-        val event = Event.Builder(
-            "Test Event",
-            EventType.HUB,
-            EventSource.RESPONSE_CONTENT
-        ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
-        ).build()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then
-        assertFalse(result)
-    }
-
-    @Test
-    fun `isConsentSharedStateEvent returns false for wrong stateowner`() {
-        // Given
-        val event = Event.Builder(
-            "Test Event",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to "com.adobe.wrong.extension")
-        ).build()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then
-        assertFalse(result)
-    }
-
-    @Test
-    fun `isConsentSharedStateEvent returns false when stateowner is null`() {
-        // Given
-        val event = Event.Builder(
-            "Test Event",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).build()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then
-        assertFalse(result)
-    }
-
-    @Test
-    fun `isConsentSharedStateEvent returns false when event data is null`() {
-        // Given
-        val event = Event.Builder(
-            "Test Event",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).build()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then
-        assertFalse(result)
-    }
-
     // ========== Identity Event Detection Tests ==========
 
     @Test
@@ -184,18 +84,6 @@ class ConciergeExtensionTest {
     }
 
     // ========== Event Processing Tests ==========
-
-    @Test
-    fun `processEvent calls updateConsent for consent shared state event`() {
-        // Given
-        val event = createConsentSharedStateEvent()
-
-        // When
-        extension.processEvent(event)
-
-        // Then
-        verify(exactly = 1) { mockStateRepository.updateConsent(mockApi, event) }
-    }
 
     @Test
     fun `processEvent calls updateExperienceCloudId for identity shared state event`() {
@@ -242,22 +130,6 @@ class ConciergeExtensionTest {
     }
 
     @Test
-    fun `processEvent handles multiple consent events sequentially`() {
-        // Given
-        val event1 = createConsentSharedStateEvent()
-        val event2 = createConsentSharedStateEvent()
-        val event3 = createConsentSharedStateEvent()
-
-        // When
-        extension.processEvent(event1)
-        extension.processEvent(event2)
-        extension.processEvent(event3)
-
-        // Then
-        verify(exactly = 3) { mockStateRepository.updateConsent(mockApi, any()) }
-    }
-
-    @Test
     fun `processEvent does not throw exception for unknown event type`() {
         // Given
         val event = Event.Builder(
@@ -270,47 +142,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
     }
 
-    @Test
-    fun `processEvent prioritizes identity over consent when checking conditions`() {
-        // Given - This tests the if-else chain order
-        val identityEvent = Event.Builder(
-            "Identity Event",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
-        ).build()
-
-        // When
-        extension.processEvent(identityEvent)
-
-        // Then - identity handler is called, not consent
-        verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
-        verify(exactly = 0) { mockStateRepository.updateConsent(any(), any()) }
-    }
-
     // ========== Integration Tests ==========
-
-    @Test
-    fun `consent event followed by identity event processes both correctly`() {
-        // Given
-        val consentEvent = createConsentSharedStateEvent()
-        val identityEvent = Event.Builder(
-            "Identity Event",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
-        ).build()
-
-        // When
-        extension.processEvent(consentEvent)
-        extension.processEvent(identityEvent)
-
-        // Then
-        verify(exactly = 1) { mockStateRepository.updateConsent(mockApi, consentEvent) }
-        verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
-    }
 
     @Test
     fun `readyForEvent always returns true`() {
@@ -581,43 +413,10 @@ class ConciergeExtensionTest {
 
         // Then
         verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
-        verify(exactly = 1) { mockStateRepository.updateConsent(mockApi, consentEvent) }
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 
-    @Test
-    fun `processEvent handles duplicate events idempotently`() {
-        // Given
-        val consentEvent = createConsentSharedStateEvent()
-
-        // When
-        extension.processEvent(consentEvent)
-        extension.processEvent(consentEvent)
-        extension.processEvent(consentEvent)
-
-        // Then - each call should trigger an update
-        verify(exactly = 3) { mockStateRepository.updateConsent(mockApi, consentEvent) }
-    }
-
     // ========== Edge Case Event Types ==========
-
-    @Test
-    fun `processEvent ignores analytics events`() {
-        // Given
-        val event = Event.Builder(
-            "Analytics Event",
-            EventType.ANALYTICS,
-            EventSource.REQUEST_CONTENT
-        ).build()
-
-        // When
-        extension.processEvent(event)
-
-        // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateConsent(any(), any()) }
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
-        verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
-    }
 
     @Test
     fun `processEvent ignores edge events`() {
@@ -632,7 +431,6 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
 
         // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateConsent(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
@@ -650,7 +448,6 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
 
         // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateConsent(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
@@ -704,58 +501,6 @@ class ConciergeExtensionTest {
         events.forEach { event ->
             assertTrue("readyForEvent should return true for ${event.type}", extension.readyForEvent(event))
         }
-    }
-
-    // ========== Stateowner Value Tests ==========
-
-    @Test
-    fun `event detection is case-sensitive for stateowner`() {
-        // Given - wrong case stateowner
-        val event = Event.Builder(
-            "Wrong Case",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to "COM.ADOBE.EDGE.CONSENT") // uppercase
-        ).build()
-
-        // When
-        val isConsent = extension.run { event.isConsentSharedStateEvent() }
-        val isIdentity = extension.run { event.isIdentitySharedStateEvent() }
-
-        // Then - should not match
-        assertFalse(isConsent)
-        assertFalse(isIdentity)
-    }
-
-    @Test
-    fun `event detection handles stateowner with extra whitespace`() {
-        // Given
-        val event = Event.Builder(
-            "Whitespace",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to " ${ConciergeConstants.SharedState.Consent.EXTENSION_NAME} ")
-        ).build()
-
-        // When
-        val result = extension.run { event.isConsentSharedStateEvent() }
-
-        // Then - should not match due to exact string comparison
-        assertFalse(result)
-    }
-
-    // ========== Helper Methods ==========
-
-    private fun createConsentSharedStateEvent(): Event {
-        return Event.Builder(
-            "Consent Shared State Event",
-            EventType.HUB,
-            EventSource.SHARED_STATE
-        ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
-        ).build()
     }
 }
 
