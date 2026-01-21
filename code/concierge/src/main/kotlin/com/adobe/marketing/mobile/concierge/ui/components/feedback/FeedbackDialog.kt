@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Positive feedback categories
@@ -89,20 +90,28 @@ internal fun FeedbackDialog(
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
     val focusManager = LocalFocusManager.current
+    val themeText = ConciergeTheme.text
+    val themeConfig = ConciergeTheme.config
 
     var selectedCategories by remember { mutableStateOf(setOf<String>()) }
     var notesText by remember { mutableStateOf("") }
 
     val categories = if (feedback.feedbackType == FeedbackType.POSITIVE) {
-        POSITIVE_CATEGORIES
+        themeConfig?.feedbackPositiveOptions ?: POSITIVE_CATEGORIES
     } else {
-        NEGATIVE_CATEGORIES
+        themeConfig?.feedbackNegativeOptions ?: NEGATIVE_CATEGORIES
+    }
+    
+    val titleText = if (feedback.feedbackType == FeedbackType.POSITIVE) {
+        themeText?.feedbackDialogTitlePositive ?: "Your feedback is appreciated"
+    } else {
+        themeText?.feedbackDialogTitleNegative ?: "Your feedback is appreciated"
     }
     
     val questionText = if (feedback.feedbackType == FeedbackType.POSITIVE) {
-        "What went well? Select all that apply."
+        themeText?.feedbackDialogQuestionPositive ?: "What went well? Select all that apply."
     } else {
-        "What went wrong? Select all that apply."
+        themeText?.feedbackDialogQuestionNegative ?: "What went wrong? Select all that apply."
     }
 
     Card(
@@ -123,7 +132,7 @@ internal fun FeedbackDialog(
         ) {
             // Title
             Text(
-                text = "Your feedback is appreciated",
+                text = titleText,
                 style = style.titleStyle,
                 color = style.titleColor,
                 modifier = Modifier.fillMaxWidth(),
@@ -182,7 +191,7 @@ internal fun FeedbackDialog(
             
             // Notes section
             Text(
-                text = "Notes",
+                text = themeText?.feedbackDialogNotes ?: "Notes",
                 style = style.notesLabelStyle,
                 color = style.notesLabelColor,
                 modifier = Modifier.fillMaxWidth()
@@ -196,7 +205,7 @@ internal fun FeedbackDialog(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text(
-                        text = "Add any additional comments...",
+                        text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
                         style = style.notesPlaceholderStyle,
                         color = style.notesPlaceholderColor
                     )
@@ -229,7 +238,7 @@ internal fun FeedbackDialog(
                     )
                 ) {
                     Text(
-                        text = "Cancel",
+                        text = themeText?.feedbackDialogCancel ?: "Cancel",
                         style = style.buttonTextStyle
                     )
                 }
@@ -251,7 +260,7 @@ internal fun FeedbackDialog(
                     enabled = selectedCategories.isNotEmpty() || notesText.isNotBlank()
                 ) {
                     Text(
-                        text = "Submit",
+                        text = themeText?.feedbackDialogSubmit ?: "Submit",
                         style = style.buttonTextStyle,
                         color = style.submitButtonTextColor
                     )

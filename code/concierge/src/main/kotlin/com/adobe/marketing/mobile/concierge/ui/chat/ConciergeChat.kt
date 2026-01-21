@@ -32,12 +32,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
@@ -51,7 +51,6 @@ import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
-import com.adobe.marketing.mobile.concierge.ui.components.overlay.ErrorOverlay
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
@@ -105,6 +104,11 @@ fun ConciergeChat(
     val ready = conciergeState.configurationReady && conciergeState.experienceCloudId != null
 
     if (ready) {
+        // Capture the current theme to update welcome card config
+        val currentTheme = ConciergeTheme.config
+        LaunchedEffect(ConciergeTheme.config) {
+            viewModel.updateWelcomeConfigFromTheme(currentTheme)
+        }
 
         // Render the content composable with the callback
         content { viewModel.openConcierge() }
@@ -157,10 +161,6 @@ fun ConciergeChat(
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
-
-    // Derive UI state from ChatScreenState
-    val isProcessing = state is ChatScreenState.Processing
-    val errorMessage = (state as? ChatScreenState.Error)?.error
     
     // Determine if user is returning
     val isReturningUser = viewModel.isReturningUser()
@@ -179,25 +179,23 @@ fun ConciergeChat(
         }
     }
 
-    ConciergeTheme {
-        CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
-            ConciergeChat(
-                messages = messages,
-                chatState = state,
-                inputState = inputState,
-                hasAudioPermission = hasAudioPermission,
-                showWelcomeCard = showWelcomeCard,
-                welcomeConfig = viewModel.welcomeConfig,
-                isReturningUser = isReturningUser,
-                onTextChanged = viewModel::onTextStateChanged,
-                onEvent = viewModel::processEvent,
-                onPermissionResult = { granted ->
-                    viewModel.refreshPermissionStatus()
-                },
-                onClose = onClose,
-                modifier = modifier
-            )
-        }
+    CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
+        ConciergeChat(
+            messages = messages,
+            chatState = state,
+            inputState = inputState,
+            hasAudioPermission = hasAudioPermission,
+            showWelcomeCard = showWelcomeCard,
+            welcomeConfig = viewModel.welcomeConfig,
+            isReturningUser = isReturningUser,
+            onTextChanged = viewModel::onTextStateChanged,
+            onEvent = viewModel::processEvent,
+            onPermissionResult = { granted ->
+                viewModel.refreshPermissionStatus()
+            },
+            onClose = onClose,
+            modifier = modifier
+        )
     }
 }
 
@@ -222,7 +220,6 @@ internal fun ConciergeChat(
     
     // Derive UI state from ChatScreenState
     val isProcessing = chatState is ChatScreenState.Processing
-    val errorMessage = (chatState as? ChatScreenState.Error)?.error
 
     Box(
         modifier = Modifier
@@ -240,7 +237,10 @@ internal fun ConciergeChat(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            ChatHeader(onClose = onClose)
+            ChatHeader(
+                title = ConciergeTheme.config?.name ?: "Brand",
+                onClose = onClose
+            )
 
             // Messages list
             Box(
@@ -294,6 +294,7 @@ internal fun ConciergeChat(
                 onTextChange = onTextChanged,
                 isProcessing = isProcessing,
                 hasAudioPermission = hasAudioPermission,
+                placeholder = ConciergeTheme.text?.inputPlaceholder,
                 onSend = { text ->
                     onEvent(ChatEvent.SendMessage(text))
                 },

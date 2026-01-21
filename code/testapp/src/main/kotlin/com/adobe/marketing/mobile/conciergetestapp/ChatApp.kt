@@ -19,7 +19,7 @@ import com.adobe.marketing.mobile.MobileCore
 class ChatApp : Application() {
     companion object {
         private const val LOG_TAG = "ChatApp"
-        private const val APP_ID = ""
+        private const val APP_ID = "staging/1b50a869c4a2/570831bce333/launch-bcc070a55cca-development"
     }
 
     override fun onCreate() {

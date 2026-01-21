@@ -14,45 +14,126 @@ package com.adobe.marketing.mobile.concierge.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 
 /**
- * CompositionLocal for providing Concierge colors throughout the app
+ * Data class holding the active theme configuration including resolved colors
  */
-val LocalConciergeColors = staticCompositionLocalOf { LightConciergeColors }
+data class ActiveConciergeTheme(
+    val colors: ConciergeColors,
+    val config: ConciergeThemeConfig? = null
+)
+
+/**
+ * CompositionLocal for providing the active Concierge theme
+ */
+private val LocalActiveConciergeTheme = staticCompositionLocalOf { 
+    ActiveConciergeTheme(colors = LightConciergeColors)
+}
 
 /**
  * Theme provider for Concierge UI components.
  * Automatically switches between light and dark color schemes based on system theme.
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
+ * @param theme Optional theme configuration to override default theme.
  * @param content The composable content to theme.
  */
 @Composable
 fun ConciergeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    theme: ConciergeThemeConfig? = null,
     content: @Composable () -> Unit
 ) {
-    val colors = if (darkTheme) DarkConciergeColors else LightConciergeColors
+    val defaultColors = if (darkTheme) DarkConciergeColors else LightConciergeColors
+    
+    // Apply theme colors if available, otherwise use defaults
+    val colors = remember(theme, darkTheme) {
+        if (theme?.colors != null) {
+            ThemeParser.createColorsFromJson(theme.colors, defaultColors)
+        } else {
+            defaultColors
+        }
+    }
+    
+    val activeTheme = remember(colors, theme) {
+        ActiveConciergeTheme(colors = colors, config = theme)
+    }
 
     CompositionLocalProvider(
-        LocalConciergeColors provides colors,
+        LocalActiveConciergeTheme provides activeTheme,
         content = content
     )
 }
 
 /**
- * Object to access current Concierge theme colors
+ * Theme provider that loads configuration from a JSON file in assets.
+ *
+ * @param darkTheme Whether to use dark theme. Defaults to system setting.
+ * @param themeFileName Name of the JSON theme file in assets (e.g., "themeDemo.json").
+ *                      If null or file doesn't exist, uses default theme.
+ * @param content The composable content to theme.
+ */
+@Composable
+fun ConciergeTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeFileName: String?,
+    content: @Composable () -> Unit
+) {
+    val context = LocalContext.current
+    
+    val theme = remember(themeFileName) {
+        themeFileName?.let { fileName ->
+            ThemeParser.loadThemeFromAssets(context, fileName)
+        }
+    }
+    
+    ConciergeTheme(
+        darkTheme = darkTheme,
+        theme = theme,
+        content = content
+    )
+}
+
+/**
+ * Object to access current Concierge theme
  */
 object ConciergeTheme {
     /**
      * Retrieves the current Concierge color scheme
      */
     val colors: ConciergeColors
-        @Composable get() = LocalConciergeColors.current
+        @Composable get() = LocalActiveConciergeTheme.current.colors
+    
+    /**
+     * Retrieves the current theme configuration (if any)
+     */
+    val config: ConciergeThemeConfig?
+        @Composable get() = LocalActiveConciergeTheme.current.config
+    
+    /**
+     * Retrieves text strings from the theme configuration
+     */
+    val text: ConciergeTextStrings?
+        @Composable get() = LocalActiveConciergeTheme.current.config?.text
+    
+    /**
+     * Retrieves disclaimer configuration from the theme
+     */
+    val disclaimer: ConciergeDisclaimer?
+        @Composable get() = LocalActiveConciergeTheme.current.config?.disclaimer
+    
+    /**
+     * Retrieves typography configuration (font sizes) from the theme
+     */
+    val typography: ConciergeTypographyConfig?
+        @Composable get() = LocalActiveConciergeTheme.current.config?.typography
 
     /**
      * Material Design ColorScheme derived from ConciergeColors.
@@ -60,10 +141,8 @@ object ConciergeTheme {
      */
     val colorScheme: ColorScheme
         @Composable get() {
-            val colors = ConciergeTheme.colors
             return if (isSystemInDarkTheme()) {
-                // Dark mode is not currently supported, fallback to light mode colors
-                lightColorScheme(
+                darkColorScheme(
                     primary = colors.primary,
                     onPrimary = colors.onPrimary,
                     secondary = colors.secondary,
