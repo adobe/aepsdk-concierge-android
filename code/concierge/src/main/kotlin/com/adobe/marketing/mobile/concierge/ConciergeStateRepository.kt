@@ -47,8 +47,12 @@ internal data class ConciergeState(
  * and consumed by UI components like the ConciergeChatViewModel.
  *
  * Data is exposed as [StateFlow] instances for reactive observation.
+ *
+ * @param initialState Optional initial state for testing purposes. Defaults to empty state.
  */
-internal class ConciergeStateRepository private constructor() {
+internal class ConciergeStateRepository internal constructor(
+    initialState: ConciergeState = ConciergeState()
+) {
 
     companion object {
         const val LOG_TAG = "ConciergeStateRepository"
@@ -58,7 +62,7 @@ internal class ConciergeStateRepository private constructor() {
         }
     }
 
-    private val _state = MutableStateFlow(ConciergeState())
+    private val _state = MutableStateFlow(initialState)
     val state: StateFlow<ConciergeState> = _state.asStateFlow()
 
     /**

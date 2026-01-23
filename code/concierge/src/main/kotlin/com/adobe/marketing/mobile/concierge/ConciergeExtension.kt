@@ -95,7 +95,7 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
             this.source == EventSource.RESPONSE_CONTENT
     }
 
-    private fun hasValidXdmSharedState(extensionName: String, event: Event): Boolean {
+    internal fun hasValidXdmSharedState(extensionName: String, event: Event): Boolean {
         val sharedState: Map<String, Any?>? = api.getXDMSharedState(
             extensionName,
             event,
