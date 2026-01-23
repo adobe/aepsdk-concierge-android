@@ -371,6 +371,13 @@ internal class ConciergeConversationServiceClient(
         return """
 {
     "events": [{
+        "meta": {
+            "consent": {
+                "state": {
+                    "val": "${state.consent}"
+                }
+            }
+        },
         "xdm": {
             "identityMap": {
                 "ECID": [{
