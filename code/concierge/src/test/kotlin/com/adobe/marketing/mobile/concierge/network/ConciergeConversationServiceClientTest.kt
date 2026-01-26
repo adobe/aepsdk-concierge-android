@@ -543,7 +543,7 @@ class ConciergeConversationServiceClientTest {
         
         assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
         assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
-        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"in\""))
+        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"unknown\""))
     }
 
     @Test
@@ -638,7 +638,7 @@ class ConciergeConversationServiceClientTest {
         
         assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
         assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
-        assertTrue("Request should contain default consent value 'in'", requestBody.contains("\"val\": \"in\""))
+        assertTrue("Request should contain default consent value 'unknown'", requestBody.contains("\"val\": \"unknown\""))
     }
 
     @Test
@@ -747,7 +747,7 @@ class ConciergeConversationServiceClientTest {
         
         // Verify consent is present
         assertTrue("Should contain consent", requestBody.contains("\"consent\""))
-        assertTrue("Should contain consent value", requestBody.contains("\"val\": \"in\""))
+        assertTrue("Should contain consent value", requestBody.contains("\"val\": \"unknown\""))
         
         // Verify feedback structure
         assertTrue("Should contain interaction ID", requestBody.contains("\"turnID\": \"interaction-positive\""))
@@ -834,7 +834,7 @@ class ConciergeConversationServiceClientTest {
         
         // Verify consent is still present
         assertTrue("Should contain consent", requestBody.contains("\"consent\""))
-        assertTrue("Should contain consent value", requestBody.contains("\"val\": \"in\""))
+        assertTrue("Should contain consent value", requestBody.contains("\"val\": \"unknown\""))
         
         // Verify empty raw array for notes
         assertTrue("Should have empty raw array", requestBody.contains("\"raw\": []"))
