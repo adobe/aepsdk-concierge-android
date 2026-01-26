@@ -14,6 +14,8 @@ package com.adobe.marketing.mobile.concierge.network
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
 import com.adobe.marketing.mobile.services.NetworkCallback
@@ -35,6 +37,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -514,6 +517,421 @@ class ConciergeConversationServiceClientTest {
         assertEquals("Done", emitted[0].messageContent)
         assertEquals(ConversationState.COMPLETED, emitted[0].state)
         verify(atLeast = 1) { connection.close() }
+    }
+
+    @Test
+    fun `chat request includes default consent value in meta`() = runTest {
+        // Given
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        client.chat("test message").toList()
+
+        // Then
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
+        assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
+        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"unknown\""))
+    }
+
+    @Test
+    fun `chat request includes custom consent value when set`() = runTest {
+        // Given
+        val customState = testState.copy(consent = "out")
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        client.chat("test message").toList()
+
+        // Then
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain consent value 'out'", requestBody.contains("\"val\": \"out\""))
+    }
+
+    @Test
+    fun `chat request includes unknown consent value correctly`() = runTest {
+        // Given
+        val customState = testState.copy(consent= "unknown")
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        client.chat("test message").toList()
+
+        // Then
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain consent value 'unknown'", requestBody.contains("\"val\": \"unknown\""))
+    }
+
+    // ========== Feedback Request Tests ==========
+
+    @Test
+    fun `sendFeedback includes default consent value in meta`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "test-interaction-123",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = listOf("Helpful"),
+            notes = "Great response!",
+            conversationId = "conv-123"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue("Feedback should be sent successfully", result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
+        assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
+        assertTrue("Request should contain default consent value 'unknown'", requestBody.contains("\"val\": \"unknown\""))
+    }
+
+    @Test
+    fun `sendFeedback includes custom consent value when set to out`() = runTest {
+        // Given
+        val customState = testState.copy(consent = "out")
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val feedback = Feedback(
+            interactionId = "test-interaction-456",
+            feedbackType = FeedbackType.NEGATIVE,
+            selectedCategories = listOf("Not helpful"),
+            notes = "",
+            conversationId = "conv-456"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue("Feedback should be sent successfully", result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain consent value 'out'", requestBody.contains("\"val\": \"out\""))
+    }
+
+    @Test
+    fun `sendFeedback includes unknown consent value correctly`() = runTest {
+        // Given
+        val customState = testState.copy(consent = "unknown")
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val feedback = Feedback(
+            interactionId = "test-interaction-789",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = emptyList(),
+            notes = "Test notes",
+            conversationId = null
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue("Feedback should be sent successfully", result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain consent value 'unknown'", requestBody.contains("\"val\": \"unknown\""))
+    }
+
+    @Test
+    fun `sendFeedback includes proper structure with positive feedback`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "interaction-positive",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = listOf("Helpful", "Clear"),
+            notes = "Excellent!",
+            conversationId = "conv-positive"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue(result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        // Verify consent is present
+        assertTrue("Should contain consent", requestBody.contains("\"consent\""))
+        assertTrue("Should contain consent value", requestBody.contains("\"val\": \"unknown\""))
+        
+        // Verify feedback structure
+        assertTrue("Should contain interaction ID", requestBody.contains("\"turnID\": \"interaction-positive\""))
+        assertTrue("Should contain conversation ID", requestBody.contains("\"conversationID\": \"conv-positive\""))
+        assertTrue("Should contain score 1 for positive", requestBody.contains("\"score\": 1"))
+        assertTrue("Should contain Thumbs Up", requestBody.contains("\"Thumbs Up\""))
+        assertTrue("Should contain categories", requestBody.contains("\"Helpful\""))
+        assertTrue("Should contain categories", requestBody.contains("\"Clear\""))
+        assertTrue("Should contain notes", requestBody.contains("Excellent!"))
+    }
+
+    @Test
+    fun `sendFeedback includes proper structure with negative feedback`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "interaction-negative",
+            feedbackType = FeedbackType.NEGATIVE,
+            selectedCategories = listOf("Confusing", "Inaccurate"),
+            notes = "Not helpful",
+            conversationId = "conv-negative"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue(result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        // Verify consent is present
+        assertTrue("Should contain consent", requestBody.contains("\"consent\""))
+        
+        // Verify feedback structure
+        assertTrue("Should contain interaction ID", requestBody.contains("\"turnID\": \"interaction-negative\""))
+        assertTrue("Should contain conversation ID", requestBody.contains("\"conversationID\": \"conv-negative\""))
+        assertTrue("Should contain score 0 for negative", requestBody.contains("\"score\": 0"))
+        assertTrue("Should contain Thumbs Down", requestBody.contains("\"Thumbs Down\""))
+        assertTrue("Should contain categories", requestBody.contains("\"Confusing\""))
+        assertTrue("Should contain categories", requestBody.contains("\"Inaccurate\""))
+        assertTrue("Should contain notes", requestBody.contains("Not helpful"))
+    }
+
+    @Test
+    fun `sendFeedback handles empty categories and notes`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "interaction-minimal",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = emptyList(),
+            notes = "",
+            conversationId = null
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue(result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        // Verify consent is still present
+        assertTrue("Should contain consent", requestBody.contains("\"consent\""))
+        assertTrue("Should contain consent value", requestBody.contains("\"val\": \"unknown\""))
+        
+        // Verify empty raw array for notes
+        assertTrue("Should have empty raw array", requestBody.contains("\"raw\": []"))
+        
+        // Verify no conversation ID line
+        assertFalse("Should not contain conversationID when null", 
+            requestBody.contains("\"conversationID\":") && requestBody.contains("null"))
+    }
+
+    @Test
+    fun `sendFeedback returns false on network error`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "test-interaction",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = emptyList(),
+            notes = "",
+            conversationId = null
+        )
+
+        every { networkService.connectAsync(any(), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(null) // Simulate connection failure
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertFalse("Feedback should return false on network error", result)
+    }
+
+    @Test
+    fun `sendFeedback returns false on HTTP error`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "test-interaction",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = emptyList(),
+            notes = "",
+            conversationId = null
+        )
+
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 500
+        every { connection.responseMessage } returns "Internal Server Error"
+        every { networkService.connectAsync(any(), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertFalse("Feedback should return false on HTTP error", result)
+    }
+
+    @Test
+    fun `sendFeedback escapes special characters in notes`() = runTest {
+        // Given
+        val feedback = Feedback(
+            interactionId = "test-interaction",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = emptyList(),
+            notes = "Response with \"quotes\" and special chars",
+            conversationId = null
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        val result = client.sendFeedback(feedback)
+
+        // Then
+        assertTrue(result)
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        // Verify consent is present
+        assertTrue("Should contain consent", requestBody.contains("\"consent\""))
+        
+        // Verify escaped quotes
+        assertTrue("Should escape quotes in notes", requestBody.contains("\\\"quotes\\\""))
     }
 
     @After
