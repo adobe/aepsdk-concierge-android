@@ -547,7 +547,7 @@ class ConciergeConversationServiceClientTest {
         
         assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
         assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
-        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"in\""))
+        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"unknown\""))
     }
 
     @Test
