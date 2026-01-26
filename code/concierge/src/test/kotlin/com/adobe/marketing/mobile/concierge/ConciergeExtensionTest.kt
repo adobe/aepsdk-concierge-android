@@ -72,7 +72,7 @@ class ConciergeExtensionTest {
             EventType.CONFIGURATION,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
         ).build()
 
         // When
@@ -90,7 +90,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.RESPONSE_CONTENT
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
         ).build()
 
         // When
@@ -108,7 +108,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to "com.adobe.wrong.extension")
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to "com.adobe.wrong.extension")
         ).build()
 
         // When
@@ -160,7 +160,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
         // When
@@ -204,7 +204,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
         // When
@@ -277,7 +277,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
         // When
@@ -299,7 +299,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
         ).build()
 
         // When
@@ -331,7 +331,7 @@ class ConciergeExtensionTest {
             EventType.HUB,
             EventSource.SHARED_STATE
         ).setEventData(
-            mapOf("stateowner" to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
+            mapOf(ConciergeConstants.SharedState.STATEOWNER to ConciergeConstants.SharedState.Consent.EXTENSION_NAME)
         ).build()
     }
 }

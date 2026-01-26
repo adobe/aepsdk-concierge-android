@@ -223,12 +223,14 @@ internal class ConciergeStateRepository private constructor() {
                 DataReader.optString(collect, ConciergeConstants.SharedState.Consent.VAL, null)
             }
 
-        return when(rawConsent) {
-            "y" -> ConciergeConstants.ConsentValues.IN_VALUE
-            "n" -> ConciergeConstants.ConsentValues.OUT_VALUE
-            "u" -> ConciergeConstants.ConsentValues.UNKNOWN_VALUE
-            else -> ConciergeConstants.ConsentValues.DEFAULT_VALUE
-        }
+        return rawConsent.toConsentValue()
+    }
+
+    private fun String?.toConsentValue(): String = when(this) {
+        "y" -> ConciergeConstants.ConsentValues.IN_VALUE
+        "n" -> ConciergeConstants.ConsentValues.OUT_VALUE
+        "u" -> ConciergeConstants.ConsentValues.UNKNOWN_VALUE
+        else -> ConciergeConstants.ConsentValues.DEFAULT_VALUE
     }
 
     /**

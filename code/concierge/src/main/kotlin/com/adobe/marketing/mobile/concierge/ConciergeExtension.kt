@@ -94,13 +94,13 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
     internal fun Event.isIdentitySharedStateEvent(): Boolean {
         return this.type == EventType.HUB &&
             this.source == EventSource.SHARED_STATE &&
-                eventData?.get("stateowner") == ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME
+                eventData?.get(ConciergeConstants.SharedState.STATEOWNER) == ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME
     }
 
     internal fun Event.isConsentSharedStateEvent(): Boolean {
         return this.type == EventType.HUB &&
             this.source == EventSource.SHARED_STATE &&
-                eventData?.get("stateowner") == ConciergeConstants.SharedState.Consent.EXTENSION_NAME
+                eventData?.get(ConciergeConstants.SharedState.STATEOWNER) == ConciergeConstants.SharedState.Consent.EXTENSION_NAME
     }
 
     internal fun Event.isConfigurationResponse(): Boolean {

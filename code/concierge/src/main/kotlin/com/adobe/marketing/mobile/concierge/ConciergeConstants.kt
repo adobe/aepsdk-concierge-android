@@ -19,6 +19,8 @@ internal object ConciergeConstants {
     const val DATA_STORE_NAME = EXTENSION_NAME
 
     object SharedState {
+        const val STATEOWNER = "stateowner"
+
         object EdgeIdentity {
             const val EXTENSION_NAME = "com.adobe.edge.identity"
             const val IDENTITY_MAP = "identityMap"
