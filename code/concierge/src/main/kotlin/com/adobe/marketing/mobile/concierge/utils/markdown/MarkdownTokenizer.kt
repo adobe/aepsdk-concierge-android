@@ -38,20 +38,22 @@ internal object MarkdownTokenizer {
         val blockPatterns = mapOf(
             TokenType.CODE_BLOCK to """```([\s\S]*?)```""".toRegex(),
             TokenType.HEADING to """^(#{1,3})\s*(.*)""".toRegex(RegexOption.MULTILINE),
-            TokenType.LIST to """^(\s*)([-•]|\d+\.)\s+(.*)""".toRegex(RegexOption.MULTILINE),
             TokenType.BLOCKQUOTE to """^>\s+(.*)""".toRegex(RegexOption.MULTILINE)
         )
 
         blockPatterns.forEach { (type, pattern) ->
             addMatchesIfNoOverlap(markdown, pattern, type, tokens)
         }
+        
+        // Process list items separately to handle multi-line content
+        addListTokens(markdown, tokens)
 
         // Process inline elements, allowing them to be nested within block elements
         val inlinePatterns = mapOf(
             TokenType.LINK to """\[([^\]]*)\]\((.*?)\)""".toRegex(),
             TokenType.INLINE_CODE to """`(.*?)`""".toRegex(),
             TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex(),
-            TokenType.ITALIC to """\*(.*?)\*""".toRegex()
+            TokenType.ITALIC to """(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)""".toRegex()
         )
 
         inlinePatterns.forEach { (type, pattern) ->
@@ -71,6 +73,83 @@ internal object MarkdownTokenizer {
         return sortedTokens
     }
 
+    /**
+     * Processes list items separately to handle multi-line content.
+     * List items can span multiple lines until:
+     * - The next list item begins
+     * - A blank line is encountered AFTER all list items (end of list)
+     * - The end of the string
+     */
+    private fun addListTokens(
+        markdown: String,
+        tokens: MutableList<MarkdownToken>
+    ) {
+        // Pattern to match the start of a list item
+        val listStartPattern = """^(\s*)([-•]|\d+\.)\s+""".toRegex(RegexOption.MULTILINE)
+        
+        val matches = listStartPattern.findAll(markdown).toList()
+        
+        for (i in matches.indices) {
+            val match = matches[i]
+            val indentation = match.groups[1]?.value ?: ""
+            val listMarker = match.groups[2]?.value ?: ""
+            
+            // Check if this item appears after a blank line - if so, treat as top-level
+            val isPrecededByBlankLine = hasPrecedingBlankLine(markdown, matches, i, match)
+            
+            val indentationLevel = if (isPrecededByBlankLine) {
+                0
+            } else {
+                indentation.length / 2
+            }
+            
+            val contentStart = match.range.last + 1
+            
+            // Find the end of this list item (start of next list item or end of string)
+            val contentEnd = if (i < matches.size - 1) {
+                // Content ends at the start of the next list item
+                // Find the position just before the next list marker, trimming any whitespace/newlines
+                val nextListStart = matches[i + 1].range.first
+                // Back up to find the last non-whitespace character before the next list item
+                var actualEnd = nextListStart
+                while (actualEnd > contentStart && markdown[actualEnd - 1].isWhitespace()) {
+                    actualEnd--
+                }
+                actualEnd
+            } else {
+                // This is the last list item
+                // Check if there's content after this list item (separated by blank lines)
+                val remainingContent = markdown.substring(contentStart)
+                val blankLineIndex = remainingContent.indexOf("\n\n")
+                if (blankLineIndex != -1) {
+                    contentStart + blankLineIndex
+                } else {
+                    markdown.length
+                }
+            }
+            
+            // Extract the content, trimming trailing newlines
+            val content = markdown.substring(contentStart, contentEnd).trimEnd('\n', '\r')
+            
+            val newToken = MarkdownToken(
+                type = TokenType.LIST,
+                start = match.range.first,
+                end = contentEnd,
+                groups = listOf(content, listMarker),
+                indentationLevel = indentationLevel
+            )
+            
+            // Only add if it doesn't overlap with existing tokens
+            val hasOverlap = tokens.any { existing ->
+                (newToken.start < existing.end && newToken.end > existing.start)
+            }
+            
+            if (!hasOverlap) {
+                tokens += newToken
+            }
+        }
+    }
+    
     private fun addMatchesIfNoOverlap(
         markdown: String,
         pattern: Regex,
@@ -80,29 +159,12 @@ internal object MarkdownTokenizer {
         pattern.findAll(markdown).forEach { result ->
             val groups = (1..result.groups.size - 1).map { i -> result.groups[i]?.value ?: "" }
 
-            val newToken = when (type) {
-                TokenType.LIST -> {
-                    val indentation = groups.firstOrNull() ?: ""
-                    val listMarker = groups.getOrNull(1) ?: ""
-                    val content = groups.getOrNull(2) ?: ""
-                    val indentationLevel = indentation.length / 2 // Assuming 2 spaces per level
-
-                    MarkdownToken(
-                        type = type,
-                        start = result.range.first,
-                        end = result.range.last + 1,
-                        groups = listOf(content, listMarker),
-                        indentationLevel = indentationLevel
-                    )
-                }
-
-                else -> MarkdownToken(
-                    type = type,
-                    start = result.range.first,
-                    end = result.range.last + 1,
-                    groups = groups
-                )
-            }
+            val newToken = MarkdownToken(
+                type = type,
+                start = result.range.first,
+                end = result.range.last + 1,
+                groups = groups
+            )
 
             // Only add if it doesn't overlap with existing tokens
             val hasOverlap = tokens.any { existing ->
@@ -145,6 +207,41 @@ internal object MarkdownTokenizer {
                 tokens += newToken
             }
         }
+    }
+    
+    /**
+     * Checks if a list item is preceded by a blank line.
+     * A blank line is defined as 2+ consecutive newlines.
+     * 
+     * @param markdown The full markdown string
+     * @param matches All list item matches found
+     * @param currentIndex Index of the current list item
+     * @param currentMatch The current match object
+     * @return true if preceded by a blank line, false otherwise
+     */
+    private fun hasPrecedingBlankLine(
+        markdown: String,
+        matches: List<MatchResult>,
+        currentIndex: Int,
+        currentMatch: MatchResult
+    ): Boolean {
+        if (currentIndex == 0) return false
+        
+        val prevMatch = matches[currentIndex - 1]
+        val prevContentEnd = prevMatch.range.last + 1
+        
+        // Find the start of current item's line (before any indentation)
+        var lineStart = currentMatch.range.first
+        while (lineStart > 0 && markdown[lineStart - 1] != '\n') {
+            lineStart--
+        }
+        
+        // Check content between previous item and current line
+        if (lineStart <= prevContentEnd) return false
+        
+        val contentBetween = markdown.substring(prevContentEnd, lineStart)
+        // Blank line = 2+ newlines
+        return contentBetween.count { it == '\n' } >= 2
     }
 }
 
