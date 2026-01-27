@@ -73,8 +73,8 @@ private fun ListItem(
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
 
-    val listItemContent = remember { token.groups.firstOrNull() ?: "" }
-    val listMarker = remember { token.groups.getOrNull(1) ?: "•" }
+    val listItemContent = remember(token) { token.groups.firstOrNull() ?: "" }
+    val listMarker = remember(token) { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
 
     // Parse markdown first to get the rendered text with inline content placeholders
