@@ -119,6 +119,7 @@ private fun RenderTextMessage(
                     if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                         ChatFooter(
                             citations = message.citations,
+                            uniqueCitations = message.uniqueCitations,
                             interactionId = message.interactionId,
                             onFeedback = onFeedback,
                             feedbackState = feedbackState
@@ -202,6 +203,7 @@ private fun RenderMixedMessage(
                         if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                             ChatFooter(
                                 citations = message.citations,
+                                uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
                                 onFeedback = onFeedback,
                                 feedbackState = feedbackState

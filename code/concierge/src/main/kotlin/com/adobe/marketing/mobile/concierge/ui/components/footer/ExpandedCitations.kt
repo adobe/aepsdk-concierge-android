@@ -40,17 +40,19 @@ import com.adobe.marketing.mobile.services.ServiceProvider
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation]s to display.
+ * @param uniqueCitations Pre-computed list of unique citations.
  * @param expanded Current expanded state for the overall container.
  */
 @Composable
 internal fun ExpandedCitations(
     modifier: Modifier = Modifier,
     citations: List<Citation>,
+    uniqueCitations: List<Citation>? = null,
     expanded: Boolean
 ) {
-    // Get unique sources with proper citation numbers
-    val uniqueSources: List<Citation> = remember(citations) {
-        CitationUtils.createUniqueSources(citations)
+    // Use pre-computed unique sources if available, otherwise compute them
+    val uniqueSources: List<Citation> = remember(citations, uniqueCitations) {
+        uniqueCitations ?: CitationUtils.createUniqueSources(citations)
     }
     val style = ConciergeStyles.citationStyle
 

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -50,6 +51,9 @@ internal fun ConciergeResponse(
     sources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val style = ConciergeStyles.citationBadgeStyle
+
     Crossfade(
         targetState = text.isEmpty(),
         animationSpec = tween(durationMillis = 200)
@@ -57,6 +61,16 @@ internal fun ConciergeResponse(
         // Apply citation annotations to the complete text first
         val annotatedText = remember(text, sources) {
             CitationAnnotator.annotateText(text, sources)
+        }
+
+        // Create inline content map once for all child components to share
+        // This avoids recreating the map for each list item
+        val inlineContentMap = remember(annotatedText.uniqueSources) {
+            CitationUiUtils.createInlineContentMap(
+                annotatedText.uniqueSources,
+                style.size,
+                context
+            )
         }
 
         if (isEmpty) {
@@ -72,12 +86,14 @@ internal fun ConciergeResponse(
                     text = annotatedText.text,
                     listTokens = listTokens,
                     uniqueSources = annotatedText.uniqueSources,
+                    inlineContentMap = inlineContentMap,
                     modifier = modifier
                 )
             } else {
                 ConciergeResponseText(
                     text = annotatedText.text,
                     uniqueSources = annotatedText.uniqueSources,
+                    inlineContentMap = inlineContentMap,
                     modifier = modifier
                 )
             }
@@ -94,6 +110,7 @@ private fun ConciergeResponseWithLists(
     text: String,
     listTokens: List<MarkdownToken>,
     uniqueSources: List<Citation> = emptyList(),
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -110,6 +127,7 @@ private fun ConciergeResponseWithLists(
                     ConciergeResponseText(
                         text = segment.content,
                         uniqueSources = uniqueSources,
+                        inlineContentMap = inlineContentMap,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -121,7 +139,8 @@ private fun ConciergeResponseWithLists(
                             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                             context.startActivity(intent)
                         },
-                        uniqueSources = uniqueSources
+                        uniqueSources = uniqueSources,
+                        inlineContentMap = inlineContentMap
                     )
                 }
             }

@@ -60,6 +60,7 @@ internal object CitationAnnotator {
         // Insert citation numbers into the original markdown text
         val annotatedText = CitationUtils.insertCitationNumbersInMarkdown(text, sortedSources)
 
+        // Return the annotated text with unique sources
         return AnnotatedText(
             text = annotatedText,
             uniqueSources = CitationUtils.createUniqueSources(validSources)

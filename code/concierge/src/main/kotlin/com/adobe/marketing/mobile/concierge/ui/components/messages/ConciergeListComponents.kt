@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -34,6 +35,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
  * @param listTokens List of [MarkdownToken] objects representing list items
  * @param onLinkClick Callback function for handling link clicks
  * @param uniqueSources List of [Citation] objects for generating citation annotations
+ * @param inlineContentMap Pre-computed inline content map for citations
  * @param modifier [Modifier] to be applied to the [Column] container
  */
 @Composable
@@ -41,6 +43,7 @@ internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
     onLinkClick: (String) -> Unit,
     uniqueSources: List<Citation> = emptyList(),
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -48,7 +51,8 @@ internal fun ConciergeResponseList(
             ListItem(
                 token = token,
                 onLinkClick = onLinkClick,
-                uniqueSources = uniqueSources
+                uniqueSources = uniqueSources,
+                inlineContentMap = inlineContentMap
             )
         }
     }
@@ -63,12 +67,14 @@ internal fun ConciergeResponseList(
  * @param token The [MarkdownToken] representing the list item
  * @param onLinkClick Callback function for handling link clicks within the list item
  * @param uniqueSources List of [Citation] objects for generating citation annotations
+ * @param inlineContentMap Pre-computed inline content map for citations
  */
 @Composable
 private fun ListItem(
     token: MarkdownToken,
     onLinkClick: (String) -> Unit,
-    uniqueSources: List<Citation> = emptyList()
+    uniqueSources: List<Citation> = emptyList(),
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap()
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
@@ -80,13 +86,17 @@ private fun ListItem(
     // Parse markdown first to get the rendered text with inline content placeholders
     val annotatedString = MarkdownParser.parse(listItemContent)
 
-    // Create inline content map for circular citations
-    val inlineContentMap = remember(uniqueSources) {
-        CitationUiUtils.createInlineContentMap(
-            uniqueSources,
-            style.size,
-            context
-        )
+    // Use provided inline content map or create it if not provided
+    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {
+        if (inlineContentMap.isNotEmpty()) {
+            inlineContentMap
+        } else {
+            CitationUiUtils.createInlineContentMap(
+                uniqueSources,
+                style.size,
+                context
+            )
+        }
     }
 
     Row(
@@ -100,7 +110,7 @@ private fun ListItem(
 
         ClickableText(
             text = annotatedString,
-            inlineContent = inlineContentMap,
+            inlineContent = finalInlineContentMap,
             onLinkClick = onLinkClick,
             modifier = Modifier.padding(end = ListSpacing.END_PADDING)
         )

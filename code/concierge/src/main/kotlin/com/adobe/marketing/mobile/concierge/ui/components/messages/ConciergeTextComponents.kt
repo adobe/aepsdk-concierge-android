@@ -44,6 +44,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 internal fun ConciergeResponseText(
     text: String,
     uniqueSources: List<Citation> = emptyList(),
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -52,12 +53,18 @@ internal fun ConciergeResponseText(
     // Parse markdown first to get the rendered text with inline content placeholders
     val markdownAnnotatedString = MarkdownParser.parse(text)
 
-    // Create inline content map for circular citations
-    val inlineContentMap = CitationUiUtils.createInlineContentMap(
-        uniqueSources,
-        style.size,
-        context
-    )
+    // Use provided inline content map or create it if not provided
+    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {
+        if (inlineContentMap.isNotEmpty()) {
+            inlineContentMap
+        } else {
+            CitationUiUtils.createInlineContentMap(
+                uniqueSources,
+                style.size,
+                context
+            )
+        }
+    }
 
     AnimatedContent(
         targetState = markdownAnnotatedString,
@@ -78,7 +85,7 @@ internal fun ConciergeResponseText(
     ) { animatedText ->
         ClickableText(
             text = animatedText,
-            inlineContent = inlineContentMap,
+            inlineContent = finalInlineContentMap,
             onLinkClick = { url ->
                 val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                 context.startActivity(intent)
