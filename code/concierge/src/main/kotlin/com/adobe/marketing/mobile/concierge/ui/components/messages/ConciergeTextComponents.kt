@@ -13,22 +13,30 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
-import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
  * Renders concierge response text with markdown formatting and circular citation components.
@@ -52,17 +60,32 @@ internal fun ConciergeResponseText(
         context
     )
 
-    ClickableText(
-        text = markdownAnnotatedString,
-        inlineContent = inlineContentMap,
-        onLinkClick = { url ->
-            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-            context.startActivity(intent)
+    AnimatedContent(
+        targetState = markdownAnnotatedString,
+        transitionSpec = {
+            fadeIn(
+                animationSpec = tween(
+                    durationMillis = 220,
+                    easing = FastOutSlowInEasing
+                )
+            ) togetherWith fadeOut(
+                animationSpec = tween(
+                    durationMillis = 200,
+                    easing = LinearOutSlowInEasing
+                )
+            )
         },
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(end = ListSpacing.END_PADDING)
-    )
+        label = "responseFadeIn"
+    ) { _ ->
+        ClickableText(
+            text = markdownAnnotatedString,
+            inlineContent = inlineContentMap,
+            onLinkClick = { url ->
+                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                context.startActivity(intent)
+            }
+        )
+    }
 }
 
 /**

@@ -25,20 +25,27 @@ import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.toWelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
-import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
+import com.adobe.marketing.mobile.concierge.utils.WelcomeResponseParser
+import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,13 +57,60 @@ import kotlinx.coroutines.launch
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
+        
+        /**
+         * Initializes the welcome config using the parser example
+         * In the finalized implementation, the config contained in the mock response would
+         * be fetched from a concierge configuration service.
+         */
+        private fun initializeWelcomeConfig(): WelcomeConfig {
+            // Setup a mock welcome response
+            val mockResponse = """
+                {
+                "welcome.heading": "Explore what you can do with Adobe apps.",
+                "welcome.subheading": "Choose an option or tell us what interests you and we'll point you in the right direction.",
+                "welcome.examples": [
+                    {
+                        "text": "I'd like to explore templates to see what I can create.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
+                        "backgroundColor": "#FFFFFF"
+                    },
+                    {
+                        "text": "I want to touch up and enhance my photos.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
+                        "backgroundColor": "#FFFFFF"
+                    },
+                    {
+                        "text": "I'd like to edit PDFs and make them interactive.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
+                        "backgroundColor": "#FFFFFF"
+                    },
+                    {
+                        "text": "I want to turn my clips into polished videos.",
+                        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
+                        "backgroundColor": "#FFFFFF"
+                    }
+                ]
+            }
+            """.trimIndent()
+
+            val welcomeData = WelcomeResponseParser.parseWelcomeData(mockResponse)
+
+            // Use default values if none are configured
+            return WelcomeConfig(
+                showWelcomeCard = true,
+                welcomeHeader = welcomeData?.heading ?: ConciergeConstants.WelcomeCard.DEFAULT_HEADING,
+                subHeader = welcomeData?.subheading ?: ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING,
+                suggestedPrompts = welcomeData?.prompts ?: emptyList()
+            )
+        }
     }
 
     /**
      * Tracks the overall state of the chat flow
      */
     private val _state = MutableStateFlow<ChatScreenState>(
-        ChatScreenState.Idle
+        ChatScreenState.Idle()
     )
     internal val state: StateFlow<ChatScreenState> = _state.asStateFlow()
 
@@ -75,10 +129,49 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
     /**
+     * Tracks the current conversation ID from the backend response
+     */
+    private var currentConversationId: String? = null
+
+    /**
      * Tracks whether the app has audio recording permission
      */
     private val _hasAudioPermission = MutableStateFlow(checkAudioPermission())
     val hasAudioPermission: StateFlow<Boolean> = _hasAudioPermission.asStateFlow()
+
+    /**
+     * Tracks whether the welcome card should be shown
+     */
+    private val _showWelcomeCard = MutableStateFlow(false)
+    val showWelcomeCard: StateFlow<Boolean> = _showWelcomeCard.asStateFlow()
+
+    /**
+     * Configuration for the welcome card
+     */
+    internal var welcomeConfig: WelcomeConfig = initializeWelcomeConfig()
+        private set
+    
+    /**
+     * Updates the welcome configuration from a theme config
+     * @param themeConfig The theme configuration containing welcome data
+     */
+    fun updateWelcomeConfigFromTheme(themeConfig: ConciergeThemeConfig?) {
+        if (themeConfig != null) {
+            welcomeConfig = themeConfig.toWelcomeConfig(showWelcomeCard = true)
+        }
+    }
+
+    /**
+     * Data store collection for persisting concierge
+     */
+    private val conciergeNamedCollection =
+        ServiceProvider.getInstance().dataStoreService.getNamedCollection(ConciergeConstants.DATA_STORE_NAME)
+
+    /**
+     * Tracks whether the Concierge chat interface is active/open
+     */
+    private val _isConciergeActive = MutableStateFlow(false)
+    val isConciergeActive: StateFlow<Boolean> = _isConciergeActive.asStateFlow()
 
     /**
      * Speech capturing implementation that will be used for this session
@@ -120,6 +213,40 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.imageProvider = imageProvider
         this.chatService = chatService
         speechCapturing.setListener(captureListener)
+
+        // Initialize welcome card state based on config and user history
+        checkAndShowWelcomeCard()
+    }
+
+    /**
+     * Checks if the welcome card should be shown based on configuration
+     */
+    private fun checkAndShowWelcomeCard() {
+        // Show welcome card every time chat is opened if config allows
+        if (welcomeConfig.showWelcomeCard) {
+            _showWelcomeCard.value = true
+        }
+    }
+
+    /**
+     * Returns whether the user is a returning user (has seen the welcome card before)
+     */
+    internal fun isReturningUser(): Boolean {
+        return conciergeNamedCollection.getBoolean(ConciergeConstants.DataStoreKeys.KEY_HAS_SEEN_WELCOME, false)
+    }
+
+    /**
+     * Marks the user as a returning user (has seen and interacted with the welcome card)
+     */
+    private fun markUserAsReturning() {
+        conciergeNamedCollection.setBoolean(ConciergeConstants.DataStoreKeys.KEY_HAS_SEEN_WELCOME, true)
+    }
+
+    /**
+     * Dismisses the welcome card
+     */
+    fun dismissWelcomeCard() {
+        _showWelcomeCard.value = false
     }
 
     private val captureListener = object : SpeechCaptureListener {
@@ -154,24 +281,9 @@ class ConciergeChatViewModel : AndroidViewModel {
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
 
-            is MicEvent.StartRecording -> {
-                startSpeechRecognition()
-            }
+            is MicEvent.StartRecording -> { startSpeechRecognition() }
 
-            is MicEvent.StopRecording -> {
-                stopSpeechRecognition()
-                // Immediately transition UI state based on current partial text
-                val currentState = _inputState.value
-                if (currentState is UserInputState.Recording) {
-                    if (currentState.transcription.isNotBlank()) {
-                        // If we have partial text, transition to Editing state
-                        _inputState.update { UserInputState.Editing(currentState.transcription) }
-                    } else {
-                        // If no partial text, go back to Empty
-                        _inputState.update { UserInputState.Empty }
-                    }
-                }
-            }
+            is MicEvent.StopRecording -> { handleStopRecording() }
 
             is FeedbackEvent.ThumbsUp -> handleFeedback(
                 event.interactionId,
@@ -182,6 +294,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                 event.interactionId,
                 ConciergeConstants.ChatInteraction.NEGATIVE
             )
+
+            is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.feedback)
+            is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
 
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
@@ -237,19 +352,86 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
+     * Helper to update feedback dialog state
+     * @param feedback The feedback data to set, or null to clear
+     */
+    private fun updateFeedback(feedback: Feedback?) {
+        _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Idle -> currentState.copy(feedback = feedback)
+                is ChatScreenState.Processing -> currentState.copy(feedback = feedback)
+                is ChatScreenState.Error -> currentState.copy(feedback = feedback)
+            }
+        }
+    }
+
+    /**
      * Handles user feedback for responses
      * @param interactionId The interaction ID to associate with the feedback
      * @param feedbackType The type of feedback ("positive" or "negative")
      */
     private fun handleFeedback(interactionId: String, feedbackType: String) {
-        // TODO: Implement Edge send event with interaction ID in XDM
-        // Edge.sendEvent(...)
-        // For now, just log the feedback
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            "Received feedback: $feedbackType for interactionId: $interactionId"
-        )
+        // Show feedback dialog based on the type
+        val type = when (feedbackType) {
+            ConciergeConstants.ChatInteraction.POSITIVE -> FeedbackType.POSITIVE
+            ConciergeConstants.ChatInteraction.NEGATIVE -> FeedbackType.NEGATIVE
+            else -> return
+        }
+
+        updateFeedback(Feedback(interactionId, type))
+    }
+
+    /**
+     * Handles feedback submission from the dialog
+     * @param feedback The feedback data
+     */
+    private fun handleFeedbackSubmission(feedback: Feedback) {
+        // Update feedback state
+        val feedbackState = when (feedback.feedbackType) {
+            FeedbackType.POSITIVE -> FeedbackState.Positive
+            FeedbackType.NEGATIVE -> FeedbackState.Negative
+        }
+
+        // Find and update the message with the feedback state
+        _messages.update { currentMessages ->
+            currentMessages.map { message ->
+                if (message.interactionId == feedback.interactionId) {
+                    message.copy(feedbackState = feedbackState)
+                } else {
+                    message
+                }
+            }
+        }
+
+        // Hide dialog
+        updateFeedback(null)
+
+        // Send feedback to the conversation service
+        viewModelScope.launch {
+            val feedbackWithConversationId = feedback.copy(conversationId = currentConversationId)
+            
+            val success = chatService.sendFeedback(feedbackWithConversationId)
+            if (success) {
+                Log.debug(
+                    TAG,
+                    "handleFeedbackSubmission",
+                    "Feedback sent successfully for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
+                )
+            } else {
+                Log.warning(
+                    TAG,
+                    "handleFeedbackSubmission",
+                    "Failed to send feedback for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
+                )
+            }
+        }
+    }
+
+    /**
+     * Handles dismissing the feedback dialog
+     */
+    private fun handleDismissFeedbackDialog() {
+        updateFeedback(null)
     }
 
     /**
@@ -279,7 +461,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleResetChat() {
         _state.update {
-            ChatScreenState.Idle
+            ChatScreenState.Idle()
         }
         _inputState.update { UserInputState.Empty }
     }
@@ -290,6 +472,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
+
+        // Dismiss welcome card when user sends their first message
+        if (_showWelcomeCard.value) {
+            dismissWelcomeCard()
+        }
+        
+        // Mark user as returning (has seen and interacted with welcome)
+        markUserAsReturning()
 
         // Add user message to the list
         val userMessage = ChatMessage(
@@ -306,7 +496,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         // Transition to processing state
         _state.update {
-            ChatScreenState.Processing
+            ChatScreenState.Processing()
         }
 
         // Start the conversation stream from the API
@@ -363,15 +553,33 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Parsed message: ${parsedMessage.messageContent}, state: ${parsedMessage.state}"
         )
 
+        // Capture conversationId if present in the response
+        parsedMessage.conversationId?.let { conversationId ->
+            if (currentConversationId == null) {
+                currentConversationId = conversationId
+                Log.debug(TAG, "onParsedMessage", "Captured conversationId: $conversationId")
+            }
+        }
+
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
                 appendToAssistantMessage(parsedMessage, contentBuilder)
             }
 
             ConversationState.COMPLETED -> {
-                // For COMPLETED state, replace the content with the final message
-                replaceAssistantMessageContent(parsedMessage)
-                _state.update { ChatScreenState.Idle }
+                // For COMPLETED state, if final message is blank, keep existing content and just transition to Idle.
+                // Otherwise, replace with the final message.
+                if (parsedMessage.messageContent.isNotBlank()) {
+                    replaceAssistantMessageContent(parsedMessage)
+                }
+                _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(
+                    feedback = currentState.feedback
+                )
+                        else -> currentState
+                    }
+                }
             }
 
             ConversationState.ERROR -> {
@@ -404,7 +612,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Appending text content with length (${contentBuilder.length} chars)"
         )
 
-        updateAssistantMessageContent(messageContent)
+        // Use the interactionId as the turnId for feedback
+        updateAssistantMessageContent(messageContent, interactionId = parsedMessage.interactionId)
     }
 
     /**
@@ -438,7 +647,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         updateAssistantMessageContent(
             messageContent,
             parsedMessage.promptSuggestions,
-            parsedMessage.sources
+            parsedMessage.sources,
+            parsedMessage.interactionId
         )
     }
 
@@ -447,11 +657,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param content The new content for the assistant message
      * @param promptSuggestions Optional prompt suggestions to include with the message
      * @param sources Optional sources to include with the message
+     * @param interactionId Optional interaction ID from the backend to use as a turnId for feedback
      */
     private fun updateAssistantMessageContent(
         content: MessageContent,
         promptSuggestions: List<String> = emptyList(),
-        sources: List<Citation> = emptyList()
+        sources: List<Citation> = emptyList(),
+        interactionId: String? = null
     ) {
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
@@ -461,7 +673,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 updatedMessages[lastIndex] = lastAssistantMessage.copy(
                     content = content,
                     promptSuggestions = promptSuggestions,
-                    citations = sources
+                    citations = sources,
+                    interactionId = interactionId ?: lastAssistantMessage.interactionId
                 )
                 updatedMessages
             } else {
@@ -483,8 +696,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         )
 
         // Return to idle state
-        _state.update {
-            ChatScreenState.Idle
+        _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(
+                    feedback = currentState.feedback
+                )
+                else -> ChatScreenState.Idle()
+            }
         }
     }
 
@@ -501,11 +719,34 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
+
     /**
-     * Stops speech recognition
+     * Handles stopping speech recognition
      */
-    private fun stopSpeechRecognition() {
+    private fun handleStopRecording() {
         speechCapturing.endCapture()
+
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Stopped speech recognition, current input state: ${_inputState.value}"
+        )
+        // Immediately transition UI state based on current partial text
+        val currentState = _inputState.value
+        if (currentState is UserInputState.Recording) {
+            if (currentState.transcription.isNotBlank()) {
+                // If we have partial text, transition to Editing state and keep accepting late partials
+                _inputState.update { UserInputState.Editing(currentState.transcription, isPendingTranscription = true) }
+            } else {
+                // If no partial text, go back to Empty
+                _inputState.update { UserInputState.Empty }
+            }
+        }
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Input state after stopping recording: ${_inputState.value}"
+        )
     }
 
     /**
@@ -518,7 +759,29 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "handlePartialTranscription: partialText='$partialText'"
         )
-        _inputState.update { UserInputState.Recording(partialText) }
+        val current = _inputState.value
+        when (current) {
+            is UserInputState.Recording -> {
+                // Normal streaming while recording
+                _inputState.update { UserInputState.Recording(partialText) }
+            }
+            is UserInputState.Editing -> {
+                if (current.isPendingTranscription) {
+                    // After stop: continue showing latest partials while staying in Editing
+                    _inputState.update { UserInputState.Editing(partialText, isPendingTranscription = true) }
+                } else {
+                    // Stay in current state
+                    _inputState.update { current }
+                }
+            }
+            else -> {
+                Log.trace(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Ignoring partial transcription in state: $current"
+                )
+            }
+        }
     }
 
     /**
@@ -539,7 +802,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 TAG,
                 "Transitioning to Editing state with transcription: '$transcription'"
             )
-            _inputState.update { UserInputState.Editing(transcription) }
+            _inputState.update { UserInputState.Editing(transcription, isPendingTranscription = false) }
         } else {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
@@ -575,6 +838,20 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     fun refreshPermissionStatus() {
         _hasAudioPermission.update { checkAudioPermission() }
+    }
+
+    /**
+     * Opens the Concierge chat interface
+     */
+    fun openConcierge() {
+        _isConciergeActive.value = true
+    }
+
+    /**
+     * Closes the Concierge chat interface
+     */
+    fun closeConcierge() {
+        _isConciergeActive.value = false
     }
 
     override fun onCleared() {

@@ -11,13 +11,58 @@
 
 package com.adobe.marketing.mobile.concierge
 
-object ConciergeConstants {
+internal object ConciergeConstants {
     const val EXTENSION_NAME = "concierge"
     const val EXTENSION_FRIENDLY_NAME = "Concierge"
     const val EXTENSION_VERSION = "3.0.0"
+    const val LOG_TAG = "Concierge"
+    const val DATA_STORE_NAME = EXTENSION_NAME
+
+    object SharedState {
+        const val STATEOWNER = "stateowner"
+
+        object EdgeIdentity {
+            const val EXTENSION_NAME = "com.adobe.edge.identity"
+            const val IDENTITY_MAP = "identityMap"
+            const val ECID = "ECID"
+            const val ID = "id"
+        }
+        object Configuration {
+            const val EXTENSION_NAME = "com.adobe.module.configuration"
+            const val CONCIERGE_SERVER = "concierge.server"
+            const val CONCIERGE_CONFIG_ID = "concierge.configId"
+            const val CONCIERGE_SURFACES = "concierge.surfaces"
+        }
+        object Consent {
+            const val EXTENSION_NAME = "com.adobe.edge.consent"
+            const val CONSENTS = "consents"
+            const val COLLECT = "collect"
+            const val VAL = "val"
+        }
+    }
+
+    object ConsentValues {
+        const val IN_VALUE = "in"
+        const val OUT_VALUE = "out"
+        const val UNKNOWN_VALUE = "unknown"
+        const val DEFAULT_VALUE = UNKNOWN_VALUE
+    }
 
     object ChatInteraction {
         const val POSITIVE = "positive"
         const val NEGATIVE = "negative"
+    }
+
+    object DataStoreKeys {
+        const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
+        const val KEY_SESSION_ID = "concierge_session_id"
+        const val KEY_SESSION_TIMESTAMP = "concierge_session_timestamp"
+    }
+
+    object WelcomeCard {
+        const val DEFAULT_HEADING = "I'm your personal guide to help you explore and find exactly what you need. Let's get started!"
+        const val RETURNING_USER_WELCOME = "Hey, welcome back!"
+        const val FIRST_TIME_WELCOME_TEMPLATE = "Welcome to [%s] concierge!"
+        const val DEFAULT_SUBHEADING = "Not sure where to start? Explore the suggested ideas below."
     }
 }

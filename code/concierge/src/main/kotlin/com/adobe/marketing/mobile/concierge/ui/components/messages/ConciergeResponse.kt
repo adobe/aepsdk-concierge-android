@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -48,36 +50,36 @@ internal fun ConciergeResponse(
     sources: List<Citation> = emptyList(),
     modifier: Modifier = Modifier
 ) {
-    // Apply citation annotations to the complete text first
-    val annotatedText = remember(text, sources) {
-        CitationAnnotator.annotateText(text, sources)
-    }
+    Crossfade(
+        targetState = text.isEmpty(),
+        animationSpec = tween(durationMillis = 200)
+    ) { isEmpty ->
+        // Apply citation annotations to the complete text first
+        val annotatedText = remember(text, sources) {
+            CitationAnnotator.annotateText(text, sources)
+        }
 
-    // Show thinking animation when text is empty
-    if (text.isEmpty()) {
-        ConciergeThinking(modifier = modifier)
-        return
-    }
+        if (isEmpty) {
+            ConciergeThinking(modifier = modifier)
+        } else {
+            val tokens = remember(annotatedText.text) { MarkdownTokenizer.tokenize(annotatedText.text) }
+            val listTokens = remember(tokens) {
+                tokens.filter { it.type == TokenType.LIST }
+            }
 
-    val tokens = remember(annotatedText.text) { MarkdownTokenizer.tokenize(annotatedText.text) }
-
-    val listTokens = remember(tokens) {
-        tokens.filter { it.type == TokenType.LIST }
-    }
-
-    if (listTokens.isNotEmpty()) {
-        ConciergeResponseWithLists(
-            text = annotatedText.text,
-            listTokens = listTokens,
-            uniqueSources = annotatedText.uniqueSources,
-            modifier = modifier
-        )
-    } else {
-        ConciergeResponseText(
-            text = annotatedText.text,
-            uniqueSources = annotatedText.uniqueSources,
-            modifier = modifier
-        )
+            if (listTokens.isNotEmpty()) {
+                ConciergeResponseWithLists(
+                    text = annotatedText.text,
+                    listTokens = listTokens,
+                    modifier = modifier
+                )
+            } else {
+                ConciergeResponseText(
+                    text = annotatedText.text,
+                    modifier = modifier
+                )
+            }
+        }
     }
 }
 

@@ -66,7 +66,12 @@ internal fun MessageList(
             verticalArrangement = Arrangement.spacedBy(style.verticalSpacing),
         ) {
             // Show messages in chronological order (oldest first, newest last)
-            itemsIndexed(messages) { index, message ->
+            itemsIndexed(
+                items = messages,
+                key = { _, message ->
+                    message.interactionId ?: "${message.timestamp}:${message.isFromUser}:${message.text.hashCode()}"
+                }
+            ) { index, message ->
                 // If the last item is an assistant message immediately following the latest user message,
                 // set its minimum height to the parent height so the response "fills the screen",
                 // but allow it to extend beyond if the content is larger.
@@ -89,7 +94,8 @@ internal fun MessageList(
                         onFeedback = onFeedback,
                         onActionClick = onActionClick,
                         onImageClick = onImageClick,
-                        onSuggestionClick = onSuggestionClick
+                        onSuggestionClick = onSuggestionClick,
+                        feedbackState = message.feedbackState
                     )
                 }
             }

@@ -13,50 +13,61 @@
 package com.adobe.marketing.mobile.conciergetestapp
 
 import android.os.Bundle
-import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatView
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
 import com.adobe.marketing.mobile.conciergeapp.R
 
 /**
  * Example Activity showing how to integrate ConciergeChatView into an XML-based application.
- * This demonstrates the integration approach for apps that use traditional XML layouts.
+ * This demonstrates two integration approaches:
+ * 
+ * 1. Direct Chat Mode (current): Full-screen chat that shows immediately
+ * 2. Dialog Mode (commented): Show a trigger view that opens chat in a dialog
+ * 
+ * Supports dynamic theme loading via intent extra "theme_file"
  */
 class XmlChatActivity : AppCompatActivity() {
 
     private lateinit var chatView: ConciergeChatView
-    private lateinit var toggleButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_xml_chat)
         enableEdgeToEdge()
 
-        // Get references to views from layout
         chatView = findViewById(R.id.concierge_chat)
 
-        // Bind the chat view - this is where the magic happens!
+        // Get theme from intent if provided
+        // this is set by the theme toggle in MainScreen.kt
+        val themeFileName = intent.getStringExtra("theme_file")
+        val theme = themeFileName?.let {
+            ConciergeThemeLoader.load(this, it)
+        }
+
+        // --- MODE 1: Direct Chat (Full-screen) with optional theme ---
+        // Shows the chat interface directly without a wrapper
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
-            onClose = {
-                finish()
-//                // Handle close button press
-//                chatView.visibility = View.GONE
-//                toggleButton.text = "Show Chat"
-            }
+            theme = theme,
+            onClose = { finish() }
         )
-//
-//        // Toggle chat visibility
-//        toggleButton.setOnClickListener {
-//            if (chatView.isVisible) {
-//                chatView.visibility = View.GONE
-//                toggleButton.text = "Show Chat"
-//            } else {
-//                chatView.visibility = View.VISIBLE
-//                toggleButton.text = "Hide Chat"
-//            }
-//        }
+
+        // --- MODE 2: Dialog-based Chat with optional theme ---
+        // Uncomment this and comment out Mode 1 above to test dialog mode
+        /*val triggerButton = Button(this).apply {
+            text = "Start Chat"
+            textSize = 38f
+            setPadding(32, 16, 32, 16)
+        }
+
+        chatView.bind(
+            lifecycleOwner = this,
+            viewModelStoreOwner = this,
+            theme = theme,
+            triggerView = triggerButton
+        )*/
     }
 }

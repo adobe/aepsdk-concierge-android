@@ -14,6 +14,11 @@ name: Publish Snapshot
 
 on: 
   workflow_dispatch:
+      inputs:
+        ref:
+          description: "Git reference (branch, tag, or SHA) to check out when publishing the snapshot. Defaults to 'staging'."
+          required: false
+          default: 'staging'
 
 jobs:
   publish:
@@ -21,3 +26,7 @@ jobs:
         contents: write
     uses: adobe/aepsdk-commons/.github/workflows/android-maven-snapshot.yml@gha-android-3.4.3
     secrets: inherit
+    with:
+      ref: ${{ inputs.ref }}
+      staging-dir: code/concierge/build/staging-deploy
+    

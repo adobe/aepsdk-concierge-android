@@ -13,42 +13,45 @@
 package com.adobe.marketing.mobile.concierge.network
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeState
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.ServiceProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.random.Random
-
-/**
- * Configuration for the conversation service request.
- */
-internal data class ConversationConfig(
-    val configId: String = "",
-    val sessionId: String = "",
-    val requestId: String = "",
-    val baseUrl: String = "",
-    val surfaces: List<String> = listOf(""),
-    // generate a mockEcid for the request, 38 characters long, numeric only
-    val mockEcid: String = (1..38)
-        .map { Random.nextInt(0, 10) }
-        .joinToString(separator = "") { it.toString() }
-)
 
 internal class ConciergeConversationServiceClient(
-    private val config: ConversationConfig = ConversationConfig()
+    private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
+    private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
 
     companion object {
@@ -57,10 +60,24 @@ internal class ConciergeConversationServiceClient(
         private const val DEFAULT_CONNECT_TIMEOUT = 30
         private const val DEFAULT_READ_TIMEOUT = 60
     }
+    
+    // Shared StateFlow that continuously tracks state updates
+    private val conciergeState: StateFlow<ConciergeState> = stateRepository.state
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = stateRepository.state.value
+        )
 
     private val endpoint: String
-        get() = "${config.baseUrl}/brand-concierge/conversations" +
-                "?configId=${config.configId}&sessionId=${config.sessionId}&requestId=${config.requestId}"
+        get() {
+            val currentState = conciergeState.value
+            val sessionId = sessionManager.getSessionId()
+            return "https://${currentState.conciergeServer}/brand-concierge/conversations" +
+                    "?configId=${currentState.conciergeConfigId}" +
+                    "&sessionId=$sessionId" +
+                    "&requestId=${UUID.randomUUID()}"
+        }
 
 
     /**
@@ -75,7 +92,7 @@ internal class ConciergeConversationServiceClient(
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
     fun chat(message: String): Flow<ParsedConversationMessage> = flow {
-        val requestBody = createRequestBody(message)
+        val requestBody = createRequestBody(message, stateRepository.state.value)
         val request = createConversationServiceRequest(endpoint, requestBody)
 
         val connection = connect(request)
@@ -118,14 +135,23 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the JSON request body for the conversation request.
      */
-    private fun createRequestBody(message: String): String = """
+    private fun createRequestBody(message: String, state: ConciergeState): String {
+        val surfaces = state.conciergeSurfaces ?: emptyList()
+        return """
         {
             "events": [
                 {
+                    "meta": {
+                         "consent": {
+                            "state": {
+                                "val": "${state.consent}"
+                            }
+                        }
+                    },
                     "query": {
                         "conversation": {
                             "fetchConversationalExperience": true,
-                            "surfaces": ${config.surfaces.joinToString(",", "[\"", "\"]") { it }},
+                            "surfaces": ${surfaces.joinToString(",", "[\"", "\"]") { it }},
                             "message": "${message.replace("\"", "\\\"")}"
                         }
                     },
@@ -133,7 +159,7 @@ internal class ConciergeConversationServiceClient(
                         "identityMap": {
                             "ECID": [
                                 {
-                                    "id": "${config.mockEcid}"
+                                    "id": "${state.experienceCloudId}"
                                 }
                             ]
                         }
@@ -142,6 +168,7 @@ internal class ConciergeConversationServiceClient(
             ]
         }
     """.trimIndent()
+    }
 
     /**
      * Establishes the network connection asynchronously and resumes with the connection.
@@ -291,10 +318,125 @@ internal class ConciergeConversationServiceClient(
     }
 
     /**
+     * Sends feedback for a conversation turn to the conversation service.
+     *
+     * @param feedback The feedback containing turnId, rating, categories, and notes
+     * @return true if the feedback was successfully sent, false otherwise
+     */
+    suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val state = stateRepository.state.value
+            val requestBody = createFeedbackRequestBody(feedback, state)
+            val request = createFeedbackRequest(endpoint, requestBody)
+
+            val connection = connect(request)
+
+            try {
+                validateResponseCode(connection)
+                true
+            } finally {
+                connection.close()
+            }
+        } catch (e: Exception) {
+            Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to send feedback: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Creates the feedback request body in XDM format
+     */
+    private fun createFeedbackRequestBody(feedback: Feedback, state: ConciergeState): String {
+        val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date())
+
+        val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date())
+        val timeZoneOffset =
+            TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
+
+        val rawArray = if (feedback.notes.isNotBlank()) {
+            """[{"text": "${feedback.notes.replace("\"", "\\\"")}","purpose": "user input"}]"""
+        } else {
+            "[]"
+        }
+
+        val conversationIdLine = feedback.conversationId?.let {
+            """"conversationID": "$it","""
+        } ?: ""
+
+        val isPositive = feedback.feedbackType == FeedbackType.POSITIVE
+
+        // TODO: this has to be formalized in a JSON structure once the data model is finalized.
+        return """
+{
+    "events": [{
+        "meta": {
+            "consent": {
+                "state": {
+                    "val": "${state.consent}"
+                }
+            }
+        },
+        "xdm": {
+            "identityMap": {
+                "ECID": [{
+                    "id": "${state.experienceCloudId}"
+                }]
+            },
+            "conversation": {
+                "feedback": {
+                    "source": "end-user",
+                    "raw": $rawArray,
+                    "rating": {
+                        "score": ${if (isPositive) 1 else 0},
+                        "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
+                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"$it\"" }}]
+                    }
+                },
+                $conversationIdLine
+                "turnID": "${feedback.interactionId}"
+            },
+            "eventType": "conversation.feedback",
+            "timestamp": "$timestamp",
+            "placeContext": {
+                "localTimezoneOffset": $timeZoneOffset,
+                "localTime": "$localTime"
+            },
+            "implementationDetails": {
+            	"environment": "app",
+            	"name": "https:\/\/ns.adobe.com\/experience\/mobilesdk\/android",
+                "version": "3.5.0+${ConciergeConstants.EXTENSION_VERSION}"
+            }
+        }
+    }]
+}
+""".trimIndent()
+    }
+
+    /**
+     * Creates a POST [NetworkRequest] for sending feedback.
+     */
+    private fun createFeedbackRequest(
+        url: String,
+        body: String,
+        connectTimeout: Int = DEFAULT_CONNECT_TIMEOUT,
+        readTimeout: Int = DEFAULT_READ_TIMEOUT
+    ): NetworkRequest = NetworkRequest(
+        url,
+        HttpMethod.POST,
+        body.toByteArray(StandardCharsets.UTF_8),
+        mapOf("Content-Type" to "application/json"),
+        connectTimeout,
+        readTimeout
+    )
+
+    /**
      * Cleanup method to cancel any ongoing network operations.
      * Should be called when the client is no longer needed to prevent memory leaks.
      */
     fun cleanup() {
+        scope.cancel()
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,

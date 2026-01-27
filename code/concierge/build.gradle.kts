@@ -17,6 +17,8 @@ plugins {
 }
 
 val mavenCoreVersion: String by project
+val mavenEdgeVersion: String by project
+val mavenEdgeIdentityVersion: String by project
 val material3Version = "1.2.0"
 
 aepLibrary {
@@ -29,12 +31,21 @@ aepLibrary {
     publishing {
         gitRepoName = "aepsdk-concierge-android"
         addCoreDependency(mavenCoreVersion)
+        addEdgeDependency(mavenEdgeVersion)
+        addEdgeIdentityDependency(mavenEdgeIdentityVersion)
 
         addMavenDependency("org.jetbrains.kotlin", "kotlin-stdlib-jdk8", BuildConstants.Versions.KOTLIN)
+        addMavenDependency("androidx.compose.material3", "material3", material3Version)
+        addMavenDependency("androidx.compose.ui", "ui", BuildConstants.Versions.COMPOSE)
+
+        // Todo: remove this in favor of our own image vectors in a future release
+        addMavenDependency("androidx.compose.material", "material-icons-core", BuildConstants.Versions.COMPOSE)
+        addMavenDependency("androidx.compose.material", "material-icons-extended", BuildConstants.Versions.COMPOSE)
+        
+        addMavenDependency("androidx.lifecycle", "lifecycle-runtime-compose", "2.7.0")
         addMavenDependency("androidx.appcompat", "appcompat", BuildConstants.Versions.ANDROIDX_APPCOMPAT)
         addMavenDependency("androidx.compose.runtime", "runtime", BuildConstants.Versions.COMPOSE)
         addMavenDependency("androidx.activity", "activity-compose", BuildConstants.Versions.ANDROIDX_ACTIVITY_COMPOSE)
-        addMavenDependency("androidx.compose.material3", "material3", material3Version)
     }
 }
 
@@ -54,6 +65,8 @@ dependencies {
 
     // AEP SDK
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
+    implementation("com.adobe.marketing.mobile:edge:$mavenEdgeVersion")
+    implementation("com.adobe.marketing.mobile:edgeidentity:$mavenEdgeIdentityVersion")
 
     // Test dependencies
     testImplementation("junit:junit:4.13.2")

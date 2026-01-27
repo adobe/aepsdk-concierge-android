@@ -11,6 +11,11 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeState
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
 import com.adobe.marketing.mobile.services.NetworkCallback
@@ -23,12 +28,19 @@ import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -43,6 +55,15 @@ class ConciergeConversationServiceClientTest {
 
     private lateinit var serviceProvider: ServiceProvider
     private lateinit var networkService: Networking
+    private lateinit var mockStateRepository: ConciergeStateRepository
+    private lateinit var mockSessionManager: ConciergeSessionManager
+    private val testState = ConciergeState(
+        experienceCloudId = "test-ecid",
+        configurationReady = true,
+        conciergeSurfaces = listOf("surface1", "surface2"),
+        conciergeServer = "https://test-server.com",
+        conciergeConfigId = "test-config-id"
+    )
 
     @Before
     fun setup() {
@@ -51,6 +72,15 @@ class ConciergeConversationServiceClientTest {
         networkService = mockk()
         every { ServiceProvider.getInstance() } returns serviceProvider
         every { serviceProvider.networkService } returns networkService
+        
+        // Mock ConciergeStateRepository
+        mockStateRepository = mockk(relaxed = true)
+        val stateFlow = MutableStateFlow(testState)
+        every { mockStateRepository.state } returns stateFlow
+        
+        // Mock ConciergeSessionManager
+        mockSessionManager = mockk(relaxed = true)
+        every { mockSessionManager.getSessionId() } returns "test-session-id"
     }
 
     @Test
@@ -112,7 +142,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         val emitted = mutableListOf<ParsedConversationMessage>()
         client.chat("hi").toList(emitted)
@@ -135,7 +165,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -159,7 +189,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -197,7 +227,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(0, emitted.size)
     }
@@ -215,7 +245,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(0, emitted.size)
     }
@@ -227,7 +257,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(null)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -269,7 +299,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("Hi", emitted[0].messageContent)
@@ -289,7 +319,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -328,7 +358,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("", emitted[0].messageContent)
@@ -379,7 +409,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").take(1).toList(mutableListOf())
         assertEquals(1, emitted.size)
         verify(atLeast = 1) { connection.close() }
@@ -406,7 +436,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         var threw = false
         try {
@@ -430,7 +460,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("", emitted[0].messageContent)
@@ -449,7 +479,7 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("", emitted[0].messageContent)
@@ -485,12 +515,548 @@ class ConciergeConversationServiceClientTest {
             cb.call(connection)
         }
 
-        val client = ConciergeConversationServiceClient()
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         val emitted = client.chat("hi").toList(mutableListOf())
         assertEquals(1, emitted.size)
         assertEquals("Done", emitted[0].messageContent)
         assertEquals(ConversationState.COMPLETED, emitted[0].state)
         verify(atLeast = 1) { connection.close() }
+    }
+
+    @Test
+    fun `chat request includes default consent value in meta`() = runTest {
+        // Given
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        client.chat("test message").toList()
+
+        // Then
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
+        assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
+        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"unknown\""))
+    }
+
+    @Test
+    fun `chat request includes custom consent value when set`() = runTest {
+        // Given
+        val customState = testState.copy(consent = "out")
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        client.chat("test message").toList()
+
+        // Then
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain consent value 'out'", requestBody.contains("\"val\": \"out\""))
+    }
+
+    @Test
+    fun `chat request includes unknown consent value correctly`() = runTest {
+        // Given
+        val customState = testState.copy(consent= "unknown")
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // When
+        client.chat("test message").toList()
+
+        // Then
+        val capturedRequest = requestSlot.captured
+        val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
+        
+        assertTrue("Request should contain consent value 'unknown'", requestBody.contains("\"val\": \"unknown\""))
+    }
+
+    // ========== Feedback Tests ==========
+
+    @Test
+    fun `sendFeedback returns true on successful submission`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = listOf("Helpful", "Accurate"),
+            notes = "Great response!",
+            conversationId = "conv-456"
+        )
+
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(any(), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        val result = client.sendFeedback(feedback)
+
+        assertTrue(result)
+        verify(atLeast = 1) { connection.close() }
+    }
+
+    @Test
+    fun `sendFeedback returns false on HTTP error`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.NEGATIVE
+        )
+
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 500
+        every { connection.responseMessage } returns "Server Error"
+        every { networkService.connectAsync(any(), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        val result = client.sendFeedback(feedback)
+
+        assertFalse(result)
+        verify(atLeast = 1) { connection.close() }
+    }
+
+    @Test
+    fun `sendFeedback returns false on connection failure`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE
+        )
+
+        every { networkService.connectAsync(any(), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(null)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        val result = client.sendFeedback(feedback)
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `sendFeedback returns false on network exception`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.NEGATIVE
+        )
+
+        every { networkService.connectAsync(any(), any()) } throws IOException("Network error")
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        val result = client.sendFeedback(feedback)
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `sendFeedback uses correct HTTP method and headers`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val request = requestSlot.captured
+        assertEquals(HttpMethod.POST, request.method)
+        assertEquals("application/json", request.headers["Content-Type"])
+        assertEquals(30, request.connectTimeout)
+        assertEquals(60, request.readTimeout)
+    }
+
+    @Test
+    fun `sendFeedback creates request body with positive feedback`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE,
+            selectedCategories = listOf("Helpful", "Accurate"),
+            notes = "Great!",
+            conversationId = "conv-456"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\"score\": 1"))
+        assertTrue(requestBody.contains("\"classification\": \"Thumbs Up\""))
+        assertTrue(requestBody.contains("\"turnID\": \"interaction-123\""))
+        assertTrue(requestBody.contains("\"conversationID\": \"conv-456\""))
+        assertTrue(requestBody.contains("\"Helpful\""))
+        assertTrue(requestBody.contains("\"Accurate\""))
+        assertTrue(requestBody.contains("\"text\": \"Great!\""))
+    }
+
+    @Test
+    fun `sendFeedback creates request body with negative feedback`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-789",
+            feedbackType = FeedbackType.NEGATIVE,
+            selectedCategories = listOf("Inaccurate"),
+            notes = "Not helpful"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\"score\": 0"))
+        assertTrue(requestBody.contains("\"classification\": \"Thumbs Down\""))
+        assertTrue(requestBody.contains("\"turnID\": \"interaction-789\""))
+        assertTrue(requestBody.contains("\"Inaccurate\""))
+        assertTrue(requestBody.contains("\"text\": \"Not helpful\""))
+    }
+
+    @Test
+    fun `sendFeedback creates request body with empty notes`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE,
+            notes = ""
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\"raw\": []"))
+    }
+
+    @Test
+    fun `sendFeedback creates request body without conversationId when null`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE,
+            conversationId = null
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertFalse(requestBody.contains("\"conversationID\""))
+    }
+
+    @Test
+    fun `sendFeedback escapes special characters in notes`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE,
+            notes = "Response with \"quotes\" is great"
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\\\"quotes\\\""))
+    }
+
+    @Test
+    fun `sendFeedback includes ECID in request body`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\"ECID\""))
+        assertTrue(requestBody.contains("\"id\": \"test-ecid\""))
+    }
+
+    @Test
+    fun `sendFeedback includes timestamp fields in request body`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\"timestamp\""))
+        assertTrue(requestBody.contains("\"localTime\""))
+        assertTrue(requestBody.contains("\"localTimezoneOffset\""))
+        assertTrue(requestBody.contains("\"eventType\": \"conversation.feedback\""))
+    }
+
+    @Test
+    fun `sendFeedback includes empty categories array when no categories selected`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.NEGATIVE,
+            selectedCategories = emptyList()
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\"reasons\": []"))
+    }
+
+    // ========== Cleanup Tests ==========
+
+    @Test
+    fun `cleanup cancels the scope`() {
+        val testJob = SupervisorJob()
+        val testScope = CoroutineScope(testJob + Dispatchers.Default)
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            testScope
+        )
+
+        assertTrue(testJob.isActive)
+        client.cleanup()
+        assertFalse(testJob.isActive)
+    }
+
+    // ========== Edge Case Tests ==========
+
+    @Test
+    fun `chat request with empty surfaces list`() = runTest {
+        val customState = testState.copy(conciergeSurfaces = emptyList())
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("test").toList()
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        // When surfaces list is empty, joinToString produces [""]
+        assertTrue(requestBody.contains("\"surfaces\": [\"\"]"))
+    }
+
+    @Test
+    fun `chat request with null surfaces list`() = runTest {
+        val customState = testState.copy(conciergeSurfaces = null)
+        val stateFlow = MutableStateFlow(customState)
+        every { mockStateRepository.state } returns stateFlow
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("test").toList()
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        // When surfaces is null, it's converted to empty list and joinToString produces [""]
+        assertTrue(requestBody.contains("\"surfaces\": [\"\"]"))
+    }
+
+    @Test
+    fun `chat request escapes quotes in message`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("Message with \"quotes\"").toList()
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue(requestBody.contains("\\\"quotes\\\""))
+    }
+
+    @Test
+    fun `endpoint includes correct query parameters`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("test").toList()
+
+        val url = requestSlot.captured.url
+        assertTrue(url.startsWith("https://https://test-server.com/brand-concierge/conversations"))
+        assertTrue(url.contains("configId=test-config-id"))
+        assertTrue(url.contains("sessionId=test-session-id"))
+        assertTrue(url.contains("requestId="))
+    }
+
+    @Test
+    fun `multiple sequential chat calls work correctly`() = runTest {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {"message": "Response"},
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+        val sse = toSse(json)
+
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(sse.toByteArray(StandardCharsets.UTF_8))
+        every { networkService.connectAsync(any(), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        // First call
+        val result1 = client.chat("message 1").toList()
+        assertEquals(1, result1.size)
+
+        // Second call
+        val result2 = client.chat("message 2").toList()
+        assertEquals(1, result2.size)
+
+        verify(atLeast = 2) { networkService.connectAsync(any(), any()) }
     }
 
     @After

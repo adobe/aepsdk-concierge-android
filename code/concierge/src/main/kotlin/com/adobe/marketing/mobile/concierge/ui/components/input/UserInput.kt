@@ -15,6 +15,10 @@ package com.adobe.marketing.mobile.concierge.ui.components.input
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
@@ -33,13 +37,19 @@ internal fun UserInput(
     onMicEvent: (MicEvent) -> Unit,
     onSend: (String) -> Unit,
     hasAudioPermission: Boolean,
-    onPermissionResult: (Boolean) -> Unit
+    onPermissionResult: (Boolean) -> Unit,
+    placeholder: String? = "How can I help"
 ) {
+    var shouldRequestPermission by remember { mutableStateOf(false) }
 
     // Handle speech permission if needed
     SpeechPermissionHandler(
         hasPermission = hasAudioPermission,
-        onPermissionResult = onPermissionResult
+        shouldRequestPermission = shouldRequestPermission,
+        onPermissionResult = onPermissionResult,
+        onPermissionHandled = {
+            shouldRequestPermission = false
+        }
     )
 
     Column(
@@ -48,6 +58,7 @@ internal fun UserInput(
         // Input field
         ChatInputField(
             modifier = Modifier.fillMaxWidth(),
+            placeholder = placeholder ?: "How can I help",
             enable = true,
             inputState = inputState,
             isProcessing = isProcessing,
@@ -56,8 +67,8 @@ internal fun UserInput(
                 if (hasAudioPermission) {
                     onMicEvent(MicEvent.StartRecording)
                 } else {
-                    // Permission will be requested by SpeechPermissionHandler
-                    // TODO: propagate permission error to user
+                    // Trigger permission request
+                    shouldRequestPermission = true
                 }
             },
             onVoiceCancel = {

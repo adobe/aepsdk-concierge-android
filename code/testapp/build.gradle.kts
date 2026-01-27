@@ -18,13 +18,14 @@ plugins {
 
 val mavenCoreVersion: String by project
 val mavenEdgeIdentityVersion: String by project
+val mavenEdgeConsentVersion: String by project
 
 android {
     defaultConfig {
         namespace = "com.adobe.marketing.mobile.conciergeapp"
         minSdk = BuildConstants.Versions.MIN_SDK_VERSION
         compileSdk = BuildConstants.Versions.COMPILE_SDK_VERSION
-        targetSdk = BuildConstants.Versions.TARGET_SDK_VERSION
+        targetSdk = 36
 
         versionCode = 1
         versionName = "1.0"
@@ -75,6 +76,7 @@ dependencies {
 
     implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
     implementation("com.adobe.marketing.mobile:edgeidentity:$mavenEdgeIdentityVersion")
+    implementation("com.adobe.marketing.mobile:edgeconsent:$mavenEdgeConsentVersion")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")

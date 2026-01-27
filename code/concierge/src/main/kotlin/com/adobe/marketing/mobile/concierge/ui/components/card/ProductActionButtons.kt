@@ -26,7 +26,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -132,9 +131,11 @@ private fun ProductButtonText(text: String) {
 
     Text(
         text = text,
-        textAlign = TextAlign.Center,
+        textAlign = style.textAlign,
         fontSize = style.fontSize.value.sp,
         style = style.textStyle,
-        fontWeight = style.fontWeight
+        fontWeight = style.fontWeight,
+        maxLines = style.maxLines,
+        overflow = style.overflow
     )
 }

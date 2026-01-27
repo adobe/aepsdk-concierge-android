@@ -29,6 +29,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
@@ -44,15 +45,23 @@ internal fun ChatMessageItem(
     onFeedback: (FeedbackEvent) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
-    onSuggestionClick: (String) -> Unit = {}
+    onSuggestionClick: (String) -> Unit = {},
+    feedbackState: FeedbackState = FeedbackState.None
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message, onFeedback, onSuggestionClick)
+            RenderTextMessage(message, onFeedback, onSuggestionClick, feedbackState)
         }
 
         is MessageContent.Mixed -> {
-            RenderMixedMessage(message, onFeedback, onActionClick, onImageClick, onSuggestionClick)
+            RenderMixedMessage(
+                message,
+                onFeedback,
+                onActionClick,
+                onImageClick,
+                onSuggestionClick,
+                feedbackState
+            )
         }
     }
 }
@@ -61,7 +70,8 @@ internal fun ChatMessageItem(
 private fun RenderTextMessage(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit,
-    onSuggestionClick: (String) -> Unit
+    onSuggestionClick: (String) -> Unit,
+    feedbackState: FeedbackState
 ) {
     val style = ConciergeStyles.messageBubbleStyle
 
@@ -105,12 +115,13 @@ private fun RenderTextMessage(
                         )
                     }
 
-                    // If we have a response message and citations are available then show the footer
-                    if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                    // Show footer if we have citations or have an interaction id for providing feedback
+                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                         ChatFooter(
                             citations = message.citations,
                             interactionId = message.interactionId,
-                            onFeedback = onFeedback
+                            onFeedback = onFeedback,
+                            feedbackState = feedbackState
                         )
                     }
                 }
@@ -133,7 +144,8 @@ private fun RenderMixedMessage(
     onFeedback: (FeedbackEvent) -> Unit,
     onActionClick: (ProductActionButton) -> Unit,
     onImageClick: (MultimodalElement) -> Unit,
-    onSuggestionClick: (String) -> Unit
+    onSuggestionClick: (String) -> Unit,
+    feedbackState: FeedbackState
 ) {
     val style = ConciergeStyles.messageBubbleStyle
 
@@ -186,12 +198,13 @@ private fun RenderMixedMessage(
                             }
                         }
 
-                        // If we have a response message and citations are available then show the footer
-                        if (!message.isFromUser && !message.citations.isNullOrEmpty()) {
+                        // Show footer if we have citations or have an interaction id for providing feedback
+                        if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                             ChatFooter(
                                 citations = message.citations,
                                 interactionId = message.interactionId,
-                                onFeedback = onFeedback
+                                onFeedback = onFeedback,
+                                feedbackState = feedbackState
                             )
                         }
                     }
