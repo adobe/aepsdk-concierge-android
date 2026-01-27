@@ -21,7 +21,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,9 +75,9 @@ internal fun ConciergeResponseText(
             )
         },
         label = "responseFadeIn"
-    ) { _ ->
+    ) { animatedText ->
         ClickableText(
-            text = markdownAnnotatedString,
+            text = animatedText,
             inlineContent = inlineContentMap,
             onLinkClick = { url ->
                 val intent = Intent(Intent.ACTION_VIEW, url.toUri())

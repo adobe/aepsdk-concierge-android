@@ -71,11 +71,13 @@ internal fun ConciergeResponse(
                 ConciergeResponseWithLists(
                     text = annotatedText.text,
                     listTokens = listTokens,
+                    uniqueSources = annotatedText.uniqueSources,
                     modifier = modifier
                 )
             } else {
                 ConciergeResponseText(
                     text = annotatedText.text,
+                    uniqueSources = annotatedText.uniqueSources,
                     modifier = modifier
                 )
             }
