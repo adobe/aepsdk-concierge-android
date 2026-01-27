@@ -48,7 +48,8 @@ internal fun ConciergeThinking(
         Text(
             text = style.thinkingText,
             style = style.textStyle,
-            color = style.textColor
+            color = style.textColor,
+            modifier = Modifier.weight(1f, fill = false)
         )
 
         Spacer(modifier = Modifier.width(style.textDotSpacing))
