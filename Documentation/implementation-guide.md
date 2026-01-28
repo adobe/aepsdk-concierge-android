@@ -59,7 +59,7 @@ repositories {
 
 ```kotlin
 dependencies {
-    implementation("com.adobe.marketing.mobile:brandconcierge:3.0.0-SNAPSHOT")
+    implementation("com.adobe.marketing.mobile:concierge:3.0.0-SNAPSHOT")
 }
 ```
 
