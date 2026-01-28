@@ -157,6 +157,7 @@ internal data class ChatMessage(
     val isFromUser: Boolean,
     val timestamp: Long,
     val citations: List<Citation>? = null,
+    val uniqueCitations: List<Citation>? = null,
     val interactionId: String? = null,
     val promptSuggestions: List<String> = emptyList(),
     val feedbackState: FeedbackState = FeedbackState.None

@@ -38,6 +38,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
+import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
@@ -665,6 +666,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         sources: List<Citation> = emptyList(),
         interactionId: String? = null
     ) {
+        // Pre-compute unique citations once to avoid redundant processing
+        val uniqueSources = if (sources.isNotEmpty()) {
+            CitationUtils.createUniqueSources(sources)
+        } else {
+            null
+        }
+
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
             if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
@@ -674,6 +682,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     content = content,
                     promptSuggestions = promptSuggestions,
                     citations = sources,
+                    uniqueCitations = uniqueSources,
                     interactionId = interactionId ?: lastAssistantMessage.interactionId
                 )
                 updatedMessages

@@ -21,7 +21,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,20 +34,38 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
- * Renders concierge response text with markdown formatting.
+ * Renders concierge response text with markdown formatting and circular citation components.
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
+    uniqueSources: List<Citation> = emptyList(),
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val style = ConciergeStyles.citationBadgeStyle
 
-    // Parse markdown to get the rendered text
+    // Parse markdown first to get the rendered text with inline content placeholders
     val markdownAnnotatedString = MarkdownParser.parse(text)
+
+    // Use provided inline content map or create it if not provided
+    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {
+        if (inlineContentMap.isNotEmpty()) {
+            inlineContentMap
+        } else {
+            CitationUiUtils.createInlineContentMap(
+                uniqueSources,
+                style.size,
+                context
+            )
+        }
+    }
 
     AnimatedContent(
         targetState = markdownAnnotatedString,
@@ -66,10 +83,10 @@ internal fun ConciergeResponseText(
             )
         },
         label = "responseFadeIn"
-    ) { rendered ->
+    ) { animatedText ->
         ClickableText(
-            text = rendered,
-            modifier = modifier.fillMaxWidth(),
+            text = animatedText,
+            inlineContent = finalInlineContentMap,
             onLinkClick = { url ->
                 val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                 context.startActivity(intent)
