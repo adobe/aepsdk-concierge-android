@@ -140,7 +140,7 @@ private fun ConciergeResponseWithLists(
                             context.startActivity(intent)
                         },
                         uniqueSources = uniqueSources,
-                        inlineContentMap = inlineContentMap
+                        inlineContentMap = inlineContentMap,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
