@@ -286,4 +286,126 @@ class MarkdownTokenizerTest {
         assertEquals(2, listTokens[1].indentationLevel) // 4 spaces = level 2
         assertEquals(1, listTokens[2].indentationLevel) // 2 spaces = level 1
     }
+
+    @Test
+    fun `test tokenize multi-line list items`() {
+        val markdown = """- First item that spans
+multiple lines of text
+- Second item on one line
+- Third item that also
+spans multiple lines""".trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+        assertEquals(3, listTokens.size)
+        
+        // Check that multi-line content is captured
+        assertEquals("First item that spans\nmultiple lines of text", listTokens[0].groups[0])
+        assertEquals("Second item on one line", listTokens[1].groups[0])
+        assertEquals("Third item that also\nspans multiple lines", listTokens[2].groups[0])
+    }
+    
+    @Test
+    fun `test tokenize list items separated by blank lines`() {
+        val markdown = """- First item
+
+- Second item after blank line
+- Third item consecutive""".trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+        assertEquals(3, listTokens.size)
+        
+        // First item should not include the blank line
+        assertEquals("First item", listTokens[0].groups[0])
+        assertEquals("Second item after blank line", listTokens[1].groups[0])
+        assertEquals("Third item consecutive", listTokens[2].groups[0])
+    }
+    
+    @Test
+    fun `test tokenize list with bold header and continuation`() {
+        val markdown = """- **Fit and Comfort:** Try shoes on with trail socks and jog in them if possible to ensure a secure, comfortable fit.""".trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+        assertEquals(1, listTokens.size)
+        
+        // Check that the full content including text after bold is captured
+        assertEquals("**Fit and Comfort:** Try shoes on with trail socks and jog in them if possible to ensure a secure, comfortable fit.", listTokens[0].groups[0])
+        
+        // Check that bold token is also found within the list item
+        val boldTokens = tokens.filter { it.type == TokenType.BOLD }
+        assertEquals(1, boldTokens.size)
+        assertEquals("Fit and Comfort:", boldTokens[0].groups[0])
+    }
+    
+    @Test
+    fun `test bold and italic tokens do not interfere`() {
+        val markdown = "This has **bold** and *italic* text"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldTokens = tokens.filter { it.type == TokenType.BOLD }
+        val italicTokens = tokens.filter { it.type == TokenType.ITALIC }
+        
+        assertEquals(1, boldTokens.size)
+        assertEquals(1, italicTokens.size)
+        
+        assertEquals("bold", boldTokens[0].groups[0])
+        assertEquals("italic", italicTokens[0].groups[0])
+    }
+    
+    @Test
+    fun `test italic does not match double asterisks`() {
+        val markdown = "**Bold text** should not be matched as italic"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldTokens = tokens.filter { it.type == TokenType.BOLD }
+        val italicTokens = tokens.filter { it.type == TokenType.ITALIC }
+        
+        assertEquals(1, boldTokens.size)
+        assertEquals(0, italicTokens.size)
+        
+        assertEquals("Bold text", boldTokens[0].groups[0])
+    }
+    
+    @Test
+    fun `test last list item with blank line and trailing text`() {
+        val markdown = """- First item
+- Second item
+- **Last item** with content that goes on
+
+Some trailing text after blank line""".trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+        assertEquals(3, listTokens.size)
+        
+        // Check that the last list item captures content up to the blank line
+        assertEquals("**Last item** with content that goes on", listTokens[2].groups[0])
+    }
+    
+    @Test
+    fun `test list items separated by blank lines`() {
+        val markdown = """- **First item:** Content here
+
+- **Second item:** More content
+
+- **Third item:** Even more content
+
+Trailing text""".trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+        assertEquals(3, listTokens.size)
+        
+        // Each list item should capture its full content (not cut off by blank lines between items)
+        assertEquals("**First item:** Content here", listTokens[0].groups[0])
+        assertEquals("**Second item:** More content", listTokens[1].groups[0])
+        assertEquals("**Third item:** Even more content", listTokens[2].groups[0])
+    }
 }

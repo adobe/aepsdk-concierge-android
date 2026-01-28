@@ -125,8 +125,8 @@ class ConciergeExtensionTest {
     @Test
     fun `extension metadata constants are correct`() {
         // Verify the constants used by the extension
-        assertEquals("concierge", ConciergeConstants.EXTENSION_NAME)
-        assertEquals("Concierge", ConciergeConstants.EXTENSION_FRIENDLY_NAME)
+        assertEquals("brandconcierge", ConciergeConstants.EXTENSION_NAME)
+        assertEquals("BrandConcierge", ConciergeConstants.EXTENSION_FRIENDLY_NAME)
         assertEquals("3.0.0", ConciergeConstants.EXTENSION_VERSION)
     }
 

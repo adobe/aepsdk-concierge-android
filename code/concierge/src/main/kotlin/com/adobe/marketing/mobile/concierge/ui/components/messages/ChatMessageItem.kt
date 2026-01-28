@@ -81,7 +81,13 @@ private fun RenderTextMessage(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
+                .then(
+                    if (message.isFromUser) {
+                        Modifier.wrapContentWidth(Alignment.End)
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(style.padding),
             colors = CardDefaults.cardColors(
                 containerColor = if (message.isFromUser) {
@@ -110,6 +116,7 @@ private fun RenderTextMessage(
                     } else {
                         ConciergeResponse(
                             text = message.text,
+                            sources = message.citations ?: emptyList(),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -118,6 +125,7 @@ private fun RenderTextMessage(
                     if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                         ChatFooter(
                             citations = message.citations,
+                            uniqueCitations = message.uniqueCitations,
                             interactionId = message.interactionId,
                             onFeedback = onFeedback,
                             feedbackState = feedbackState
@@ -155,7 +163,6 @@ private fun RenderMixedMessage(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentWidth(Alignment.Start)
                     .padding(style.padding),
                 colors = CardDefaults.cardColors(
                     containerColor = style.botMessageBackgroundColor
@@ -174,6 +181,7 @@ private fun RenderMixedMessage(
                         if (message.content.text.isNotEmpty()) {
                             ConciergeResponse(
                                 text = message.content.text,
+                                sources = message.citations ?: emptyList(),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -200,6 +208,7 @@ private fun RenderMixedMessage(
                         if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
                             ChatFooter(
                                 citations = message.citations,
+                                uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
                                 onFeedback = onFeedback,
                                 feedbackState = feedbackState

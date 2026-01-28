@@ -32,6 +32,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation] to display in the sources accordion.
+ * @param uniqueCitations Pre-computed list of unique citations.
  * @param interactionId interaction ID for feedback buttons.
  * @param onFeedback Callback invoked when a feedback button is pressed.
  * @param feedbackState Current feedback state for this interaction.
@@ -40,6 +41,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 internal fun ChatFooter(
     modifier: Modifier = Modifier,
     citations: List<Citation>?,
+    uniqueCitations: List<Citation>? = null,
     interactionId: String?,
     onFeedback: (FeedbackEvent) -> Unit,
     feedbackState: FeedbackState = FeedbackState.None
@@ -81,6 +83,7 @@ internal fun ChatFooter(
         if (hasCitations) {
             ExpandedCitations(
                 citations = citations!!,
+                uniqueCitations = uniqueCitations,
                 expanded = sourcesExpanded
             )
         }
