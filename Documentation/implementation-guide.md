@@ -6,7 +6,7 @@ The Brand Concierge extension provides an in-app conversational UI (a chat surfa
 
 The Brand Concierge UI is presented through two integration approaches:
 
-- **Managed Integration**: Provide a drop-in entry point to the chat interface and let the Concierge extension automatically manage it.
+- **Managed Integration**: Provide a drop-in entry point to the chat interface and let the Brand Concierge extension automatically manage it.
 - **Custom Integration**: Embed and manage the chat UI directly into your app's view hierarchy for dedicated chat screens or custom layouts.
 
 Both approaches are available for Compose and XML/Views-based apps.
@@ -21,7 +21,7 @@ Your app needs these AEP SDK's available and registered:
 - [Mobile Core](https://github.com/adobe/aepsdk-core-android)
 - [Edge](https://github.com/adobe/aepsdk-edge-android)
 - [Edge Identity](https://github.com/adobe/aepsdk-edgeidentity-android)
-- [Concierge](https://github.com/adobe/aepsdk-concierge-android)
+- [Brand Concierge](https://github.com/adobe/aepsdk-concierge-android)
 
 ### Android version
 - Minimum Android API level 24 (Android 7.0) or higher
@@ -41,7 +41,7 @@ The SDK handles permission requests internally when users interact with the micr
 
 ### Using Snapshot Builds
 
-If you need to use a snapshot version of the Concierge SDK (for example, to test pre-release features), add the Sonatype snapshot repository to your project's build configuration.
+If you need to use a snapshot version of the Brand Concierge extension (for example, to test pre-release features), add the Sonatype snapshot repository to your project's build configuration.
 
 **Step 1: Add the snapshot repository to your project's `build.gradle.kts` or `settings.gradle.kts`**
 
@@ -59,7 +59,7 @@ repositories {
 
 ```kotlin
 dependencies {
-    implementation("com.adobe.marketing.mobile:concierge:3.0.0-SNAPSHOT")
+    implementation("com.adobe.marketing.mobile:brandconcierge:3.0.0-SNAPSHOT")
 }
 ```
 
@@ -71,21 +71,21 @@ dependencies {
 
 ### Step 1: Set up the Adobe Experience Platform Mobile SDK
 
-Follow the [Adobe Experience Platform Mobile SDK getting started guide](https://developer.adobe.com/client-sdks/home/getting-started/) to set up the base SDK integration used by Concierge.
+Follow the [Adobe Experience Platform Mobile SDK getting started guide](https://developer.adobe.com/client-sdks/home/getting-started/) to set up the base SDK integration used by Brand Concierge.
 
 The required extensions are:
 
 - AEPCore
 - AEPEdge
 - AEPEdgeIdentity
-- AEPConcierge
+- AEPBrandConcierge
 
 ### Step 2: Validate the Brand Concierge configuration keys exist
 If you set the Mobile SDK log level to trace (`MobileCore.setLogLevel(LoggingMode.VERBOSE)`), you can inspect the app logs to confirm that extension shared states are being set with the expected values.
 
 Brand Concierge expects the following keys to be present in the Configuration shared state:
 
-- **`concierge.server`**: String (server host or base domain used by Concierge requests)
+- **`concierge.server`**: String (server host or base domain used by Brand Concierge requests)
 - **`concierge.configId`**: String (datastream id)
 - **`concierge.surfaces`**: Array of String (one or more surface names)
 
@@ -99,10 +99,10 @@ Another option for validation is to use Adobe Assurance. Refer to the [Mobile SD
 
 ### Managed Integration
 
-Use this when you want to provide a drop-in entry point to the chat interface and let the Concierge extension automatically manage it.
+Use this when you want to provide a drop-in entry point to the chat interface and let the Brand Concierge extension automatically manage it.
 
 This mode:
-- Shows the configured trigger when Concierge extension is ready (ECID + concierge configuration available)
+- Shows the configured trigger when the Brand Concierge extension is ready (ECID + concierge configuration available)
 - Opens chat as a full-screen dialog when the trigger is invoked
 - Handles dismissal (back press, close button, gestures) automatically
 
