@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -46,7 +48,7 @@ internal fun ConciergeResponseList(
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
+    Column(modifier = modifier.wrapContentHeight()) {
         listTokens.forEach { token ->
             ListItem(
                 token = token,
@@ -78,7 +80,6 @@ private fun ListItem(
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
-
     val listItemContent = remember(token) { token.groups.firstOrNull() ?: "" }
     val listMarker = remember(token) { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
@@ -100,8 +101,11 @@ private fun ListItem(
     }
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.Top
     ) {
         ListMarker(
             marker = listMarker,
@@ -112,7 +116,10 @@ private fun ListItem(
             text = annotatedString,
             inlineContent = finalInlineContentMap,
             onLinkClick = onLinkClick,
-            modifier = Modifier.padding(end = ListSpacing.END_PADDING)
+            modifier = Modifier
+                .weight(1f, fill = true)
+                .wrapContentHeight()
+                .padding(end = ListSpacing.END_PADDING)
         )
     }
 }

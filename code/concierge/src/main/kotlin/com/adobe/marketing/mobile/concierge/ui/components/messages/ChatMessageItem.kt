@@ -81,7 +81,13 @@ private fun RenderTextMessage(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentWidth(if (message.isFromUser) Alignment.End else Alignment.Start)
+                .then(
+                    if (message.isFromUser) {
+                        Modifier.wrapContentWidth(Alignment.End)
+                    } else {
+                        Modifier
+                    }
+                )
                 .padding(style.padding),
             colors = CardDefaults.cardColors(
                 containerColor = if (message.isFromUser) {
@@ -157,7 +163,6 @@ private fun RenderMixedMessage(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentWidth(Alignment.Start)
                     .padding(style.padding),
                 colors = CardDefaults.cardColors(
                     containerColor = style.botMessageBackgroundColor
