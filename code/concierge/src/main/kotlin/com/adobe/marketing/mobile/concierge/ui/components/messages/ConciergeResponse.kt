@@ -88,7 +88,7 @@ private fun ConciergeResponseWithLists(
         ContentSegmentParser.createSegments(text, listTokens)
     }
 
-    Column(modifier = modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
         contentSegments.forEach { segment ->
             Spacer(modifier = Modifier.height(style.segmentSpacing))
             when (segment) {
@@ -105,7 +105,8 @@ private fun ConciergeResponseWithLists(
                         onLinkClick = { url ->
                             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                             context.startActivity(intent)
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }

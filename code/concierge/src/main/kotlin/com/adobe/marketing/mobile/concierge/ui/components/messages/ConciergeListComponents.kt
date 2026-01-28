@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -39,7 +41,7 @@ internal fun ConciergeResponseList(
     onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
+    Column(modifier = modifier.wrapContentHeight()) {
         listTokens.forEach { token ->
             ListItem(
                 token = token,
@@ -62,16 +64,19 @@ private fun ListItem(
     token: MarkdownToken,
     onLinkClick: (String) -> Unit
 ) {
-    val listItemContent = remember { token.groups.firstOrNull() ?: "" }
-    val listMarker = remember { token.groups.getOrNull(1) ?: "•" }
+    val listItemContent = remember(token) { token.groups.firstOrNull() ?: "" }
+    val listMarker = remember(token) { token.groups.getOrNull(1) ?: "•" }
     val indentationLevel = token.indentationLevel
 
     // Parse markdown to get the rendered text
     val annotatedString = MarkdownParser.parse(listItemContent)
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.Top
     ) {
         ListMarker(
             marker = listMarker,
@@ -81,7 +86,10 @@ private fun ListItem(
         ClickableText(
             text = annotatedString,
             onLinkClick = onLinkClick,
-            modifier = Modifier.padding(end = ListSpacing.END_PADDING)
+            modifier = Modifier
+                .weight(1f, fill = true)
+                .wrapContentHeight()
+                .padding(end = ListSpacing.END_PADDING)
         )
     }
 }

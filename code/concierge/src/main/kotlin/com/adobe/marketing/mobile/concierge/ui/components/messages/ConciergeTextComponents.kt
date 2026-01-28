@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
@@ -98,6 +99,10 @@ internal fun ClickableText(
         text = text,
         inlineContent = inlineContent,
         onTextLayout = { textLayoutResult = it },
+        softWrap = true,
+        minLines = 1,
+        maxLines = Int.MAX_VALUE,
+        overflow = TextOverflow.Visible,
         modifier = modifier
             .pointerInput(text) {
                 detectTapGestures { tapOffsetPosition ->
