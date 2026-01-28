@@ -17,7 +17,7 @@ import com.adobe.marketing.mobile.EventType
 import com.adobe.marketing.mobile.ExtensionApi
 import com.adobe.marketing.mobile.SharedStateResolution
 import com.adobe.marketing.mobile.SharedStateResult
-import com.adobe.marketing.mobile.util.DataReaderException
+import com.adobe.marketing.mobile.SharedStateStatus
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
@@ -26,15 +26,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import com.adobe.marketing.mobile.ExtensionApi
-import com.adobe.marketing.mobile.SharedStateResolution
-import com.adobe.marketing.mobile.SharedStateResult
-import com.adobe.marketing.mobile.SharedStateStatus
-import io.mockk.every
-import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import kotlin.time.ExperimentalTime
