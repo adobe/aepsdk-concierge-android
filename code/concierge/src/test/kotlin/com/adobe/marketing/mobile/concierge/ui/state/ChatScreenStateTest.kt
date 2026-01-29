@@ -680,7 +680,7 @@ class ChatScreenStateTest {
 
         // Then
         assertEquals(interactionId, event.interactionId)
-        assertTrue(event is FeedbackEvent)
+        // Type checks: event is FeedbackEvent (sealed class) and ChatEvent (parent)
         assertTrue(event is ChatEvent)
     }
 
@@ -694,7 +694,7 @@ class ChatScreenStateTest {
 
         // Then
         assertEquals(interactionId, event.interactionId)
-        assertTrue(event is FeedbackEvent)
+        // Type checks: event is FeedbackEvent (sealed class) and ChatEvent (parent)
         assertTrue(event is ChatEvent)
     }
 
@@ -715,7 +715,7 @@ class ChatScreenStateTest {
         assertEquals(feedback, event.feedback)
         assertEquals("int-789", event.feedback.interactionId)
         assertEquals(FeedbackType.POSITIVE, event.feedback.feedbackType)
-        assertTrue(event is FeedbackEvent)
+        // Type checks: event is FeedbackEvent (sealed class) and ChatEvent (parent)
         assertTrue(event is ChatEvent)
     }
 
@@ -767,13 +767,13 @@ class ChatScreenStateTest {
 
         // Then
         assertTrue(event1 === event2) // Same instance
-        assertTrue(event1 is FeedbackEvent)
+        // Type check: object is ChatEvent (parent class)
         assertTrue(event1 is ChatEvent)
     }
 
     @Test
     fun `FeedbackEvent sealed class hierarchy is correct`() {
-        // Given
+        // Given - explicitly type as FeedbackEvent to test hierarchy
         val thumbsUp: FeedbackEvent = FeedbackEvent.ThumbsUp("int-1")
         val thumbsDown: FeedbackEvent = FeedbackEvent.ThumbsDown("int-2")
         val submitFeedback: FeedbackEvent = FeedbackEvent.SubmitFeedback(
@@ -781,14 +781,10 @@ class ChatScreenStateTest {
         )
         val dismiss: FeedbackEvent = FeedbackEvent.DismissFeedbackDialog
 
-        // Then - All should be instances of both FeedbackEvent and ChatEvent
-        assertTrue(thumbsUp is FeedbackEvent)
+        // Then - All should be instances of ChatEvent (parent class)
         assertTrue(thumbsUp is ChatEvent)
-        assertTrue(thumbsDown is FeedbackEvent)
         assertTrue(thumbsDown is ChatEvent)
-        assertTrue(submitFeedback is FeedbackEvent)
         assertTrue(submitFeedback is ChatEvent)
-        assertTrue(dismiss is FeedbackEvent)
         assertTrue(dismiss is ChatEvent)
     }
 
@@ -878,7 +874,7 @@ class ChatScreenStateTest {
 
         // Then
         assertEquals(suggestion, event.suggestion)
-        assertTrue(event is MessageInteractionEvent)
+        // Type check: event is ChatEvent (parent class)
         assertTrue(event is ChatEvent)
     }
 
@@ -966,7 +962,7 @@ class ChatScreenStateTest {
         assertEquals("btn-1", event.button.id)
         assertEquals("View Product", event.button.text)
         assertEquals("https://example.com/product/123", event.button.url)
-        assertTrue(event is MessageInteractionEvent)
+        // Type check: event is ChatEvent (parent class)
         assertTrue(event is ChatEvent)
     }
 
@@ -1023,7 +1019,7 @@ class ChatScreenStateTest {
         assertEquals("https://example.com/image.jpg", event.element.url)
         assertEquals(800, event.element.width)
         assertEquals(600, event.element.height)
-        assertTrue(event is MessageInteractionEvent)
+        // Type check: event is ChatEvent (parent class)
         assertTrue(event is ChatEvent)
     }
 
@@ -1091,7 +1087,7 @@ class ChatScreenStateTest {
 
     @Test
     fun `MessageInteractionEvent sealed class hierarchy is correct`() {
-        // Given
+        // Given - explicitly type as MessageInteractionEvent to test hierarchy
         val promptClick: MessageInteractionEvent = MessageInteractionEvent.PromptSuggestionClick("test")
         val productAction: MessageInteractionEvent = MessageInteractionEvent.ProductActionClick(
             ProductActionButton("btn-1", "Click me")
@@ -1100,12 +1096,9 @@ class ChatScreenStateTest {
             MultimodalElement("img-1")
         )
 
-        // Then - All should be instances of both MessageInteractionEvent and ChatEvent
-        assertTrue(promptClick is MessageInteractionEvent)
+        // Then - All should be instances of ChatEvent (parent class)
         assertTrue(promptClick is ChatEvent)
-        assertTrue(productAction is MessageInteractionEvent)
         assertTrue(productAction is ChatEvent)
-        assertTrue(imageClick is MessageInteractionEvent)
         assertTrue(imageClick is ChatEvent)
     }
 
@@ -1208,16 +1201,11 @@ class ChatScreenStateTest {
         val event2 = MessageInteractionEvent.ProductActionClick(button)
         val event3 = MessageInteractionEvent.ProductImageClick(element)
 
-        // Then - Each event type should be distinct
-        assertTrue(event1 is MessageInteractionEvent.PromptSuggestionClick)
-        assertTrue(event2 is MessageInteractionEvent.ProductActionClick)
-        assertTrue(event3 is MessageInteractionEvent.ProductImageClick)
-        
-        // Verify they are different types
+        // Then - Verify they are different types by counting
         val events: List<MessageInteractionEvent> = listOf(event1, event2, event3)
         assertEquals(3, events.size)
         
-        // Count each type
+        // Count each type to verify distinctness
         val promptCount = events.count { it is MessageInteractionEvent.PromptSuggestionClick }
         val actionCount = events.count { it is MessageInteractionEvent.ProductActionClick }
         val imageCount = events.count { it is MessageInteractionEvent.ProductImageClick }
