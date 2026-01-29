@@ -21,8 +21,11 @@ import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
+import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
@@ -30,9 +33,12 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.services.ServiceProvider
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +53,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -603,6 +610,412 @@ class ConciergeChatViewModelTest {
         assertEquals("AI painting Generator - Adobe Firefly", citations[1].title)
         assertEquals(1, citations[0].citationNumber)
         assertEquals(2, citations[1].citationNumber)
+    }
+
+    // ========== Welcome Card Tests ==========
+
+    @Test
+    fun `welcome card is shown initially when config allows`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        assertTrue(vm.showWelcomeCard.value)
+        assertTrue(vm.welcomeConfig.showWelcomeCard)
+    }
+
+    @Test
+    fun `dismissWelcomeCard hides the welcome card`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        assertTrue(vm.showWelcomeCard.value)
+        vm.dismissWelcomeCard()
+        assertTrue(!vm.showWelcomeCard.value)
+    }
+
+    @Test
+    fun `sending first message dismisses welcome card`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("First message") } returns flow {
+            emit(ParsedConversationMessage("Response", ConversationState.COMPLETED))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        assertTrue(vm.showWelcomeCard.value)
+        
+        vm.processEvent(ChatEvent.SendMessage("First message"))
+        advanceUntilIdle()
+        
+        assertTrue(!vm.showWelcomeCard.value)
+    }
+
+    // ========== Feedback Tests ==========
+
+    @Test
+    fun `thumbsUp event shows positive feedback dialog`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.ThumbsUp("test-interaction-id"))
+        
+        val state = vm.state.value as ChatScreenState.Idle
+        assertNotNull(state.feedback)
+        assertEquals("test-interaction-id", state.feedback?.interactionId)
+        assertEquals(com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.POSITIVE, state.feedback?.feedbackType)
+    }
+
+    @Test
+    fun `thumbsDown event shows negative feedback dialog`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.ThumbsDown("test-interaction-id"))
+        
+        val state = vm.state.value as ChatScreenState.Idle
+        assertNotNull(state.feedback)
+        assertEquals("test-interaction-id", state.feedback?.interactionId)
+        assertEquals(com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.NEGATIVE, state.feedback?.feedbackType)
+    }
+
+    @Test
+    fun `dismissFeedbackDialog clears feedback state`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.ThumbsUp("test-id"))
+        val stateWithFeedback = vm.state.value as ChatScreenState.Idle
+        assertNotNull(stateWithFeedback.feedback)
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.DismissFeedbackDialog)
+        
+        val stateAfterDismiss = vm.state.value as ChatScreenState.Idle
+        assertNull(stateAfterDismiss.feedback)
+    }
+
+    @Test
+    fun `submitFeedback sends feedback and updates message state`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        coEvery { chatClient.sendFeedback(any()) } returns true
+        
+        // Create a message flow with an interactionId
+        every { chatClient.chat("Hello") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Response",
+                state = ConversationState.COMPLETED,
+                interactionId = "interaction-123"
+            ))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        // Send a message to create an assistant message with an interactionId
+        vm.processEvent(ChatEvent.SendMessage("Hello"))
+        advanceUntilIdle()
+        
+        val feedback = com.adobe.marketing.mobile.concierge.ui.state.Feedback(
+            interactionId = "interaction-123",
+            feedbackType = com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.POSITIVE,
+            selectedCategories = listOf("Helpful", "Accurate"),
+            notes = "Great response!"
+        )
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.SubmitFeedback(feedback))
+        advanceUntilIdle()
+        
+        // Verify feedback was sent
+        coVerify { chatClient.sendFeedback(any()) }
+        
+        // Verify feedback dialog is dismissed
+        val state = vm.state.value as ChatScreenState.Idle
+        assertNull(state.feedback)
+        
+        // Verify message was updated with feedback state
+        val messages = vm.messages.value
+        val assistantMessage = messages.last()
+        assertEquals(FeedbackState.Positive, assistantMessage.feedbackState)
+    }
+
+    @Test
+    fun `submitFeedback with negative feedback updates message state`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        coEvery { chatClient.sendFeedback(any()) } returns true
+        
+        every { chatClient.chat("Hello") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Response",
+                state = ConversationState.COMPLETED,
+                interactionId = "interaction-456"
+            ))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Hello"))
+        advanceUntilIdle()
+        
+        val feedback = com.adobe.marketing.mobile.concierge.ui.state.Feedback(
+            interactionId = "interaction-456",
+            feedbackType = com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.NEGATIVE,
+            selectedCategories = listOf("Unhelpful"),
+            notes = "Not relevant"
+        )
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.SubmitFeedback(feedback))
+        advanceUntilIdle()
+        
+        val messages = vm.messages.value
+        val assistantMessage = messages.last()
+        assertEquals(FeedbackState.Negative, assistantMessage.feedbackState)
+    }
+
+    // ========== Prompt Suggestion Tests ==========
+
+    @Test
+    fun `promptSuggestionClick sets text in input field`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("What can you do?"))
+        
+        val inputState = vm.inputState.value as UserInputState.Editing
+        assertEquals("What can you do?", inputState.content)
+    }
+
+    // ========== Text Input State Tests ==========
+
+    @Test
+    fun `onTextStateChanged with empty text sets Empty state`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.onTextStateChanged("")
+        
+        assertTrue(vm.inputState.value is UserInputState.Empty)
+    }
+
+    @Test
+    fun `onTextStateChanged with non-empty text sets Editing state`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.onTextStateChanged("Hello")
+        
+        val state = vm.inputState.value as UserInputState.Editing
+        assertEquals("Hello", state.content)
+    }
+
+    // ========== Open/Close Concierge Tests ==========
+
+    @Test
+    fun `openConcierge sets isConciergeActive to true`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        assertTrue(!vm.isConciergeActive.value)
+        
+        vm.openConcierge()
+        
+        assertTrue(vm.isConciergeActive.value)
+    }
+
+    @Test
+    fun `closeConcierge sets isConciergeActive to false`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        vm.openConcierge()
+        assertTrue(vm.isConciergeActive.value)
+        
+        vm.closeConcierge()
+        
+        assertTrue(!vm.isConciergeActive.value)
+    }
+
+    // ========== Multimodal Content Tests ==========
+
+    @Test
+    fun `message with multimodal elements uses Mixed content type`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        
+        val multimodalElements = listOf(
+            MultimodalElement(
+                id = "element-1",
+                url = "https://example.com/image.jpg",
+                content = mapOf("type" to "image")
+            )
+        )
+        
+        every { chatClient.chat("Show me products") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Here are some products",
+                state = ConversationState.COMPLETED,
+                multimodalElements = multimodalElements
+            ))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Show me products"))
+        advanceUntilIdle()
+        
+        val messages = vm.messages.value
+        val assistantMessage = messages.last()
+        
+        assertTrue(assistantMessage.content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Mixed)
+        val mixedContent = assistantMessage.content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Mixed
+        assertEquals("Here are some products", mixedContent.text)
+        assertEquals(1, mixedContent.multimodalElements?.size)
+    }
+
+    @Test
+    fun `message without multimodal elements uses Text content type`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        
+        every { chatClient.chat("Hello") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Hi there",
+                state = ConversationState.COMPLETED,
+                multimodalElements = emptyList()
+            ))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Hello"))
+        advanceUntilIdle()
+        
+        val messages = vm.messages.value
+        val assistantMessage = messages.last()
+        
+        assertTrue(assistantMessage.content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Text)
+        val textContent = assistantMessage.content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Text
+        assertEquals("Hi there", textContent.text)
+    }
+
+    // ========== Prompt Suggestions in Messages Tests ==========
+
+    @Test
+    fun `message includes prompt suggestions when provided`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        
+        val suggestions = listOf("Tell me more", "Show examples", "Explain further")
+        
+        every { chatClient.chat("Hello") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Hi! How can I help?",
+                state = ConversationState.COMPLETED,
+                promptSuggestions = suggestions
+            ))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Hello"))
+        advanceUntilIdle()
+        
+        val messages = vm.messages.value
+        val assistantMessage = messages.last()
+        
+        assertEquals(3, assistantMessage.promptSuggestions.size)
+        assertEquals("Tell me more", assistantMessage.promptSuggestions[0])
+        assertEquals("Show examples", assistantMessage.promptSuggestions[1])
+        assertEquals("Explain further", assistantMessage.promptSuggestions[2])
+    }
+
+    // ========== Conversation ID Tests ==========
+
+    @Test
+    fun `conversationId is captured and used in feedback`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        // Capture the feedback argument
+        val feedbackSlot = slot<com.adobe.marketing.mobile.concierge.ui.state.Feedback>()
+        coEvery { chatClient.sendFeedback(capture(feedbackSlot)) } returns true
+        
+        every { chatClient.chat("Hello") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Response",
+                state = ConversationState.COMPLETED,
+                conversationId = "conv-123",
+                interactionId = "interaction-456"
+            ))
+        }
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Hello"))
+        advanceUntilIdle()
+        
+        val feedback = com.adobe.marketing.mobile.concierge.ui.state.Feedback(
+            interactionId = "interaction-456",
+            feedbackType = com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.POSITIVE
+        )
+        
+        vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.SubmitFeedback(feedback))
+        advanceUntilIdle()
+        
+        // Verify the captured feedback includes the conversationId
+        assertEquals("conv-123", feedbackSlot.captured.conversationId)
+    }
+
+    // ========== Theme Config Tests ==========
+
+    @Test
+    fun `updateWelcomeConfigFromTheme updates welcome config`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        val themeConfig = com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig(
+            name = "Test Brand",
+            text = com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings(
+                welcomeHeading = "Custom Welcome Header",
+                welcomeSubheading = "Custom Subheader"
+            )
+        )
+        
+        vm.updateWelcomeConfigFromTheme(themeConfig)
+        
+        assertEquals("Custom Welcome Header", vm.welcomeConfig.welcomeHeader)
+        assertEquals("Custom Subheader", vm.welcomeConfig.subHeader)
+    }
+
+    @Test
+    fun `updateWelcomeConfigFromTheme with null does not change config`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        
+        val originalConfig = vm.welcomeConfig
+        
+        vm.updateWelcomeConfigFromTheme(null)
+        
+        // Config should remain unchanged
+        assertEquals(originalConfig, vm.welcomeConfig)
     }
 }
 
