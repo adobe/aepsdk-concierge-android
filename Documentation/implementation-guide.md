@@ -228,7 +228,7 @@ class XmlActivity : AppCompatActivity() {
 
 Concierge chat interface can be customized by loading the theme file from `assets` directory of your app by using `ConciergeThemeLoader`.
 
-```
+```kotlin
 @Composable
 fun MyScreen() {
     val context = LocalContext.current
@@ -243,3 +243,5 @@ fun MyScreen() {
     }
 }
 ```
+
+More information regarding theme customization can be found in the [style-guide](./style-guide.md)
