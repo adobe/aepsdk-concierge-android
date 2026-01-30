@@ -1,4 +1,4 @@
-# AEPBrandConcierge Android Documentation
+# Brand Concierge Android Documentation
 
 Documentation for integrating and customizing the Adobe Experience Platform Brand Concierge extension for Android.
 
