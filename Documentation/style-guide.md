@@ -17,9 +17,9 @@ This document provides a comprehensive reference for all styling properties supp
   - [Typography](#typography)
   - [Colors](#colors)
   - [Layout](#layout)
+- [Reserved for Future Support](#reserved-for-future-support)
 - [Value Formats](#value-formats)
 - [Complete Example](#complete-example)
-- [Implementation Status](#implementation-status)
 
 ---
 
@@ -905,5 +905,3 @@ fun MyApp() {
     }
 }
 ```
-
-## 
