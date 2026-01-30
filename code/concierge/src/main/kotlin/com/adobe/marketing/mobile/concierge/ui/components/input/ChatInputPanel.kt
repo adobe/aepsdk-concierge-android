@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
@@ -49,12 +51,34 @@ internal fun ChatInputPanel(
     onMicPressed: () -> Unit,
     onSend: (String) -> Unit,
     onVoiceCancel: (() -> Unit)? = null,
-    borderColors: List<Color> = emptyList()
+    borderColors: List<Color> = emptyList(),
+    isFocused: Boolean = false
 ) {
     val style = ConciergeStyles.inputPanelStyle
+    
+    // Determine border appearance based on focus state
+    val borderModifier = when {
+        isFocused && style.focusBorderWidth > 0.dp && style.focusBorderColor != null -> {
+            Modifier.border(
+                width = style.focusBorderWidth,
+                color = style.focusBorderColor,
+                shape = style.innerShape
+            )
+        }
+        !isFocused && style.borderWidth > 0.dp && style.borderColor != null -> {
+            Modifier.border(
+                width = style.borderWidth,
+                color = style.borderColor,
+                shape = style.innerShape
+            )
+        }
+        else -> Modifier
+    }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(borderModifier),
         shape = style.innerShape,
         color = style.backgroundColor
     ) {

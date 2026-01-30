@@ -27,7 +27,8 @@ import androidx.compose.ui.platform.LocalContext
  */
 data class ActiveConciergeTheme(
     val colors: ConciergeColors,
-    val config: ConciergeThemeConfig? = null
+    val config: ConciergeThemeConfig? = null,
+    val themeTokens: ConciergeThemeTokens? = null
 )
 
 /**
@@ -49,6 +50,7 @@ private val LocalActiveConciergeTheme = staticCompositionLocalOf {
 fun ConciergeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     theme: ConciergeThemeConfig? = null,
+    themeTokens: ConciergeThemeTokens? = null,
     content: @Composable () -> Unit
 ) {
     val defaultColors = if (darkTheme) DarkConciergeColors else LightConciergeColors
@@ -62,8 +64,8 @@ fun ConciergeTheme(
         }
     }
     
-    val activeTheme = remember(colors, theme) {
-        ActiveConciergeTheme(colors = colors, config = theme)
+    val activeTheme = remember(colors, theme, themeTokens) {
+        ActiveConciergeTheme(colors = colors, config = theme, themeTokens = themeTokens)
     }
 
     CompositionLocalProvider(
@@ -88,15 +90,20 @@ fun ConciergeTheme(
 ) {
     val context = LocalContext.current
     
-    val theme = remember(themeFileName) {
+    val themeData = remember(themeFileName) {
         themeFileName?.let { fileName ->
-            ThemeParser.loadThemeFromAssets(context, fileName)
+            val themeConfig = ThemeParser.loadThemeFromAssets(context, fileName)
+            val tokens = ThemeParser.parseThemeTokens(
+                context.assets.open(fileName).bufferedReader().use { it.readText() }
+            )
+            Pair(themeConfig, tokens)
         }
     }
     
     ConciergeTheme(
         darkTheme = darkTheme,
-        theme = theme,
+        theme = themeData?.first,
+        themeTokens = themeData?.second,
         content = content
     )
 }
@@ -116,6 +123,12 @@ object ConciergeTheme {
      */
     val config: ConciergeThemeConfig?
         @Composable get() = LocalActiveConciergeTheme.current.config
+    
+    /**
+     * Retrieves the full theme tokens (if any)
+     */
+    val tokens: ConciergeThemeTokens?
+        @Composable get() = LocalActiveConciergeTheme.current.themeTokens
     
     /**
      * Retrieves text strings from the theme configuration

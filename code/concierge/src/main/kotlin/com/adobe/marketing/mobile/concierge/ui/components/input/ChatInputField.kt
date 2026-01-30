@@ -55,6 +55,7 @@ internal fun ChatInputField(
     val style = ConciergeStyles.chatInputFieldStyle
     // Local text state to manage input field content
     val text = remember { mutableStateOf("") }
+    val isFocused = remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
     // Update local text state when inputState changes (for voice transcription)
@@ -72,10 +73,13 @@ internal fun ChatInputField(
                     text.value = inputState.content
                     // No need to notify parent - they already know about this content
                 }
+                // Mark as focused when editing
+                isFocused.value = true
             }
 
             else -> {
-                // Do nothing for other states
+                // Clear focus for other states
+                isFocused.value = false
             }
         }
     }
@@ -94,17 +98,21 @@ internal fun ChatInputField(
                     text.value = newText
                     // Always notify parent about text changes
                     onTextChange(newText)
+                    // Mark as focused when user is typing
+                    isFocused.value = newText.isNotEmpty()
                 }
             },
             placeholder = placeholder,
             enable = enable && inputState !is UserInputState.Recording,
             inputState = inputState,
             isProcessing = isProcessing,
+            isFocused = isFocused.value,
             onMicPressed = onMicPressed,
             onSend = { sentText ->
                 onSend(sentText)
                 text.value = ""
                 onTextChange("")
+                isFocused.value = false
                 focusManager.clearFocus() // Dismiss keyboard after sending
             },
             onVoiceCancel = onVoiceCancel

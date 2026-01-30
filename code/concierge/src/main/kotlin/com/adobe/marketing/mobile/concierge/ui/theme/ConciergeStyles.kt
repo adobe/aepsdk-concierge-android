@@ -36,6 +36,25 @@ import androidx.compose.ui.unit.sp
 object ConciergeStyles {
 
     /**
+     * Helper function to apply theme typography (font family and line height) to a TextStyle
+     */
+    @Composable
+    private fun TextStyle.withThemeTypography(): TextStyle {
+        val tokens = ConciergeTheme.tokens
+        val typography = tokens?.typography
+        
+        if (typography == null) {
+            return this
+        }
+        
+        return this.copy(
+            // Note: Font family would require loading custom fonts, which is not implemented yet
+            // fontFamily = typography.fontFamily?.let { FontFamily(...) },
+            lineHeight = typography.lineHeight?.let { (this.fontSize.value * it).sp } ?: this.lineHeight
+        )
+    }
+
+    /**
      * Styling for the chat header component
      */
     @Immutable
@@ -71,6 +90,10 @@ object ConciergeStyles {
         val outerPadding: Dp,
         val innerPadding: Dp,
         val backgroundColor: Color,
+        val borderColor: Color?,
+        val borderWidth: Dp,
+        val focusBorderColor: Color?,
+        val focusBorderWidth: Dp,
         val recordingBorderColors: List<Color>,
         val recordingBorderAnimationDuration: Int,
         val buttonSpacing: Dp,
@@ -82,12 +105,22 @@ object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val themeText = ConciergeTheme.text
+            val tokens = ConciergeTheme.tokens
+            
+            // Get border configuration from theme tokens
+            val borderWidth = tokens?.cssLayout?.inputOutlineWidth?.dp ?: 0.dp
+            val focusBorderWidth = tokens?.cssLayout?.inputFocusOutlineWidth?.dp ?: 2.dp
+            
             return InputPanelStyle(
                 outerShape = RoundedCornerShape(12.dp),
                 innerShape = RoundedCornerShape(10.dp),
                 outerPadding = 2.dp,
                 innerPadding = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
+                borderColor = themeColors.inputOutline,
+                borderWidth = borderWidth,
+                focusBorderColor = themeColors.inputOutlineFocus ?: themeColors.primary,
+                focusBorderWidth = focusBorderWidth,
                 recordingBorderColors = listOf(
                     themeColors.inputOutlineFocus ?: themeColors.primary,
                     themeColors.surface,
@@ -169,7 +202,7 @@ object ConciergeStyles {
                 botMessageBackgroundColor = themeColors.conciergeMessageBackground ?: themeColors.container,
                 userMessageTextColor = themeColors.userMessageText ?: themeColors.onPrimary,
                 botMessageTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
-                textStyle = MaterialTheme.typography.bodyLarge,
+                textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp
             )
