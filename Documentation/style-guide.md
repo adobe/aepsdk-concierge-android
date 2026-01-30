@@ -16,7 +16,7 @@ This document provides a comprehensive reference for all styling properties supp
 - [Theme Tokens](#theme-tokens)
   - [Typography](#typography)
   - [Colors](#colors)
-  - [Layout](#layout)
+  - [Layout](#layout---input)
 - [Reserved for Future Support](#reserved-for-future-support)
 - [Value Formats](#value-formats)
 - [Complete Example](#complete-example)
