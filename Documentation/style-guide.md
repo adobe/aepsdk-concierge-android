@@ -1,6 +1,6 @@
-# BrandConcierge Style Guide (Android)
+# Brand Concierge Style Guide (Android)
 
-This document provides a comprehensive reference for all styling properties supported by the BrandConcierge extension on Android. Themes are configured using JSON files that follow a web-compatible CSS variable format.
+This document provides a comprehensive reference for all styling properties supported by the Brand Concierge extension on Android. Themes are configured using JSON files that follow a web-compatible CSS variable format.
 
 ## Table of Contents
 
