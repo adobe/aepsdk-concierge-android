@@ -54,6 +54,9 @@ class WelcomeCardTest {
             }
         }
 
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Welcome to [TestBrand] concierge!", substring = true)
+            .assertIsDisplayed()
         composeTestRule.onNodeWithText("How can we help?")
             .assertIsDisplayed()
         composeTestRule.onNodeWithText("Try asking:")
