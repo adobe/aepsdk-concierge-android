@@ -329,6 +329,16 @@ object ThemeParser {
         if (map == null) return ConciergeThemeBehavior()
         @Suppress("UNCHECKED_CAST")
         val typedMap = map as? MutableMap<String?, Any?>
+        val inputMap = typedMap?.get("input") as? Map<*, *>
+        val enableVoiceInput = if (inputMap != null) {
+            @Suppress("UNCHECKED_CAST")
+            val inputTypedMap = inputMap as? MutableMap<String?, Any?>
+            DataReader.optBoolean(inputTypedMap, "enableVoiceInput", true)
+        } else {
+            // Fallback to flat structure for backwards compatibility
+            DataReader.optBoolean(typedMap, "enableVoiceInput", true)
+        }
+        
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -338,8 +348,7 @@ object ThemeParser {
             showTimestamps = DataReader.optBoolean(typedMap, "showTimestamps", false),
             enableMarkdown = DataReader.optBoolean(typedMap, "enableMarkdown", true),
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
-            enableFeedback = DataReader.optBoolean(typedMap, "enableFeedback", true),
-            enableVoiceInput = DataReader.optBoolean(typedMap, "enableVoiceInput", true),
+            enableVoiceInput = enableVoiceInput,
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500)
         )

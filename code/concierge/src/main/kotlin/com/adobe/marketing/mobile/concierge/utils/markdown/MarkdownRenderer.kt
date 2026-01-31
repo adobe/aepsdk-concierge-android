@@ -104,6 +104,8 @@ internal object MarkdownRenderer {
         when (token.type) {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme)
+            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle)
+            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle)
             TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle)
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
@@ -170,6 +172,62 @@ internal object MarkdownRenderer {
             baseTextStyle.toSpanStyle().copy(
                 color = colorScheme.primary,
                 textDecoration = TextDecoration.Underline
+            ),
+            styleStart,
+            builder.length
+        )
+
+        builder.addStringAnnotation(
+            tag = "URL",
+            annotation = linkUrl,
+            start = styleStart,
+            end = builder.length
+        )
+    }
+
+    private fun renderBoldLink(
+        token: MarkdownToken,
+        builder: AnnotatedString.Builder,
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
+    ) {
+        val (linkText, linkUrl) = token.groups
+        val styleStart = builder.length
+
+        builder.append(linkText)
+        builder.addStyle(
+            baseTextStyle.toSpanStyle().copy(
+                color = colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
+                fontWeight = FontWeight.Bold
+            ),
+            styleStart,
+            builder.length
+        )
+
+        builder.addStringAnnotation(
+            tag = "URL",
+            annotation = linkUrl,
+            start = styleStart,
+            end = builder.length
+        )
+    }
+
+    private fun renderItalicLink(
+        token: MarkdownToken,
+        builder: AnnotatedString.Builder,
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
+    ) {
+        val (linkText, linkUrl) = token.groups
+        val styleStart = builder.length
+
+        builder.append(linkText)
+        builder.addStyle(
+            baseTextStyle.toSpanStyle().copy(
+                color = colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
+                fontStyle = FontStyle.Italic
             ),
             styleStart,
             builder.length

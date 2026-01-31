@@ -408,4 +408,162 @@ Trailing text""".trimIndent()
         assertEquals("**Second item:** More content", listTokens[1].groups[0])
         assertEquals("**Third item:** Even more content", listTokens[2].groups[0])
     }
+    
+    @Test
+    fun `test tokenize bold link`() {
+        val markdown = "**[Adobe Premiere Pro](https://www.adobe.com/premiere)**"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        assertEquals(1, boldLinkTokens.size)
+        
+        val boldLink = boldLinkTokens[0]
+        assertEquals("Adobe Premiere Pro", boldLink.groups[0])
+        assertEquals("https://www.adobe.com/premiere", boldLink.groups[1])
+    }
+    
+    @Test
+    fun `test tokenize bold link does not interfere with regular links`() {
+        val markdown = "**[Bold Link](https://bold.com)** and [Regular Link](https://regular.com)"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        val regularLinkTokens = tokens.filter { it.type == TokenType.LINK }
+        
+        assertEquals(1, boldLinkTokens.size)
+        assertEquals(1, regularLinkTokens.size)
+        
+        assertEquals("Bold Link", boldLinkTokens[0].groups[0])
+        assertEquals("https://bold.com", boldLinkTokens[0].groups[1])
+        
+        assertEquals("Regular Link", regularLinkTokens[0].groups[0])
+        assertEquals("https://regular.com", regularLinkTokens[0].groups[1])
+    }
+    
+    @Test
+    fun `test tokenize bold link does not interfere with regular bold`() {
+        val markdown = "**[Bold Link](https://example.com)** and **regular bold**"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        val boldTokens = tokens.filter { it.type == TokenType.BOLD }
+        
+        assertEquals(1, boldLinkTokens.size)
+        assertEquals(1, boldTokens.size)
+        
+        assertEquals("Bold Link", boldLinkTokens[0].groups[0])
+        assertEquals("regular bold", boldTokens[0].groups[0])
+    }
+    
+    @Test
+    fun `test tokenize italic link`() {
+        val markdown = "*[Adobe After Effects](https://www.adobe.com/aftereffects)*"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val italicLinkTokens = tokens.filter { it.type == TokenType.ITALIC_LINK }
+        assertEquals(1, italicLinkTokens.size)
+        
+        val italicLink = italicLinkTokens[0]
+        assertEquals("Adobe After Effects", italicLink.groups[0])
+        assertEquals("https://www.adobe.com/aftereffects", italicLink.groups[1])
+    }
+    
+    @Test
+    fun `test tokenize italic link does not interfere with regular links`() {
+        val markdown = "*[Italic Link](https://italic.com)* and [Regular Link](https://regular.com)"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val italicLinkTokens = tokens.filter { it.type == TokenType.ITALIC_LINK }
+        val regularLinkTokens = tokens.filter { it.type == TokenType.LINK }
+        
+        assertEquals(1, italicLinkTokens.size)
+        assertEquals(1, regularLinkTokens.size)
+        
+        assertEquals("Italic Link", italicLinkTokens[0].groups[0])
+        assertEquals("https://italic.com", italicLinkTokens[0].groups[1])
+        
+        assertEquals("Regular Link", regularLinkTokens[0].groups[0])
+        assertEquals("https://regular.com", regularLinkTokens[0].groups[1])
+    }
+    
+    @Test
+    fun `test tokenize italic link does not interfere with regular italic`() {
+        val markdown = "*[Italic Link](https://example.com)* and *regular italic*"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val italicLinkTokens = tokens.filter { it.type == TokenType.ITALIC_LINK }
+        val italicTokens = tokens.filter { it.type == TokenType.ITALIC }
+        
+        assertEquals(1, italicLinkTokens.size)
+        assertEquals(1, italicTokens.size)
+        
+        assertEquals("Italic Link", italicLinkTokens[0].groups[0])
+        assertEquals("regular italic", italicTokens[0].groups[0])
+    }
+    
+    @Test
+    fun `test tokenize multiple bold links in list`() {
+        val markdown = """- **[Adobe Premiere Pro](https://adobe.com/premiere)**: Video editing
+- **[Adobe After Effects](https://adobe.com/aftereffects)**: Motion graphics
+- **[Adobe Audition](https://adobe.com/audition)**: Audio editing""".trimIndent()
+        
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        assertEquals(3, boldLinkTokens.size)
+        
+        assertEquals("Adobe Premiere Pro", boldLinkTokens[0].groups[0])
+        assertEquals("https://adobe.com/premiere", boldLinkTokens[0].groups[1])
+        
+        assertEquals("Adobe After Effects", boldLinkTokens[1].groups[0])
+        assertEquals("https://adobe.com/aftereffects", boldLinkTokens[1].groups[1])
+        
+        assertEquals("Adobe Audition", boldLinkTokens[2].groups[0])
+        assertEquals("https://adobe.com/audition", boldLinkTokens[2].groups[1])
+    }
+    
+    @Test
+    fun `test tokenize bold link with complex URL`() {
+        val markdown = "**[Product](https://example.com/path/to/product?id=123&ref=abc)**"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        assertEquals(1, boldLinkTokens.size)
+        
+        assertEquals("Product", boldLinkTokens[0].groups[0])
+        assertEquals("https://example.com/path/to/product?id=123&ref=abc", boldLinkTokens[0].groups[1])
+    }
+    
+    @Test
+    fun `test tokenize mixed formatting in same text`() {
+        val markdown = "Regular **bold** and **[bold link](https://example.com)** and [regular link](https://test.com)"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldTokens = tokens.filter { it.type == TokenType.BOLD }
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        val linkTokens = tokens.filter { it.type == TokenType.LINK }
+        
+        assertEquals(1, boldTokens.size)
+        assertEquals(1, boldLinkTokens.size)
+        assertEquals(1, linkTokens.size)
+        
+        assertEquals("bold", boldTokens[0].groups[0])
+        assertEquals("bold link", boldLinkTokens[0].groups[0])
+        assertEquals("regular link", linkTokens[0].groups[0])
+    }
+    
+    @Test
+    fun `test tokenize citation does not interfere with bold link`() {
+        val markdown = "**[Source](https://example.com)**[^1] has citation"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        
+        val boldLinkTokens = tokens.filter { it.type == TokenType.BOLD_LINK }
+        val citationTokens = tokens.filter { it.type == TokenType.CITATION }
+        
+        assertEquals(1, boldLinkTokens.size)
+        assertEquals(1, citationTokens.size)
+        
+        assertEquals("Source", boldLinkTokens[0].groups[0])
+        assertEquals("1", citationTokens[0].groups[0])
+    }
 }
