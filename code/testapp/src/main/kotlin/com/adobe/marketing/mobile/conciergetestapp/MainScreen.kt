@@ -139,8 +139,8 @@ fun MainScreen() {
                         // Pass theme selection to XML activity
                         val themeFile = when (selectedTheme) {
                             "demo" -> "themeDemo"
-                            "test" -> "theme-test-implementation"
-                            "behavior-disabled" -> "theme-behavior-disabled"
+                            "input field border" -> "theme-test-implementation"
+                            "behaviors disabled" -> "theme-behavior-disabled"
                             else -> "themeDefault"
                         }
                         intent.putExtra("theme_file", themeFile)

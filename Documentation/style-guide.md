@@ -76,6 +76,30 @@ fun MyApp() {
 }
 ```
 
+### Applying a Theme in XML/Views
+
+For XML-based apps using `ConciergeChatView`, pass the theme when binding:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        // Load theme
+        val theme = ConciergeThemeLoader.load(this, "my-theme")
+        
+        val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
+        chatView.bind(
+            lifecycleOwner = this,
+            viewModelStoreOwner = this,
+            theme = theme,
+            onClose = { finish() }
+        )
+    }
+}
+```
+
 > **Important:** The `ConciergeTheme` composable provides theme tokens to all child composables through CompositionLocal.
 
 ---
