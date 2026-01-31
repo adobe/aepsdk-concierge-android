@@ -49,13 +49,7 @@ internal fun ChatFooter(
     val hasCitations = !citations.isNullOrEmpty()
     val hasInteractionId = !interactionId.isNullOrEmpty()
     var sourcesExpanded by remember { mutableStateOf(false) }
-    
-    // Check if feedback is enabled from theme behavior
-    val behavior = com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme.behavior
-    val enableFeedback = behavior?.enableFeedback ?: true
-    val showFeedback = hasInteractionId && enableFeedback
-    
-    val arrangement = remember(hasCitations, showFeedback) {
+    val arrangement = remember(hasCitations) {
         if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
     }
 
@@ -76,7 +70,7 @@ internal fun ChatFooter(
             }
 
             // Feedback buttons (right side) - only shown if enabled in behavior config
-            if (showFeedback) {
+            if (hasInteractionId) {
                 FeedbackButtons(
                     interactionId = interactionId!!,
                     onFeedback = onFeedback,

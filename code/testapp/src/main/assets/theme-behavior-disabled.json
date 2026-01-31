@@ -33,8 +33,8 @@
     ]
   },
   "text": {
-    "welcome.heading": "Behavior Test: Disabled Features",
-    "welcome.subheading": "This theme demonstrates behavior toggles:\n• Voice input DISABLED (no mic button)\n• Feedback DISABLED (no thumbs up/down)\n• Only send button visible\n• Citations still enabled",
+    "welcome.heading": "Behavior Test: Voice Input Disabled",
+    "welcome.subheading": "This theme demonstrates behavior toggles:\n• Voice input DISABLED (no mic button)\n• Only send button visible in input area\n• Feedback buttons still available\n• Citations enabled",
     "input.placeholder": "No mic button - only text input...",
     "error.network": "Network error occurred.",
     "loading.message": "Generating response...",
@@ -55,7 +55,7 @@
         "backgroundColor": "#FFEBEE"
       },
       {
-        "text": "Send a message and check: no feedback buttons appear!",
+        "text": "Send a message - feedback buttons are still available",
         "backgroundColor": "#FCE4EC"
       },
       {

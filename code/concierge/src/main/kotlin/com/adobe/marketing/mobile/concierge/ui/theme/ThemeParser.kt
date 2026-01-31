@@ -348,7 +348,6 @@ object ThemeParser {
             showTimestamps = DataReader.optBoolean(typedMap, "showTimestamps", false),
             enableMarkdown = DataReader.optBoolean(typedMap, "enableMarkdown", true),
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
-            enableFeedback = DataReader.optBoolean(typedMap, "enableFeedback", true),
             enableVoiceInput = enableVoiceInput,
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500)
