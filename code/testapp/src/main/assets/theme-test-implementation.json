@@ -6,10 +6,22 @@
     "namespace": "test-implementation"
   },
   "behavior": {
-    "enableVoiceInput": true,
-    "enableFeedback": true,
-    "enableCitations": true,
-    "enableAnimations": true
+    "multimodalCarousel": {
+      "cardClickAction": "openLink"
+    },
+    "input": {
+      "enableVoiceInput": true,
+      "disableMultiline": false,
+      "showAiChatIcon": null
+    },
+    "chat": {
+      "messageAlignment": "left",
+      "messageWidth": "100%"
+    },
+    "privacyNotice": {
+      "title": "Privacy Notice",
+      "text": "Privacy notice text."
+    }
   },
   "disclaimer": {
     "text": "AI responses may be inaccurate. Check answers and sources. {Terms}",
