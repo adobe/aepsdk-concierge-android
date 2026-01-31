@@ -145,6 +145,9 @@ class XmlActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Load optional theme
+        val theme = ConciergeThemeLoader.load(this, "myTheme.json")
+        
         // Create a trigger button of your choice
         val triggerButton = Button(this).apply {
             text = "Start Chat"
@@ -157,6 +160,7 @@ class XmlActivity : AppCompatActivity() {
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            theme = theme,  // Optional: apply custom theme
             triggerView = triggerButton
         )
     }
@@ -213,11 +217,15 @@ class XmlActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Load optional theme
+        val theme = ConciergeThemeLoader.load(this, "myTheme.json")
+        
         // Obtain the chat view and bind
         val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            theme = theme,  // Optional: apply custom theme
             onClose = { finish() }
         )
     }
