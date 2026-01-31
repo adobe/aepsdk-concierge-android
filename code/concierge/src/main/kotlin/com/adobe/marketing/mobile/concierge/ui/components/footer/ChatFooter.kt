@@ -69,7 +69,7 @@ internal fun ChatFooter(
                 )
             }
 
-            // Feedback buttons (right side) - only shown if enabled in behavior config
+            // Feedback buttons (right side)
             if (hasInteractionId) {
                 FeedbackButtons(
                     interactionId = interactionId!!,

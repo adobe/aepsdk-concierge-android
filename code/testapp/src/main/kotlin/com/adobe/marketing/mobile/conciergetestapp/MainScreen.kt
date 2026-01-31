@@ -59,7 +59,7 @@ fun MainScreen() {
         ThemeOption("default", "Default Theme", "Standard theme"),
         ThemeOption("demo", "Demo Theme", "Blue-themed demo"),
         ThemeOption("input field border", "Input Field Borders Test", "Configure input field borders"),
-        ThemeOption("behaviors disabled", "Behavior Test", "No voice/feedback")
+        ThemeOption("behaviors disabled", "Behavior Test", "No voice input")
     )
     
     // Load theme once, with fallback to default
