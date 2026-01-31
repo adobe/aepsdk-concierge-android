@@ -17,6 +17,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 
 /**
  * A custom View that wraps ConciergeChat for easy integration into XML-based applications.
@@ -88,13 +89,13 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
-     * @param theme Optional theme configuration to apply
+     * @param theme Optional complete theme data (config + tokens) to apply
      * @param onClose Optional callback when the close button is pressed
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
-        theme: ConciergeThemeConfig? = null,
+        theme: ConciergeThemeData? = null,
         onClose: () -> Unit
     ) {
         this.onCloseCallback = onClose
@@ -116,6 +117,30 @@ class ConciergeChatView @JvmOverloads constructor(
     }
 
     /**
+     * Binds the chat view to lifecycle and viewmodel owners (Mode 1: Direct Chat).
+     *
+     * Shows the chat interface directly without a dialog wrapper.
+     *
+     * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
+     * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
+     * @param themeConfig Optional theme configuration to apply (config only, no behavior tokens)
+     * @param onClose Optional callback when the close button is pressed
+     */
+    fun bind(
+        lifecycleOwner: LifecycleOwner,
+        viewModelStoreOwner: ViewModelStoreOwner,
+        themeConfig: ConciergeThemeConfig? = null,
+        onClose: () -> Unit
+    ) {
+        bind(
+            lifecycleOwner = lifecycleOwner,
+            viewModelStoreOwner = viewModelStoreOwner,
+            theme = themeConfig?.let { ConciergeThemeData(it, null) },
+            onClose = onClose
+        )
+    }
+
+    /**
      * Binds the chat view to show a trigger view that opens chat in a dialog (Mode 2: Dialog-based).
      *
      * This mode:
@@ -126,13 +151,13 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
-     * @param theme Optional theme configuration to apply
+     * @param theme Optional theme to apply
      * @param triggerView The view (e.g., Button) that will trigger the chat dialog when clicked
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
-        theme: ConciergeThemeConfig? = null,
+        theme: ConciergeThemeData? = null,
         triggerView: View
     ) {
         // Create or get existing ViewModel
@@ -168,5 +193,33 @@ class ConciergeChatView @JvmOverloads constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Binds the chat view to show a trigger view that opens chat in a dialog (Mode 2: Dialog-based).
+     *
+     * This mode:
+     * - Checks if Concierge extension is ready (configuration loaded and ECID available)
+     * - Shows the trigger view only when ready
+     * - Opens chat in a full-screen dialog when trigger view is clicked
+     * - Reuses the same dialog implementation as the Compose wrapper
+     *
+     * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
+     * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
+     * @param themeConfig Optional theme configuration to apply (config only, no behavior tokens)
+     * @param triggerView The view (e.g., Button) that will trigger the chat dialog when clicked
+     */
+    fun bind(
+        lifecycleOwner: LifecycleOwner,
+        viewModelStoreOwner: ViewModelStoreOwner,
+        themeConfig: ConciergeThemeConfig? = null,
+        triggerView: View
+    ) {
+        bind(
+            lifecycleOwner = lifecycleOwner,
+            viewModelStoreOwner = viewModelStoreOwner,
+            theme = themeConfig?.let { ConciergeThemeData(it, null) },
+            triggerView = triggerView
+        )
     }
 }

@@ -43,29 +43,32 @@ private val LocalActiveConciergeTheme = staticCompositionLocalOf {
  * Automatically switches between light and dark color schemes based on system theme.
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
- * @param theme Optional theme configuration to override default theme.
+ * @param theme Complete theme data containing both config and tokens.
  * @param content The composable content to theme.
  */
 @Composable
 fun ConciergeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    theme: ConciergeThemeConfig? = null,
-    themeTokens: ConciergeThemeTokens? = null,
+    theme: ConciergeThemeData? = null,
     content: @Composable () -> Unit
 ) {
     val defaultColors = if (darkTheme) DarkConciergeColors else LightConciergeColors
     
     // Apply theme colors if available, otherwise use defaults
-    val colors = remember(theme, darkTheme) {
-        if (theme?.colors != null) {
-            ThemeParser.createColorsFromJson(theme.colors, defaultColors)
+    val colors = remember(theme?.config, darkTheme) {
+        if (theme?.config?.colors != null) {
+            ThemeParser.createColorsFromJson(theme.config.colors, defaultColors)
         } else {
             defaultColors
         }
     }
     
-    val activeTheme = remember(colors, theme, themeTokens) {
-        ActiveConciergeTheme(colors = colors, config = theme, themeTokens = themeTokens)
+    val activeTheme = remember(colors, theme) {
+        ActiveConciergeTheme(
+            colors = colors, 
+            config = theme?.config, 
+            themeTokens = theme?.tokens
+        )
     }
 
     CompositionLocalProvider(
@@ -92,18 +95,13 @@ fun ConciergeTheme(
     
     val themeData = remember(themeFileName) {
         themeFileName?.let { fileName ->
-            val themeConfig = ThemeParser.loadThemeFromAssets(context, fileName)
-            val tokens = ThemeParser.parseThemeTokens(
-                context.assets.open(fileName).bufferedReader().use { it.readText() }
-            )
-            Pair(themeConfig, tokens)
+            ConciergeThemeLoader.load(context, fileName)
         }
     }
     
     ConciergeTheme(
         darkTheme = darkTheme,
-        theme = themeData?.first,
-        themeTokens = themeData?.second,
+        theme = themeData,
         content = content
     )
 }
@@ -129,6 +127,12 @@ object ConciergeTheme {
      */
     val tokens: ConciergeThemeTokens?
         @Composable get() = LocalActiveConciergeTheme.current.themeTokens
+    
+    /**
+     * Retrieves behavior configuration from the theme
+     */
+    val behavior: ConciergeThemeBehavior?
+        @Composable get() = LocalActiveConciergeTheme.current.themeTokens?.behavior
     
     /**
      * Retrieves text strings from the theme configuration

@@ -58,6 +58,9 @@ internal fun InputActionButtons(
     val micButtonStyle = ConciergeStyles.micButtonStyle
     val sendButtonStyle = ConciergeStyles.sendButtonStyle
     val panelStyle = ConciergeStyles.inputPanelStyle
+    
+    // Check if voice input is enabled from theme behavior
+    val enableVoiceInput = com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme.behavior?.enableVoiceInput ?: true
 
     Row(
         modifier = modifier
@@ -68,18 +71,21 @@ internal fun InputActionButtons(
     ) {
         val micContainerSize = micButtonStyle.size * micButtonStyle.pulseScaleRange.second
 
-        MicButton(
-            modifier = Modifier.size(micContainerSize),
-            userInputState = inputState,
-            isEnabled = true,
-            onClick = {
-                if (inputState is UserInputState.Recording) {
-                    onVoiceCancel()
-                } else {
-                    onMicPressed()
+        // Microphone button - only shown if enabled in behavior config
+        if (enableVoiceInput) {
+            MicButton(
+                modifier = Modifier.size(micContainerSize),
+                userInputState = inputState,
+                isEnabled = true,
+                onClick = {
+                    if (inputState is UserInputState.Recording) {
+                        onVoiceCancel()
+                    } else {
+                        onMicPressed()
+                    }
                 }
-            }
-        )
+            )
+        }
 
         // Send button - only visible when not recording.
         // Clickable if text is non-empty and not processing
@@ -97,7 +103,9 @@ internal fun InputActionButtons(
                     )
         ) {
             Row {
-                Spacer(modifier = Modifier.width(panelStyle.buttonSpacing))
+                if (enableVoiceInput) {
+                    Spacer(modifier = Modifier.width(panelStyle.buttonSpacing))
+                }
 
                 SendButton(
                     modifier = Modifier.size(sendButtonStyle.size),
