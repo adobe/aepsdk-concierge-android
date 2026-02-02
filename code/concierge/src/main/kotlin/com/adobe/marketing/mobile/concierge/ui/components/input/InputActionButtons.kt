@@ -26,12 +26,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Composable that manages the mic and send button states and animations.
@@ -60,7 +60,7 @@ internal fun InputActionButtons(
     val panelStyle = ConciergeStyles.inputPanelStyle
     
     // Check if voice input is enabled from theme behavior
-    val enableVoiceInput = com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme.behavior?.enableVoiceInput ?: true
+    val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
 
     Row(
         modifier = modifier
@@ -71,7 +71,6 @@ internal fun InputActionButtons(
     ) {
         val micContainerSize = micButtonStyle.size * micButtonStyle.pulseScaleRange.second
 
-        // Microphone button - only shown if enabled in behavior config
         if (enableVoiceInput) {
             MicButton(
                 modifier = Modifier.size(micContainerSize),
