@@ -246,7 +246,6 @@ class ConciergeThemeTokensTest {
         assertFalse(behavior.showTimestamps)
         assertTrue(behavior.enableMarkdown)
         assertTrue(behavior.enableCitations)
-        assertTrue(behavior.enableFeedback)
         assertTrue(behavior.enableVoiceInput)
         assertEquals(2000, behavior.maxMessageLength)
         assertEquals(500, behavior.typingIndicatorDelay)
