@@ -243,13 +243,15 @@ object ThemeParser {
             ?: themeColors.onPrimary?.toComposeColor()
             ?: defaultColors.onPrimary
         
-        val surface = themeColors.surfaceColors?.mainContainerBackground?.toComposeColor()
-            ?: themeColors.surface?.toComposeColor()
-            ?: defaultColors.surface
-            
-        val background = themeColors.surfaceColors?.mainContainerBottomBackground?.toComposeColor()
+        // Main chat screen background
+        val background = themeColors.surfaceColors?.mainContainerBackground?.toComposeColor()
             ?: themeColors.background?.toComposeColor()
             ?: defaultColors.background
+        
+        // Surface/bottom container (input area)
+        val surface = themeColors.surfaceColors?.mainContainerBottomBackground?.toComposeColor()
+            ?: themeColors.surface?.toComposeColor()
+            ?: defaultColors.surface
         
         val onSurface = themeColors.onSurface?.toComposeColor()
             ?: defaultColors.onSurface
@@ -329,6 +331,16 @@ object ThemeParser {
         if (map == null) return ConciergeThemeBehavior()
         @Suppress("UNCHECKED_CAST")
         val typedMap = map as? MutableMap<String?, Any?>
+        val inputMap = typedMap?.get("input") as? Map<*, *>
+        val enableVoiceInput = if (inputMap != null) {
+            @Suppress("UNCHECKED_CAST")
+            val inputTypedMap = inputMap as? MutableMap<String?, Any?>
+            DataReader.optBoolean(inputTypedMap, "enableVoiceInput", true)
+        } else {
+            // Default to true if not specified
+            true
+        }
+        
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -338,8 +350,7 @@ object ThemeParser {
             showTimestamps = DataReader.optBoolean(typedMap, "showTimestamps", false),
             enableMarkdown = DataReader.optBoolean(typedMap, "enableMarkdown", true),
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
-            enableFeedback = DataReader.optBoolean(typedMap, "enableFeedback", true),
-            enableVoiceInput = DataReader.optBoolean(typedMap, "enableVoiceInput", true),
+            enableVoiceInput = enableVoiceInput,
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500)
         )

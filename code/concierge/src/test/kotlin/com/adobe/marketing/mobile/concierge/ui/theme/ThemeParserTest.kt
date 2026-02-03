@@ -26,11 +26,42 @@ class ThemeParserTest {
         val json = """
             {
                 "metadata": {
-                    "name": "Test Theme"
+                    "brandName": "Concierge Demo",
+                    "version": "1.0.0",
+                    "language": "en-US"
+                },
+                "behavior": {
+                    "input": {
+                        "enableVoiceInput": true
+                    }
                 },
                 "theme": {
-                    "--color-primary": "#3949AB",
-                    "--color-text": "#FFFFFF"
+                    "--color-primary": "#EB1000",
+                    "--color-text": "#131313",
+                    "--main-container-background": "#FFFFFF",
+                    "--main-container-bottom-background": "#FFFFFF"
+                },
+                "text": {
+                    "welcome.heading": "Welcome to Brand Concierge!",
+                    "input.placeholder": "How can I help?"
+                },
+                "disclaimer": {
+                    "text": "AI responses may be inaccurate.",
+                    "links": [
+                        {
+                            "text": "Terms",
+                            "url": "https://example.com/terms"
+                        }
+                    ]
+                },
+                "arrays": {
+                    "welcome.examples": [
+                        {
+                            "text": "Example prompt",
+                            "backgroundColor": "#F5F5F5"
+                        }
+                    ],
+                    "feedback.positive.options": ["Helpful", "Clear"]
                 }
             }
         """.trimIndent()
@@ -38,9 +69,16 @@ class ThemeParserTest {
         val config = ThemeParser.parseThemeJson(json)
 
         assertNotNull(config)
-        assertEquals("Test Theme", config?.name)
-        assertEquals("#3949AB", config?.colors?.primaryColors?.primary)
-        assertEquals("#FFFFFF", config?.colors?.primaryColors?.text)
+        assertEquals("Concierge Demo", config?.name)
+        assertEquals("#EB1000", config?.colors?.primaryColors?.primary)
+        assertEquals("#131313", config?.colors?.primaryColors?.text)
+        assertEquals("Welcome to Brand Concierge!", config?.text?.welcomeHeading)
+        assertEquals("How can I help?", config?.text?.inputPlaceholder)
+        assertEquals("AI responses may be inaccurate.", config?.disclaimer?.text)
+        assertEquals(1, config?.disclaimer?.links?.size)
+        assertEquals("Terms", config?.disclaimer?.links?.get(0)?.text)
+        assertEquals(1, config?.welcomeExamples?.size)
+        assertEquals(2, config?.feedbackPositiveOptions?.size)
     }
 
     @Test
@@ -405,23 +443,55 @@ class ThemeParserTest {
         val json = """
             {
                 "metadata": {
-                    "name": "Complete Theme"
+                    "brandName": "Complete Theme",
+                    "version": "1.0.0",
+                    "language": "en-US"
+                },
+                "behavior": {
+                    "multimodalCarousel": {
+                        "cardClickAction": "openLink"
+                    },
+                    "input": {
+                        "enableVoiceInput": true,
+                        "disableMultiline": false
+                    }
                 },
                 "theme": {
-                    "--color-primary": "#3949AB",
-                    "--message-user-background": "#E0E0E0",
-                    "--message-concierge-background": "#FFFFFF"
+                    "--color-primary": "#3B63FB",
+                    "--message-user-background": "#EBEEFF",
+                    "--message-concierge-background": "#F5F5F5",
+                    "--input-height-mobile": "52px",
+                    "--input-border-radius-mobile": "12px"
                 },
                 "text": {
-                    "input.placeholder": "Ask me anything"
+                    "input.placeholder": "Ask me anything",
+                    "welcome.heading": "Welcome!",
+                    "loading.message": "Generating response"
+                },
+                "disclaimer": {
+                    "text": "AI responses may be inaccurate. {Terms}",
+                    "links": [
+                        {
+                            "text": "Terms",
+                            "url": "https://example.com/terms"
+                        }
+                    ]
                 },
                 "arrays": {
                     "welcome.examples": [
                         {
-                            "text": "Example prompt"
+                            "text": "Example prompt",
+                            "image": "https://example.com/image.png",
+                            "backgroundColor": "#F5F5F5"
                         }
                     ],
-                    "feedback.positive.options": ["Good"]
+                    "feedback.positive.options": ["Helpful", "Clear"],
+                    "feedback.negative.options": ["Unhelpful", "Errors"]
+                },
+                "assets": {
+                    "icons": {
+                        "company": "company-logo.svg"
+                    }
                 }
             }
         """.trimIndent()
@@ -430,12 +500,19 @@ class ThemeParserTest {
         
         assertNotNull(config)
         assertEquals("Complete Theme", config?.name)
-        assertEquals("#3949AB", config?.colors?.primaryColors?.primary)
-        assertEquals("#E0E0E0", config?.colors?.message?.userBackground)
-        assertEquals("#FFFFFF", config?.colors?.message?.conciergeBackground)
+        assertEquals("#3B63FB", config?.colors?.primaryColors?.primary)
+        assertEquals("#EBEEFF", config?.colors?.message?.userBackground)
+        assertEquals("#F5F5F5", config?.colors?.message?.conciergeBackground)
         assertEquals("Ask me anything", config?.text?.inputPlaceholder)
+        assertEquals("Welcome!", config?.text?.welcomeHeading)
+        assertEquals("Generating response", config?.text?.loadingMessage)
+        assertEquals("AI responses may be inaccurate. {Terms}", config?.disclaimer?.text)
+        assertEquals(1, config?.disclaimer?.links?.size)
         assertEquals(1, config?.welcomeExamples?.size)
-        assertEquals(1, config?.feedbackPositiveOptions?.size)
+        assertEquals("Example prompt", config?.welcomeExamples?.get(0)?.text)
+        assertEquals("#F5F5F5", config?.welcomeExamples?.get(0)?.backgroundColor)
+        assertEquals(2, config?.feedbackPositiveOptions?.size)
+        assertEquals(2, config?.feedbackNegativeOptions?.size)
     }
 
     // ========== Tests for parseThemeTokens ==========
@@ -445,11 +522,12 @@ class ThemeParserTest {
         val json = """
             {
                 "metadata": {
-                    "name": "Test Theme",
+                    "brandName": "Test Theme",
                     "version": "1.0.0"
                 },
                 "theme": {
-                    "--color-primary": "#FF0000"
+                    "--color-primary": "#FF0000",
+                    "--main-container-background": "#FFFFFF"
                 }
             }
         """.trimIndent()
@@ -460,6 +538,7 @@ class ThemeParserTest {
         assertEquals("Test Theme", tokens?.metadata?.name)
         assertEquals("1.0.0", tokens?.metadata?.version)
         assertEquals("#FF0000", tokens?.colors?.primaryColors?.primary)
+        assertEquals("#FFFFFF", tokens?.colors?.surfaceColors?.mainContainerBackground)
     }
 
     @Test
@@ -527,8 +606,9 @@ class ThemeParserTest {
                     "showTimestamps": true,
                     "enableMarkdown": true,
                     "enableCitations": false,
-                    "enableFeedback": true,
-                    "enableVoiceInput": false,
+                    "input": {
+                        "enableVoiceInput": false
+                    },
                     "maxMessageLength": 5000,
                     "typingIndicatorDelay": 1000
                 }
@@ -546,7 +626,6 @@ class ThemeParserTest {
         assertEquals(true, tokens?.behavior?.showTimestamps)
         assertEquals(true, tokens?.behavior?.enableMarkdown)
         assertEquals(false, tokens?.behavior?.enableCitations)
-        assertEquals(true, tokens?.behavior?.enableFeedback)
         assertEquals(false, tokens?.behavior?.enableVoiceInput)
         assertEquals(5000, tokens?.behavior?.maxMessageLength)
         assertEquals(1000, tokens?.behavior?.typingIndicatorDelay)
@@ -821,8 +900,8 @@ class ThemeParserTest {
         
         assertEquals(Color(0xFFFF0000), colors.primary)
         assertEquals(Color.White, colors.onPrimary)
-        assertEquals(Color(0xFFF0F0F0), colors.surface)
-        assertEquals(Color(0xFFE0E0E0), colors.background)
+        assertEquals(Color(0xFFE0E0E0), colors.surface)
+        assertEquals(Color(0xFFF0F0F0), colors.background)
         assertEquals(Color.White, colors.userMessageBackground)
         assertEquals(Color.Black, colors.userMessageText)
         assertEquals(Color(0xFFF5F5F5), colors.conciergeMessageBackground)
@@ -914,6 +993,222 @@ class ThemeParserTest {
         
         // CSS color should take priority
         assertEquals(Color(0xFFFF0000), colors.primary)
+    }
+
+    @Test
+    fun `parseThemeJson should parse complete real-world theme structure`() {
+        val json = """
+            {
+              "metadata": {
+                "brandName": "Concierge Demo",
+                "version": "1.0.0",
+                "language": "en-US",
+                "namespace": "brand-concierge"
+              },
+              "behavior": {
+                "multimodalCarousel": {
+                  "cardClickAction": "openLink"
+                },
+                "input": {
+                  "enableVoiceInput": true,
+                  "disableMultiline": false,
+                  "showAiChatIcon": null
+                },
+                "chat": {
+                  "messageAlignment": "left",
+                  "messageWidth": "100%"
+                },
+                "privacyNotice": {
+                  "title": "Privacy Notice",
+                  "text": "Privacy notice text."
+                }
+              },
+              "disclaimer": {
+                "text": "AI responses may be inaccurate. Check answers and sources. {Terms}",
+                "links": [
+                  {
+                    "text": "Terms",
+                    "url": "https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html"
+                  }
+                ]
+              },
+              "text": {
+                "welcome.heading": "Welcome to Brand Concierge!",
+                "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need.",
+                "input.placeholder": "How can I help?",
+                "loading.message": "Generating response from our knowledge base",
+                "feedback.dialog.title.positive": "Your feedback is appreciated",
+                "feedback.dialog.title.negative": "Your feedback is appreciated",
+                "feedback.dialog.question.positive": "What went well? Select all that apply.",
+                "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
+                "feedback.dialog.notes": "Notes",
+                "feedback.dialog.submit": "Submit",
+                "feedback.dialog.cancel": "Cancel",
+                "feedback.dialog.notes.placeholder": "Additional notes (optional)",
+                "feedback.toast.success": "Thank you for the feedback.",
+                "error.network": "I'm sorry, I'm having trouble connecting to our services right now."
+              },
+              "arrays": {
+                "welcome.examples": [
+                  {
+                    "text": "I'd like to explore templates to see what I can create.",
+                    "image": "https://example.com/image1.png",
+                    "backgroundColor": "#F5F5F5"
+                  },
+                  {
+                    "text": "I want to touch up and enhance my photos.",
+                    "image": "https://example.com/image2.png",
+                    "backgroundColor": "#F5F5F5"
+                  }
+                ],
+                "feedback.positive.options": [
+                  "Helpful and relevant recommendations",
+                  "Clear and easy to understand",
+                  "Friendly and conversational tone",
+                  "Visually appealing presentation",
+                  "Other"
+                ],
+                "feedback.negative.options": [
+                  "Didn't understand my request",
+                  "Unhelpful or irrelevant information",
+                  "Too vague or lacking detail",
+                  "Errors or poor quality response",
+                  "Other"
+                ]
+              },
+              "assets": {
+                "icons": {
+                  "company": "company-logo.svg"
+                }
+              },
+              "theme": {
+                "--welcome-input-order": "3",
+                "--welcome-cards-order": "2",
+                "--font-family": "Arial, sans-serif",
+                "--color-primary": "#EB1000",
+                "--color-text": "#131313",
+                "--line-height-body": "1.75",
+                "--main-container-background": "#FFFFFF",
+                "--main-container-bottom-background": "#FFFFFF",
+                "--message-blocker-background": "#FFFFFF",
+                "--input-height-mobile": "52px",
+                "--input-border-radius-mobile": "12px",
+                "--input-background": "#FFFFFF",
+                "--input-outline-width": "2px",
+                "--input-box-shadow": "0 2px 8px 0 #00000014",
+                "--input-focus-outline-width": "2px",
+                "--input-focus-outline-color": "#4B75FF",
+                "--input-font-size": "16px",
+                "--input-text-color": "#292929",
+                "--input-button-height": "32px",
+                "--input-button-width": "32px",
+                "--submit-button-fill-color": "#FFFFFF",
+                "--submit-button-fill-color-disabled": "#C6C6C6",
+                "--color-button-submit": "#292929",
+                "--input-button-border-radius": "8px",
+                "--button-disabled-background": "#FFFFFF",
+                "--disclaimer-color": "#4B4B4B",
+                "--disclaimer-font-size": "12px",
+                "--disclaimer-font-weight": "400",
+                "--message-user-background": "#EBEEFF",
+                "--message-user-text": "#292929",
+                "--message-border-radius": "10px",
+                "--message-padding": "8px 16px",
+                "--message-concierge-background": "#F5F5F5",
+                "--message-concierge-text": "#292929",
+                "--message-max-width": "100%",
+                "--chat-interface-max-width": "768px",
+                "--chat-history-padding": "16px",
+                "--citations-desktop-button-font-size": "12px",
+                "--feedback-icon-btn-background": "#FFFFFF",
+                "--feedback-icon-btn-hover-background": "#FFFFFF",
+                "--feedback-icon-btn-size-desktop": "32px",
+                "--border-radius-card": "16px",
+                "--button-primary-background": "#3B63FB",
+                "--button-primary-text": "#FFFFFF",
+                "--button-primary-hover": "#274DEA",
+                "--button-secondary-border": "#2C2C2C",
+                "--button-secondary-text": "#2C2C2C",
+                "--message-concierge-link-color": "#274DEA"
+              }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        // Verify metadata
+        assertNotNull(config)
+        assertEquals("Concierge Demo", config?.name)
+        
+        // Verify colors from theme block
+        assertEquals("#EB1000", config?.colors?.primaryColors?.primary)
+        assertEquals("#131313", config?.colors?.primaryColors?.text)
+        assertEquals("#FFFFFF", config?.colors?.surfaceColors?.mainContainerBackground)
+        assertEquals("#FFFFFF", config?.colors?.surfaceColors?.mainContainerBottomBackground)
+        assertEquals("#EBEEFF", config?.colors?.message?.userBackground)
+        assertEquals("#292929", config?.colors?.message?.userText)
+        assertEquals("#F5F5F5", config?.colors?.message?.conciergeBackground)
+        assertEquals("#292929", config?.colors?.message?.conciergeText)
+        assertEquals("#274DEA", config?.colors?.message?.conciergeLink)
+        
+        // Verify button colors
+        assertEquals("#3B63FB", config?.colors?.button?.primaryBackground)
+        assertEquals("#FFFFFF", config?.colors?.button?.primaryText)
+        assertEquals("#274DEA", config?.colors?.button?.primaryHover)
+        assertEquals("#2C2C2C", config?.colors?.button?.secondaryBorder)
+        assertEquals("#2C2C2C", config?.colors?.button?.secondaryText)
+        
+        // Verify input colors
+        assertEquals("#FFFFFF", config?.colors?.input?.background)
+        assertEquals("#292929", config?.colors?.input?.text)
+        assertEquals("#4B75FF", config?.colors?.input?.outlineFocus)
+        
+        // Verify feedback colors
+        assertEquals("#FFFFFF", config?.colors?.feedback?.iconButtonBackground)
+        assertEquals("#FFFFFF", config?.colors?.feedback?.iconButtonHoverBackground)
+        
+        // Verify disclaimer
+        assertEquals("AI responses may be inaccurate. Check answers and sources. {Terms}", config?.disclaimer?.text)
+        assertEquals(1, config?.disclaimer?.links?.size)
+        assertEquals("Terms", config?.disclaimer?.links?.get(0)?.text)
+        assertEquals("https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html", config?.disclaimer?.links?.get(0)?.url)
+        
+        // Verify text strings
+        assertEquals("Welcome to Brand Concierge!", config?.text?.welcomeHeading)
+        assertEquals("I'm your personal guide to help you explore and find exactly what you need.", config?.text?.welcomeSubheading)
+        assertEquals("How can I help?", config?.text?.inputPlaceholder)
+        assertEquals("Generating response from our knowledge base", config?.text?.loadingMessage)
+        assertEquals("Your feedback is appreciated", config?.text?.feedbackDialogTitlePositive)
+        assertEquals("Your feedback is appreciated", config?.text?.feedbackDialogTitleNegative)
+        assertEquals("What went well? Select all that apply.", config?.text?.feedbackDialogQuestionPositive)
+        assertEquals("What went wrong? Select all that apply.", config?.text?.feedbackDialogQuestionNegative)
+        assertEquals("Notes", config?.text?.feedbackDialogNotes)
+        assertEquals("Submit", config?.text?.feedbackDialogSubmit)
+        assertEquals("Cancel", config?.text?.feedbackDialogCancel)
+        assertEquals("Additional notes (optional)", config?.text?.feedbackDialogNotesPlaceholder)
+        assertEquals("Thank you for the feedback.", config?.text?.feedbackToastSuccess)
+        assertEquals("I'm sorry, I'm having trouble connecting to our services right now.", config?.text?.errorNetwork)
+        
+        // Verify welcome examples
+        assertEquals(2, config?.welcomeExamples?.size)
+        assertEquals("I'd like to explore templates to see what I can create.", config?.welcomeExamples?.get(0)?.text)
+        assertEquals("https://example.com/image1.png", config?.welcomeExamples?.get(0)?.image)
+        assertEquals("#F5F5F5", config?.welcomeExamples?.get(0)?.backgroundColor)
+        assertEquals("I want to touch up and enhance my photos.", config?.welcomeExamples?.get(1)?.text)
+        
+        // Verify feedback options
+        assertEquals(5, config?.feedbackPositiveOptions?.size)
+        assertEquals("Helpful and relevant recommendations", config?.feedbackPositiveOptions?.get(0))
+        assertEquals("Other", config?.feedbackPositiveOptions?.get(4))
+        assertEquals(5, config?.feedbackNegativeOptions?.size)
+        assertEquals("Didn't understand my request", config?.feedbackNegativeOptions?.get(0))
+        assertEquals("Other", config?.feedbackNegativeOptions?.get(4))
+        
+        // Verify typography
+        assertNotNull(config?.typography)
+        assertEquals(16.0, config?.typography?.inputFontSize)
+        assertEquals(12.0, config?.typography?.disclaimerFontSize)
+        assertEquals(12.0, config?.typography?.citationsFontSize)
     }
 }
 

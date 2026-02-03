@@ -342,9 +342,9 @@ class ConciergeThemeLoaderTest {
         val theme = ConciergeThemeLoader.default()
         
         assertNotNull(theme)
-        assertNull(theme.name)
-        assertNull(theme.colors)
-        assertNull(theme.styles)
+        assertNull(theme.config.name)
+        assertNull(theme.config.colors)
+        assertNull(theme.config.styles)
     }
 }
 

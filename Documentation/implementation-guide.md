@@ -55,11 +55,13 @@ repositories {
 }
 ```
 
-**Step 2: Add the snapshot dependency to your app module's `build.gradle.kts`**
+**Step 2: Add the snapshot dependency to your app module's `build.gradle.kts` alongside the other AEPSDK extensions**
 
 ```kotlin
 dependencies {
     implementation("com.adobe.marketing.mobile:concierge:3.0.0-SNAPSHOT")
+    implementation("com.adobe.marketing.mobile:core:3.5.0")
+    implementation("com.adobe.marketing.mobile:edgeidentity:3.0.0")
 }
 ```
 
@@ -145,6 +147,9 @@ class XmlActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Load optional theme
+        val theme = ConciergeThemeLoader.load(this, "myTheme.json")
+        
         // Create a trigger button of your choice
         val triggerButton = Button(this).apply {
             text = "Start Chat"
@@ -157,6 +162,7 @@ class XmlActivity : AppCompatActivity() {
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            theme = theme,  // Optional: apply custom theme
             triggerView = triggerButton
         )
     }
@@ -213,11 +219,15 @@ class XmlActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Load optional theme
+        val theme = ConciergeThemeLoader.load(this, "myTheme.json")
+        
         // Obtain the chat view and bind
         val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            theme = theme,  // Optional: apply custom theme
             onClose = { finish() }
         )
     }

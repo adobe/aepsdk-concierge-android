@@ -16,7 +16,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 
 /**
  * A custom View that wraps ConciergeChat for easy integration into XML-based applications.
@@ -88,13 +88,13 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
-     * @param theme Optional theme configuration to apply
+     * @param theme Optional complete theme data (config + tokens) to apply
      * @param onClose Optional callback when the close button is pressed
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
-        theme: ConciergeThemeConfig? = null,
+        theme: ConciergeThemeData? = null,
         onClose: () -> Unit
     ) {
         this.onCloseCallback = onClose
@@ -126,13 +126,13 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
-     * @param theme Optional theme configuration to apply
+     * @param theme Optional theme to apply
      * @param triggerView The view (e.g., Button) that will trigger the chat dialog when clicked
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
-        theme: ConciergeThemeConfig? = null,
+        theme: ConciergeThemeData? = null,
         triggerView: View
     ) {
         // Create or get existing ViewModel
@@ -169,4 +169,5 @@ class ConciergeChatView @JvmOverloads constructor(
             }
         }
     }
+
 }

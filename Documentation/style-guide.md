@@ -1,12 +1,14 @@
-# Brand Concierge Style Guide (Android)
+# Brand Concierge Style Guide
 
-This document provides a comprehensive reference for all styling properties supported by the Brand Concierge extension on Android. Themes are configured using JSON files that follow a web-compatible CSS variable format.
+This document provides a comprehensive reference for all styling properties supported by the Brand Concierge Android SDK. Themes are configured using JSON files that follow a web-compatible CSS variable format.
+
+> **⚠️ Implementation Status**: While the theme system parses all CSS variables for web compatibility, not all properties are currently used in the Android UI. See the [Implementation Status](#implementation-status) section for detailed information on which properties are actively rendered versus defined but unused.
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [JSON Structure](#json-structure)
-- [Loading a Theme](#loading-a-theme)
+- [Value Formats](#value-formats)
 - [Metadata](#metadata)
 - [Behavior](#behavior)
 - [Disclaimer](#disclaimer)
@@ -16,24 +18,89 @@ This document provides a comprehensive reference for all styling properties supp
 - [Theme Tokens](#theme-tokens)
   - [Typography](#typography)
   - [Colors](#colors)
-  - [Layout](#layout---input)
-- [Reserved for Future Support](#reserved-for-future-support)
-- [Value Formats](#value-formats)
-- [Complete Example](#complete-example)
+  - [Layout](#layout)
+- [Implementation Status](#implementation-status)
 
 ---
 
 ## Overview
 
-The theme configuration is loaded from a JSON file using `ConciergeThemeLoader.load()`. The framework supports CSS-like variable names (prefixed with `--`) that are automatically mapped to native Kotlin/Compose properties.
+The theme configuration is loaded from a JSON file using `ConciergeThemeLoader.load(context, filename)`. The framework supports CSS-like variable names (prefixed with `--`) that are automatically mapped to native Kotlin properties.
 
-### Key Features
+### Loading a Theme
 
-- **Simple static methods** for common use cases
-- **Caching** to avoid repeated file reads
-- **Fallback support** for graceful degradation
-- **Multiple source types** (assets, files, JSON strings)
-- **Thread-safe** singleton pattern
+```kotlin
+// Load from app assets
+val theme = ConciergeThemeLoader.load(context, "theme-default")
+
+// Use default theme
+val defaultTheme = ConciergeThemeLoader.default()
+```
+
+### Applying a Theme
+
+Apply the theme using the `ConciergeTheme` composable:
+
+```kotlin
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
+
+@Composable
+fun MyApp() {
+    val context = LocalContext.current
+    
+    // Load theme from assets
+    val theme = remember {
+        ConciergeThemeLoader.load(context, "my-theme") 
+            ?: ConciergeThemeLoader.default()
+    }
+    
+    ConciergeTheme(theme = theme) {
+        // Your app content here
+        // Concierge UI components will use the theme
+    }
+}
+```
+
+You can also load themes by filename directly:
+
+```kotlin
+@Composable
+fun MyApp() {
+    ConciergeTheme(themeFileName = "my-theme.json") {
+        // Your app content here
+    }
+}
+```
+
+### Applying a Theme in XML/Views
+
+For XML-based apps using `ConciergeChatView`, pass the theme when binding:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        // Load theme
+        val theme = ConciergeThemeLoader.load(this, "my-theme")
+        
+        val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
+        chatView.bind(
+            lifecycleOwner = this,
+            viewModelStoreOwner = this,
+            theme = theme,
+            onClose = { finish() }
+        )
+    }
+}
+```
+
+> **Important:** The `ConciergeTheme` composable provides theme tokens to all child composables through CompositionLocal.
 
 ---
 
@@ -53,78 +120,82 @@ The theme JSON file contains these top-level keys:
 
 ---
 
-## Loading a Theme
+## Value Formats
 
-### Basic Loading (Recommended)
+Understanding the value formats used throughout this document.
 
-Load a theme from your app's assets folder:
+### Colors
 
-```kotlin
-@Composable
-fun MyScreen() {
-    val context = LocalContext.current
-    val theme = remember {
-        ConciergeThemeLoader.load(context, "myTheme.json")
-            ?: ConciergeThemeLoader.default()
-    }
-    
-    ConciergeTheme(theme = theme) {
-        // Your UI here
-        ConciergeChat(/* ... */)
-    }
-}
+Colors are specified as hex strings:
+
+```json
+"--color-primary": "#EB1000"
+"--message-user-background": "#EBEEFF"
+"--input-box-shadow": "0 2px 8px 0 #00000014"
 ```
 
-### Load with Different Sources
+Supported formats:
+- `#RRGGBB` - 6 digit hex
+- `#RRGGBBAA` - 8 digit hex with alpha
 
-```kotlin
-val loader = ConciergeThemeLoader.instance
+### Dimensions
 
-// From assets (same as static method)
-val theme1 = loader.loadTheme(
-    context = context,
-    source = "theme.json",
-    sourceType = ThemeSourceType.ASSET
-)
+Dimensions use CSS pixel units:
 
-// From file system
-val theme2 = loader.loadTheme(
-    context = context,
-    source = "/sdcard/custom_theme.json",
-    sourceType = ThemeSourceType.FILE
-)
-
-// From JSON string
-val jsonString = """{"metadata": {"brandName": "Test"}}"""
-val theme3 = loader.loadTheme(
-    context = context,
-    source = jsonString,
-    sourceType = ThemeSourceType.JSON_STRING
-)
+```json
+"--input-height-mobile": "52px"
+"--input-border-radius-mobile": "12px"
+"--message-max-width": "100%"
 ```
 
-### XML/Views Integration
+### Padding
 
-```kotlin
-class MyActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_my)
-        
-        // Load theme
-        val theme = ConciergeThemeLoader.load(this, "myTheme.json")
-        
-        // Find ConciergeChatView in layout
-        val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
-        
-        // Bind with theme
-        chatView.bind(
-            lifecycleOwner = this,
-            theme = theme
-        )
-    }
-}
+Padding follows CSS shorthand syntax:
+
+```json
+"--message-padding": "8px 16px"
 ```
+
+Formats:
+- `8px` - All sides
+- `8px 16px` - Vertical, horizontal
+- `8px 16px 4px` - Top, horizontal, bottom
+- `8px 16px 4px 2px` - Top, right, bottom, left
+
+### Shadows
+
+Shadows use CSS box-shadow syntax:
+
+```json
+"--input-box-shadow": "0 2px 8px 0 #00000014"
+"--multimodal-card-box-shadow": "none"
+```
+
+Format: `offsetX offsetY blurRadius spreadRadius color`
+
+### Font Weights
+
+Font weights use CSS numeric or named values:
+
+| Value | Name | Android FontWeight |
+|-------|------|--------------------|
+| `100` | `ultraLight` | `W100` |
+| `200` | `thin` | `W200` |
+| `300` | `light` | `Light` |
+| `400` / `normal` | `regular` | `Normal` |
+| `500` | `medium` | `Medium` |
+| `600` | `semibold` | `SemiBold` |
+| `700` / `bold` | `bold` | `Bold` |
+| `800` | `heavy` | `W800` |
+| `900` | `black` | `Black` |
+
+### Text Alignment
+
+| Value | Compose Equivalent |
+|-------|-------------------|
+| `left` | `TextAlign.Start` |
+| `center` | `TextAlign.Center` |
+| `right` | `TextAlign.End` |
 
 ---
 
@@ -135,7 +206,7 @@ Theme identification information.
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
 | `metadata.brandName` | `String` | `""` | Brand/company name |
-| `metadata.version` | `String` | `"1.0.0"` | Theme version |
+| `metadata.version` | `String` | `"0.0.0"` | Theme version |
 | `metadata.language` | `String` | `"en-US"` | Locale identifier |
 | `metadata.namespace` | `String` | `"brand-concierge"` | Theme namespace |
 
@@ -152,8 +223,6 @@ Theme identification information.
 }
 ```
 
-**Note:** The `metadata.brandName` property is used to replace the `[Name]` placeholder in the welcome heading text.
-
 ---
 
 ## Behavior
@@ -164,14 +233,14 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.multimodalCarousel.cardClickAction` | `String` | `"openLink"` | Action when carousel card is tapped |
+| `behavior.multimodalCarousel.cardClickAction` | `String` | `"openLink"` | Action when carousel card is tapped. Currently "openLink" is the only option available. |
 
 ### Input
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.input.enableVoiceInput` | `Boolean` | `true` | Enable voice input button |
-| `behavior.input.disableMultiline` | `Boolean` | `false` | Disable multiline text input |
+| `behavior.input.enableVoiceInput` | `Bool` | `false` | Enable voice input button |
+| `behavior.input.disableMultiline` | `Bool` | `true` | Disable multiline text input |
 | `behavior.input.showAiChatIcon` | `Object?` | `null` | AI chat icon configuration |
 
 ### Chat
@@ -248,25 +317,42 @@ Legal disclaimer text with embedded links.
 
 Localized UI strings using dot-notation keys.
 
+### ✅ Content Recommendations
+
+While there are no strict requirements for character limits in many of these text fields, it is **_strongly_** recommended that the values be tested on target device(s) prior to deployment, ensuring the UI renders as desired.
+
 ### Welcome Screen
 
 | JSON Key | Default | Description |
 |----------|---------|-------------|
-| `text["welcome.heading"]` | `"Explore what you can do..."` | Welcome screen heading |
+| `text["welcome.heading"]` | `"Explore what you can do with Adobe apps."` | Welcome screen heading |
 | `text["welcome.subheading"]` | `"Choose an option or tell us..."` | Welcome screen subheading |
 
 ### Input
 
 | JSON Key | Default | Description |
 |----------|---------|-------------|
-| `text["input.placeholder"]` | `"How can I help?"` | Input field placeholder |
+| `text["input.placeholder"]` | `"Tell us what you'd like to do or create"` | Input field placeholder |
+| `text["input.messageInput.aria"]` | `"Message input"` | Accessibility label for input |
+| `text["input.send.aria"]` | `"Send message"` | Accessibility label for send button |
+| `text["input.aiChatIcon.tooltip"]` | `"Ask AI"` | AI icon tooltip |
+| `text["input.mic.aria"]` | `"Voice input"` | Accessibility label for mic button |
+
+### Cards & Carousel
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["card.aria.select"]` | `"Select example message"` | Card selection accessibility |
+| `text["carousel.prev.aria"]` | `"Previous cards"` | Previous button accessibility |
+| `text["carousel.next.aria"]` | `"Next cards"` | Next button accessibility |
 
 ### System Messages
 
 | JSON Key | Default | Description |
 |----------|---------|-------------|
+| `text["scroll.bottom.aria"]` | `"Scroll to bottom"` | Scroll button accessibility |
 | `text["error.network"]` | `"I'm sorry, I'm having trouble..."` | Network error message |
-| `text["loading.message"]` | `"Generating response..."` | Loading/thinking animation text |
+| `text["loading.message"]` | `"Generating response from our knowledge base"` | Loading indicator text |
 
 ### Feedback Dialog
 
@@ -281,6 +367,8 @@ Localized UI strings using dot-notation keys.
 | `text["feedback.dialog.cancel"]` | `"Cancel"` | Cancel button text |
 | `text["feedback.dialog.notes.placeholder"]` | `"Additional notes (optional)"` | Notes placeholder |
 | `text["feedback.toast.success"]` | `"Thank you for the feedback."` | Success toast message |
+| `text["feedback.thumbsUp.aria"]` | `"Thumbs up"` | Thumbs up accessibility |
+| `text["feedback.thumbsDown.aria"]` | `"Thumbs down"` | Thumbs down accessibility |
 
 ### Example
 
@@ -288,18 +376,12 @@ Localized UI strings using dot-notation keys.
 {
   "text": {
     "welcome.heading": "Welcome to Brand Concierge!",
-    "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need.",
+    "welcome.subheading": "I'm your personal guide to help you explore.",
     "input.placeholder": "How can I help?",
-    "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
-    "loading.message": "Generating response from our knowledge base",
-    "feedback.dialog.title.positive": "Your feedback is appreciated",
-    "feedback.dialog.submit": "Submit",
-    "feedback.dialog.cancel": "Cancel"
+    "error.network": "I'm sorry, I'm having trouble connecting."
   }
 }
 ```
-
-**Note:** The `[Name]` placeholder in `welcome.heading` is automatically replaced with `metadata.brandName`.
 
 ---
 
@@ -309,6 +391,10 @@ List-based configuration for examples and feedback options.
 
 ### Welcome Examples
 
+> It is recommended to have no more than four items in your provided welcome examples.
+>
+> Always test your values on device to ensure the UI looks as desired.
+
 | JSON Key | Type | Description |
 |----------|------|-------------|
 | `arrays["welcome.examples"]` | `Array` | Welcome screen example cards |
@@ -317,6 +403,10 @@ List-based configuration for examples and feedback options.
 | `arrays["welcome.examples"][].backgroundColor` | `String?` | Card background color (hex) |
 
 ### Feedback Options
+
+> It is recommended to have no more than five options available for feedback. 
+>
+> Always test your values on device to ensure the UI looks as desired.
 
 | JSON Key | Type | Description |
 |----------|------|-------------|
@@ -333,23 +423,16 @@ List-based configuration for examples and feedback options.
         "text": "I'd like to explore templates to see what I can create.",
         "image": "https://example.com/template.png",
         "backgroundColor": "#F5F5F5"
-      },
-      {
-        "text": "I want to touch up and enhance my photos.",
-        "image": "https://example.com/photo.png",
-        "backgroundColor": "#F5F5F5"
       }
     ],
     "feedback.positive.options": [
       "Helpful and relevant recommendations",
       "Clear and easy to understand",
-      "Friendly and conversational tone",
       "Other"
     ],
     "feedback.negative.options": [
       "Didn't understand my request",
       "Unhelpful or irrelevant information",
-      "Too vague or lacking detail",
       "Other"
     ]
   }
@@ -386,345 +469,158 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 
 ### Typography
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--font-family` | `ConciergeTypography.fontFamily` | `String` | `""` | Font family name |
-| `--line-height-body` | `ConciergeTypography.lineHeight` | `Double` | `1.75` | Line height multiplier |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--font-family` | `typography.fontFamily` | `String` | `null` (system font) | Font family name |
+| `--line-height-body` | `typography.lineHeight` | `Double` | `1.0` | Line height multiplier |
 
 ### Colors - Primary
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--color-primary` | `ConciergeColors.primary` | `Color` | `#EB1000` | Primary brand color |
-| `--color-text` | `ConciergeColors.onPrimary` | `Color` | `#131313` | Primary text color |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--color-primary` | `colors.primaryColors.primary` | `String` | `"#1976D2"` | Primary brand color (hex) |
+| `--color-text` | `colors.primaryColors.text` | `String` | `"#000000"` | Primary text color (hex) |
 
 ### Colors - Surface
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--main-container-background` | `ConciergeSurfaceColors.mainContainerBackground` | `Color` | `#FFFFFF` | Main container background |
-| `--main-container-bottom-background` | `ConciergeSurfaceColors.mainContainerBottomBackground` | `Color` | `#FFFFFF` | Bottom container background |
-| `--message-blocker-background` | `ConciergeSurfaceColors.messageBlockerBackground` | `Color` | `#FFFFFF` | Message blocker overlay |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--main-container-background` | `colors.surfaceColors.mainContainerBackground` | `String` | `"#FFFFFF"` | Main container background (hex) |
+| `--main-container-bottom-background` | `colors.surfaceColors.mainContainerBottomBackground` | `String` | `"#FFFFFF"` | Bottom container background (hex) |
+| `--message-blocker-background` | `colors.surfaceColors.messageBlockerBackground` | `String` | `"#FFFFFF"` | Message blocker overlay (hex) |
 
 ### Colors - Messages
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--message-user-background` | `ConciergeMessageColors.userBackground` | `Color` | `#EBEEFF` | User message bubble background |
-| `--message-user-text` | `ConciergeMessageColors.userText` | `Color` | `#292929` | User message text color |
-| `--message-concierge-background` | `ConciergeMessageColors.conciergeBackground` | `Color` | `#F5F5F5` | AI message bubble background |
-| `--message-concierge-text` | `ConciergeMessageColors.conciergeText` | `Color` | `#292929` | AI message text color |
-| `--message-concierge-link-color` | `ConciergeMessageColors.conciergeLink` | `Color` | `#274DEA` | Link color in AI messages |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--message-user-background` | `colors.message.userBackground` | `String` | `"#E3F2FD"` | User message bubble background (hex) |
+| `--message-user-text` | `colors.message.userText` | `String` | `"#000000"` | User message text color (hex) |
+| `--message-concierge-background` | `colors.message.conciergeBackground` | `String` | `"#F5F5F5"` | AI message bubble background (hex) |
+| `--message-concierge-text` | `colors.message.conciergeText` | `String` | `"#000000"` | AI message text color (hex) |
+| `--message-concierge-link-color` | `colors.message.conciergeLink` | `String` | `"#1976D2"` | Link color in AI messages (hex) |
 
 ### Colors - Buttons
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--button-primary-background` | `ConciergeButtonColors.primaryBackground` | `Color` | `#3B63FB` | Primary button background |
-| `--button-primary-text` | `ConciergeButtonColors.primaryText` | `Color` | `#FFFFFF` | Primary button text |
-| `--button-primary-hover` | `ConciergeButtonColors.primaryHover` | `Color` | `#274DEA` | Primary button hover state |
-| `--button-secondary-border` | `ConciergeButtonColors.secondaryBorder` | `Color` | `#2C2C2C` | Secondary button border |
-| `--button-secondary-text` | `ConciergeButtonColors.secondaryText` | `Color` | `#2C2C2C` | Secondary button text |
-| `--button-secondary-hover` | `ConciergeButtonColors.secondaryHover` | `Color` | `#000000` | Secondary button hover bg |
-| `--color-button-secondary-hover-text` | `ConciergeButtonColors.secondaryHoverText` | `Color` | `#FFFFFF` | Secondary button hover text |
-| `--submit-button-fill-color` | `ConciergeButtonColors.submitFill` | `Color` | `#FFFFFF` | Submit button fill |
-| `--submit-button-fill-color-disabled` | `ConciergeButtonColors.submitFillDisabled` | `Color` | `#C6C6C6` | Disabled submit button fill |
-| `--color-button-submit` | `ConciergeButtonColors.submitText` | `Color` | `#292929` | Submit button icon/text color |
-| `--color-button-submit-hover` | `ConciergeButtonColors.submitTextHover` | `Color` | `#292929` | Submit button hover color |
-| `--button-disabled-background` | `ConciergeButtonColors.disabledBackground` | `Color` | `#FFFFFF` | Disabled button background |
-| `--button-height-s` | `ConciergeLayout.buttonHeightSmall` | `Dp` | `30.dp` | Small button height |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--button-primary-background` | `colors.button.primaryBackground` | `String` | `"#1976D2"` | Primary button background (hex) |
+| `--button-primary-text` | `colors.button.primaryText` | `String` | `"#FFFFFF"` | Primary button text (hex) |
+| `--button-primary-hover` | `colors.button.primaryHover` | `String` | `"#1565C0"` | Primary button hover state (hex) |
+| `--button-secondary-border` | `colors.button.secondaryBorder` | `String` | `"#1976D2"` | Secondary button border (hex) |
+| `--button-secondary-text` | `colors.button.secondaryText` | `String` | `"#1976D2"` | Secondary button text (hex) |
+| `--button-secondary-hover` | `colors.button.secondaryHover` | `String` | `"#E3F2FD"` | Secondary button hover state (hex) |
+| `--color-button-secondary-hover-text` | `colors.button.secondaryHoverText` | `String` | `"#1976D2"` | Secondary button hover text (hex) |
+| `--submit-button-fill-color` | `colors.button.submitFill` | `String` | `"#FFFFFF"` | Submit button fill (hex) |
+| `--submit-button-fill-color-disabled` | `colors.button.submitFillDisabled` | `String` | `"#E0E0E0"` | Disabled submit button fill (hex) |
+| `--color-button-submit` | `colors.button.submitText` | `String` | `"#1976D2"` | Submit button icon/text color (hex) |
+| `--color-button-submit-hover` | `colors.button.submitTextHover` | `String` | `"#1565C0"` | Submit button hover color (hex) |
+| `--button-disabled-background` | `colors.button.disabledBackground` | `String` | `"#E0E0E0"` | Disabled button background (hex) |
 
 ### Colors - Input
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--input-background` | `ConciergeInputColors.background` | `Color` | `#FFFFFF` | Input field background |
-| `--input-text-color` | `ConciergeInputColors.text` | `Color` | `#292929` | Input text color |
-| `--input-outline-color` | `ConciergeInputColors.outline` | `Color?` | `null` | Input border color |
-| `--input-focus-outline-color` | `ConciergeInputColors.outlineFocus` | `Color` | `#4B75FF` | Focused input border color |
-
-### Colors - Feedback
-
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--feedback-icon-btn-background` | `ConciergeFeedbackColors.iconButtonBackground` | `Color` | `#FFFFFF` | Feedback button background |
-| `--feedback-icon-btn-hover-background` | `ConciergeFeedbackColors.iconButtonHoverBackground` | `Color` | `#FFFFFF` | Feedback button hover |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--input-background` | `colors.input.background` | `String` | `"#FFFFFF"` | Input field background (hex) |
+| `--input-text-color` | `colors.input.text` | `String` | `"#000000"` | Input text color (hex) |
+| `--input-outline-color` | `colors.input.outline` | `String?` | `null` | Input border color (hex) |
+| `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
 
 ### Colors - Citations
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--citations-background-color` | `ConciergeCitationColors.backgroundColor` | `Color` | System default | Citation pill background |
-| `--citations-text-color` | `ConciergeCitationColors.textColor` | `Color` | System default | Citation text color |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--citations-background-color` | `colors.citation.backgroundColor` | `String` | `"#E0E0E0"` | Citation pill background (hex) |
+| `--citations-text-color` | `colors.citation.textColor` | `String` | `"#000000"` | Citation text color (hex) |
+
+### Colors - Feedback
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--feedback-icon-btn-background` | `colors.feedback.iconButtonBackground` | `String` | `"#FFFFFF"` | Feedback button background (hex) |
+| `--feedback-icon-btn-hover-background` | `colors.feedback.iconButtonHoverBackground` | `String` | `"#F5F5F5"` | Feedback button hover background (hex) |
 
 ### Colors - Disclaimer
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--disclaimer-color` | `ConciergeColors.disclaimer` | `Color` | `#4B4B4B` | Disclaimer text color |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
 
 ### Layout - Input
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--input-height-mobile` | `ConciergeLayout.inputHeight` | `Dp` | `52.dp` | Input field height |
-| `--input-border-radius-mobile` | `ConciergeLayout.inputBorderRadius` | `Dp` | `12.dp` | Input field corner radius |
-| `--input-outline-width` | `ConciergeLayout.inputOutlineWidth` | `Dp` | `2.dp` | Input border width |
-| `--input-focus-outline-width` | `ConciergeLayout.inputFocusOutlineWidth` | `Dp` | `2.dp` | Focused input border width |
-| `--input-font-size` | `ConciergeTypographyConfig.inputFontSize` | `TextUnit` | `16.sp` | Input text font size |
-| `--input-button-height` | `ConciergeLayout.inputButtonHeight` | `Dp` | `32.dp` | Input button height |
-| `--input-button-width` | `ConciergeLayout.inputButtonWidth` | `Dp` | `32.dp` | Input button width |
-| `--input-button-border-radius` | `ConciergeLayout.inputButtonBorderRadius` | `Dp` | `8.dp` | Input button corner radius |
-| `--input-box-shadow` | `ConciergeLayout.inputBoxShadow` | `Map` | `none` | Input field shadow |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--input-height-mobile` | `cssLayout.inputHeight` | `Double` | `52.0` | Input field height (dp) |
+| `--input-border-radius-mobile` | `cssLayout.inputBorderRadius` | `Double` | `12.0` | Input field corner radius (dp) |
+| `--input-outline-width` | `cssLayout.inputOutlineWidth` | `Double` | `2.0` | Input border width (dp) |
+| `--input-focus-outline-width` | `cssLayout.inputFocusOutlineWidth` | `Double` | `2.0` | Focused input border width (dp) |
+| `--input-font-size` | `cssLayout.inputFontSize` | `Double` | `16.0` | Input text font size (sp) |
+| `--input-button-height` | `cssLayout.inputButtonHeight` | `Double` | `32.0` | Input button height (dp) |
+| `--input-button-width` | `cssLayout.inputButtonWidth` | `Double` | `32.0` | Input button width (dp) |
+| `--input-button-border-radius` | `cssLayout.inputButtonBorderRadius` | `Double` | `8.0` | Input button corner radius (dp) |
+| `--input-box-shadow` | `cssLayout.inputBoxShadow` | `Map<String, Any>` | `null` | Input field shadow |
 
 ### Layout - Messages
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--message-border-radius` | `ConciergeLayout.messageBorderRadius` | `Dp` | `10.dp` | Message bubble corner radius |
-| `--message-padding` | `ConciergeLayout.messagePadding` | `List<Dp>` | `[8dp, 16dp]` | Message content padding |
-| `--message-max-width` | `ConciergeLayout.messageMaxWidth` | `Double?` | `100.0` | Max message width (parsed as percentage) |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--message-border-radius` | `cssLayout.messageBorderRadius` | `Double` | `10.0` | Message bubble corner radius (dp) |
+| `--message-padding` | `cssLayout.messagePadding` | `List<Double>` | `[8, 16]` | Message content padding (dp) |
+| `--message-max-width` | `cssLayout.messageMaxWidth` | `Double?` | `null` | Max message width (dp or %) |
 
 ### Layout - Chat
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--chat-interface-max-width` | `ConciergeLayout.chatInterfaceMaxWidth` | `Dp` | `768.dp` | Max chat interface width |
-| `--chat-history-padding` | `ConciergeLayout.chatHistoryPadding` | `Dp` | `16.dp` | Chat history horizontal padding |
-| `--chat-history-padding-top-expanded` | `ConciergeLayout.chatHistoryPaddingTopExpanded` | `Dp` | `0.dp` | Top padding when expanded |
-| `--chat-history-bottom-padding` | `ConciergeLayout.chatHistoryBottomPadding` | `Dp` | `0.dp` | Bottom padding |
-| `--message-blocker-height` | `ConciergeLayout.messageBlockerHeight` | `Dp` | `105.dp` | Message blocker overlay height |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--chat-interface-max-width` | `cssLayout.chatInterfaceMaxWidth` | `Double` | `768.0` | Max chat interface width (dp) |
+| `--chat-history-padding` | `cssLayout.chatHistoryPadding` | `Double` | `16.0` | Chat history horizontal padding (dp) |
+| `--chat-history-padding-top-expanded` | `cssLayout.chatHistoryPaddingTopExpanded` | `Double` | `8.0` | Top padding when expanded (dp) |
+| `--chat-history-bottom-padding` | `cssLayout.chatHistoryBottomPadding` | `Double` | `12.0` | Bottom padding (dp) |
+| `--message-blocker-height` | `cssLayout.messageBlockerHeight` | `Double` | `105.0` | Message blocker overlay height (dp) |
 
-### Layout - Cards & Feedback
+### Layout - Cards & Carousel
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--border-radius-card` | `ConciergeLayout.borderRadiusCard` | `Dp` | `16.dp` | Card corner radius |
-| `--multimodal-card-box-shadow` | `ConciergeLayout.multimodalCardBoxShadow` | `Map` | `none` | Card shadow |
-| `--feedback-container-gap` | `ConciergeLayout.feedbackContainerGap` | `Dp` | `4.dp` | Gap between feedback buttons |
-| `--feedback-icon-btn-size-desktop` | `ConciergeComponentsConfig.feedback.iconButtonSizeDesktop` | `Dp` | `32.dp` | Feedback button hit target size |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--border-radius-card` | `cssLayout.borderRadiusCard` | `Double` | `16.0` | Card corner radius (dp) |
+| `--multimodal-card-box-shadow` | `cssLayout.multimodalCardBoxShadow` | `Map<String, Any>` | `null` | Card shadow |
+
+### Layout - Buttons
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--button-height-s` | `cssLayout.buttonHeightSmall` | `Double` | `30.0` | Small button height (dp) |
+
+### Layout - Feedback
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--feedback-container-gap` | `cssLayout.feedbackContainerGap` | `Double` | `4.0` | Gap between feedback buttons (dp) |
+| `--feedback-icon-btn-size-desktop` | `components.feedback.iconButtonSizeDesktop` | `Double` | `32.0` | Feedback button hit target size (dp) |
 
 ### Layout - Citations
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--citations-text-font-weight` | `ConciergeLayout.citationsTextFontWeight` | `Int` | `700` | Citation text weight (100-900) |
-| `--citations-desktop-button-font-size` | `ConciergeLayout.citationsDesktopButtonFontSize` | `Double` | `14.0` | Citation button font size |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--citations-text-font-weight` | `cssLayout.citationsTextFontWeight` | `Int` | `700` | Citation text weight |
+| `--citations-desktop-button-font-size` | `cssLayout.citationsDesktopButtonFontSize` | `Double` | `14.0` | Citation button font size (sp) |
 
 ### Layout - Disclaimer
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--disclaimer-font-size` | `ConciergeTypographyConfig.disclaimerFontSize` | `TextUnit` | `12.sp` | Disclaimer font size |
-| `--disclaimer-font-weight` | `ConciergeLayout.disclaimerFontWeight` | `Int` | `400` | Disclaimer font weight (100-900) |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--disclaimer-font-size` | `cssLayout.disclaimerFontSize` | `Double` | `12.0` | Disclaimer font size (sp) |
+| `--disclaimer-font-weight` | `cssLayout.disclaimerFontWeight` | `Int` | `400` | Disclaimer font weight |
 
 ### Layout - Welcome Screen Order
 
-| CSS Variable | Compose Property | Type | Default | Description |
-|--------------|------------------|------|---------|-------------|
-| `--welcome-input-order` | `ConciergeLayout.welcomeInputOrder` | `Int` | `3` | Input field display order |
-| `--welcome-cards-order` | `ConciergeLayout.welcomeCardsOrder` | `Int` | `2` | Example cards display order |
-
----
-
-## Reserved for Future Support
-
-The following properties are parsed from theme JSON files but are not currently implemented in the Android UI. They are reserved for future enhancements and cross-platform compatibility.
-
-### Metadata Properties
-
-These metadata properties are parsed but not actively used:
-
-| JSON Key | Type | Description |
-|----------|------|-------------|
-| `metadata.version` | `String` | Theme version identifier |
-| `metadata.language` | `String` | Locale/language code |
-| `metadata.namespace` | `String` | Theme namespace identifier |
-
-### Behavior Properties
-
-All behavior configuration properties are parsed but not implemented:
-
-| JSON Key | Type | Description |
-|----------|------|-------------|
-| `behavior.multimodalCarousel.cardClickAction` | `String` | Carousel card tap action |
-| `behavior.input.enableVoiceInput` | `Boolean` | Voice input toggle |
-| `behavior.input.disableMultiline` | `Boolean` | Multiline input toggle |
-| `behavior.input.showAiChatIcon` | `Object?` | AI chat icon config |
-| `behavior.chat.messageAlignment` | `String` | Message alignment setting |
-| `behavior.chat.messageWidth` | `String` | Message width setting |
-| `behavior.privacyNotice.title` | `String` | Privacy notice title |
-| `behavior.privacyNotice.text` | `String` | Privacy notice content |
-
-**Note:** The Android SDK also parses additional flat behavior properties (`enableDarkMode`, `enableAnimations`, `enableHaptics`, `enableSoundEffects`, `autoScrollToBottom`, `showTimestamps`, `enableMarkdown`, `enableCitations`, `enableFeedback`, `maxMessageLength`, `typingIndicatorDelay`) but these are not currently implemented.
-
-### Typography Properties
-
-Typography customization properties are parsed but not applied:
-
-| CSS Variable | Description |
-|--------------|-------------|
-| `--font-family` | Custom font family name |
-| `--line-height-body` | Line height multiplier |
-
-**Note:** The SDK currently uses system fonts with default line heights.
-
-### Layout Properties
-
-These layout properties are parsed but not currently used:
-
-| CSS Variable | Description |
-|--------------|-------------|
-| `--input-outline-width` | Input outline thickness (non-focused state) |
-| `--welcome-input-order` | Welcome screen input field display order |
-| `--welcome-cards-order` | Welcome screen cards display order |
-
-**Note:** Input outline width is parsed but only the focused outline width is rendered. Welcome screen layout order is not customizable.
-
-### Asset Properties
-
-Asset configuration is parsed but not rendered:
-
-| JSON Key | Description |
-|----------|-------------|
-| `assets.icons.company` | Company logo (SVG or URL) |
-
-**Note:** Additional asset properties (`icons.send`, `icons.microphone`, `icons.close`, `images.welcomeBanner`, `fonts.*`, etc.) may be parsed if present but are not documented or used. The SDK uses built-in icons and system fonts.
-
-### Example with Reserved Properties
-
-You can include these properties in your theme JSON for future compatibility:
-
-```json
-{
-  "metadata": {
-    "brandName": "My Brand",
-    "version": "1.0.0",
-    "language": "en-US",
-    "namespace": "my-brand-theme"
-  },
-  "behavior": {
-    "input": {
-      "enableVoiceInput": true,
-      "disableMultiline": false
-    },
-    "chat": {
-      "messageAlignment": "left",
-      "messageWidth": "100%"
-    }
-  },
-  "theme": {
-    "--font-family": "CustomFont",
-    "--line-height-body": "1.5",
-    "--input-outline-width": "2px",
-    "--welcome-input-order": "3",
-    "--welcome-cards-order": "2"
-  }
-}
-```
-
-These properties will be safely ignored by the current implementation but may be utilized in future SDK updates.
-
----
-
-## Value Formats
-
-The Android SDK uses `CSSValueConverter` to parse CSS-style values from JSON.
-
-### Colors
-
-Colors are specified as hex strings or CSS color functions:
-
-```json
-"--color-primary": "#EB1000"
-"--message-user-background": "#EBEEFF"
-```
-
-Supported formats:
-- `#RGB` - 3 digit hex (e.g., `#F00` = `#FF0000`)
-- `#RRGGBB` - 6 digit hex
-- `#RRGGBBAA` - 8 digit hex with alpha
-- `rgb(r, g, b)` - RGB function
-- `rgba(r, g, b, a)` - RGBA function with alpha
-
-**Special handling:**
-- Gradients (e.g., `linear-gradient(...)`) are detected and converted to `null`
-- Invalid colors default to `null` and fall back to theme defaults
-
-### Dimensions
-
-Dimensions use CSS pixel units or percentages:
-
-```json
-"--input-height-mobile": "52px"
-"--message-max-width": "100%"
-```
-
-Supported formats:
-- `"16px"` - Explicit pixel value
-- `"16"` - Numeric string (treated as pixels)
-- `"100%"` - Percentage (for width properties)
-
-**Conversion:** Pixel values are converted to `Dp` in Compose
-
-### Padding
-
-Padding follows CSS shorthand syntax:
-
-```json
-"--message-padding": "8px 16px"
-```
-
-Supported formats:
-- `"8px"` - All sides (returns `[8, 8, 8, 8]`)
-- `"8px 16px"` - Vertical, horizontal (returns `[8, 16, 8, 16]`)
-- `"8px 16px 4px"` - Top, horizontal, bottom (returns `[8, 16, 4, 16]`)
-- `"8px 16px 4px 2px"` - Top, right, bottom, left (returns `[8, 16, 4, 2]`)
-
-**Return type:** `List<Double>` with indices `[top, right, bottom, left]`
-
-### Shadows
-
-Shadows use CSS box-shadow syntax:
-
-```json
-"--input-box-shadow": "0 2px 8px 0 #00000014"
-"--multimodal-card-box-shadow": "none"
-```
-
-Format: `offsetX offsetY blurRadius [spreadRadius] [color]`
-
-**Return type:** `Map<String, Any>` with keys:
-- `offsetX` (Double)
-- `offsetY` (Double)
-- `blurRadius` (Double)
-- `spreadRadius` (Double, optional)
-- `color` (String, hex format)
-
-**Special values:** `"none"` returns empty map
-
-### Font Weights
-
-Font weights use CSS numeric or named values:
-
-```json
-"--citations-text-font-weight": "700"
-"--disclaimer-font-weight": "400"
-```
-
-Supported values:
-
-| CSS Value | Numeric | Compose Equivalent |
-|-----------|---------|-------------------|
-| `"normal"` | `400` | `FontWeight.Normal` |
-| `"bold"` | `700` | `FontWeight.Bold` |
-| `"100"` - `"900"` | `100-900` | `FontWeight.W100` - `FontWeight.Black` |
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--welcome-input-order` | `cssLayout.welcomeInputOrder` | `Int` | `3` | Input field display order |
+| `--welcome-cards-order` | `cssLayout.welcomeCardsOrder` | `Int` | `2` | Example cards display order |
 
 ---
 
 ## Complete Example
-
-This example shows the complete reference theme configuration:
 
 ```json
 {
@@ -763,55 +659,30 @@ This example shows the complete reference theme configuration:
   },
   "text": {
     "welcome.heading": "Welcome to Brand Concierge!",
-    "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need. Let's get started!\n\nNot sure where to start? Explore the suggested ideas below.",
+    "welcome.subheading": "I'm your personal guide to help you explore.",
     "input.placeholder": "How can I help?",
-    "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
-    "loading.message": "Generating response from our knowledge base",
+    "input.messageInput.aria": "Message input",
+    "input.send.aria": "Send message",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
-    "feedback.dialog.title.negative": "Your feedback is appreciated",
-    "feedback.dialog.question.positive": "What went well? Select all that apply.",
-    "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
-    "feedback.dialog.notes": "Notes",
     "feedback.dialog.submit": "Submit",
-    "feedback.dialog.cancel": "Cancel",
-    "feedback.dialog.notes.placeholder": "Additional notes (optional)",
-    "feedback.toast.success": "Thank you for the feedback."
+    "feedback.dialog.cancel": "Cancel"
   },
   "arrays": {
     "welcome.examples": [
       {
         "text": "I'd like to explore templates to see what I can create.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
-        "backgroundColor": "#F5F5F5"
-      },
-      {
-        "text": "I want to touch up and enhance my photos.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
-        "backgroundColor": "#F5F5F5"
-      },
-      {
-        "text": "I'd like to edit PDFs and make them interactive.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
-        "backgroundColor": "#F5F5F5"
-      },
-      {
-        "text": "I want to turn my clips into polished videos.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
+        "image": "https://example.com/template.png",
         "backgroundColor": "#F5F5F5"
       }
     ],
     "feedback.positive.options": [
       "Helpful and relevant recommendations",
       "Clear and easy to understand",
-      "Friendly and conversational tone",
-      "Visually appealing presentation",
       "Other"
     ],
     "feedback.negative.options": [
       "Didn't understand my request",
       "Unhelpful or irrelevant information",
-      "Too vague or lacking detail",
-      "Errors or poor quality response",
       "Other"
     ]
   },
@@ -835,73 +706,319 @@ This example shows the complete reference theme configuration:
     "--input-background": "#FFFFFF",
     "--input-outline-color": null,
     "--input-outline-width": "2px",
-    "--input-box-shadow": "0 2px 8px 0 #00000014",
     "--input-focus-outline-width": "2px",
     "--input-focus-outline-color": "#4B75FF",
     "--input-font-size": "16px",
     "--input-text-color": "#292929",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
+    "--input-button-border-radius": "8px",
+    "--input-box-shadow": "0 2px 8px 0 #00000014",
     "--submit-button-fill-color": "#FFFFFF",
     "--submit-button-fill-color-disabled": "#C6C6C6",
     "--color-button-submit": "#292929",
-    "--color-button-submit-hover": "#292929",
-    "--input-button-border-radius": "8px",
     "--button-disabled-background": "#FFFFFF",
+    "--button-primary-background": "#3B63FB",
+    "--button-primary-text": "#FFFFFF",
+    "--button-secondary-border": "#2C2C2C",
+    "--button-secondary-text": "#2C2C2C",
+    "--button-height-s": "30px",
     "--disclaimer-color": "#4B4B4B",
     "--disclaimer-font-size": "12px",
     "--disclaimer-font-weight": "400",
     "--message-user-background": "#EBEEFF",
     "--message-user-text": "#292929",
-    "--message-border-radius": "10px",
-    "--message-padding": "8px 16px",
     "--message-concierge-background": "#F5F5F5",
     "--message-concierge-text": "#292929",
+    "--message-concierge-link-color": "#274DEA",
+    "--message-border-radius": "10px",
+    "--message-padding": "8px 16px",
     "--message-max-width": "100%",
     "--chat-interface-max-width": "768px",
     "--chat-history-padding": "16px",
     "--chat-history-padding-top-expanded": "0",
     "--chat-history-bottom-padding": "0",
     "--message-blocker-height": "105px",
-    "--citations-background-color": "#F5F5F5",
-    "--citations-text-color": "#292929",
-    "--citations-text-font-weight": "700",
-    "--citations-desktop-button-font-size": "14px",
-    "--feedback-icon-btn-background": "#FFFFFF",
-    "--feedback-icon-btn-hover-background": "#FFFFFF",
-    "--feedback-icon-btn-size-desktop": "32px",
-    "--feedback-container-gap": "4px",
-    "--multimodal-card-box-shadow": "none",
     "--border-radius-card": "16px",
-    "--button-height-s": "30px",
-    "--button-primary-background": "#3B63FB",
-    "--button-primary-text": "#FFFFFF",
-    "--button-primary-hover": "#274DEA",
-    "--button-secondary-border": "#2C2C2C",
-    "--button-secondary-text": "#2C2C2C",
-    "--button-secondary-hover": "#000000",
-    "--color-button-secondary-hover-text": "#FFFFFF",
-    "--message-concierge-link-color": "#274DEA"
+    "--multimodal-card-box-shadow": "none",
+    "--feedback-container-gap": "4px",
+    "--feedback-icon-btn-background": "#FFFFFF",
+    "--feedback-icon-btn-size-desktop": "32px",
+    "--citations-text-font-weight": "700",
+    "--citations-desktop-button-font-size": "12px"
   }
 }
 ```
 
-**Usage:**
+---
 
-1. Save this JSON file as `theme.json` in `app/src/main/assets/`
-2. Load it in your app:
+## Implementation Status
 
-```kotlin
-@Composable
-fun MyApp() {
-    val context = LocalContext.current
-    val theme = remember {
-        ConciergeThemeLoader.load(context, "theme.json")
-            ?: ConciergeThemeLoader.default()
-    }
-    
-    ConciergeTheme(theme = theme) {
-        ConciergeChat(/* ... */)
-    }
-}
-```
+This section documents which properties are fully implemented, partially implemented, or not yet implemented in the Android SDK based on actual usage in composables.
+
+### Legend
+
+| Status | Description |
+|--------|-------------|
+| ✅ | Fully implemented - property is mapped and actively used in composables |
+| ⚠️ | Defined but unused - property is parsed but not rendered in any composable |
+| ❌ | Not supported - property exists in web JSON but is ignored by Android |
+
+**Note**: The tables below include a "Used In" column showing which UI composables consume each theme property.
+
+### Implementation Summary
+
+**Overall Implementation Status:**
+- **Colors**: ~70% implemented (most core colors used, hover states not applicable)
+- **Typography**: 60% implemented (`fontFamily` not yet supported)
+- **Layout**: ~15% implemented (only outline widths and font sizes currently used)
+- **Behavior**: ~10% implemented (only `enableVoiceInput` functional)
+- **Text/Copy**: ~50% implemented (main strings used, accessibility labels not yet implemented)
+
+**Key Differences from Web/iOS:**
+- Hover states (`--button-primary-hover`, `--feedback-icon-btn-hover-background`) are parsed but not applicable on Android
+- Box shadows are parsed but not currently rendered
+- Most layout dimensions (padding, margins, border radius) are hardcoded rather than theme-driven
+- Accessibility labels (aria) are parsed but not yet connected to content descriptions
+
+### Metadata
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `metadata.brandName` | ✅ | Replaces `[Name]` placeholder in welcome heading text | `WelcomeCard` |
+| `metadata.version` | ⚠️ | Parsed but not used | - |
+| `metadata.language` | ⚠️ | Parsed but not used for localization | - |
+| `metadata.namespace` | ⚠️ | Parsed but not used | - |
+
+### Behavior
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables | - |
+| `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
+| `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not rendered | - |
+| `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
+| `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
+| `behavior.privacyNotice.title` | ⚠️ | Parsed but no privacy dialog implemented | - |
+| `behavior.privacyNotice.text` | ⚠️ | Parsed but no privacy dialog implemented | - |
+
+### Disclaimer
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `disclaimer.text` | ⚠️ | Parsed but not implemented | Disclaimer component |
+| `disclaimer.links` | ⚠️ | Parsed but not implemented | Disclaimer component |
+
+### Text (Copy)
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `text["welcome.heading"]` | ✅ | Welcome screen title with `[Name]` placeholder replacement | `WelcomeCard` |
+| `text["welcome.subheading"]` | ✅ | Welcome screen description | `WelcomeCard` |
+| `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
+| `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but AI icon not rendered | - |
+| `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["carousel.next.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["scroll.bottom.aria"]` | ⚠️ | Parsed but scroll button not implemented | - |
+| `text["error.network"]` | ⚠️ | Parsed but error uses hardcoded text | - |
+| `text["loading.message"]` | ✅ | Loading animation text | `ConciergeThinking` |
+| `text["feedback.dialog.title.positive"]` | ✅ | Feedback dialog title for positive feedback | `FeedbackDialog` |
+| `text["feedback.dialog.title.negative"]` | ✅ | Feedback dialog title for negative feedback | `FeedbackDialog` |
+| `text["feedback.dialog.question.positive"]` | ✅ | Feedback dialog question for positive feedback | `FeedbackDialog` |
+| `text["feedback.dialog.question.negative"]` | ✅ | Feedback dialog question for negative feedback | `FeedbackDialog` |
+| `text["feedback.dialog.notes"]` | ✅ | Feedback dialog notes label | `FeedbackDialog` |
+| `text["feedback.dialog.submit"]` | ✅ | Feedback dialog submit button text | `FeedbackDialog` |
+| `text["feedback.dialog.cancel"]` | ✅ | Feedback dialog cancel button text | `FeedbackDialog` |
+| `text["feedback.dialog.notes.placeholder"]` | ✅ | Feedback dialog notes placeholder | `FeedbackDialog` |
+| `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented | - |
+| `text["feedback.thumbsUp.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["feedback.thumbsDown.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+
+### Arrays
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `arrays["welcome.examples"]` | ✅ | Suggested prompts displayed on welcome screen | `WelcomeCard` → `PromptSuggestions` |
+| `arrays["feedback.positive.options"]` | ✅ | Positive feedback category options | `FeedbackDialog` |
+| `arrays["feedback.negative.options"]` | ✅ | Negative feedback category options | `FeedbackDialog` |
+
+### Assets
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `assets.icons.company` | ⚠️ | Parsed but not rendered in any composable | - |
+
+### Theme Tokens - Typography
+
+| CSS Variable | Status | Notes | Used In |
+|--------------|--------|-------|---------|
+| `--font-family` | ⚠️ | Parsed but not implemented (commented out in `withThemeTypography`) | - |
+| `--line-height-body` | ✅ | Body text line height | All text components via `ConciergeStyles.withThemeTypography` |
+| `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
+| `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
+| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
+
+### Theme Tokens - Colors
+
+**Note**: The following base colors are **not configurable via JSON themes**. They are hardcoded in `LightConciergeColors` / `DarkConciergeColors` and serve as fallback colors throughout the UI:
+- `secondary`, `onSurfaceVariant`, `container`, `outline`, `error`, `onError`
+
+These colors are used internally by composables but cannot be customized in theme JSON files. See "Fallback Colors" section at the end.
+
+| CSS Variable | Status | Notes | Used In |
+|--------------|--------|-------|---------|
+| `--color-primary` | ✅ | Primary brand color used throughout UI | `ChatHeader`, `InputActionButtons`, `WelcomeCard`, `FeedbackDialog`, `ErrorOverlay`, `ProductCard` (fallback), `VoiceRecordingPanel` |
+| `--color-text` | ✅ | Main text color (mapped to `onPrimary`) | All text components |
+| `--main-container-background` | ✅ | Main chat screen background | `ChatScreen` |
+| `--main-container-bottom-background` | ✅ | Bottom container/surface background | `FeedbackDialog`, `VoiceRecordingPanel` |
+| `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
+| `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
+| `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
+| `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
+| `--message-concierge-text` | ✅ | AI message text color | `ChatMessageItem` |
+| `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
+| `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
+| `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
+| `--button-primary-hover` | ⚠️ | Parsed but no hover states on Android | - |
+| `--button-secondary-border` | ✅ | Secondary button border | `ProductActionButtons` |
+| `--button-secondary-text` | ✅ | Secondary button text | `ProductActionButtons` |
+| `--button-secondary-hover` | ⚠️ | Parsed but no hover states on Android | - |
+| `--color-button-secondary-hover-text` | ⚠️ | Parsed but no hover states on Android | - |
+| `--submit-button-fill-color` | ✅ | Feedback dialog submit button background | `FeedbackDialog` |
+| `--submit-button-fill-color-disabled` | ⚠️ | Parsed but disabled state not implemented | - |
+| `--color-button-submit` | ✅ | Feedback dialog submit button text/icon | `FeedbackDialog` |
+| `--color-button-submit-hover` | ⚠️ | Parsed but no hover states on Android | - |
+| `--button-disabled-background` | ⚠️ | Parsed but disabled state not implemented | - |
+| `--input-background` | ✅ | Input field background | `ChatInputPanel` |
+| `--input-text-color` | ✅ | Input field text color | `ChatTextField`, `FeedbackDialog` |
+| `--input-outline-color` | ✅ | Input field border color | `ChatInputPanel` |
+| `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
+| `--citations-background-color` | ✅ | Citation pill background | `CircularCitation` |
+| `--citations-text-color` | ✅ | Citation pill text | `CircularCitation` |
+| `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
+| `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
+| `--disclaimer-color` | ⚠️ | Parsed but no disclaimer component in UI | - |
+
+### Theme Tokens - Layout
+
+| CSS Variable | Status | Notes | Used In |
+|--------------|--------|-------|---------|
+| `--input-height-mobile` | ⚠️ | Parsed but not used in composables | - |
+| `--input-border-radius-mobile` | ⚠️ | Parsed but not used in composables | - |
+| `--input-outline-width` | ✅ | Input field border width | `ChatInputPanel` |
+| `--input-focus-outline-width` | ✅ | Input field focused border width | `ChatInputPanel` |
+| `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
+| `--input-button-height` | ⚠️ | Parsed but not used in composables | - |
+| `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
+| `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
+| `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--message-border-radius` | ⚠️ | Parsed but not used in composables | - |
+| `--message-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-history-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
+| `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
+| `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
+| `--feedback-container-gap` | ⚠️ | Parsed but not used in composables | - |
+| `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
+| `--citations-text-font-weight` | ⚠️ | Parsed but not used in composables | - |
+| `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
+| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
+| `--disclaimer-font-weight` | ⚠️ | Parsed but not used in composables | - |
+| `--welcome-input-order` | ⚠️ | Parsed but welcome layout not customizable | - |
+| `--welcome-cards-order` | ⚠️ | Parsed but welcome layout not customizable | - |
+
+### Unsupported CSS Variables
+
+The following CSS variables from web themes are **not supported** on Android (desktop-only properties like `--input-height` and `--input-border-radius` without `-mobile` suffix):
+
+| CSS Variable | Notes |
+|--------------|-------|
+| `--input-height` | Use `--input-height-mobile` instead |
+| `--input-border-radius` | Use `--input-border-radius-mobile` instead |
+| `--message-alignment` | Use `behavior.chat.messageAlignment` instead |
+| `--message-width` | Use `behavior.chat.messageWidth` instead |
+
+---
+
+## Fallback Colors (Not Theme-Configurable)
+
+The following colors from `LightConciergeColors` / `DarkConciergeColors` are hardcoded and **cannot be customized via JSON themes**. They serve as fallback colors throughout the UI:
+
+| Color | Purpose | Used In Composables |
+|-------|---------|---------------------|
+| `secondary` | Secondary accent color (currently unused) | - |
+| `onSurfaceVariant` | Muted text and icons for secondary UI elements | `PromptSuggestions`, `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
+| `container` | Background for cards and container elements | `ProductCard`, `PromptSuggestions`, message bubbles (fallback), `ChatInputPanel` (fallback) |
+| `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
+| `error` | Error state background | `ErrorOverlay` background |
+| `onError` | Error state text | `ErrorOverlay` message text |
+| `onSurface` | Primary text on surface backgrounds | Most text components, `VoiceRecordingPanel`, `ProductCard`, `FeedbackDialog` |
+
+**Note**: While these colors provide consistent fallback styling, they cannot be overridden in theme JSON files. If you need custom colors for these UI elements, use the theme-specific CSS variables that map to these elements (e.g., use `--input-outline-color` instead of relying on the `outline` fallback).
+
+---
+
+## Recommendations for Theme Authors
+
+### What to Focus On
+
+When creating themes for the Android SDK, focus on these **actively used** properties for the best results:
+
+**Essential Colors (Highest Impact):**
+- `--color-primary` - Primary brand color
+- `--color-text` - Main text color
+- `--message-user-background` / `--message-user-text` - User message styling
+- `--message-concierge-background` / `--message-concierge-text` - AI message styling
+- `--button-primary-background` / `--button-primary-text` - Primary buttons
+- `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
+- `--input-background` / `--input-text-color` - Input field colors
+- `--input-outline-color` / `--input-focus-outline-color` - Input borders
+- `--citations-background-color` / `--citations-text-color` - Citation pills
+- `--feedback-icon-btn-background` - Feedback button styling
+
+**Essential Text/Copy:**
+- `text["welcome.heading"]` - Welcome screen title
+- `text["welcome.subheading"]` - Welcome screen description
+- `text["input.placeholder"]` - Input field hint
+- `text["loading.message"]` - Loading indicator text
+- All `text["feedback.dialog.*"]` - Feedback dialog strings
+
+**Essential Behavior:**
+- `behavior.input.enableVoiceInput` - Show/hide microphone button
+
+**Essential Layout:**
+- `--input-outline-width` / `--input-focus-outline-width` - Input border thickness
+- `--input-font-size` - Input text size
+- `--citations-desktop-button-font-size` - Citation text size
+- `--line-height-body` - Text line spacing
+
+### What Can Be Skipped
+
+These properties are parsed but **not currently used** and can be omitted without affecting the UI:
+
+- Hover states (all `*-hover` properties)
+- Box shadows (all `*-box-shadow` properties)
+- Most layout dimensions (padding, margins, border radius) - currently hardcoded
+- Disabled button states
+- Accessibility labels (not yet connected to Android content descriptions)
+- Welcome screen ordering (`--welcome-input-order`, `--welcome-cards-order`)
+- Font family (`--font-family` - not yet implemented)
+
+### Testing Your Theme
+
+1. **Test core flows**: Create a theme, load it, send messages, provide feedback
+2. **Check on multiple devices**: Test on different screen sizes and Android versions
+3. **Verify contrast ratios**: Ensure text is readable on all backgrounds
+4. **Test light/dark modes**: If supporting both, verify colors work in both contexts
+
+---
