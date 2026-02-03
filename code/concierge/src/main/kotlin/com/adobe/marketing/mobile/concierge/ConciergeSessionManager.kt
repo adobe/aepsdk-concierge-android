@@ -12,6 +12,7 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.services.Log
+import com.adobe.marketing.mobile.services.NamedCollection
 import com.adobe.marketing.mobile.services.ServiceProvider
 import java.util.UUID
 
@@ -21,21 +22,29 @@ import java.util.UUID
  * The session ID is stored in NamedCollection along with its creation timestamp.
  * Sessions expire after 30 minutes of inactivity. When a request is made, the
  * session ID is validated and a new one is created if it has expired.
+ *
+ * @param namedCollection The data store for persisting session data. If null, will use ServiceProvider.
+ * @param currentTimeProvider Provider for current time in milliseconds. Defaults to System.currentTimeMillis.
  */
-internal class ConciergeSessionManager private constructor() {
+internal class ConciergeSessionManager internal constructor(
+    private val namedCollection: NamedCollection? = null,
+    private val currentTimeProvider: () -> Long = { System.currentTimeMillis() }
+) {
 
     companion object {
         private const val TAG = "ConciergeSessionManager"
-        private const val SESSION_TIMEOUT_MS = 30 * 60 * 1000L // 30 minutes in milliseconds
+        internal const val SESSION_TIMEOUT_MS = 30 * 60 * 1000L // 30 minutes in milliseconds
 
         internal val instance: ConciergeSessionManager by lazy {
             ConciergeSessionManager()
         }
     }
 
-    private val namedCollection = ServiceProvider.getInstance()
-        .dataStoreService
-        .getNamedCollection(ConciergeConstants.DATA_STORE_NAME)
+    private val dataStore: NamedCollection by lazy {
+        namedCollection ?: ServiceProvider.getInstance()
+            .dataStoreService
+            .getNamedCollection(ConciergeConstants.DATA_STORE_NAME)
+    }
 
     /**
      * Gets a valid session ID. If the current session ID is expired or doesn't exist,
@@ -44,10 +53,10 @@ internal class ConciergeSessionManager private constructor() {
      * @return A valid session ID string
      */
     fun getSessionId(): String {
-        val currentSessionId = namedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
-        val sessionTimestamp = namedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L)
+        val currentSessionId = dataStore.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
+        val sessionTimestamp = dataStore.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L)
         
-        val currentTime = System.currentTimeMillis()
+        val currentTime = currentTimeProvider()
         val isExpired = currentTime - sessionTimestamp > SESSION_TIMEOUT_MS
         
         return if (currentSessionId != null && !isExpired) {
@@ -59,8 +68,8 @@ internal class ConciergeSessionManager private constructor() {
             currentSessionId
         } else {
             val newSessionId = UUID.randomUUID().toString()
-            namedCollection.setString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, newSessionId)
-            namedCollection.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, currentTime)
+            dataStore.setString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, newSessionId)
+            dataStore.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, currentTime)
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
@@ -75,8 +84,8 @@ internal class ConciergeSessionManager private constructor() {
      * Useful for testing or when explicitly resetting the session.
      */
     fun clearSession() {
-        namedCollection.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID)
-        namedCollection.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP)
+        dataStore.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID)
+        dataStore.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP)
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,

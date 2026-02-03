@@ -170,5 +170,750 @@ class ThemeParserTest {
         assertEquals("Custom placeholder", config?.text?.inputPlaceholder)
         assertEquals("Processing", config?.text?.loadingMessage)
     }
+
+    @Test
+    fun `parseThemeJson should handle empty JSON object`() {
+        val json = "{}"
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+    }
+
+    @Test
+    fun `parseThemeJson should handle all text strings`() {
+        val json = """
+            {
+                "text": {
+                    "input.placeholder": "Type here",
+                    "welcome.heading": "Welcome!",
+                    "welcome.subheading": "How can I help?",
+                    "loading.message": "Loading...",
+                    "feedback.dialog.title.positive": "Great!",
+                    "feedback.dialog.title.negative": "Sorry!",
+                    "feedback.dialog.question.positive": "What went well?",
+                    "feedback.dialog.question.negative": "What went wrong?",
+                    "feedback.dialog.notes": "Notes",
+                    "feedback.dialog.submit": "Submit",
+                    "feedback.dialog.cancel": "Cancel",
+                    "feedback.dialog.notes.placeholder": "Enter notes",
+                    "feedback.toast.success": "Thank you!",
+                    "error.network": "Network error"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertNotNull(config?.text)
+        assertEquals("Type here", config?.text?.inputPlaceholder)
+        assertEquals("Welcome!", config?.text?.welcomeHeading)
+        assertEquals("How can I help?", config?.text?.welcomeSubheading)
+        assertEquals("Loading...", config?.text?.loadingMessage)
+        assertEquals("Great!", config?.text?.feedbackDialogTitlePositive)
+        assertEquals("Sorry!", config?.text?.feedbackDialogTitleNegative)
+        assertEquals("What went well?", config?.text?.feedbackDialogQuestionPositive)
+        assertEquals("What went wrong?", config?.text?.feedbackDialogQuestionNegative)
+        assertEquals("Notes", config?.text?.feedbackDialogNotes)
+        assertEquals("Submit", config?.text?.feedbackDialogSubmit)
+        assertEquals("Cancel", config?.text?.feedbackDialogCancel)
+        assertEquals("Enter notes", config?.text?.feedbackDialogNotesPlaceholder)
+        assertEquals("Thank you!", config?.text?.feedbackToastSuccess)
+        assertEquals("Network error", config?.text?.errorNetwork)
+    }
+
+    @Test
+    fun `parseThemeJson should handle disclaimer with links`() {
+        val json = """
+            {
+                "disclaimer": {
+                    "text": "By using this service, you agree to our terms.",
+                    "links": [
+                        {
+                            "text": "Privacy Policy",
+                            "url": "https://example.com/privacy"
+                        },
+                        {
+                            "text": "Terms of Service",
+                            "url": "https://example.com/terms"
+                        }
+                    ]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertNotNull(config?.disclaimer)
+        assertEquals("By using this service, you agree to our terms.", config?.disclaimer?.text)
+        assertEquals(2, config?.disclaimer?.links?.size)
+        assertEquals("Privacy Policy", config?.disclaimer?.links?.get(0)?.text)
+        assertEquals("https://example.com/privacy", config?.disclaimer?.links?.get(0)?.url)
+        assertEquals("Terms of Service", config?.disclaimer?.links?.get(1)?.text)
+        assertEquals("https://example.com/terms", config?.disclaimer?.links?.get(1)?.url)
+    }
+
+    @Test
+    fun `parseThemeJson should handle disclaimer without links`() {
+        val json = """
+            {
+                "disclaimer": {
+                    "text": "Disclaimer text only"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertEquals("Disclaimer text only", config?.disclaimer?.text)
+        assertNull(config?.disclaimer?.links)
+    }
+
+    @Test
+    fun `parseThemeJson should filter invalid disclaimer links`() {
+        val json = """
+            {
+                "disclaimer": {
+                    "links": [
+                        {
+                            "text": "Valid Link",
+                            "url": "https://example.com/valid"
+                        },
+                        {
+                            "text": "Invalid Link"
+                        },
+                        {
+                            "url": "https://example.com/no-text"
+                        }
+                    ]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        // Should only include the valid link
+        assertEquals(1, config?.disclaimer?.links?.size)
+        assertEquals("Valid Link", config?.disclaimer?.links?.get(0)?.text)
+    }
+
+    @Test
+    fun `parseThemeJson should handle welcome examples`() {
+        val json = """
+            {
+                "arrays": {
+                    "welcome.examples": [
+                        {
+                            "text": "What products do you offer?",
+                            "image": "https://example.com/icon1.png",
+                            "backgroundColor": "#FF5733"
+                        },
+                        {
+                            "text": "How do I contact support?",
+                            "image": "https://example.com/icon2.png"
+                        },
+                        {
+                            "text": "Tell me about your services"
+                        }
+                    ]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertNotNull(config?.welcomeExamples)
+        assertEquals(3, config?.welcomeExamples?.size)
+        assertEquals("What products do you offer?", config?.welcomeExamples?.get(0)?.text)
+        assertEquals("https://example.com/icon1.png", config?.welcomeExamples?.get(0)?.image)
+        assertEquals("#FF5733", config?.welcomeExamples?.get(0)?.backgroundColor)
+        assertEquals("How do I contact support?", config?.welcomeExamples?.get(1)?.text)
+        assertEquals("https://example.com/icon2.png", config?.welcomeExamples?.get(1)?.image)
+        assertNull(config?.welcomeExamples?.get(1)?.backgroundColor)
+        assertEquals("Tell me about your services", config?.welcomeExamples?.get(2)?.text)
+        assertNull(config?.welcomeExamples?.get(2)?.image)
+    }
+
+    @Test
+    fun `parseThemeJson should filter welcome examples without text`() {
+        val json = """
+            {
+                "arrays": {
+                    "welcome.examples": [
+                        {
+                            "text": "Valid example"
+                        },
+                        {
+                            "image": "https://example.com/icon.png"
+                        }
+                    ]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        // Should only include examples with text
+        assertEquals(1, config?.welcomeExamples?.size)
+        assertEquals("Valid example", config?.welcomeExamples?.get(0)?.text)
+    }
+
+    @Test
+    fun `parseThemeJson should handle feedback options arrays`() {
+        val json = """
+            {
+                "arrays": {
+                    "feedback.positive.options": ["Helpful", "Accurate", "Clear"],
+                    "feedback.negative.options": ["Unhelpful", "Inaccurate", "Confusing"]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertEquals(3, config?.feedbackPositiveOptions?.size)
+        assertEquals("Helpful", config?.feedbackPositiveOptions?.get(0))
+        assertEquals("Accurate", config?.feedbackPositiveOptions?.get(1))
+        assertEquals("Clear", config?.feedbackPositiveOptions?.get(2))
+        
+        assertEquals(3, config?.feedbackNegativeOptions?.size)
+        assertEquals("Unhelpful", config?.feedbackNegativeOptions?.get(0))
+        assertEquals("Inaccurate", config?.feedbackNegativeOptions?.get(1))
+        assertEquals("Confusing", config?.feedbackNegativeOptions?.get(2))
+    }
+
+    @Test
+    fun `parseThemeJson should handle typography config`() {
+        val json = """
+            {
+                "theme": {
+                    "--input-font-size": "16px",
+                    "--disclaimer-font-size": "12px",
+                    "--citations-desktop-button-font-size": "14px"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertNotNull(config?.typography)
+        assertEquals(16.0, config?.typography?.inputFontSize)
+        assertEquals(12.0, config?.typography?.disclaimerFontSize)
+        assertEquals(14.0, config?.typography?.citationsFontSize)
+    }
+
+    @Test
+    fun `parseThemeJson should handle complex theme with multiple sections`() {
+        val json = """
+            {
+                "metadata": {
+                    "name": "Complete Theme"
+                },
+                "theme": {
+                    "--color-primary": "#3949AB",
+                    "--message-user-background": "#E0E0E0",
+                    "--message-concierge-background": "#FFFFFF"
+                },
+                "text": {
+                    "input.placeholder": "Ask me anything"
+                },
+                "arrays": {
+                    "welcome.examples": [
+                        {
+                            "text": "Example prompt"
+                        }
+                    ],
+                    "feedback.positive.options": ["Good"]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        
+        assertNotNull(config)
+        assertEquals("Complete Theme", config?.name)
+        assertEquals("#3949AB", config?.colors?.primaryColors?.primary)
+        assertEquals("#E0E0E0", config?.colors?.message?.userBackground)
+        assertEquals("#FFFFFF", config?.colors?.message?.conciergeBackground)
+        assertEquals("Ask me anything", config?.text?.inputPlaceholder)
+        assertEquals(1, config?.welcomeExamples?.size)
+        assertEquals(1, config?.feedbackPositiveOptions?.size)
+    }
+
+    // ========== Tests for parseThemeTokens ==========
+
+    @Test
+    fun `parseThemeTokens should parse valid theme tokens`() {
+        val json = """
+            {
+                "metadata": {
+                    "name": "Test Theme",
+                    "version": "1.0.0"
+                },
+                "theme": {
+                    "--color-primary": "#FF0000"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertNotNull(tokens)
+        assertEquals("Test Theme", tokens?.metadata?.name)
+        assertEquals("1.0.0", tokens?.metadata?.version)
+        assertEquals("#FF0000", tokens?.colors?.primaryColors?.primary)
+    }
+
+    @Test
+    fun `parseThemeTokens should return null for invalid JSON`() {
+        val json = "{ invalid }"
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNull(tokens)
+    }
+
+    @Test
+    fun `parseThemeTokens should handle empty theme object`() {
+        val json = "{}"
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse metadata with all fields`() {
+        val json = """
+            {
+                "metadata": {
+                    "name": "Full Theme",
+                    "version": "2.0.0",
+                    "description": "A comprehensive theme",
+                    "author": "Test Author",
+                    "lastModified": "2025-01-01"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("Full Theme", tokens?.metadata?.name)
+        assertEquals("2.0.0", tokens?.metadata?.version)
+        assertEquals("A comprehensive theme", tokens?.metadata?.description)
+        assertEquals("Test Author", tokens?.metadata?.author)
+        assertEquals("2025-01-01", tokens?.metadata?.lastModified)
+    }
+
+    @Test
+    fun `parseThemeTokens should handle brandName fallback for metadata name`() {
+        val json = """
+            {
+                "metadata": {
+                    "brandName": "Brand Theme"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("Brand Theme", tokens?.metadata?.name)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse behavior section`() {
+        val json = """
+            {
+                "behavior": {
+                    "enableDarkMode": false,
+                    "enableAnimations": true,
+                    "enableHaptics": false,
+                    "enableSoundEffects": true,
+                    "autoScrollToBottom": false,
+                    "showTimestamps": true,
+                    "enableMarkdown": true,
+                    "enableCitations": false,
+                    "enableFeedback": true,
+                    "enableVoiceInput": false,
+                    "maxMessageLength": 5000,
+                    "typingIndicatorDelay": 1000
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertNotNull(tokens?.behavior)
+        assertEquals(false, tokens?.behavior?.enableDarkMode)
+        assertEquals(true, tokens?.behavior?.enableAnimations)
+        assertEquals(false, tokens?.behavior?.enableHaptics)
+        assertEquals(true, tokens?.behavior?.enableSoundEffects)
+        assertEquals(false, tokens?.behavior?.autoScrollToBottom)
+        assertEquals(true, tokens?.behavior?.showTimestamps)
+        assertEquals(true, tokens?.behavior?.enableMarkdown)
+        assertEquals(false, tokens?.behavior?.enableCitations)
+        assertEquals(true, tokens?.behavior?.enableFeedback)
+        assertEquals(false, tokens?.behavior?.enableVoiceInput)
+        assertEquals(5000, tokens?.behavior?.maxMessageLength)
+        assertEquals(1000, tokens?.behavior?.typingIndicatorDelay)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse assets section with all icons`() {
+        val json = """
+            {
+                "assets": {
+                    "icons": {
+                        "company": "company.svg",
+                        "send": "send.svg",
+                        "microphone": "mic.svg",
+                        "close": "close.svg",
+                        "thumbsUp": "thumbs-up.svg",
+                        "thumbsDown": "thumbs-down.svg",
+                        "chevronDown": "chevron-down.svg",
+                        "chevronRight": "chevron-right.svg"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("company.svg", tokens?.assets?.icons?.company)
+        assertEquals("send.svg", tokens?.assets?.icons?.send)
+        assertEquals("mic.svg", tokens?.assets?.icons?.microphone)
+        assertEquals("close.svg", tokens?.assets?.icons?.close)
+        assertEquals("thumbs-up.svg", tokens?.assets?.icons?.thumbsUp)
+        assertEquals("thumbs-down.svg", tokens?.assets?.icons?.thumbsDown)
+        assertEquals("chevron-down.svg", tokens?.assets?.icons?.chevronDown)
+        assertEquals("chevron-right.svg", tokens?.assets?.icons?.chevronRight)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse assets section with images`() {
+        val json = """
+            {
+                "assets": {
+                    "images": {
+                        "welcomeBanner": "banner.png",
+                        "errorPlaceholder": "error.png",
+                        "avatarBot": "bot-avatar.png",
+                        "avatarUser": "user-avatar.png"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("banner.png", tokens?.assets?.images?.welcomeBanner)
+        assertEquals("error.png", tokens?.assets?.images?.errorPlaceholder)
+        assertEquals("bot-avatar.png", tokens?.assets?.images?.avatarBot)
+        assertEquals("user-avatar.png", tokens?.assets?.images?.avatarUser)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse assets section with fonts`() {
+        val json = """
+            {
+                "assets": {
+                    "fonts": {
+                        "regular": "Regular.ttf",
+                        "medium": "Medium.ttf",
+                        "bold": "Bold.ttf",
+                        "light": "Light.ttf"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("Regular.ttf", tokens?.assets?.fonts?.regular)
+        assertEquals("Medium.ttf", tokens?.assets?.fonts?.medium)
+        assertEquals("Bold.ttf", tokens?.assets?.fonts?.bold)
+        assertEquals("Light.ttf", tokens?.assets?.fonts?.light)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse content section with text`() {
+        val json = """
+            {
+                "content": {
+                    "text": {
+                        "welcomeTitle": "Welcome to Chat",
+                        "welcomeSubtitle": "How may I assist you?",
+                        "disclaimerText": "AI responses may be inaccurate",
+                        "errorTitle": "Oops!",
+                        "errorRetry": "Retry",
+                        "feedbackTitle": "Give Feedback",
+                        "feedbackSubmit": "Send",
+                        "feedbackCancel": "Close",
+                        "sourcesLabel": "References",
+                        "thinkingLabel": "Processing",
+                        "listeningLabel": "Recording"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("Welcome to Chat", tokens?.content?.text?.welcomeTitle)
+        assertEquals("How may I assist you?", tokens?.content?.text?.welcomeSubtitle)
+        assertEquals("AI responses may be inaccurate", tokens?.content?.text?.disclaimerText)
+        assertEquals("Oops!", tokens?.content?.text?.errorTitle)
+        assertEquals("Retry", tokens?.content?.text?.errorRetry)
+        assertEquals("Give Feedback", tokens?.content?.text?.feedbackTitle)
+        assertEquals("Send", tokens?.content?.text?.feedbackSubmit)
+        assertEquals("Close", tokens?.content?.text?.feedbackCancel)
+        assertEquals("References", tokens?.content?.text?.sourcesLabel)
+        assertEquals("Processing", tokens?.content?.text?.thinkingLabel)
+        assertEquals("Recording", tokens?.content?.text?.listeningLabel)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse content section with placeholders`() {
+        val json = """
+            {
+                "content": {
+                    "placeholders": {
+                        "inputPlaceholder": "Type a message",
+                        "listeningPlaceholder": "Say something",
+                        "emptyStateMessage": "No messages yet"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("Type a message", tokens?.content?.placeholders?.inputPlaceholder)
+        assertEquals("Say something", tokens?.content?.placeholders?.listeningPlaceholder)
+        assertEquals("No messages yet", tokens?.content?.placeholders?.emptyStateMessage)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse content section with accessibility`() {
+        val json = """
+            {
+                "content": {
+                    "accessibility": {
+                        "sendButtonLabel": "Send message button",
+                        "micButtonLabel": "Voice input button",
+                        "closeButtonLabel": "Close dialog",
+                        "thumbsUpLabel": "Positive feedback",
+                        "thumbsDownLabel": "Negative feedback"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals("Send message button", tokens?.content?.accessibility?.sendButtonLabel)
+        assertEquals("Voice input button", tokens?.content?.accessibility?.micButtonLabel)
+        assertEquals("Close dialog", tokens?.content?.accessibility?.closeButtonLabel)
+        assertEquals("Positive feedback", tokens?.content?.accessibility?.thumbsUpLabel)
+        assertEquals("Negative feedback", tokens?.content?.accessibility?.thumbsDownLabel)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse layout section with spacing`() {
+        val json = """
+            {
+                "layout": {
+                    "spacing": {
+                        "xs": 2.0,
+                        "sm": 4.0,
+                        "md": 8.0,
+                        "lg": 16.0,
+                        "xl": 24.0,
+                        "xxl": 32.0
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals(2.0, tokens?.layout?.spacing?.xs)
+        assertEquals(4.0, tokens?.layout?.spacing?.sm)
+        assertEquals(8.0, tokens?.layout?.spacing?.md)
+        assertEquals(16.0, tokens?.layout?.spacing?.lg)
+        assertEquals(24.0, tokens?.layout?.spacing?.xl)
+        assertEquals(32.0, tokens?.layout?.spacing?.xxl)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse layout section with sizing`() {
+        val json = """
+            {
+                "layout": {
+                    "sizing": {
+                        "iconSm": 12.0,
+                        "iconMd": 18.0,
+                        "iconLg": 24.0,
+                        "avatarSm": 28.0,
+                        "avatarMd": 36.0,
+                        "avatarLg": 44.0,
+                        "buttonHeightSm": 30.0,
+                        "buttonHeightMd": 38.0,
+                        "buttonHeightLg": 46.0
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals(12.0, tokens?.layout?.sizing?.iconSm)
+        assertEquals(18.0, tokens?.layout?.sizing?.iconMd)
+        assertEquals(24.0, tokens?.layout?.sizing?.iconLg)
+        assertEquals(28.0, tokens?.layout?.sizing?.avatarSm)
+        assertEquals(36.0, tokens?.layout?.sizing?.avatarMd)
+        assertEquals(44.0, tokens?.layout?.sizing?.avatarLg)
+        assertEquals(30.0, tokens?.layout?.sizing?.buttonHeightSm)
+        assertEquals(38.0, tokens?.layout?.sizing?.buttonHeightMd)
+        assertEquals(46.0, tokens?.layout?.sizing?.buttonHeightLg)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse layout section with positioning`() {
+        val json = """
+            {
+                "layout": {
+                    "positioning": {
+                        "headerHeight": 60.0,
+                        "footerHeight": 80.0,
+                        "maxContentWidth": 1000.0,
+                        "minContentWidth": 320.0
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        
+        assertEquals(60.0, tokens?.layout?.positioning?.headerHeight)
+        assertEquals(80.0, tokens?.layout?.positioning?.footerHeight)
+        assertEquals(1000.0, tokens?.layout?.positioning?.maxContentWidth)
+        assertEquals(320.0, tokens?.layout?.positioning?.minContentWidth)
+    }
+
+    // ========== Tests for createColorsFromJson ==========
+
+    @Test
+    fun `createColorsFromJson should handle CSS theme structure`() {
+        val themeColors = ConciergeThemeColors(
+            primaryColors = ConciergePrimaryColors(
+                primary = "#FF0000",
+                text = "#FFFFFF"
+            ),
+            surfaceColors = ConciergeSurfaceColors(
+                mainContainerBackground = "#F0F0F0",
+                mainContainerBottomBackground = "#E0E0E0"
+            ),
+            message = ConciergeMessageColors(
+                userBackground = "#FFFFFF",
+                userText = "#000000",
+                conciergeBackground = "#F5F5F5",
+                conciergeText = "#333333",
+                conciergeLink = "#0066CC"
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        
+        assertEquals(Color(0xFFFF0000), colors.primary)
+        assertEquals(Color.White, colors.onPrimary)
+        assertEquals(Color(0xFFF0F0F0), colors.surface)
+        assertEquals(Color(0xFFE0E0E0), colors.background)
+        assertEquals(Color.White, colors.userMessageBackground)
+        assertEquals(Color.Black, colors.userMessageText)
+        assertEquals(Color(0xFFF5F5F5), colors.conciergeMessageBackground)
+        assertEquals(Color(0xFF333333), colors.conciergeMessageText)
+        assertEquals(Color(0xFF0066CC), colors.messageConciergeLink)
+    }
+
+    @Test
+    fun `createColorsFromJson should handle button colors`() {
+        val themeColors = ConciergeThemeColors(
+            button = ConciergeButtonColors(
+                primaryBackground = "#0066CC",
+                primaryText = "#FFFFFF",
+                primaryHover = "#0052A3",
+                secondaryBorder = "#CCCCCC",
+                secondaryText = "#333333",
+                secondaryHover = "#EEEEEE",
+                secondaryHoverText = "#000000",
+                submitFill = "#00CC00",
+                submitText = "#FFFFFF",
+                disabledBackground = "#F0F0F0"
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        
+        assertEquals(Color(0xFF0066CC), colors.buttonPrimaryBackground)
+        assertEquals(Color.White, colors.buttonPrimaryText)
+        assertEquals(Color(0xFF0052A3), colors.buttonPrimaryHover)
+        assertEquals(Color(0xFFCCCCCC), colors.buttonSecondaryBorder)
+        assertEquals(Color(0xFF333333), colors.buttonSecondaryText)
+        assertEquals(Color(0xFFEEEEEE), colors.buttonSecondaryHover)
+        assertEquals(Color.Black, colors.buttonSecondaryHoverText)
+        assertEquals(Color(0xFF00CC00), colors.buttonSubmitFill)
+        assertEquals(Color.White, colors.buttonSubmitText)
+        assertEquals(Color(0xFFF0F0F0), colors.buttonDisabled)
+    }
+
+    @Test
+    fun `createColorsFromJson should handle input and feedback colors`() {
+        val themeColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                background = "#FFFFFF",
+                text = "#000000",
+                outline = "#CCCCCC",
+                outlineFocus = "#0066CC"
+            ),
+            feedback = ConciergeFeedbackColors(
+                iconButtonBackground = "#F0F0F0",
+                iconButtonHoverBackground = "#E0E0E0"
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        
+        assertEquals(Color.White, colors.inputBackground)
+        assertEquals(Color.Black, colors.inputText)
+        assertEquals(Color(0xFFCCCCCC), colors.inputOutline)
+        assertEquals(Color(0xFF0066CC), colors.inputOutlineFocus)
+        assertEquals(Color(0xFFF0F0F0), colors.feedbackIconButtonBackground)
+        assertEquals(Color(0xFFE0E0E0), colors.feedbackIconButtonHoverBackground)
+    }
+
+    @Test
+    fun `createColorsFromJson should handle citation and disclaimer colors`() {
+        val themeColors = ConciergeThemeColors(
+            citation = ConciergeCitationColors(
+                backgroundColor = "#FAFAFA",
+                textColor = "#666666"
+            ),
+            disclaimer = "#999999"
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        
+        assertEquals(Color(0xFFFAFAFA), colors.citationBackground)
+        assertEquals(Color(0xFF666666), colors.citationText)
+        assertEquals(Color(0xFF999999), colors.disclaimerColor)
+    }
+
+    @Test
+    fun `createColorsFromJson should prioritize CSS colors over simple colors`() {
+        val themeColors = ConciergeThemeColors(
+            primary = "#00FF00",
+            primaryColors = ConciergePrimaryColors(primary = "#FF0000")
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        
+        // CSS color should take priority
+        assertEquals(Color(0xFFFF0000), colors.primary)
+    }
 }
 
