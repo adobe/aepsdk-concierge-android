@@ -55,11 +55,13 @@ repositories {
 }
 ```
 
-**Step 2: Add the snapshot dependency to your app module's `build.gradle.kts`**
+**Step 2: Add the snapshot dependency to your app module's `build.gradle.kts` alongside the other AEPSDK extensions**
 
 ```kotlin
 dependencies {
     implementation("com.adobe.marketing.mobile:concierge:3.0.0-SNAPSHOT")
+    implementation("com.adobe.marketing.mobile:core:3.5.0")
+    implementation("com.adobe.marketing.mobile:edgeidentity:3.0.0")
 }
 ```
 

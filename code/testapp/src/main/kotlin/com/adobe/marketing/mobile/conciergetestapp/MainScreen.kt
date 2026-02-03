@@ -74,7 +74,7 @@ fun MainScreen() {
         ConciergeThemeLoader.load(context, fileName) ?: ConciergeThemeLoader.default()
     }
     
-    // Apply theme at the root level - clean and simple!
+    // Apply theme at the root level
     ConciergeTheme(theme = theme) {
         Box(
             modifier = Modifier
