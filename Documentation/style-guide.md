@@ -807,8 +807,8 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `disclaimer.text` | ✅ | Rendered in disclaimer composable | Disclaimer component |
-| `disclaimer.links` | ✅ | Links are parsed and tappable | Disclaimer component |
+| `disclaimer.text` | ⚠️ | Parsed but not implemented | Disclaimer component |
+| `disclaimer.links` | ⚠️ | Parsed but not implemented | Disclaimer component |
 
 ### Text (Copy)
 
