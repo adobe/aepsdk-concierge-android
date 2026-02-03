@@ -161,10 +161,17 @@ fun ConciergeChat(
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
+    val welcomeConfig by viewModel.welcomeConfig.collectAsStateWithLifecycle()
     
     // Determine if user is returning
     val isReturningUser = viewModel.isReturningUser()
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Capture the current theme to update welcome card config
+    val currentTheme = ConciergeTheme.config
+    LaunchedEffect(currentTheme) {
+        viewModel.updateWelcomeConfigFromTheme(currentTheme)
+    }
 
     // Refresh permission status when app resumes (e.g., returning from settings)
     DisposableEffect(lifecycleOwner) {
@@ -186,7 +193,7 @@ fun ConciergeChat(
             inputState = inputState,
             hasAudioPermission = hasAudioPermission,
             showWelcomeCard = showWelcomeCard,
-            welcomeConfig = viewModel.welcomeConfig,
+            welcomeConfig = welcomeConfig,
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
             onEvent = viewModel::processEvent,
