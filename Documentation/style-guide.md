@@ -764,6 +764,8 @@ This section documents which properties are fully implemented, partially impleme
 | ⚠️ | Defined but unused - property is parsed but not rendered in any composable |
 | ❌ | Not supported - property exists in web JSON but is ignored by Android |
 
+**Note**: The tables below include a "Used In" column showing which UI composables consume each theme property.
+
 ### Implementation Summary
 
 **Overall Implementation Status:**
@@ -781,154 +783,159 @@ This section documents which properties are fully implemented, partially impleme
 
 ### Metadata
 
-| Property | Status | Notes |
-|----------|--------|-------|
-| `metadata.brandName` | ✅ | The `metadata.brandName` property is used to replace the `[Name]` placeholder in the welcome heading text. |
-| `metadata.version` | ⚠️ | Parsed but not used |
-| `metadata.language` | ⚠️ | Parsed but not used for localization |
-| `metadata.namespace` | ⚠️ | Parsed but not used |
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `metadata.brandName` | ✅ | Replaces `[Name]` placeholder in welcome heading text | `WelcomeCard` |
+| `metadata.version` | ⚠️ | Parsed but not used | - |
+| `metadata.language` | ⚠️ | Parsed but not used for localization | - |
+| `metadata.namespace` | ⚠️ | Parsed but not used | - |
 
 ### Behavior
 
-| Property | Status | Notes |
-|----------|--------|-------|
-| `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables |
-| `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility in `InputActionButtons` |
-| `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented |
-| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not rendered |
-| `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented |
-| `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented |
-| `behavior.privacyNotice.title` | ⚠️ | Parsed but no privacy dialog implemented |
-| `behavior.privacyNotice.text` | ⚠️ | Parsed but no privacy dialog implemented |
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables | - |
+| `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
+| `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not rendered | - |
+| `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
+| `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
+| `behavior.privacyNotice.title` | ⚠️ | Parsed but no privacy dialog implemented | - |
+| `behavior.privacyNotice.text` | ⚠️ | Parsed but no privacy dialog implemented | - |
 
 ### Disclaimer
 
-| Property | Status | Notes |
-|----------|--------|-------|
-| `disclaimer.text` | ✅ | Rendered in disclaimer composable |
-| `disclaimer.links` | ✅ | Links are parsed and tappable |
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `disclaimer.text` | ✅ | Rendered in disclaimer composable | Disclaimer component |
+| `disclaimer.links` | ✅ | Links are parsed and tappable | Disclaimer component |
 
 ### Text (Copy)
 
-| Property | Status | Notes |
-|----------|--------|-------|
-| `text["welcome.heading"]` | ✅ | Used in `toWelcomeConfig()` |
-| `text["welcome.subheading"]` | ✅ | Used in `toWelcomeConfig()` |
-| `text["input.placeholder"]` | ✅ | Used in `ConciergeChat` and input composable |
-| `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but AI icon not rendered |
-| `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["carousel.next.aria"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["scroll.bottom.aria"]` | ⚠️ | Parsed but scroll button not implemented |
-| `text["error.network"]` | ⚠️ | Parsed but error uses hardcoded text |
-| `text["loading.message"]` | ✅ | Used in `ConciergeStyles.thinkingAnimationStyle` |
-| `text["feedback.dialog.title.positive"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.title.negative"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.question.positive"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.question.negative"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.notes"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.submit"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.cancel"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.dialog.notes.placeholder"]` | ✅ | Used in `FeedbackDialog` |
-| `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented |
-| `text["feedback.thumbsUp.aria"]` | ⚠️ | Parsed but not used for accessibility |
-| `text["feedback.thumbsDown.aria"]` | ⚠️ | Parsed but not used for accessibility |
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `text["welcome.heading"]` | ✅ | Welcome screen title with `[Name]` placeholder replacement | `WelcomeCard` |
+| `text["welcome.subheading"]` | ✅ | Welcome screen description | `WelcomeCard` |
+| `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
+| `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but AI icon not rendered | - |
+| `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["carousel.next.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["scroll.bottom.aria"]` | ⚠️ | Parsed but scroll button not implemented | - |
+| `text["error.network"]` | ⚠️ | Parsed but error uses hardcoded text | - |
+| `text["loading.message"]` | ✅ | Loading animation text | `ConciergeThinking` |
+| `text["feedback.dialog.title.positive"]` | ✅ | Feedback dialog title for positive feedback | `FeedbackDialog` |
+| `text["feedback.dialog.title.negative"]` | ✅ | Feedback dialog title for negative feedback | `FeedbackDialog` |
+| `text["feedback.dialog.question.positive"]` | ✅ | Feedback dialog question for positive feedback | `FeedbackDialog` |
+| `text["feedback.dialog.question.negative"]` | ✅ | Feedback dialog question for negative feedback | `FeedbackDialog` |
+| `text["feedback.dialog.notes"]` | ✅ | Feedback dialog notes label | `FeedbackDialog` |
+| `text["feedback.dialog.submit"]` | ✅ | Feedback dialog submit button text | `FeedbackDialog` |
+| `text["feedback.dialog.cancel"]` | ✅ | Feedback dialog cancel button text | `FeedbackDialog` |
+| `text["feedback.dialog.notes.placeholder"]` | ✅ | Feedback dialog notes placeholder | `FeedbackDialog` |
+| `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented | - |
+| `text["feedback.thumbsUp.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["feedback.thumbsDown.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 
 ### Arrays
 
-| Property | Status | Notes |
-|----------|--------|-------|
-| `arrays["welcome.examples"]` | ✅ | Used in welcome screen |
-| `arrays["feedback.positive.options"]` | ✅ | Used in feedback dialog |
-| `arrays["feedback.negative.options"]` | ✅ | Used in feedback dialog |
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `arrays["welcome.examples"]` | ✅ | Suggested prompts displayed on welcome screen | `WelcomeCard` → `PromptSuggestions` |
+| `arrays["feedback.positive.options"]` | ✅ | Positive feedback category options | `FeedbackDialog` |
+| `arrays["feedback.negative.options"]` | ✅ | Negative feedback category options | `FeedbackDialog` |
 
 ### Assets
 
-| Property | Status | Notes |
-|----------|--------|-------|
-| `assets.icons.company` | ⚠️ | Parsed but not rendered in any composable |
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `assets.icons.company` | ⚠️ | Parsed but not rendered in any composable | - |
 
 ### Theme Tokens - Typography
 
-| CSS Variable | Status | Notes |
-|--------------|--------|-------|
-| `--font-family` | ⚠️ | Parsed but not implemented (commented out in `withThemeTypography`) |
-| `--line-height-body` | ✅ | Used in `ConciergeStyles.withThemeTypography` |
-| `--input-font-size` | ✅ | Used in `chatTextFieldStyle` |
-| `--citations-desktop-button-font-size` | ✅ | Used in `citationStyle` |
-| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables |
+| CSS Variable | Status | Notes | Used In |
+|--------------|--------|-------|---------|
+| `--font-family` | ⚠️ | Parsed but not implemented (commented out in `withThemeTypography`) | - |
+| `--line-height-body` | ✅ | Body text line height | All text components via `ConciergeStyles.withThemeTypography` |
+| `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
+| `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
+| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
 
 ### Theme Tokens - Colors
 
-| CSS Variable | Status | Notes |
-|--------------|--------|-------|
-| `--color-primary` | ✅ | Used extensively via `ConciergeTheme.colors.primary` |
-| `--color-text` | ✅ | Mapped to `onPrimary` and used throughout UI |
-| `--main-container-background` | ✅ | Used in chat screen and welcome card |
-| `--main-container-bottom-background` | ✅ | Used in input panel |
-| `--message-blocker-background` | ⚠️ | Parsed but not used in UI |
-| `--message-user-background` | ✅ | Used in `messageBubbleStyle` |
-| `--message-user-text` | ✅ | Used in `messageBubbleStyle` |
-| `--message-concierge-background` | ✅ | Used in `messageBubbleStyle` |
-| `--message-concierge-text` | ✅ | Used in `messageBubbleStyle` |
-| `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color |
-| `--button-primary-background` | ✅ | Used in `productActionButtonsStyle` |
-| `--button-primary-text` | ✅ | Used in `productActionButtonsStyle` |
-| `--button-primary-hover` | ⚠️ | Parsed but no hover states on Android |
-| `--button-secondary-border` | ✅ | Used in `productActionButtonsStyle` |
-| `--button-secondary-text` | ✅ | Used in `productActionButtonsStyle` |
-| `--button-secondary-hover` | ⚠️ | Parsed but no hover states on Android |
-| `--color-button-secondary-hover-text` | ⚠️ | Parsed but no hover states on Android |
-| `--submit-button-fill-color` | ✅ | Used in `feedbackDialogStyle` |
-| `--submit-button-fill-color-disabled` | ⚠️ | Parsed but disabled state not implemented |
-| `--color-button-submit` | ✅ | Used in `feedbackDialogStyle` |
-| `--color-button-submit-hover` | ⚠️ | Parsed but no hover states on Android |
-| `--button-disabled-background` | ⚠️ | Parsed but disabled state not implemented |
-| `--input-background` | ✅ | Used in `inputPanelStyle` |
-| `--input-text-color` | ✅ | Used in `chatTextFieldStyle` and `feedbackDialogStyle` |
-| `--input-outline-color` | ✅ | Used in `inputPanelStyle` |
-| `--input-focus-outline-color` | ✅ | Used in `inputPanelStyle` |
-| `--citations-background-color` | ✅ | Used in `citationStyle` |
-| `--citations-text-color` | ✅ | Used in `citationStyle` |
-| `--feedback-icon-btn-background` | ✅ | Used in `feedbackButtonsStyle` |
-| `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android |
-| `--disclaimer-color` | ⚠️ | Parsed but disclaimer uses primary text color |
+**Note**: The following base colors are **not configurable via JSON themes**. They are hardcoded in `LightConciergeColors` / `DarkConciergeColors` and serve as fallback colors throughout the UI:
+- `secondary`, `onSurfaceVariant`, `container`, `outline`, `error`, `onError`
+
+These colors are used internally by composables but cannot be customized in theme JSON files. See "Fallback Colors" section at the end.
+
+| CSS Variable | Status | Notes | Used In |
+|--------------|--------|-------|---------|
+| `--color-primary` | ✅ | Primary brand color used throughout UI | `ChatHeader`, `InputActionButtons`, `WelcomeCard`, `FeedbackDialog`, `ErrorOverlay`, `ProductCard` (fallback), `VoiceRecordingPanel` |
+| `--color-text` | ✅ | Main text color (mapped to `onPrimary`) | All text components |
+| `--main-container-background` | ✅ | Main chat screen background | `ChatScreen` |
+| `--main-container-bottom-background` | ✅ | Bottom container/surface background | `FeedbackDialog`, `VoiceRecordingPanel` |
+| `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
+| `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
+| `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
+| `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
+| `--message-concierge-text` | ✅ | AI message text color | `ChatMessageItem` |
+| `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
+| `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
+| `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
+| `--button-primary-hover` | ⚠️ | Parsed but no hover states on Android | - |
+| `--button-secondary-border` | ✅ | Secondary button border | `ProductActionButtons` |
+| `--button-secondary-text` | ✅ | Secondary button text | `ProductActionButtons` |
+| `--button-secondary-hover` | ⚠️ | Parsed but no hover states on Android | - |
+| `--color-button-secondary-hover-text` | ⚠️ | Parsed but no hover states on Android | - |
+| `--submit-button-fill-color` | ✅ | Feedback dialog submit button background | `FeedbackDialog` |
+| `--submit-button-fill-color-disabled` | ⚠️ | Parsed but disabled state not implemented | - |
+| `--color-button-submit` | ✅ | Feedback dialog submit button text/icon | `FeedbackDialog` |
+| `--color-button-submit-hover` | ⚠️ | Parsed but no hover states on Android | - |
+| `--button-disabled-background` | ⚠️ | Parsed but disabled state not implemented | - |
+| `--input-background` | ✅ | Input field background | `ChatInputPanel` |
+| `--input-text-color` | ✅ | Input field text color | `ChatTextField`, `FeedbackDialog` |
+| `--input-outline-color` | ✅ | Input field border color | `ChatInputPanel` |
+| `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
+| `--citations-background-color` | ✅ | Citation pill background | `CircularCitation` |
+| `--citations-text-color` | ✅ | Citation pill text | `CircularCitation` |
+| `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
+| `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
+| `--disclaimer-color` | ⚠️ | Parsed but no disclaimer component in UI | - |
 
 ### Theme Tokens - Layout
 
-| CSS Variable | Status | Notes |
-|--------------|--------|-------|
-| `--input-height-mobile` | ⚠️ | Parsed but not used in composables |
-| `--input-border-radius-mobile` | ⚠️ | Parsed but not used in composables |
-| `--input-outline-width` | ✅ | Used in `inputPanelStyle` |
-| `--input-focus-outline-width` | ✅ | Used in `inputPanelStyle` |
-| `--input-font-size` | ✅ | Used in `chatTextFieldStyle` |
-| `--input-button-height` | ⚠️ | Parsed but not used in composables |
-| `--input-button-width` | ⚠️ | Parsed but not used in composables |
-| `--input-button-border-radius` | ⚠️ | Parsed but not used in composables |
-| `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered |
-| `--message-border-radius` | ⚠️ | Parsed but not used in composables |
-| `--message-padding` | ⚠️ | Parsed but not used in composables |
-| `--message-max-width` | ⚠️ | Parsed but not used in composables |
-| `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables |
-| `--chat-history-padding` | ⚠️ | Parsed but not used in composables |
-| `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables |
-| `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables |
-| `--message-blocker-height` | ⚠️ | Parsed but not used in composables |
-| `--border-radius-card` | ⚠️ | Parsed but not used in composables |
-| `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered |
-| `--button-height-s` | ⚠️ | Parsed but not used in composables |
-| `--feedback-container-gap` | ⚠️ | Parsed but not used in composables |
-| `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables |
-| `--citations-text-font-weight` | ⚠️ | Parsed but not used in composables |
-| `--citations-desktop-button-font-size` | ✅ | Used in `citationStyle` |
-| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables |
-| `--disclaimer-font-weight` | ⚠️ | Parsed but not used in composables |
-| `--welcome-input-order` | ⚠️ | Parsed but welcome layout not customizable |
-| `--welcome-cards-order` | ⚠️ | Parsed but welcome layout not customizable |
+| CSS Variable | Status | Notes | Used In |
+|--------------|--------|-------|---------|
+| `--input-height-mobile` | ⚠️ | Parsed but not used in composables | - |
+| `--input-border-radius-mobile` | ⚠️ | Parsed but not used in composables | - |
+| `--input-outline-width` | ✅ | Input field border width | `ChatInputPanel` |
+| `--input-focus-outline-width` | ✅ | Input field focused border width | `ChatInputPanel` |
+| `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
+| `--input-button-height` | ⚠️ | Parsed but not used in composables | - |
+| `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
+| `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
+| `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--message-border-radius` | ⚠️ | Parsed but not used in composables | - |
+| `--message-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-history-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables | - |
+| `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
+| `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
+| `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
+| `--feedback-container-gap` | ⚠️ | Parsed but not used in composables | - |
+| `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
+| `--citations-text-font-weight` | ⚠️ | Parsed but not used in composables | - |
+| `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
+| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
+| `--disclaimer-font-weight` | ⚠️ | Parsed but not used in composables | - |
+| `--welcome-input-order` | ⚠️ | Parsed but welcome layout not customizable | - |
+| `--welcome-cards-order` | ⚠️ | Parsed but welcome layout not customizable | - |
 
 ### Unsupported CSS Variables
 
@@ -940,6 +947,24 @@ The following CSS variables from web themes are **not supported** on Android (de
 | `--input-border-radius` | Use `--input-border-radius-mobile` instead |
 | `--message-alignment` | Use `behavior.chat.messageAlignment` instead |
 | `--message-width` | Use `behavior.chat.messageWidth` instead |
+
+---
+
+## Fallback Colors (Not Theme-Configurable)
+
+The following colors from `LightConciergeColors` / `DarkConciergeColors` are hardcoded and **cannot be customized via JSON themes**. They serve as fallback colors throughout the UI:
+
+| Color | Purpose | Used In Composables |
+|-------|---------|---------------------|
+| `secondary` | Secondary accent color (currently unused) | - |
+| `onSurfaceVariant` | Muted text and icons for secondary UI elements | `PromptSuggestions`, `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
+| `container` | Background for cards and container elements | `ProductCard`, `PromptSuggestions`, message bubbles (fallback), `ChatInputPanel` (fallback) |
+| `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
+| `error` | Error state background | `ErrorOverlay` background |
+| `onError` | Error state text | `ErrorOverlay` message text |
+| `onSurface` | Primary text on surface backgrounds | Most text components, `VoiceRecordingPanel`, `ProductCard`, `FeedbackDialog` |
+
+**Note**: While these colors provide consistent fallback styling, they cannot be overridden in theme JSON files. If you need custom colors for these UI elements, use the theme-specific CSS variables that map to these elements (e.g., use `--input-outline-color` instead of relying on the `outline` fallback).
 
 ---
 

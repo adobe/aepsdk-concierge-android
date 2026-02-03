@@ -243,13 +243,15 @@ object ThemeParser {
             ?: themeColors.onPrimary?.toComposeColor()
             ?: defaultColors.onPrimary
         
-        val surface = themeColors.surfaceColors?.mainContainerBackground?.toComposeColor()
-            ?: themeColors.surface?.toComposeColor()
-            ?: defaultColors.surface
-            
-        val background = themeColors.surfaceColors?.mainContainerBottomBackground?.toComposeColor()
+        // Main chat screen background
+        val background = themeColors.surfaceColors?.mainContainerBackground?.toComposeColor()
             ?: themeColors.background?.toComposeColor()
             ?: defaultColors.background
+        
+        // Surface/bottom container (input area)
+        val surface = themeColors.surfaceColors?.mainContainerBottomBackground?.toComposeColor()
+            ?: themeColors.surface?.toComposeColor()
+            ?: defaultColors.surface
         
         val onSurface = themeColors.onSurface?.toComposeColor()
             ?: defaultColors.onSurface

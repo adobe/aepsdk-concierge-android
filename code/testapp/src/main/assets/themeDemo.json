@@ -10,7 +10,7 @@
       "cardClickAction": "openLink"
     },
     "input": {
-      "enableVoiceInput": false,
+      "enableVoiceInput": true,
       "disableMultiline": true,
       "showAiChatIcon": null
     },
