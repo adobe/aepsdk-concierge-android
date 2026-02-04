@@ -227,9 +227,10 @@ object ConciergeStyles {
 
     val citationBadgeStyle: CitationBadgeStyle
         @Composable get() {
+            val themeColors = ConciergeTheme.colors
             return CitationBadgeStyle(
-                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                textColor = MaterialTheme.colorScheme.primary,
+                backgroundColor = themeColors.citationBackground ?: MaterialTheme.colorScheme.surfaceVariant,
+                textColor = themeColors.citationText ?: MaterialTheme.colorScheme.primary,
                 shape = CircleShape,
                 size = 18.dp
             )
