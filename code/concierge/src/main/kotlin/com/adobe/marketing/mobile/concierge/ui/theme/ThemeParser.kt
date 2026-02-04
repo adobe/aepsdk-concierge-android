@@ -337,8 +337,8 @@ object ThemeParser {
             val inputTypedMap = inputMap as? MutableMap<String?, Any?>
             DataReader.optBoolean(inputTypedMap, "enableVoiceInput", true)
         } else {
-            // Default to true if not specified
-            true
+            // Default to false if not specified
+            false
         }
         
         return ConciergeThemeBehavior(

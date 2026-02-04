@@ -205,10 +205,48 @@ Theme identification information.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `metadata.brandName` | `String` | `""` | Brand/company name |
+| `metadata.brandName` | `String` | `""` | Brand/company name - used to replace `[Name]` placeholder in welcome text |
 | `metadata.version` | `String` | `"0.0.0"` | Theme version |
 | `metadata.language` | `String` | `"en-US"` | Locale identifier |
 | `metadata.namespace` | `String` | `"brand-concierge"` | Theme namespace |
+
+### brandName Usage
+
+The `metadata.brandName` property is used to automatically replace any `[Name]` placeholder in `text.welcome.heading`.
+
+**Example with placeholder replacement:**
+
+```json
+{
+  "metadata": {
+    "brandName": "ACME Corp"
+  },
+  "text": {
+    "welcome.heading": "Welcome to [Name] AI Assistant!"
+  }
+}
+```
+
+This will display:
+- **Welcome heading**: "Welcome to ACME Corp AI Assistant!"
+
+**Example without placeholder:**
+
+```json
+{
+  "metadata": {
+    "brandName": "ACME Corp"
+  },
+  "text": {
+    "welcome.heading": "Welcome to our AI Assistant!"
+  }
+}
+```
+
+This will display:
+- **Welcome heading**: "Welcome to our AI Assistant!" (no replacement)
+
+> **Note**: If you don't want to use the `[Name]` placeholder, simply write your welcome heading text directly without brackets. The chat header displays "Concierge" with "Powered by Adobe" as a subtitle and is not customizable through theme configuration.
 
 ### Example
 
@@ -785,7 +823,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `metadata.brandName` | ✅ | Replaces `[Name]` placeholder in welcome heading text | `WelcomeCard` |
+| `metadata.brandName` | ✅ | Used for `[Name]` placeholder replacement in welcome text | `WelcomeConfig` |
 | `metadata.version` | ⚠️ | Parsed but not used | - |
 | `metadata.language` | ⚠️ | Parsed but not used for localization | - |
 | `metadata.namespace` | ⚠️ | Parsed but not used | - |
@@ -814,7 +852,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `text["welcome.heading"]` | ✅ | Welcome screen title with `[Name]` placeholder replacement | `WelcomeCard` |
+| `text["welcome.heading"]` | ✅ | Welcome screen title | `WelcomeCard` |
 | `text["welcome.subheading"]` | ✅ | Welcome screen description | `WelcomeCard` |
 | `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
 | `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
@@ -872,15 +910,15 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color used throughout UI | `ChatHeader`, `InputActionButtons`, `WelcomeCard`, `FeedbackDialog`, `ErrorOverlay`, `ProductCard` (fallback), `VoiceRecordingPanel` |
-| `--color-text` | ✅ | Main text color (mapped to `onPrimary`) | All text components |
-| `--main-container-background` | ✅ | Main chat screen background | `ChatScreen` |
-| `--main-container-bottom-background` | ✅ | Bottom container/surface background | `FeedbackDialog`, `VoiceRecordingPanel` |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, checkboxes |
+| `--color-text` | ✅ | Primary text color (mapped to `onPrimary`) - used for all text on main background | `ChatHeader`, `WelcomeCard`, `InputActionButtons` (mic/send icons) |
+| `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
+| `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
-| `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
-| `--message-concierge-text` | ✅ | AI message text color | `ChatMessageItem` |
+| `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
+| `--message-concierge-text` | ✅ | AI message text color, also used for feedback dialog text | `ChatMessageItem`, `FeedbackDialog` |
 | `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
@@ -891,7 +929,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--color-button-secondary-hover-text` | ⚠️ | Parsed but no hover states on Android | - |
 | `--submit-button-fill-color` | ✅ | Feedback dialog submit button background | `FeedbackDialog` |
 | `--submit-button-fill-color-disabled` | ⚠️ | Parsed but disabled state not implemented | - |
-| `--color-button-submit` | ✅ | Feedback dialog submit button text/icon | `FeedbackDialog` |
+| `--color-button-submit` | ✅ | Feedback dialog submit button text/icon, also used for send/mic icons | `FeedbackDialog`, `InputActionButtons` |
 | `--color-button-submit-hover` | ⚠️ | Parsed but no hover states on Android | - |
 | `--button-disabled-background` | ⚠️ | Parsed but disabled state not implemented | - |
 | `--input-background` | ✅ | Input field background | `ChatInputPanel` |
@@ -975,14 +1013,17 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 When creating themes for the Android SDK, focus on these **actively used** properties for the best results:
 
 **Essential Colors (Highest Impact):**
-- `--color-primary` - Primary brand color
-- `--color-text` - Main text color
+- `--color-primary` - Primary brand color (used for buttons, checkboxes)
+- `--color-text` - **Primary text color for main background** (header, welcome card, all text on main container)
+- `--main-container-background` - **Main screen background color** (welcome card, chat area)
+- `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
-- `--message-concierge-background` / `--message-concierge-text` - AI message styling
+- `--message-concierge-background` / `--message-concierge-text` - AI message styling and feedback dialog styling
 - `--button-primary-background` / `--button-primary-text` - Primary buttons
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
+- `--submit-button-fill-color` / `--color-button-submit` - Submit button and send/mic icons
 - `--citations-background-color` / `--citations-text-color` - Citation pills
 - `--feedback-icon-btn-background` - Feedback button styling
 

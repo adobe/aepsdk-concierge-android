@@ -53,6 +53,11 @@ internal object ConciergeConstants {
         const val NEGATIVE = "negative"
     }
 
+    object ChatHeader {
+        const val TITLE = "Concierge"
+        const val SUBTITLE = "Powered by Adobe"
+    }
+
     object DataStoreKeys {
         const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
         const val KEY_SESSION_ID = "concierge_session_id"

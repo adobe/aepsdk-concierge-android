@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.components.header
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,19 +25,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Header component for the chat interface with title and close button.
+ * Header component for the chat interface with title, subtitle, and close button.
  * @param modifier Modifier for the header
- * @param title The title text to display
  * @param onClose Callback when the close button is pressed
  */
 @Composable
 internal fun ChatHeader(
     modifier: Modifier = Modifier,
-    title: String = "Brand",
     onClose: () -> Unit
 ) {
     val style = ConciergeStyles.headerStyle
@@ -48,12 +48,19 @@ internal fun ChatHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            style = style.titleStyle,
-            fontWeight = style.titleFontWeight,
-            color = style.titleColor
-        )
+        Column {
+            Text(
+                text = ConciergeConstants.ChatHeader.TITLE,
+                style = style.titleStyle,
+                fontWeight = style.titleFontWeight,
+                color = style.titleColor
+            )
+            Text(
+                text = ConciergeConstants.ChatHeader.SUBTITLE,
+                style = style.subtitleStyle,
+                color = style.subtitleColor
+            )
+        }
 
         // Close button
         IconButton(

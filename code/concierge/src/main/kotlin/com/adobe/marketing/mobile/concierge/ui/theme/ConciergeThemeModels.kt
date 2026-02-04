@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 
 /**
  * Theme configuration.
@@ -55,12 +56,12 @@ data class ConciergeWelcomeExample(
  */
 fun ConciergeThemeConfig.toWelcomeConfig(
     showWelcomeCard: Boolean = true
-): com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig {
+): WelcomeConfig {
     val brandName = name ?: "Brand"
     val welcomeHeading = text?.welcomeHeading?.replace("[Name]", brandName)
         ?: com.adobe.marketing.mobile.concierge.ConciergeConstants.WelcomeCard.DEFAULT_HEADING
     
-    return com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig(
+    return WelcomeConfig(
         showWelcomeCard = showWelcomeCard,
         brandName = brandName,
         welcomeHeader = welcomeHeading,
