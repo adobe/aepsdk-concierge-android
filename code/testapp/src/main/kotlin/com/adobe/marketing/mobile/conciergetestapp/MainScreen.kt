@@ -68,7 +68,7 @@ fun MainScreen() {
             "demo" -> "themeDemo.json"
             "input field border" -> "theme-test-implementation.json"
             "behaviors disabled" -> "theme-behavior-disabled.json"
-            else -> "themeDSG.json"
+            else -> "themeDefault.json"
         }
         // Load complete theme (config + tokens) from JSON file
         ConciergeThemeLoader.load(context, fileName) ?: ConciergeThemeLoader.default()
@@ -141,7 +141,7 @@ fun MainScreen() {
                             "demo" -> "themeDemo"
                             "input field border" -> "theme-test-implementation"
                             "behaviors disabled" -> "theme-behavior-disabled"
-                            else -> "themeDSG"
+                            else -> "themeDefault"
                         }
                         intent.putExtra("theme_file", themeFile)
                         context.startActivity(intent)

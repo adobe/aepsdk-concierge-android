@@ -33,7 +33,7 @@
     ]
   },
   "text": {
-    "welcome.heading": "Welcome to [Name] concierge!",
+    "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need. Let's get started!\n\nNot sure where to start? Explore the suggested ideas below.",
     "input.placeholder": "[DEMO] How can I help?",
     "input.messageInput.aria": "Message input",
@@ -63,22 +63,22 @@
       {
         "text": "I'd like to explore templates to see what I can create.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       },
       {
         "text": "I want to touch up and enhance my photos.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       },
       {
         "text": "I'd like to edit PDFs and make them interactive.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       },
       {
         "text": "I want to turn my clips into polished videos.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       }
     ],
     "feedback.positive.options": [
@@ -116,7 +116,7 @@
     "--message-border-radius": "10px",
     "--message-padding": "8px 16px",
     "--message-concierge-background": "#F0F9FF",
-    "--message-concierge-text": "#1E3A8A",
+    "--message-concierge-text": "#111111",
     "--message-concierge-link-color": "#2563EB",
     "--message-max-width": "100%",
     "--chat-interface-max-width": "768px",
