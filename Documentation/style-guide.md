@@ -872,15 +872,15 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, checkboxes |
-| `--color-text` | ✅ | Primary text color (mapped to `onPrimary`) - used for all text on main background | `ChatHeader`, `WelcomeCard`, `InputActionButtons` (mic/send icons) |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, checkboxes, mic button, thinking animation |
+| `--color-text` | ✅ | Primary text color (mapped to `onPrimary`) - used for all text on main background | `ChatHeader`, `WelcomeCard`, `InputActionButtons` (icons) |
 | `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
 | `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
-| `--message-concierge-text` | ✅ | AI message text color, also used for feedback dialog text | `ChatMessageItem`, `FeedbackDialog` |
+| `--message-concierge-text` | ✅ | AI message text color, also used for feedback dialog text and feedback button icons | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons` |
 | `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
@@ -962,7 +962,7 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 | `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
 | `error` | Error state background | `ErrorOverlay` background |
 | `onError` | Error state text | `ErrorOverlay` message text |
-| `onSurface` | Primary text on surface backgrounds | Most text components, `VoiceRecordingPanel`, `ProductCard`, `FeedbackDialog` |
+| `onSurface` | Primary text on surface backgrounds | `VoiceRecordingPanel`, `ProductCard`, `FeedbackDialog`, fallback for feedback buttons and thinking animation |
 
 **Note**: While these colors provide consistent fallback styling, they cannot be overridden in theme JSON files. If you need custom colors for these UI elements, use the theme-specific CSS variables that map to these elements (e.g., use `--input-outline-color` instead of relying on the `outline` fallback).
 
@@ -975,17 +975,17 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 When creating themes for the Android SDK, focus on these **actively used** properties for the best results:
 
 **Essential Colors (Highest Impact):**
-- `--color-primary` - Primary brand color (used for buttons, checkboxes)
-- `--color-text` - **Primary text color for main background** (header, welcome card, all text on main container)
+- `--color-primary` - Primary brand color (used for buttons, checkboxes, mic button, thinking animation)
+- `--color-text` - **Primary text color for main background** (header, welcome card, close icon, other icons on main container)
 - `--main-container-background` - **Main screen background color** (welcome card, chat area)
 - `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
-- `--message-concierge-background` / `--message-concierge-text` - AI message styling and feedback dialog styling
+- `--message-concierge-background` / `--message-concierge-text` - AI message styling, feedback dialog styling, and feedback button icons
 - `--button-primary-background` / `--button-primary-text` - Primary buttons
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
-- `--submit-button-fill-color` / `--color-button-submit` - Submit button and send/mic icons
+- `--submit-button-fill-color` / `--color-button-submit` - Submit button (not used for send/mic icons)
 - `--citations-background-color` / `--citations-text-color` - Citation pills
 - `--feedback-icon-btn-background` - Feedback button styling
 
