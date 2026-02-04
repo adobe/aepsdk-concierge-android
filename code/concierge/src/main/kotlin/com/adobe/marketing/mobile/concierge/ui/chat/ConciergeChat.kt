@@ -245,7 +245,6 @@ internal fun ConciergeChat(
             modifier = Modifier.fillMaxSize()
         ) {
             ChatHeader(
-                title = ConciergeTheme.config?.name ?: "Brand",
                 onClose = onClose
             )
 

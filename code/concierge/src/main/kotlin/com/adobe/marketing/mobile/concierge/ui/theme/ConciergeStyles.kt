@@ -63,6 +63,8 @@ object ConciergeStyles {
         val titleStyle: TextStyle,
         val titleFontWeight: FontWeight,
         val titleColor: Color,
+        val subtitleStyle: TextStyle,
+        val subtitleColor: Color,
         val iconSize: Dp,
         val iconColor: Color
     )
@@ -70,13 +72,17 @@ object ConciergeStyles {
     val headerStyle: HeaderStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val textColor = themeColors.onPrimary
+            
             return HeaderStyle(
                 padding = 16.dp,
                 titleStyle = MaterialTheme.typography.headlineSmall,
                 titleFontWeight = FontWeight.Bold,
-                titleColor = themeColors.primary,
+                titleColor = textColor,
+                subtitleStyle = MaterialTheme.typography.bodySmall,
+                subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
-                iconColor = themeColors.primary
+                iconColor = textColor
             )
         }
 
@@ -221,9 +227,10 @@ object ConciergeStyles {
 
     val citationBadgeStyle: CitationBadgeStyle
         @Composable get() {
+            val themeColors = ConciergeTheme.colors
             return CitationBadgeStyle(
-                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
-                textColor = MaterialTheme.colorScheme.primary,
+                backgroundColor = themeColors.citationBackground ?: MaterialTheme.colorScheme.surfaceVariant,
+                textColor = themeColors.citationText ?: MaterialTheme.colorScheme.primary,
                 shape = CircleShape,
                 size = 18.dp
             )
@@ -619,7 +626,7 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return MicButtonStyle(
                 size = 24.dp,
-                iconColor = themeColors.primary,
+                iconColor = themeColors.onPrimary,
                 recordingIconColor = themeColors.onPrimary,
                 pulsingBackgroundColor = themeColors.primary,
                 pulsingBackgroundAlpha = 0.25f,
@@ -644,7 +651,7 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return SendButtonStyle(
                 size = 24.dp,
-                enabledIconColor = themeColors.primary,
+                enabledIconColor = themeColors.onPrimary,
                 disabledIconAlpha = 0.3f
             )
         }
@@ -763,35 +770,39 @@ object ConciergeStyles {
     val feedbackDialogStyle: FeedbackDialogStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            // Use concierge message colors for dialog
+            val dialogBackground = themeColors.conciergeMessageBackground ?: themeColors.surface
+            val dialogTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface
+            
             return FeedbackDialogStyle(
                 padding = 16.dp,
-                backgroundColor = themeColors.surface,
+                backgroundColor = dialogBackground,
                 elevation = 8.dp,
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = 20.dp,
                 titleStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                titleColor = themeColors.onSurface,
+                titleColor = dialogTextColor,
                 titleSpacing = 12.dp,
                 questionStyle = MaterialTheme.typography.bodyMedium,
-                questionColor = themeColors.onSurface,
+                questionColor = dialogTextColor.copy(alpha = 0.7f),
                 questionSpacing = 6.dp,
                 categorySpacing = 0.dp,
                 checkboxCheckedColor = themeColors.primary,
-                checkboxUncheckedColor = themeColors.onSurfaceVariant,
+                checkboxUncheckedColor = dialogTextColor.copy(alpha = 0.3f),
                 checkboxSpacing = 8.dp,
                 categoryTextStyle = MaterialTheme.typography.bodyMedium,
-                categoryTextColor = themeColors.onSurface,
+                categoryTextColor = dialogTextColor,
                 categoriesNotesSpacing = 6.dp,
                 notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                notesLabelColor = themeColors.onSurface,
+                notesLabelColor = dialogTextColor.copy(alpha = 0.7f),
                 notesLabelSpacing = 8.dp,
                 notesPlaceholderStyle = MaterialTheme.typography.bodyMedium,
-                notesPlaceholderColor = themeColors.onSurfaceVariant,
+                notesPlaceholderColor = dialogTextColor.copy(alpha = 0.5f),
                 notesButtonsSpacing = 24.dp,
-                textFieldBorderColor = themeColors.outline,
-                textFieldTextColor = themeColors.inputText ?: themeColors.onSurface,
+                textFieldBorderColor = dialogTextColor.copy(alpha = 0.2f),
+                textFieldTextColor = dialogTextColor,
                 buttonSpacing = 8.dp,
-                cancelButtonColor = themeColors.onSurfaceVariant,
+                cancelButtonColor = themeColors.primary,
                 submitButtonColor = themeColors.buttonSubmitFill ?: themeColors.primary,
                 submitButtonTextColor = themeColors.buttonSubmitText ?: themeColors.onPrimary,
                 buttonTextStyle = MaterialTheme.typography.labelMedium
@@ -831,19 +842,21 @@ object ConciergeStyles {
     val welcomeCardStyle: WelcomeCardStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val textColor = themeColors.onPrimary
+            
             return WelcomeCardStyle(
                 backgroundColor = themeColors.background,
                 shape = RoundedCornerShape(12.dp),
                 elevation = 0.dp,
                 contentPadding = 20.dp,
                 titleTextStyle = MaterialTheme.typography.headlineSmall,
-                titleTextColor = themeColors.onSurface,
+                titleTextColor = textColor,
                 titleBottomSpacing = 8.dp,
                 descriptionTextStyle = MaterialTheme.typography.bodyMedium,
-                descriptionTextColor = themeColors.onSurface.copy(alpha = 0.8f),
+                descriptionTextColor = textColor.copy(alpha = 0.9f),
                 promptsTopSpacing = 8.dp,
                 promptsHeaderTextStyle = MaterialTheme.typography.bodySmall,
-                promptsHeaderTextColor = themeColors.onSurface.copy(alpha = 0.6f),
+                promptsHeaderTextColor = textColor.copy(alpha = 0.8f),
                 promptsHeaderBottomSpacing = 12.dp,
                 promptsSpacing = 8.dp,
                 promptBackgroundColor = themeColors.surface,
@@ -851,10 +864,10 @@ object ConciergeStyles {
                 promptPadding = 0.dp,
                 promptImageSize = 75.dp,
                 promptImageShape = RoundedCornerShape(4.dp),
-                promptImagePlaceholderColor = themeColors.onSurface.copy(alpha = 0.1f),
+                promptImagePlaceholderColor = textColor.copy(alpha = 0.1f),
                 promptImageSpacing = 12.dp,
                 promptTextStyle = MaterialTheme.typography.bodyMedium,
-                promptTextColor = themeColors.onSurface
+                promptTextColor = textColor
             )
         }
 }

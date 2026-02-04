@@ -54,13 +54,11 @@ fun ConciergeTheme(
 ) {
     val defaultColors = if (darkTheme) DarkConciergeColors else LightConciergeColors
     
-    // Apply theme colors if available, otherwise use defaults
-    val colors = remember(theme?.config, darkTheme) {
-        if (theme?.config?.colors != null) {
-            ThemeParser.createColorsFromJson(theme.config.colors, defaultColors)
-        } else {
-            defaultColors
-        }
+    // Apply theme colors from tokens if available, otherwise use defaults
+    val colors = remember(theme?.tokens, darkTheme) {
+        theme?.tokens?.colors?.let { 
+            ThemeParser.createColorsFromJson(it, defaultColors)
+        } ?: defaultColors
     }
     
     val activeTheme = remember(colors, theme) {

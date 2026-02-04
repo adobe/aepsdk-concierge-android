@@ -82,18 +82,9 @@ fun WelcomeCard(
                 .padding(style.contentPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-                // Welcome message
-                val welcomeText = if (isReturningUser) {
-                    config.returningUserWelcomeMessage ?: ConciergeConstants.WelcomeCard.RETURNING_USER_WELCOME
-                } else {
-                    config.firstTimeWelcomeMessage ?: String.format(
-                        ConciergeConstants.WelcomeCard.FIRST_TIME_WELCOME_TEMPLATE,
-                        config.brandName
-                    )
-                }
-
+                // Welcome message (title)
                 Text(
-                    text = welcomeText,
+                    text = config.welcomeHeader,
                     style = style.titleTextStyle,
                     color = style.titleTextColor,
                     fontWeight = FontWeight.Bold,
@@ -102,9 +93,9 @@ fun WelcomeCard(
 
                 Spacer(modifier = Modifier.height(style.titleBottomSpacing))
 
-                // Description
+                // Description (subheading)
                 Text(
-                    text = config.welcomeHeader,
+                    text = config.subHeader,
                     style = style.descriptionTextStyle,
                     color = style.descriptionTextColor,
                     textAlign = TextAlign.Center
@@ -113,15 +104,6 @@ fun WelcomeCard(
                 // Suggested prompts
                 if (suggestedPrompts.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(style.promptsTopSpacing))
-
-                    Text(
-                        text = config.subHeader,
-                        style = style.promptsHeaderTextStyle,
-                        color = style.promptsHeaderTextColor,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(style.promptsHeaderBottomSpacing))
 
                     suggestedPrompts.forEach { prompt ->
                         SuggestedPromptItem(

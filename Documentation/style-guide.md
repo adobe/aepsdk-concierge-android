@@ -785,9 +785,9 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `metadata.brandName` | ✅ | Replaces `[Name]` placeholder in welcome heading text | `WelcomeCard` |
+| `metadata.brandName` | ⚠️ | Parsed but not used | - |
 | `metadata.version` | ⚠️ | Parsed but not used | - |
-| `metadata.language` | ⚠️ | Parsed but not used for localization | - |
+| `metadata.language` | ⚠️ | Parsed but not used | - |
 | `metadata.namespace` | ⚠️ | Parsed but not used | - |
 
 ### Behavior
@@ -797,11 +797,11 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables | - |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
-| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not rendered | - |
+| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
-| `behavior.privacyNotice.title` | ⚠️ | Parsed but no privacy dialog implemented | - |
-| `behavior.privacyNotice.text` | ⚠️ | Parsed but no privacy dialog implemented | - |
+| `behavior.privacyNotice.title` | ⚠️ | Parsed but not implemented | - |
+| `behavior.privacyNotice.text` | ⚠️ | Parsed but not implemented | - |
 
 ### Disclaimer
 
@@ -814,12 +814,12 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `text["welcome.heading"]` | ✅ | Welcome screen title with `[Name]` placeholder replacement | `WelcomeCard` |
+| `text["welcome.heading"]` | ✅ | Welcome screen title | `WelcomeCard` |
 | `text["welcome.subheading"]` | ✅ | Welcome screen description | `WelcomeCard` |
 | `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
 | `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
-| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but AI icon not rendered | - |
+| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but not implemented | - |
 | `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
@@ -857,11 +857,11 @@ This section documents which properties are fully implemented, partially impleme
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--font-family` | ⚠️ | Parsed but not implemented (commented out in `withThemeTypography`) | - |
+| `--font-family` | ⚠️ | Parsed but not implemented | - |
 | `--line-height-body` | ✅ | Body text line height | All text components via `ConciergeStyles.withThemeTypography` |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
 | `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
-| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
+| `--disclaimer-font-size` | ⚠️ | Parsed but not implemented | - |
 
 ### Theme Tokens - Colors
 
@@ -872,15 +872,15 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color used throughout UI | `ChatHeader`, `InputActionButtons`, `WelcomeCard`, `FeedbackDialog`, `ErrorOverlay`, `ProductCard` (fallback), `VoiceRecordingPanel` |
-| `--color-text` | ✅ | Main text color (mapped to `onPrimary`) | All text components |
-| `--main-container-background` | ✅ | Main chat screen background | `ChatScreen` |
-| `--main-container-bottom-background` | ✅ | Bottom container/surface background | `FeedbackDialog`, `VoiceRecordingPanel` |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, checkboxes |
+| `--color-text` | ✅ | Primary text color (mapped to `onPrimary`) - used for all text on main background | `ChatHeader`, `WelcomeCard`, `InputActionButtons` (mic/send icons) |
+| `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
+| `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
-| `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
-| `--message-concierge-text` | ✅ | AI message text color | `ChatMessageItem` |
+| `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
+| `--message-concierge-text` | ✅ | AI message text color, also used for feedback dialog text | `ChatMessageItem`, `FeedbackDialog` |
 | `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
@@ -891,7 +891,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--color-button-secondary-hover-text` | ⚠️ | Parsed but no hover states on Android | - |
 | `--submit-button-fill-color` | ✅ | Feedback dialog submit button background | `FeedbackDialog` |
 | `--submit-button-fill-color-disabled` | ⚠️ | Parsed but disabled state not implemented | - |
-| `--color-button-submit` | ✅ | Feedback dialog submit button text/icon | `FeedbackDialog` |
+| `--color-button-submit` | ✅ | Feedback dialog submit button text/icon, also used for send/mic icons | `FeedbackDialog`, `InputActionButtons` |
 | `--color-button-submit-hover` | ⚠️ | Parsed but no hover states on Android | - |
 | `--button-disabled-background` | ⚠️ | Parsed but disabled state not implemented | - |
 | `--input-background` | ✅ | Input field background | `ChatInputPanel` |
@@ -902,7 +902,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--citations-text-color` | ✅ | Citation pill text | `CircularCitation` |
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
-| `--disclaimer-color` | ⚠️ | Parsed but no disclaimer component in UI | - |
+| `--disclaimer-color` | ⚠️ | Parsed but not implemented | - |
 
 ### Theme Tokens - Layout
 
@@ -975,14 +975,17 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 When creating themes for the Android SDK, focus on these **actively used** properties for the best results:
 
 **Essential Colors (Highest Impact):**
-- `--color-primary` - Primary brand color
-- `--color-text` - Main text color
+- `--color-primary` - Primary brand color (used for buttons, checkboxes)
+- `--color-text` - **Primary text color for main background** (header, welcome card, all text on main container)
+- `--main-container-background` - **Main screen background color** (welcome card, chat area)
+- `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
-- `--message-concierge-background` / `--message-concierge-text` - AI message styling
+- `--message-concierge-background` / `--message-concierge-text` - AI message styling and feedback dialog styling
 - `--button-primary-background` / `--button-primary-text` - Primary buttons
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
+- `--submit-button-fill-color` / `--color-button-submit` - Submit button and send/mic icons
 - `--citations-background-color` / `--citations-text-color` - Citation pills
 - `--feedback-icon-btn-background` - Feedback button styling
 
