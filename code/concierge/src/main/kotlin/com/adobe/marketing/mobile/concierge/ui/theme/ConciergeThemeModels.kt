@@ -57,15 +57,12 @@ data class ConciergeWelcomeExample(
 fun ConciergeThemeConfig.toWelcomeConfig(
     showWelcomeCard: Boolean = true
 ): WelcomeConfig {
-    val brandName = name ?: "Brand"
-    val welcomeHeading = text?.welcomeHeading?.replace("[Name]", brandName)
-        ?: com.adobe.marketing.mobile.concierge.ConciergeConstants.WelcomeCard.DEFAULT_HEADING
-    
     return WelcomeConfig(
         showWelcomeCard = showWelcomeCard,
-        brandName = brandName,
-        welcomeHeader = welcomeHeading,
-        subHeader = text?.welcomeSubheading ?: com.adobe.marketing.mobile.concierge.ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING,
+        welcomeHeader = text?.welcomeHeading 
+            ?: com.adobe.marketing.mobile.concierge.ConciergeConstants.WelcomeCard.DEFAULT_HEADING,
+        subHeader = text?.welcomeSubheading 
+            ?: com.adobe.marketing.mobile.concierge.ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING,
         suggestedPrompts = welcomeExamples?.map { example ->
             com.adobe.marketing.mobile.concierge.ui.config.SuggestedPrompt(
                 text = example.text,

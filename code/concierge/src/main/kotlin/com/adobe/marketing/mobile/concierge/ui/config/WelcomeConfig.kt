@@ -33,11 +33,6 @@ data class WelcomeConfig(
     val showWelcomeCard: Boolean = true,
 
     /**
-     * Brand name to display in the welcome card
-     */
-    val brandName: String = "BrandName",
-
-    /**
      * Custom welcome message for first-time users
      * If null, a default message will be shown
      */

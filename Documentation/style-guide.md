@@ -205,48 +205,10 @@ Theme identification information.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `metadata.brandName` | `String` | `""` | Brand/company name - used to replace `[Name]` placeholder in welcome text |
+| `metadata.brandName` | `String` | `""` | Brand/company name |
 | `metadata.version` | `String` | `"0.0.0"` | Theme version |
 | `metadata.language` | `String` | `"en-US"` | Locale identifier |
 | `metadata.namespace` | `String` | `"brand-concierge"` | Theme namespace |
-
-### brandName Usage
-
-The `metadata.brandName` property is used to automatically replace any `[Name]` placeholder in `text.welcome.heading`.
-
-**Example with placeholder replacement:**
-
-```json
-{
-  "metadata": {
-    "brandName": "ACME Corp"
-  },
-  "text": {
-    "welcome.heading": "Welcome to [Name] AI Assistant!"
-  }
-}
-```
-
-This will display:
-- **Welcome heading**: "Welcome to ACME Corp AI Assistant!"
-
-**Example without placeholder:**
-
-```json
-{
-  "metadata": {
-    "brandName": "ACME Corp"
-  },
-  "text": {
-    "welcome.heading": "Welcome to our AI Assistant!"
-  }
-}
-```
-
-This will display:
-- **Welcome heading**: "Welcome to our AI Assistant!" (no replacement)
-
-> **Note**: If you don't want to use the `[Name]` placeholder, simply write your welcome heading text directly without brackets. The chat header displays "Concierge" with "Powered by Adobe" as a subtitle and is not customizable through theme configuration.
 
 ### Example
 
@@ -823,9 +785,9 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `metadata.brandName` | ✅ | Used for `[Name]` placeholder replacement in welcome text | `WelcomeConfig` |
+| `metadata.brandName` | ⚠️ | Parsed but not used | - |
 | `metadata.version` | ⚠️ | Parsed but not used | - |
-| `metadata.language` | ⚠️ | Parsed but not used for localization | - |
+| `metadata.language` | ⚠️ | Parsed but not used | - |
 | `metadata.namespace` | ⚠️ | Parsed but not used | - |
 
 ### Behavior
@@ -835,11 +797,11 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables | - |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
-| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not rendered | - |
+| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
-| `behavior.privacyNotice.title` | ⚠️ | Parsed but no privacy dialog implemented | - |
-| `behavior.privacyNotice.text` | ⚠️ | Parsed but no privacy dialog implemented | - |
+| `behavior.privacyNotice.title` | ⚠️ | Parsed but not implemented | - |
+| `behavior.privacyNotice.text` | ⚠️ | Parsed but not implemented | - |
 
 ### Disclaimer
 
@@ -857,7 +819,7 @@ This section documents which properties are fully implemented, partially impleme
 | `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
 | `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
-| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but AI icon not rendered | - |
+| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but not implemented | - |
 | `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
@@ -895,11 +857,11 @@ This section documents which properties are fully implemented, partially impleme
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--font-family` | ⚠️ | Parsed but not implemented (commented out in `withThemeTypography`) | - |
+| `--font-family` | ⚠️ | Parsed but not implemented | - |
 | `--line-height-body` | ✅ | Body text line height | All text components via `ConciergeStyles.withThemeTypography` |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
 | `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
-| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
+| `--disclaimer-font-size` | ⚠️ | Parsed but not implemented | - |
 
 ### Theme Tokens - Colors
 
@@ -940,7 +902,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--citations-text-color` | ✅ | Citation pill text | `CircularCitation` |
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
-| `--disclaimer-color` | ⚠️ | Parsed but no disclaimer component in UI | - |
+| `--disclaimer-color` | ⚠️ | Parsed but not implemented | - |
 
 ### Theme Tokens - Layout
 
