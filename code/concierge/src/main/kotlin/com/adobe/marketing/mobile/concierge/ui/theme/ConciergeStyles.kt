@@ -265,8 +265,8 @@ object ConciergeStyles {
                 dotAnimationDuration = 600,
                 dotAnimationDelay = 200,
                 textStyle = MaterialTheme.typography.bodyLarge,
-                textColor = themeColors.onSurface,
-                dotColor = themeColors.onSurface.copy(alpha = 0.7f),
+                textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                dotColor = themeColors.primary.copy(alpha = 0.7f),
                 thinkingText = themeText?.loadingMessage ?: "Thinking"
             )
         }
@@ -570,7 +570,7 @@ object ConciergeStyles {
                 buttonSize = 32.dp,
                 iconSize = 16.dp,
                 spacing = 4.dp,
-                iconColor = themeColors.onSurface,
+                iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
                 hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground
             )
@@ -626,8 +626,8 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return MicButtonStyle(
                 size = 24.dp,
-                iconColor = themeColors.onPrimary,
-                recordingIconColor = themeColors.onPrimary,
+                iconColor = themeColors.primary,
+                recordingIconColor = themeColors.primary,
                 pulsingBackgroundColor = themeColors.primary,
                 pulsingBackgroundAlpha = 0.25f,
                 pulseAnimationDuration = 1000,
