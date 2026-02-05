@@ -26,7 +26,7 @@ data class ConciergeThemeConfig(
     val colors: ConciergeThemeColors? = null,
     val styles: ConciergeThemeStyles? = null,
     val text: ConciergeTextStrings? = null,
-    val disclaimer: ConciergeDisclaimer? = null,
+    val disclaimer: DisclaimerConfig? = null,
     val welcomeExamples: List<ConciergeWelcomeExample>? = null,
     val feedbackPositiveOptions: List<String>? = null,
     val feedbackNegativeOptions: List<String>? = null,
@@ -34,11 +34,12 @@ data class ConciergeThemeConfig(
 )
 
 /**
- * Typography configuration from theme (font sizes)
+ * Typography configuration from theme (font sizes and weights)
  */
 data class ConciergeTypographyConfig(
     val inputFontSize: Double? = null,
     val disclaimerFontSize: Double? = null,
+    val disclaimerFontWeight: Int? = null,
     val citationsFontSize: Double? = null
 )
 
@@ -103,14 +104,14 @@ data class ConciergeTextStrings(
 )
 
 /**
- * Disclaimer configuration
+ * Disclaimer configuration from the theme json
  */
-data class ConciergeDisclaimer(
+data class DisclaimerConfig(
     val text: String? = null,
-    val links: List<ConciergeDisclaimerLink>? = null
+    val links: List<DisclaimerLink>? = null
 )
 
-data class ConciergeDisclaimerLink(
+data class DisclaimerLink(
     val text: String,
     val url: String
 )

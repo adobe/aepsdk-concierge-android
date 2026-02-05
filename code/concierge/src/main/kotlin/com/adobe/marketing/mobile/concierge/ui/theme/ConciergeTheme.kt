@@ -141,7 +141,7 @@ object ConciergeTheme {
     /**
      * Retrieves disclaimer configuration from the theme
      */
-    val disclaimer: ConciergeDisclaimer?
+    val disclaimer: DisclaimerConfig?
         @Composable get() = LocalActiveConciergeTheme.current.config?.disclaimer
     
     /**

@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
+import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
@@ -306,6 +307,12 @@ internal fun ConciergeChat(
                 },
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Disclaimer
+            ConciergeDisclaimer(
+                disclaimerConfig = ConciergeTheme.disclaimer,
                 modifier = Modifier.fillMaxWidth()
             )
         }

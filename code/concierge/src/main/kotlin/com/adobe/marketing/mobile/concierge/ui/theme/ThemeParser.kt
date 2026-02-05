@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.theme
 
 import android.content.Context
 import android.util.Log
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.util.DataReader
 import com.adobe.marketing.mobile.util.JSONUtils
 import org.json.JSONObject
@@ -81,24 +82,10 @@ object ThemeParser {
                 )
             }
             
-            // Parse disclaimer
-            val disclaimerMap = DataReader.optTypedMap(Any::class.java, json, "disclaimer", null)
-            val disclaimer = disclaimerMap?.let { map ->
-                val disclaimerText = DataReader.optString(map, "text", null)
-                val linksList = DataReader.optTypedListOfMap(Any::class.java, map, "links", null)
-                val links = linksList?.mapNotNull { linkMap ->
-                    val text = DataReader.optString(linkMap, "text", null)
-                    val url = DataReader.optString(linkMap, "url", null)
-                    if (text != null && url != null) {
-                        ConciergeDisclaimerLink(text, url)
-                    } else null
-                }
-                ConciergeDisclaimer(
-                    text = disclaimerText,
-                    links = links
-                )
-            }
-            
+            val disclaimer = parseDisclaimerFromMap(
+                DataReader.optTypedMap(Any::class.java, json, "disclaimer", null)
+            )
+
             // Parse welcome examples from arrays
             val welcomeExamples = parseArrayFromMap(json, "welcome.examples") { exampleMap ->
                 val text = DataReader.optString(exampleMap, "text", null) ?: return@parseArrayFromMap null
@@ -113,11 +100,12 @@ object ThemeParser {
             val feedbackPositiveOptions = parseStringArrayFromMap(json, "feedback.positive.options")
             val feedbackNegativeOptions = parseStringArrayFromMap(json, "feedback.negative.options")
             
-            // Extract typography data (font sizes) from ConciergeThemeTokens
+            // Extract typography data from ConciergeThemeTokens
             val typography = themeTokens.cssLayout?.let { cssLayout ->
                 ConciergeTypographyConfig(
                     inputFontSize = cssLayout.inputFontSize,
                     disclaimerFontSize = cssLayout.disclaimerFontSize,
+                    disclaimerFontWeight = cssLayout.disclaimerFontWeight,
                     citationsFontSize = cssLayout.citationsDesktopButtonFontSize
                 )
             }
@@ -200,6 +188,35 @@ object ThemeParser {
         
         return theme
     }
+
+    /**
+     * Parses disclaimer config from the "disclaimer" map. Uses default text and default Terms link
+     * when missing.
+     */
+    private fun parseDisclaimerFromMap(map: Map<*, *>?): DisclaimerConfig? {
+        if (map == null) return null
+        @Suppress("UNCHECKED_CAST")
+        val typedMap = map as Map<String, Any?>
+        val disclaimerText = DataReader.optString(typedMap, "text", null)
+        val linksList = DataReader.optTypedListOfMap(Any::class.java, typedMap, "links", null)
+        val parsedLinks = linksList?.mapNotNull { linkMap ->
+            val text = DataReader.optString(linkMap, "text", null)
+            val url = DataReader.optString(linkMap, "url", null)
+            if (text != null && url != null) DisclaimerLink(text, url) else null
+        } ?: emptyList()
+        val links = if (parsedLinks.isEmpty()) {
+            listOf(
+                DisclaimerLink(
+                    ConciergeConstants.Disclaimer.DEFAULT_TERMS_LABEL,
+                    ConciergeConstants.Disclaimer.DEFAULT_TERMS_URL
+                )
+            )
+        } else {
+            parsedLinks
+        }
+        return DisclaimerConfig(text = disclaimerText, links = links)
+    }
+
     /**
      * Parses an array of objects from a nested "arrays" section.
      */

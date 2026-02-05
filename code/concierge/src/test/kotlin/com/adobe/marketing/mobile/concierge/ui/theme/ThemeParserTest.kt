@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import androidx.compose.ui.graphics.Color
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertNotNull
@@ -290,7 +291,7 @@ class ThemeParserTest {
     }
 
     @Test
-    fun `parseThemeJson should handle disclaimer without links`() {
+    fun `parseThemeJson should handle disclaimer without links and use default Terms link`() {
         val json = """
             {
                 "disclaimer": {
@@ -300,35 +301,73 @@ class ThemeParserTest {
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
-        
+
         assertEquals("Disclaimer text only", config?.disclaimer?.text)
-        assertNull(config?.disclaimer?.links)
+        assertNotNull(config?.disclaimer?.links)
+        assertEquals(1, config?.disclaimer?.links?.size)
+        assertEquals("Terms", config?.disclaimer?.links?.get(0)?.text)
+        assertEquals(ConciergeConstants.Disclaimer.DEFAULT_TERMS_URL, config?.disclaimer?.links?.get(0)?.url)
+    }
+
+    @Test
+    fun `parseThemeJson should use default Terms link when disclaimer has empty links`() {
+        // When disclaimer has text but links array is empty, parser applies default Terms link
+        val json = """
+            {
+                "metadata": { "brandName": "Concierge Demo", "version": "1.0.0" },
+                "behavior": { "input": { "enableVoiceInput": true } },
+                "theme": { "--color-primary": "#EB1000", "--color-text": "#131313" },
+                "text": { "welcome.heading": "Welcome", "input.placeholder": "How can I help?" },
+                "disclaimer": {
+                    "text": "AI responses may be inaccurate. Check answers and sources. {Terms}",
+                    "links": []
+                },
+                "arrays": {
+                    "welcome.examples": [{ "text": "Example prompt" }],
+                    "feedback.positive.options": ["Helpful", "Clear"]
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+
+        assertNotNull(config)
+        assertNotNull(config?.disclaimer)
+        assertEquals(ConciergeConstants.Disclaimer.DEFAULT_TEXT, config?.disclaimer?.text)
+        assertNotNull(config?.disclaimer?.links)
+        assertEquals(1, config?.disclaimer?.links?.size)
+        assertEquals("Terms", config?.disclaimer?.links?.get(0)?.text)
+        assertEquals(ConciergeConstants.Disclaimer.DEFAULT_TERMS_URL, config?.disclaimer?.links?.get(0)?.url)
     }
 
     @Test
     fun `parseThemeJson should filter invalid disclaimer links`() {
         val json = """
             {
+                "metadata": { "brandName": "Concierge Demo", "version": "1.0.0" },
+                "behavior": { "input": { "enableVoiceInput": true } },
+                "theme": { "--color-primary": "#EB1000" },
+                "text": { "input.placeholder": "How can I help?" },
                 "disclaimer": {
+                    "text": "Custom disclaimer. {Valid Link}",
                     "links": [
-                        {
-                            "text": "Valid Link",
-                            "url": "https://example.com/valid"
-                        },
-                        {
-                            "text": "Invalid Link"
-                        },
-                        {
-                            "url": "https://example.com/no-text"
-                        }
+                        { "text": "Valid Link", "url": "https://example.com/valid" },
+                        { "text": "Invalid Link" },
+                        { "url": "https://example.com/no-text" }
                     ]
+                },
+                "arrays": {
+                    "welcome.examples": [{ "text": "Example" }],
+                    "feedback.positive.options": ["Helpful"]
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
-        
-        // Should only include the valid link
+
+        assertNotNull(config)
+        assertNotNull(config?.disclaimer)
+        assertEquals("Custom disclaimer. {Valid Link}", config?.disclaimer?.text)
         assertEquals(1, config?.disclaimer?.links?.size)
         assertEquals("Valid Link", config?.disclaimer?.links?.get(0)?.text)
     }
@@ -425,16 +464,18 @@ class ThemeParserTest {
                 "theme": {
                     "--input-font-size": "16px",
                     "--disclaimer-font-size": "12px",
+                    "--disclaimer-font-weight": "700",
                     "--citations-desktop-button-font-size": "14px"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
-        
+
         assertNotNull(config?.typography)
         assertEquals(16.0, config?.typography?.inputFontSize)
         assertEquals(12.0, config?.typography?.disclaimerFontSize)
+        assertEquals(700, config?.typography?.disclaimerFontWeight)
         assertEquals(14.0, config?.typography?.citationsFontSize)
     }
 
@@ -1208,6 +1249,7 @@ class ThemeParserTest {
         assertNotNull(config?.typography)
         assertEquals(16.0, config?.typography?.inputFontSize)
         assertEquals(12.0, config?.typography?.disclaimerFontSize)
+        assertEquals(400, config?.typography?.disclaimerFontWeight)
         assertEquals(12.0, config?.typography?.citationsFontSize)
     }
 }
