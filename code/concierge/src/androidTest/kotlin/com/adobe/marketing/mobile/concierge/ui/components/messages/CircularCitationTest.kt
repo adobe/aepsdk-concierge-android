@@ -10,10 +10,9 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.ui.components.header
+package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,81 +21,94 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * UI tests for the ChatHeader composable.
- * ChatHeader displays a fixed title "Concierge", subtitle "Powered by Adobe", and a close button.
+ * UI tests for the CircularCitation composable.
+ * CircularCitation displays a citation number in a circular badge and triggers onClick.
  */
-class ChatHeaderTest {
+class CircularCitationTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
 
     @Test
-    fun chatHeader_displaysTitle() {
+    fun circularCitation_displaysNumber() {
         composeTestRule.setContent {
             ConciergeTheme {
-                ChatHeader(onClose = {})
+                CircularCitation(
+                    citationNumber = 1,
+                    onClick = {}
+                )
             }
         }
 
-        composeTestRule.onNodeWithText("Concierge")
+        composeTestRule.onNodeWithText("1")
             .assertIsDisplayed()
     }
 
     @Test
-    fun chatHeader_displaysSubtitle() {
+    fun circularCitation_displaysMultipleDigits() {
         composeTestRule.setContent {
             ConciergeTheme {
-                ChatHeader(onClose = {})
+                CircularCitation(
+                    citationNumber = 12,
+                    onClick = {}
+                )
             }
         }
 
-        composeTestRule.onNodeWithText("Powered by Adobe")
+        composeTestRule.onNodeWithText("12")
             .assertIsDisplayed()
     }
 
     @Test
-    fun chatHeader_displaysCloseButton() {
-        composeTestRule.setContent {
-            ConciergeTheme {
-                ChatHeader(onClose = {})
-            }
-        }
-
-        composeTestRule.onNode(hasContentDescription("Close chat"))
-            .assertIsDisplayed()
-    }
-
-    @Test
-    fun chatHeader_closeButtonTriggersCallback() {
-        var closeCalled = false
+    fun circularCitation_click_triggersCallback() {
+        var clicked = false
 
         composeTestRule.setContent {
             ConciergeTheme {
-                ChatHeader(onClose = { closeCalled = true })
+                CircularCitation(
+                    citationNumber = 1,
+                    onClick = { clicked = true }
+                )
             }
         }
 
-        composeTestRule.onNode(hasContentDescription("Close chat"))
+        composeTestRule.onNodeWithText("1")
             .performClick()
 
-        assert(closeCalled)
+        assert(clicked)
     }
 
     @Test
-    fun chatHeader_multipleClicksOnCloseButton() {
+    fun circularCitation_multipleClicks_triggersMultipleCallbacks() {
         var clickCount = 0
 
         composeTestRule.setContent {
             ConciergeTheme {
-                ChatHeader(onClose = { clickCount++ })
+                CircularCitation(
+                    citationNumber = 2,
+                    onClick = { clickCount++ }
+                )
             }
         }
 
-        val closeButton = composeTestRule.onNode(hasContentDescription("Close chat"))
-        closeButton.performClick()
-        closeButton.performClick()
-        closeButton.performClick()
+        val node = composeTestRule.onNodeWithText("2")
+        node.performClick()
+        node.performClick()
 
-        assert(clickCount == 3)
+        assert(clickCount == 2)
+    }
+
+    @Test
+    fun circularCitation_rendersWithoutCrashing() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CircularCitation(
+                    citationNumber = 1,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
     }
 }

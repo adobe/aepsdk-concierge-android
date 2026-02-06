@@ -27,7 +27,7 @@ import org.junit.Test
 
 /**
  * UI tests for the WelcomeCard composable.
- * Tests welcome screen display for new and returning users.
+ * WelcomeCard displays welcomeHeader, subHeader, and suggested prompts (no brand name or placeholder replacement).
  */
 class WelcomeCardTest {
 
@@ -35,9 +35,8 @@ class WelcomeCardTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun welcomeCard_displaysFirstTimeWelcome() {
+    fun welcomeCard_displaysHeaderAndSubHeader() {
         val config = WelcomeConfig(
-            brandName = "TestBrand",
             welcomeHeader = "How can we help?",
             subHeader = "Try asking:"
         )
@@ -55,8 +54,6 @@ class WelcomeCardTest {
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Welcome to [TestBrand] concierge!", substring = true)
-            .assertIsDisplayed()
         composeTestRule.onNodeWithText("How can we help?")
             .assertIsDisplayed()
         composeTestRule.onNodeWithText("Try asking:")
@@ -64,11 +61,10 @@ class WelcomeCardTest {
     }
 
     @Test
-    fun welcomeCard_displaysReturningUserWelcome() {
+    fun welcomeCard_displaysWithReturningUser() {
         val config = WelcomeConfig(
-            brandName = "TestBrand",
-            returningUserWelcomeMessage = "Welcome back!",
-            welcomeHeader = "How can we help today?"
+            welcomeHeader = "How can we help today?",
+            subHeader = "Choose an option below."
         )
 
         composeTestRule.setContent {
@@ -83,14 +79,15 @@ class WelcomeCardTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Welcome back!")
+        composeTestRule.onNodeWithText("How can we help today?")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Choose an option below.")
             .assertIsDisplayed()
     }
 
     @Test
     fun welcomeCard_displaysSuggestedPrompts() {
         val config = WelcomeConfig(
-            brandName = "TestBrand",
             welcomeHeader = "Welcome",
             subHeader = "Try these:",
             suggestedPrompts = listOf(
@@ -123,9 +120,8 @@ class WelcomeCardTest {
     @Test
     fun welcomeCard_promptClick_triggersCallback() {
         var clickedPrompt: String? = null
-        
+
         val config = WelcomeConfig(
-            brandName = "TestBrand",
             suggestedPrompts = listOf(
                 SuggestedPrompt(text = "Show me products")
             )
@@ -150,10 +146,10 @@ class WelcomeCardTest {
     }
 
     @Test
-    fun welcomeCard_withoutPrompts_displaysWelcomeOnly() {
+    fun welcomeCard_withoutPrompts_displaysHeaderAndSubHeaderOnly() {
         val config = WelcomeConfig(
-            brandName = "TestBrand",
             welcomeHeader = "Welcome to support",
+            subHeader = "How can we assist you?",
             suggestedPrompts = emptyList()
         )
 
@@ -171,14 +167,15 @@ class WelcomeCardTest {
 
         composeTestRule.onNodeWithText("Welcome to support")
             .assertIsDisplayed()
+        composeTestRule.onNodeWithText("How can we assist you?")
+            .assertIsDisplayed()
     }
 
     @Test
-    fun welcomeCard_customFirstTimeMessage_isDisplayed() {
+    fun welcomeCard_customHeader_isDisplayed() {
         val config = WelcomeConfig(
-            brandName = "TestBrand",
-            firstTimeWelcomeMessage = "Hello! Welcome to our service!",
-            welcomeHeader = "How can we assist?"
+            welcomeHeader = "How can we assist?",
+            subHeader = "Select a topic or type your question."
         )
 
         composeTestRule.setContent {
@@ -193,16 +190,19 @@ class WelcomeCardTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Hello! Welcome to our service!")
+        composeTestRule.onNodeWithText("How can we assist?")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Select a topic or type your question.")
             .assertIsDisplayed()
     }
 
     @Test
     fun welcomeCard_multiplePromptClicks_triggerMultipleCallbacks() {
         val clickedPrompts = mutableListOf<String>()
-        
+
         val config = WelcomeConfig(
-            brandName = "TestBrand",
+            welcomeHeader = "Welcome",
+            subHeader = "Try:",
             suggestedPrompts = listOf(
                 SuggestedPrompt(text = "Prompt A"),
                 SuggestedPrompt(text = "Prompt B")
@@ -229,7 +229,10 @@ class WelcomeCardTest {
 
     @Test
     fun welcomeCard_rendersWithoutCrashing() {
-        val config = WelcomeConfig(brandName = "Test")
+        val config = WelcomeConfig(
+            welcomeHeader = "Welcome",
+            subHeader = "Get started below."
+        )
 
         composeTestRule.setContent {
             ConciergeTheme {
