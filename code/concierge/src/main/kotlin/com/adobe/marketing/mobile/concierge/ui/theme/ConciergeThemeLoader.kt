@@ -17,12 +17,21 @@ import android.util.Log
 import java.io.File
 
 /**
+ * Data class that holds both theme configuration and tokens from a single JSON file
+ */
+data class ConciergeThemeData(
+    val config: ConciergeThemeConfig,
+    val tokens: ConciergeThemeTokens?
+)
+
+/**
  * Thread-safe singleton loader for Concierge theme configurations.
  * Supports loading themes from various sources with caching and fallback mechanisms.
  */
 class ConciergeThemeLoader private constructor() {
     private val themeCache = mutableMapOf<String, ConciergeThemeConfig>()
     private val tokenCache = mutableMapOf<String, ConciergeThemeTokens>()
+    private val themeDataCache = mutableMapOf<String, ConciergeThemeData>()
 
     companion object {
         private const val TAG = "ConciergeThemeLoader"
@@ -32,18 +41,37 @@ class ConciergeThemeLoader private constructor() {
         }
 
         /**
-         * Loads a ConciergeTheme from a bundled JSON file
+         * Loads a complete theme (config + tokens) from a bundled JSON file.
+         * This is the recommended method as it loads all theme data efficiently.
+         * 
          * @param context Context to access assets
          * @param filename Name of the JSON file (with or without .json extension) in assets
-         * @return Decoded ConciergeThemeConfig instance, or null if loading/decoding fails
+         * @return ConciergeThemeData containing both config and tokens, or null if loading fails
          */
         @JvmStatic
-        fun load(context: Context, filename: String): ConciergeThemeConfig? {
+        fun load(context: Context, filename: String): ConciergeThemeData? {
             val fileName = if (filename.endsWith(".json")) filename else "$filename.json"
+            
+            // Check cache first
+            instance.themeDataCache[fileName]?.let { return it }
+            
             return try {
                 val inputStream = context.assets.open(fileName)
                 val jsonString = inputStream.bufferedReader().use { it.readText() }
-                ThemeParser.parseThemeJson(jsonString)
+                
+                // Parse both from the same JSON string
+                val config = ThemeParser.parseThemeJson(jsonString)
+                val tokens = ThemeParser.parseThemeTokens(jsonString)
+                
+                val themeData = ConciergeThemeData(
+                    config = config ?: ConciergeThemeConfig(),
+                    tokens = tokens
+                )
+                
+                // Cache for future use
+                instance.themeDataCache[fileName] = themeData
+                
+                themeData
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load theme '$fileName': ${e.message}", e)
                 null
@@ -51,12 +79,36 @@ class ConciergeThemeLoader private constructor() {
         }
 
         /**
-         * Creates a default ConciergeTheme instance
-         * @return A ConciergeThemeConfig with all default values (null/empty)
+         * Creates a default ConciergeThemeData instance
+         * @return A ConciergeThemeData with default config and null tokens
          */
         @JvmStatic
-        fun default(): ConciergeThemeConfig {
-            return ConciergeThemeConfig()
+        fun default(): ConciergeThemeData {
+            return ConciergeThemeData(
+                config = ConciergeThemeConfig(),
+                tokens = null
+            )
+        }
+
+        /**
+         * Loads ConciergeThemeTokens (including behavior config) from a bundled JSON file.
+         * Use this only if you specifically need tokens without the full theme config.
+         * 
+         * @param context Context to access assets
+         * @param filename Name of the JSON file (with or without .json extension) in assets
+         * @return Decoded ConciergeThemeTokens instance, or null if loading/decoding fails
+         */
+        @JvmStatic
+        fun loadTokens(context: Context, filename: String): ConciergeThemeTokens? {
+            val fileName = if (filename.endsWith(".json")) filename else "$filename.json"
+            return try {
+                val inputStream = context.assets.open(fileName)
+                val jsonString = inputStream.bufferedReader().use { it.readText() }
+                ThemeParser.parseThemeTokens(jsonString)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load theme tokens '$fileName': ${e.message}", e)
+                null
+            }
         }
     }
 
@@ -157,9 +209,11 @@ class ConciergeThemeLoader private constructor() {
         if (source != null) {
             themeCache.remove(source)
             tokenCache.remove(source)
+            themeDataCache.remove(source)
         } else {
             themeCache.clear()
             tokenCache.clear()
+            themeDataCache.clear()
         }
     }
 

@@ -148,19 +148,11 @@ class WelcomeConfigTest {
         val config = WelcomeConfig()
         
         assertTrue(config.showWelcomeCard)
-        assertEquals("BrandName", config.brandName)
         assertNull(config.firstTimeWelcomeMessage)
         assertNull(config.returningUserWelcomeMessage)
         assertEquals(ConciergeConstants.WelcomeCard.DEFAULT_HEADING, config.welcomeHeader)
         assertEquals(ConciergeConstants.WelcomeCard.DEFAULT_SUBHEADING, config.subHeader)
         assertTrue(config.suggestedPrompts.isEmpty())
-    }
-
-    @Test
-    fun `WelcomeConfig creates with custom brand name`() {
-        val config = WelcomeConfig(brandName = "Acme Corp")
-        
-        assertEquals("Acme Corp", config.brandName)
     }
 
     @Test
@@ -216,7 +208,6 @@ class WelcomeConfigTest {
         
         val config = WelcomeConfig(
             showWelcomeCard = true,
-            brandName = "Test Brand",
             firstTimeWelcomeMessage = "First time message",
             returningUserWelcomeMessage = "Welcome back message",
             welcomeHeader = "Custom Header",
@@ -225,7 +216,6 @@ class WelcomeConfigTest {
         )
         
         assertTrue(config.showWelcomeCard)
-        assertEquals("Test Brand", config.brandName)
         assertEquals("First time message", config.firstTimeWelcomeMessage)
         assertEquals("Welcome back message", config.returningUserWelcomeMessage)
         assertEquals("Custom Header", config.welcomeHeader)
@@ -235,40 +225,33 @@ class WelcomeConfigTest {
 
     @Test
     fun `WelcomeConfig supports copy`() {
-        val original = WelcomeConfig(brandName = "Original")
-        val updated = original.copy(brandName = "Updated")
+        val original = WelcomeConfig(welcomeHeader = "Original Header")
+        val updated = original.copy(welcomeHeader = "Updated Header")
         
-        assertEquals("Original", original.brandName)
-        assertEquals("Updated", updated.brandName)
+        assertEquals("Original Header", original.welcomeHeader)
+        assertEquals("Updated Header", updated.welcomeHeader)
     }
 
     @Test
     fun `WelcomeConfig with same values are equal`() {
         val config1 = WelcomeConfig(
-            brandName = "Test",
-            welcomeHeader = "Header"
+            welcomeHeader = "Header",
+            subHeader = "Subheader"
         )
         val config2 = WelcomeConfig(
-            brandName = "Test",
-            welcomeHeader = "Header"
+            welcomeHeader = "Header",
+            subHeader = "Subheader"
         )
         
         assertEquals(config1, config2)
     }
 
     @Test
-    fun `WelcomeConfig with different brand names are not equal`() {
-        val config1 = WelcomeConfig(brandName = "Brand1")
-        val config2 = WelcomeConfig(brandName = "Brand2")
+    fun `WelcomeConfig with different headers are not equal`() {
+        val config1 = WelcomeConfig(welcomeHeader = "Header1")
+        val config2 = WelcomeConfig(welcomeHeader = "Header2")
         
         assertNotEquals(config1, config2)
-    }
-
-    @Test
-    fun `WelcomeConfig handles empty brand name`() {
-        val config = WelcomeConfig(brandName = "")
-        
-        assertEquals("", config.brandName)
     }
 
     @Test
@@ -298,14 +281,6 @@ class WelcomeConfigTest {
     }
 
     @Test
-    fun `WelcomeConfig handles long brand name`() {
-        val longName = "A".repeat(100)
-        val config = WelcomeConfig(brandName = longName)
-        
-        assertEquals(longName, config.brandName)
-    }
-
-    @Test
     fun `WelcomeConfig handles long header text`() {
         val longHeader = "This is a very long welcome header text that might span multiple lines"
         val config = WelcomeConfig(welcomeHeader = longHeader)
@@ -322,22 +297,12 @@ class WelcomeConfigTest {
     }
 
     @Test
-    fun `WelcomeConfig handles special characters in brand name`() {
-        val brandName = "Acme Corp™ & Co."
-        val config = WelcomeConfig(brandName = brandName)
-        
-        assertEquals(brandName, config.brandName)
-    }
-
-    @Test
     fun `WelcomeConfig handles unicode in text fields`() {
         val config = WelcomeConfig(
-            brandName = "ブランド",
             welcomeHeader = "こんにちは 🎉",
             subHeader = "サブヘッダー"
         )
         
-        assertEquals("ブランド", config.brandName)
         assertEquals("こんにちは 🎉", config.welcomeHeader)
         assertEquals("サブヘッダー", config.subHeader)
     }
@@ -346,13 +311,13 @@ class WelcomeConfigTest {
     fun `WelcomeConfig can disable welcome card`() {
         val config = WelcomeConfig(
             showWelcomeCard = false,
-            brandName = "Test",
+            welcomeHeader = "Test Header",
             suggestedPrompts = listOf(SuggestedPrompt("Test"))
         )
         
         assertEquals(false, config.showWelcomeCard)
         // Other fields should still be set even if card is disabled
-        assertEquals("Test", config.brandName)
+        assertEquals("Test Header", config.welcomeHeader)
         assertEquals(1, config.suggestedPrompts.size)
     }
 

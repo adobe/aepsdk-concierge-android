@@ -149,8 +149,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Configuration for the welcome card
      */
-    internal var welcomeConfig: WelcomeConfig = initializeWelcomeConfig()
-        private set
+    private val _welcomeConfig = MutableStateFlow(initializeWelcomeConfig())
+    internal val welcomeConfig: StateFlow<WelcomeConfig> = _welcomeConfig.asStateFlow()
     
     /**
      * Updates the welcome configuration from a theme config
@@ -158,7 +158,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     fun updateWelcomeConfigFromTheme(themeConfig: ConciergeThemeConfig?) {
         if (themeConfig != null) {
-            welcomeConfig = themeConfig.toWelcomeConfig(showWelcomeCard = true)
+            _welcomeConfig.value = themeConfig.toWelcomeConfig(showWelcomeCard = true)
         }
     }
 
@@ -224,7 +224,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun checkAndShowWelcomeCard() {
         // Show welcome card every time chat is opened if config allows
-        if (welcomeConfig.showWelcomeCard) {
+        if (welcomeConfig.value.showWelcomeCard) {
             _showWelcomeCard.value = true
         }
     }

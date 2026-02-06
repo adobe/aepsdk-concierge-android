@@ -48,10 +48,15 @@ internal object MarkdownTokenizer {
         // Process list items separately to handle multi-line content
         addListTokens(markdown, tokens)
 
-        // Process inline elements, allowing them to be nested within block elements
+        // Process inline elements with priority to combined patterns (bold+link, italic+link)
         val inlinePatterns = mapOf(
             TokenType.CITATION to """\[\^(\d+)\]""".toRegex(),
-            TokenType.LINK to """\[([^\^][^\]]*)\]\((.*?)\)""".toRegex(),  // Updated to exclude [^ patterns
+            // Bold link: **[text](url)**
+            TokenType.BOLD_LINK to """\*\*\[([^\^][^\]]*)\]\((.*?)\)\*\*""".toRegex(),
+            // Italic link: *[text](url)*
+            TokenType.ITALIC_LINK to """\*\[([^\^][^\]]*)\]\((.*?)\)\*""".toRegex(),
+            // Regular link
+            TokenType.LINK to """\[([^\^][^\]]*)\]\((.*?)\)""".toRegex(),
             TokenType.INLINE_CODE to """`(.*?)`""".toRegex(),
             TokenType.BOLD to """\*\*(.*?)\*\*""".toRegex(),
             TokenType.ITALIC to """(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)""".toRegex()
@@ -197,6 +202,8 @@ internal object MarkdownTokenizer {
             val hasInlineOverlap = tokens.any { existing ->
                 val isInlineElement = existing.type in listOf(
                     TokenType.LINK,
+                    TokenType.BOLD_LINK,
+                    TokenType.ITALIC_LINK,
                     TokenType.INLINE_CODE,
                     TokenType.BOLD,
                     TokenType.ITALIC,
@@ -265,6 +272,8 @@ internal enum class TokenType {
     CODE_BLOCK,
     INLINE_CODE,
     LINK,
+    BOLD_LINK,
+    ITALIC_LINK,
     BOLD,
     ITALIC,
     HEADING,

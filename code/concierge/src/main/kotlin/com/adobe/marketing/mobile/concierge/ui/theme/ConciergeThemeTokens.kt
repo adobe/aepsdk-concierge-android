@@ -126,7 +126,6 @@ data class ConciergeThemeBehavior(
     val showTimestamps: Boolean = false,
     val enableMarkdown: Boolean = true,
     val enableCitations: Boolean = true,
-    val enableFeedback: Boolean = true,
     val enableVoiceInput: Boolean = true,
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500

@@ -10,7 +10,7 @@
       "cardClickAction": "openLink"
     },
     "input": {
-      "enableVoiceInput": false,
+      "enableVoiceInput": true,
       "disableMultiline": true,
       "showAiChatIcon": null
     },
@@ -33,7 +33,7 @@
     ]
   },
   "text": {
-    "welcome.heading": "Welcome to [Name] concierge!",
+    "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need. Let's get started!\n\nNot sure where to start? Explore the suggested ideas below.",
     "input.placeholder": "[DEMO] How can I help?",
     "input.messageInput.aria": "Message input",
@@ -63,22 +63,22 @@
       {
         "text": "I'd like to explore templates to see what I can create.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       },
       {
         "text": "I want to touch up and enhance my photos.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       },
       {
         "text": "I'd like to edit PDFs and make them interactive.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       },
       {
         "text": "I want to turn my clips into polished videos.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
-        "backgroundColor": "#F5F5F5"
+        "backgroundColor": "#75A7F8"
       }
     ],
     "feedback.positive.options": [
@@ -105,19 +105,19 @@
     "--welcome-input-order": "3",
     "--welcome-cards-order": "2",
     "--font-family": "",
-    "--color-primary": "#0C507F",
-    "--color-text": "#FF00D4",
+    "--color-primary": "#1E3A8A",
+    "--color-text": "#FFFFFF",
     "--line-height-body": "1.75",
-    "--main-container-background": "#FFFFFF",
-    "--main-container-bottom-background": "#7EC3F3",
-    "--message-blocker-background": "#2B0000",
-    "--message-user-background": "#00B3A4",
-    "--message-user-text": "#1A0033",
+    "--main-container-background": "#1E3A8A",
+    "--main-container-bottom-background": "#2563EB",
+    "--message-blocker-background": "#1E40AF",
+    "--message-user-background": "#3B82F6",
+    "--message-user-text": "#FFFFFF",
     "--message-border-radius": "10px",
     "--message-padding": "8px 16px",
-    "--message-concierge-background": "#FFFFFF",
-    "--message-concierge-text": "#001A00",
-    "--message-concierge-link-color": "#FFF700",
+    "--message-concierge-background": "#F0F9FF",
+    "--message-concierge-text": "#111111",
+    "--message-concierge-link-color": "#2563EB",
     "--message-max-width": "100%",
     "--chat-interface-max-width": "768px",
     "--chat-history-padding": "16px",
@@ -129,32 +129,32 @@
     "--input-height-mobile": "52px",
     "--input-border-radius": "12px",
     "--input-border-radius-mobile": "12px",
-    "--button-primary-background": "#0095B3",
+    "--button-primary-background": "#2563EB",
     "--button-primary-text": "#FFFFFF",
-    "--button-primary-hover": "#274DEA",
-    "--button-secondary-border": "#FFF700",
-    "--button-secondary-text": "#FFF700",
-    "--button-secondary-hover": "#000000",
+    "--button-primary-hover": "#1D4ED8",
+    "--button-secondary-border": "#60A5FA",
+    "--button-secondary-text": "#60A5FA",
+    "--button-secondary-hover": "#3B82F6",
     "--color-button-secondary-hover-text": "#FFFFFF",
     "--button-height-s": "30px",
-    "--button-disabled-background": "#FFFFFF",
+    "--button-disabled-background": "#9CA3AF",
 
-    "--submit-button-fill-color": "#FFFFFF",
-    "--submit-button-fill-color-disabled": "#C6C6C6",
-    "--color-button-submit": "#292929",
-    "--color-button-submit-hover": "#292929",
+    "--submit-button-fill-color": "#2563EB",
+    "--submit-button-fill-color-disabled": "#9CA3AF",
+    "--color-button-submit": "#FFFFFF",
+    "--color-button-submit-hover": "#FFFFFF",
 
-    "--disclaimer-color": "#FF7A00",
+    "--disclaimer-color": "#93C5FD",
     "--disclaimer-font-size": "12px",
     "--disclaimer-font-weight": "400",
 
-    "--input-background": "#FFFFFF",
-    "--input-outline-color": "#0C507F",
+    "--input-background": "#1E40AF",
+    "--input-outline-color": "#3B82F6",
     "--input-outline-width": "2px",
     "--input-box-shadow": "0 4px 16px 0 #00000029",
     "--input-focus-outline-width": "2px",
-    "--input-text-color": "#0C507F",
-    "--input-focus-outline-color": "#39FF14",
+    "--input-text-color": "#E0F2FE",
+    "--input-focus-outline-color": "#60A5FA",
     "--input-font-size": "16px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
@@ -162,11 +162,11 @@
 
     "--citations-text-font-weight": "700",
     "--citations-desktop-button-font-size": "14px",
-    "--citations-background-color": "#FF7A00",
-    "--citations-text-color": "#12002B",
+    "--citations-background-color": "#1E3A8A",
+    "--citations-text-color": "#FFFFFF",
 
-    "--feedback-icon-btn-background": "#7EC3F3",
-    "--feedback-icon-btn-hover-background": "#0C507F",
+    "--feedback-icon-btn-background": "#FFFFFF",
+    "--feedback-icon-btn-hover-background": "#DBEAFE",
     "--feedback-icon-btn-size-desktop": "32px",
     "--feedback-container-gap": "4px",
 

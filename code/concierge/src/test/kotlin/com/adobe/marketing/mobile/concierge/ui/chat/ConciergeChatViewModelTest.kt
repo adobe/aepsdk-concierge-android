@@ -622,7 +622,7 @@ class ConciergeChatViewModelTest {
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
         
         assertTrue(vm.showWelcomeCard.value)
-        assertTrue(vm.welcomeConfig.showWelcomeCard)
+        assertTrue(vm.welcomeConfig.value.showWelcomeCard)
     }
 
     @Test
@@ -999,8 +999,8 @@ class ConciergeChatViewModelTest {
         
         vm.updateWelcomeConfigFromTheme(themeConfig)
         
-        assertEquals("Custom Welcome Header", vm.welcomeConfig.welcomeHeader)
-        assertEquals("Custom Subheader", vm.welcomeConfig.subHeader)
+        assertEquals("Custom Welcome Header", vm.welcomeConfig.value.welcomeHeader)
+        assertEquals("Custom Subheader", vm.welcomeConfig.value.subHeader)
     }
 
     @Test
@@ -1010,12 +1010,12 @@ class ConciergeChatViewModelTest {
         
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
         
-        val originalConfig = vm.welcomeConfig
+        val originalConfig = vm.welcomeConfig.value
         
         vm.updateWelcomeConfigFromTheme(null)
         
         // Config should remain unchanged
-        assertEquals(originalConfig, vm.welcomeConfig)
+        assertEquals(originalConfig, vm.welcomeConfig.value)
     }
 }
 
