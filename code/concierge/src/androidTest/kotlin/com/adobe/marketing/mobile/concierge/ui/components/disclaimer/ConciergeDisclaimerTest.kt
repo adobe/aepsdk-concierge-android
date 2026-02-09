@@ -10,81 +10,80 @@
  * governing permissions and limitations under the License.
  */
 
-package com.adobe.marketing.mobile.concierge.ui.components.messages
+package com.adobe.marketing.mobile.concierge.ui.components.disclaimer
 
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerLink
 import org.junit.Rule
 import org.junit.Test
 
 /**
- * UI tests for ConciergeResponseText and related text composables (ConciergeTextComponents.kt).
+ * UI tests for ConciergeDisclaimer composable.
  */
-class ConciergeTextComponentsTest {
+class ConciergeDisclaimerTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
 
     @Test
-    fun conciergeResponseText_displaysPlainText() {
+    fun disclaimer_displaysPlainTextWhenNoLinks() {
         composeTestRule.setContent {
             ConciergeTheme {
-                ConciergeResponseText(text = "Hello, world!")
-            }
-        }
-
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Hello, world!").assertIsDisplayed()
-    }
-
-    @Test
-    fun conciergeResponseText_emptyText_rendersWithoutCrashing() {
-        composeTestRule.setContent {
-            ConciergeTheme {
-                ConciergeResponseText(text = "")
-            }
-        }
-
-        composeTestRule.waitForIdle()
-    }
-
-    @Test
-    fun conciergeResponseText_withMarkdown_rendersWithoutCrashing() {
-        composeTestRule.setContent {
-            ConciergeTheme {
-                ConciergeResponseText(text = "**Bold** and *italic* text")
-            }
-        }
-
-        composeTestRule.waitForIdle()
-    }
-
-    @Test
-    fun clickableText_withTextAlignCenter_rendersAndDisplaysText() {
-        val annotatedText: AnnotatedString = buildAnnotatedString {
-            append("Read our ")
-            pushStringAnnotation("URL", "https://example.com/terms")
-            append("Terms")
-            pop()
-            append(" for more.")
-        }
-
-        composeTestRule.setContent {
-            ConciergeTheme {
-                ClickableText(
-                    text = annotatedText,
-                    onLinkClick = {},
-                    textAlign = TextAlign.Center
+                ConciergeDisclaimer(
+                    disclaimerConfig = DisclaimerConfig(
+                        text = "AI responses may be inaccurate.",
+                        links = emptyList()
+                    )
                 )
             }
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Read our Terms for more.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("AI responses may be inaccurate.").assertIsDisplayed()
+    }
+
+    @Test
+    fun disclaimer_displaysTextWithLinkPlaceholder() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ConciergeDisclaimer(
+                    disclaimerConfig = DisclaimerConfig(
+                        text = "Check our {Terms} for more.",
+                        links = listOf(DisclaimerLink("Terms", "https://example.com/terms"))
+                    )
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Check our Terms for more.").assertIsDisplayed()
+    }
+
+    @Test
+    fun disclaimer_doesNotDisplayWhenConfigNull_rendersWithoutCrashing() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ConciergeDisclaimer(disclaimerConfig = null)
+            }
+        }
+
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun disclaimer_doesNotDisplayWhenTextBlank() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ConciergeDisclaimer(
+                    disclaimerConfig = DisclaimerConfig(text = "  ", links = null)
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
     }
 }

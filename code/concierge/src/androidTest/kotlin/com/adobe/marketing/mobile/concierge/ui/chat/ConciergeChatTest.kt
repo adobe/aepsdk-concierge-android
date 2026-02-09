@@ -23,6 +23,9 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.test.ComposeTestUtils
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerConfig
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import org.junit.Rule
@@ -177,5 +180,41 @@ class ConciergeChatTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun conciergeChat_withThemeDisclaimer_displaysDisclaimerBelowInput() {
+        val themeWithDisclaimer = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                disclaimer = DisclaimerConfig(
+                    text = "Disclaimer text below input.",
+                    links = null
+                )
+            ),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeWithDisclaimer) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ConciergeChat(
+                        messages = emptyList(),
+                        chatState = ChatScreenState.Idle(),
+                        inputState = UserInputState.Empty,
+                        hasAudioPermission = true,
+                        showWelcomeCard = false,
+                        welcomeConfig = WelcomeConfig(),
+                        isReturningUser = true,
+                        onTextChanged = {},
+                        onEvent = {},
+                        onPermissionResult = {},
+                        onClose = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Disclaimer text below input.").assertIsDisplayed()
     }
 }

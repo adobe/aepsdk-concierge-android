@@ -73,7 +73,7 @@ internal fun ConciergeDisclaimer(
  * Builds an [AnnotatedString] from disclaimer text, replacing placeholders like `{Terms}` with
  * the link text and adding URL annotations for click handling.
  */
-private fun buildDisclaimerAnnotatedString(
+internal fun buildDisclaimerAnnotatedString(
     disclaimer: DisclaimerConfig,
     style: ConciergeStyles.DisclaimerStyle
 ): AnnotatedString {
