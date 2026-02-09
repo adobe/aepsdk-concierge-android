@@ -81,4 +81,31 @@ class MessageListTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Single message").assertIsDisplayed()
     }
+
+    @Test
+    fun messageList_withCitations_displaysMessageContent() {
+        val citations = listOf(
+            ComposeTestUtils.createCitation(url = "https://example.com/1", title = "Source One"),
+            ComposeTestUtils.createCitation(url = "https://example.com/2", title = "Source Two")
+        )
+        val messages = listOf(
+            ComposeTestUtils.createMessageWithCitations(
+                text = "Answer with sources [1][2].",
+                citations = citations,
+                isFromUser = false
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    MessageList(messages = messages)
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Answer with sources", substring = true).assertIsDisplayed()
+        // Citation numbers may be rendered as inline content and not exposed as separate text nodes
+    }
 }
