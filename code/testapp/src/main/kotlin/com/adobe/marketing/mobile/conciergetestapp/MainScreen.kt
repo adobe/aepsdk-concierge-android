@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,7 +53,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
-    var selectedTheme by remember { mutableStateOf("default") }
+    var selectedTheme by rememberSaveable { mutableStateOf("default") }
     
     // Theme options
     val themeOptions = listOf(

@@ -13,11 +13,15 @@
 package com.adobe.marketing.mobile.concierge.ui.components.welcome
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import org.junit.Rule
@@ -109,5 +113,31 @@ class SuggestedPromptItemTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun suggestedPromptItem_withThemeLoaded_usesPerPromptBackgroundColor() {
+        val themeWithColors = ConciergeThemeData(
+            config = ConciergeThemeConfig(colors = ConciergeThemeColors(primary = "#EB1000")),
+            tokens = null
+        )
+        val prompt = SuggestedPrompt(
+            text = "Theme-styled prompt",
+            backgroundColor = Color.White
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeWithColors) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    SuggestedPromptItem(
+                        prompt = prompt,
+                        onClick = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Theme-styled prompt").assertIsDisplayed()
     }
 }

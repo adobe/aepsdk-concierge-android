@@ -102,6 +102,11 @@ class MainActivity : AppCompatActivity() {
 
 > **Important:** The `ConciergeTheme` composable provides theme tokens to all child composables through CompositionLocal.
 
+### Default Theming
+
+- **When no theme is loaded** (`theme = null`): The SDK uses built-in light or dark colors (`LightConciergeColors` / `DarkConciergeColors`) based on the device’s light/dark setting.
+- **When a theme is loaded** (`theme = <ConciergeThemeData>`): The theme JSON always takes precedence.
+
 ---
 
 ## JSON Structure
@@ -872,15 +877,15 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, checkboxes, mic button, thinking animation |
-| `--color-text` | ✅ | Primary text color (mapped to `onPrimary`) - used for all text on main background | `ChatHeader`, `WelcomeCard`, `InputActionButtons` (icons) |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
+| `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
 | `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
 | `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
-| `--message-concierge-text` | ✅ | AI message text color, also used for feedback dialog text and feedback button icons | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons` |
+| `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions` |
 | `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
@@ -903,6 +908,8 @@ These colors are used internally by composables but cannot be customized in them
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
 | `--disclaimer-color` | ⚠️ | Parsed but not implemented | - |
+
+Note: The feedback dialog checkbox uses `--color-primary` for the checked fill; the checkmark icon is white and is not configurable via theme.
 
 ### Theme Tokens - Layout
 
@@ -957,7 +964,7 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 | Color | Purpose | Used In Composables |
 |-------|---------|---------------------|
 | `secondary` | Secondary accent color (currently unused) | - |
-| `onSurfaceVariant` | Muted text and icons for secondary UI elements | `PromptSuggestions`, `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
+| `onSurfaceVariant` | Muted text and icons for secondary UI elements | `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
 | `container` | Background for cards and container elements | `ProductCard`, `PromptSuggestions`, message bubbles (fallback), `ChatInputPanel` (fallback) |
 | `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
 | `error` | Error state background | `ErrorOverlay` background |
@@ -975,9 +982,10 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 When creating themes for the Android SDK, focus on these **actively used** properties for the best results:
 
 **Essential Colors (Highest Impact):**
-- `--color-primary` - Primary brand color (used for buttons, checkboxes, mic button, thinking animation)
-- `--color-text` - **Primary text color for main background** (header, welcome card, close icon, other icons on main container)
-- `--main-container-background` - **Main screen background color** (welcome card, chat area)
+
+- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
+- `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
+- `--main-container-background` - Main screen background color (welcome card, chat area)
 - `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
 - `--message-concierge-background` / `--message-concierge-text` - AI message styling, feedback dialog styling, and feedback button icons
@@ -1022,6 +1030,7 @@ These properties are parsed but **not currently used** and can be omitted withou
 1. **Test core flows**: Create a theme, load it, send messages, provide feedback
 2. **Check on multiple devices**: Test on different screen sizes and Android versions
 3. **Verify contrast ratios**: Ensure text is readable on all backgrounds
-4. **Test light/dark modes**: If supporting both, verify colors work in both contexts
+4. **Test with and without a theme**: With no theme loaded, the welcome card and prompts follow system light/dark (dark background + light text in dark mode). With a theme loaded, welcome example `backgroundColor` and theme colors are applied
+5. **Test light/dark modes**: If supporting both, verify colors work in both contexts
 
 ---

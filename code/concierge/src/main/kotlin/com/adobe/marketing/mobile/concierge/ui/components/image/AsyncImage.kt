@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -30,6 +29,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 /**
@@ -47,6 +47,7 @@ internal fun AsyncImage(
     error: @Composable (() -> Unit)? = null
 ) {
     val imageResult = rememberRemoteImage(url, onError)
+    val themeColors = ConciergeTheme.colors
 
     Box(modifier = modifier) {
         when (imageResult.state) {
@@ -56,12 +57,12 @@ internal fun AsyncImage(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                            .background(themeColors.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary
+                            color = themeColors.primary
                         )
                     }
                 }
@@ -73,7 +74,7 @@ internal fun AsyncImage(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.errorContainer),
+                            .background(themeColors.surface),
                         contentAlignment = Alignment.Center
                     ) {}
                 }

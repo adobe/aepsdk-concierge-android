@@ -24,11 +24,13 @@ import androidx.compose.ui.platform.LocalContext
 
 /**
  * Data class holding the active theme configuration including resolved colors
+ * @param useDefaultPalette True when no theme JSON is loaded (colors are Light/Dark defaults)
  */
 data class ActiveConciergeTheme(
     val colors: ConciergeColors,
     val config: ConciergeThemeConfig? = null,
-    val themeTokens: ConciergeThemeTokens? = null
+    val themeTokens: ConciergeThemeTokens? = null,
+    val useDefaultPalette: Boolean = false
 )
 
 /**
@@ -43,7 +45,8 @@ private val LocalActiveConciergeTheme = staticCompositionLocalOf {
  * Automatically switches between light and dark color schemes based on system theme.
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
- * @param theme Complete theme data containing both config and tokens.
+ * @param theme Complete theme data containing both config and tokens. When null (no theme JSON
+ *        loaded), uses default colors for light or dark mode.
  * @param content The composable content to theme.
  */
 @Composable
@@ -52,20 +55,26 @@ fun ConciergeTheme(
     theme: ConciergeThemeData? = null,
     content: @Composable () -> Unit
 ) {
-    val defaultColors = if (darkTheme) DarkConciergeColors else LightConciergeColors
-    
-    // Apply theme colors from tokens if available, otherwise use defaults
-    val colors = remember(theme?.tokens, darkTheme) {
-        theme?.tokens?.colors?.let { 
-            ThemeParser.createColorsFromJson(it, defaultColors)
+    // When no theme is loaded, follow system light/dark so the theme recomposes on config change
+    val systemDark = isSystemInDarkTheme()
+    val effectiveDarkTheme = if (theme == null) systemDark else darkTheme
+    val defaultColors = if (effectiveDarkTheme) DarkConciergeColors else LightConciergeColors
+
+    // When a theme JSON is loaded, use only the colors defined in that theme. Use a fixed fallback for missing
+    // keys so that text and other colors are not influenced by device light/dark mode.
+    val colors = remember(theme?.tokens, theme?.config, effectiveDarkTheme) {
+        val themeColors = theme?.tokens?.colors ?: theme?.config?.colors
+        themeColors?.let {
+            ThemeParser.createColorsFromJson(it, LightConciergeColors)
         } ?: defaultColors
     }
     
     val activeTheme = remember(colors, theme) {
         ActiveConciergeTheme(
-            colors = colors, 
-            config = theme?.config, 
-            themeTokens = theme?.tokens
+            colors = colors,
+            config = theme?.config,
+            themeTokens = theme?.tokens,
+            useDefaultPalette = theme == null
         )
     }
 
@@ -113,6 +122,12 @@ object ConciergeTheme {
      */
     val colors: ConciergeColors
         @Composable get() = LocalActiveConciergeTheme.current.colors
+
+    /**
+     * True when no theme JSON is loaded (using default light/dark palette).
+     */
+    val useDefaultPalette: Boolean
+        @Composable get() = LocalActiveConciergeTheme.current.useDefaultPalette
     
     /**
      * Retrieves the current theme configuration (if any)
