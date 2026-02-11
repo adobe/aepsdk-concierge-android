@@ -99,7 +99,8 @@ val LightConciergeColors = ConciergeColors(
     onError = Color.White,
     userMessageBackground = Color(0xFFE5E5E5),
     userMessageText = Color.Black,
-    conciergeMessageText = Color.Black
+    conciergeMessageText = Color.Black,
+    messageConciergeLink = Color.Blue
 )
 
 /**
@@ -129,6 +130,7 @@ val DarkConciergeColors = ConciergeColors(
     micButtonColor = Color(0xFF6B6B6B),
     citationBackground = Color(0xFF6B6B6B),
     citationText = Color(0xFFCAC4D0),
+    messageConciergeLink = Color.Blue,
     feedbackDialogCheckboxCheckedColor = null,
     feedbackDialogCancelButtonColor = Color(0xFF6B6B6B),
     feedbackDialogSubmitButtonColor = Color(0xFF6B6B6B),

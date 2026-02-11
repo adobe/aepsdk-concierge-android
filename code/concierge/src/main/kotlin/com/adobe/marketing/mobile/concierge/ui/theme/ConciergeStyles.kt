@@ -516,9 +516,9 @@ object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = fontSize ?: MaterialTheme.typography.bodyMedium.fontSize
                 ),
-                textColor = themeColors.citationText ?: themeColors.onSurface,
+                textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textLength = 2,
-                urlColor = themeColors.primary,
+                urlColor = themeColors.messageConciergeLink ?: themeColors.onSurface,
                 expandAnimationDuration = 200,
                 collapseAnimationDuration = 200,
                 fontSize = fontSize
@@ -544,8 +544,8 @@ object ConciergeStyles {
             return ChatFooterStyle(
                 sourcesButtonPadding = 0.dp,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                textColor = themeColors.onSurfaceVariant,
-                iconColor = themeColors.onSurfaceVariant,
+                textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconSpacing = 4.dp,
                 sourcesText = "Sources"
             )
