@@ -55,7 +55,6 @@ class ConciergeStateRepositoryTest {
         
         assertNull(state.experienceCloudId)
         assertFalse(state.configurationReady)
-        assertNull(state.conciergeSurfaces)
         assertNull(state.conciergeServer)
         assertNull(state.conciergeConfigId)
     }
@@ -165,8 +164,7 @@ class ConciergeStateRepositoryTest {
     fun `updateConfiguration sets configuration ready with valid config`() = runTest {
         val configMap = mapOf<String?, Any?>(
             "concierge.server" to "test-server.com",
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to listOf("surface1", "surface2")
+            "concierge.configId" to "test-config-123"
         )
 
         val sharedStateResult = mockk<SharedStateResult>()
@@ -178,7 +176,6 @@ class ConciergeStateRepositoryTest {
         assertTrue(state.configurationReady)
         assertEquals("test-server.com", state.conciergeServer)
         assertEquals("test-config-123", state.conciergeConfigId)
-        assertEquals(listOf("surface1", "surface2"), state.conciergeSurfaces)
     }
 
     @Test
@@ -187,7 +184,6 @@ class ConciergeStateRepositoryTest {
 
         val state = repository.state.first()
         assertFalse(state.configurationReady)
-        assertEquals(emptyList<String>(), state.conciergeSurfaces)
         assertEquals("", state.conciergeServer)
         assertEquals("", state.conciergeConfigId)
     }
@@ -201,7 +197,6 @@ class ConciergeStateRepositoryTest {
 
         val state = repository.state.first()
         assertFalse(state.configurationReady)
-        assertEquals(emptyList<String>(), state.conciergeSurfaces)
         assertEquals("", state.conciergeServer)
         assertEquals("", state.conciergeConfigId)
     }
@@ -215,7 +210,6 @@ class ConciergeStateRepositoryTest {
 
         val state = repository.state.first()
         assertFalse(state.configurationReady)
-        assertEquals(emptyList<String>(), state.conciergeSurfaces)
         assertEquals("", state.conciergeServer)
         assertEquals("", state.conciergeConfigId)
     }
@@ -223,8 +217,7 @@ class ConciergeStateRepositoryTest {
     @Test
     fun `updateConfiguration handles missing concierge server`() = runTest {
         val configMap = mapOf<String?, Any?>(
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.configId" to "test-config-123"
         )
 
         val sharedStateResult = mockk<SharedStateResult>()
@@ -236,14 +229,12 @@ class ConciergeStateRepositoryTest {
         assertTrue(state.configurationReady)
         assertNull(state.conciergeServer)
         assertEquals("test-config-123", state.conciergeConfigId)
-        assertEquals(listOf("surface1"), state.conciergeSurfaces)
     }
 
     @Test
     fun `updateConfiguration handles missing configId`() = runTest {
         val configMap = mapOf<String?, Any?>(
-            "concierge.server" to "test-server.com",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.server" to "test-server.com"
         )
 
         val sharedStateResult = mockk<SharedStateResult>()
@@ -255,7 +246,6 @@ class ConciergeStateRepositoryTest {
         assertTrue(state.configurationReady)
         assertEquals("test-server.com", state.conciergeServer)
         assertNull(state.conciergeConfigId)
-        assertEquals(listOf("surface1"), state.conciergeSurfaces)
     }
 
     @Test
@@ -274,57 +264,13 @@ class ConciergeStateRepositoryTest {
         assertTrue(state.configurationReady)
         assertEquals("test-server.com", state.conciergeServer)
         assertEquals("test-config-123", state.conciergeConfigId)
-        assertNull(state.conciergeSurfaces)
-    }
-
-    @Test
-    fun `updateConfiguration handles empty surfaces list`() = runTest {
-        val configMap = mapOf<String?, Any?>(
-            "concierge.server" to "test-server.com",
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to emptyList<String>()
-        )
-
-        val sharedStateResult = mockk<SharedStateResult>()
-        every { sharedStateResult.value } returns configMap
-
-        repository.updateConfiguration(sharedStateResult)
-
-        val state = repository.state.first()
-        assertTrue(state.configurationReady)
-        assertNull(state.conciergeSurfaces)
-    }
-
-    @Test
-    fun `updateConfiguration handles surfaces with null values`() = runTest {
-        val configMap = mapOf<String?, Any?>(
-            "concierge.server" to "test-server.com",
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to listOf("surface1", null, "surface2")
-        )
-
-        val sharedStateResult = mockk<SharedStateResult>()
-        every { sharedStateResult.value } returns configMap
-
-        repository.updateConfiguration(sharedStateResult)
-
-        val state = repository.state.first()
-        assertTrue(state.configurationReady)
-        val surfaces = state.conciergeSurfaces
-        if (surfaces != null) {
-            assertTrue(surfaces.contains("surface1"))
-            assertTrue(surfaces.contains("surface2"))
-            // Surfaces should not contain null values after filtering
-            assertFalse(surfaces.any { it == null })
-        }
     }
 
     @Test
     fun `updateConfiguration handles empty server string`() = runTest {
         val configMap = mapOf<String?, Any?>(
             "concierge.server" to "",
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.configId" to "test-config-123"
         )
 
         val sharedStateResult = mockk<SharedStateResult>()
@@ -342,8 +288,7 @@ class ConciergeStateRepositoryTest {
     fun `updateConfiguration handles empty configId string`() = runTest {
         val configMap = mapOf<String?, Any?>(
             "concierge.server" to "test-server.com",
-            "concierge.configId" to "",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.configId" to ""
         )
 
         val sharedStateResult = mockk<SharedStateResult>()
@@ -361,8 +306,7 @@ class ConciergeStateRepositoryTest {
     fun `updateConfiguration updates existing configuration`() = runTest {
         val initialConfigMap = mapOf<String?, Any?>(
             "concierge.server" to "initial-server.com",
-            "concierge.configId" to "initial-config",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.configId" to "initial-config"
         )
         val initialStateResult = mockk<SharedStateResult>()
         every { initialStateResult.value } returns initialConfigMap
@@ -370,8 +314,7 @@ class ConciergeStateRepositoryTest {
 
         val updatedConfigMap = mapOf<String?, Any?>(
             "concierge.server" to "updated-server.com",
-            "concierge.configId" to "updated-config",
-            "concierge.surfaces" to listOf("surface2", "surface3")
+            "concierge.configId" to "updated-config"
         )
         val updatedStateResult = mockk<SharedStateResult>()
         every { updatedStateResult.value } returns updatedConfigMap
@@ -381,7 +324,6 @@ class ConciergeStateRepositoryTest {
         assertTrue(state.configurationReady)
         assertEquals("updated-server.com", state.conciergeServer)
         assertEquals("updated-config", state.conciergeConfigId)
-        assertEquals(listOf("surface2", "surface3"), state.conciergeSurfaces)
     }
 
     // ========== clear Tests ==========
@@ -390,8 +332,7 @@ class ConciergeStateRepositoryTest {
     fun `clear resets state to initial values`() = runTest {
         val configMap = mapOf<String?, Any?>(
             "concierge.server" to "test-server.com",
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.configId" to "test-config-123"
         )
         val sharedStateResult = mockk<SharedStateResult>()
         every { sharedStateResult.value } returns configMap
@@ -426,9 +367,42 @@ class ConciergeStateRepositoryTest {
         val state = repository.state.first()
         assertNull(state.experienceCloudId)
         assertFalse(state.configurationReady)
-        assertNull(state.conciergeSurfaces)
         assertNull(state.conciergeServer)
         assertNull(state.conciergeConfigId)
+    }
+
+    // ========== Surfaces (API parameter) tests ==========
+
+    @Test
+    fun `getSurfaces returns empty list when not set`() = runTest {
+        assertEquals(emptyList<String>(), repository.getSurfaces())
+    }
+
+    @Test
+    fun `getSurfaces returns surfaces when set`() = runTest {
+        repository.setSurfaces(listOf("api-surface-1", "api-surface-2"))
+        assertEquals(listOf("api-surface-1", "api-surface-2"), repository.getSurfaces())
+    }
+
+    @Test
+    fun `getSurfaces returns empty when session surfaces cleared`() = runTest {
+        repository.setSurfaces(listOf("api-surface"))
+        repository.setSurfaces(null)
+        assertEquals(emptyList<String>(), repository.getSurfaces())
+    }
+
+    @Test
+    fun `setSurfaces with empty list clears surfaces`() = runTest {
+        repository.setSurfaces(listOf("api-surface"))
+        repository.setSurfaces(emptyList())
+        assertEquals(emptyList<String>(), repository.getSurfaces())
+    }
+
+    @Test
+    fun `clear resets surfaces`() = runTest {
+        repository.setSurfaces(listOf("api-surface"))
+        repository.clear()
+        assertEquals(emptyList<String>(), repository.getSurfaces())
     }
 
     // ========== StateFlow Emission Tests ==========
@@ -439,8 +413,7 @@ class ConciergeStateRepositoryTest {
         
         val configMap = mapOf<String?, Any?>(
             "concierge.server" to "test-server.com",
-            "concierge.configId" to "test-config-123",
-            "concierge.surfaces" to listOf("surface1")
+            "concierge.configId" to "test-config-123"
         )
         val sharedStateResult = mockk<SharedStateResult>()
         every { sharedStateResult.value } returns configMap
@@ -752,8 +725,7 @@ class ConciergeStateRepositoryTest {
             SharedStateStatus.SET,
             mutableMapOf<String?, Any?>(
                 ConciergeConstants.SharedState.Configuration.CONCIERGE_SERVER to "test-server",
-                ConciergeConstants.SharedState.Configuration.CONCIERGE_CONFIG_ID to "test-config",
-                ConciergeConstants.SharedState.Configuration.CONCIERGE_SURFACES to listOf("surface1")
+                ConciergeConstants.SharedState.Configuration.CONCIERGE_CONFIG_ID to "test-config"
             )
         )
         repository.updateConfiguration(configState)
@@ -776,7 +748,6 @@ class ConciergeStateRepositoryTest {
         assertEquals(ConciergeConstants.ConsentValues.OUT_VALUE, state.consent)
         assertEquals("test-server", state.conciergeServer)
         assertEquals("test-config", state.conciergeConfigId)
-        assertEquals(listOf("surface1"), state.conciergeSurfaces)
     }
 
     @Test
