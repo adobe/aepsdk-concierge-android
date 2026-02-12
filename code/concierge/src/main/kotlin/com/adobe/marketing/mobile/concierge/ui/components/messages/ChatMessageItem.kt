@@ -46,11 +46,12 @@ internal fun ChatMessageItem(
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
+    onLinkClick: (String) -> Unit = {},
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message, onFeedback, onSuggestionClick, feedbackState)
+            RenderTextMessage(message, onFeedback, onSuggestionClick, onLinkClick, feedbackState)
         }
 
         is MessageContent.Mixed -> {
@@ -60,6 +61,7 @@ internal fun ChatMessageItem(
                 onActionClick,
                 onImageClick,
                 onSuggestionClick,
+                onLinkClick,
                 feedbackState
             )
         }
@@ -71,6 +73,7 @@ private fun RenderTextMessage(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit,
     onSuggestionClick: (String) -> Unit,
+    onLinkClick: (String) -> Unit,
     feedbackState: FeedbackState
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -117,6 +120,7 @@ private fun RenderTextMessage(
                         ConciergeResponse(
                             text = message.text,
                             sources = message.citations ?: emptyList(),
+                            onLinkClick = onLinkClick,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -128,6 +132,7 @@ private fun RenderTextMessage(
                             uniqueCitations = message.uniqueCitations,
                             interactionId = message.interactionId,
                             onFeedback = onFeedback,
+                            onLinkClick = onLinkClick,
                             feedbackState = feedbackState
                         )
                     }
@@ -152,6 +157,7 @@ private fun RenderMixedMessage(
     onActionClick: (ProductActionButton) -> Unit,
     onImageClick: (MultimodalElement) -> Unit,
     onSuggestionClick: (String) -> Unit,
+    onLinkClick: (String) -> Unit,
     feedbackState: FeedbackState
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -182,6 +188,7 @@ private fun RenderMixedMessage(
                             ConciergeResponse(
                                 text = message.content.text,
                                 sources = message.citations ?: emptyList(),
+                                onLinkClick = onLinkClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -211,6 +218,7 @@ private fun RenderMixedMessage(
                                 uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
                                 onFeedback = onFeedback,
+                                onLinkClick = onLinkClick,
                                 feedbackState = feedbackState
                             )
                         }

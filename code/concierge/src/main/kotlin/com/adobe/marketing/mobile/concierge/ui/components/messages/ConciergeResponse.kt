@@ -12,9 +12,9 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import android.content.Intent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,8 +28,8 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownTokenizer
 import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotator
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.network.Citation
 
 /**
@@ -49,6 +49,7 @@ import com.adobe.marketing.mobile.concierge.network.Citation
 internal fun ConciergeResponse(
     text: String,
     sources: List<Citation> = emptyList(),
+    onLinkClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -65,11 +66,12 @@ internal fun ConciergeResponse(
 
         // Create inline content map once for all child components to share
         // This avoids recreating the map for each list item
-        val inlineContentMap = remember(annotatedText.uniqueSources) {
+        val inlineContentMap = remember(annotatedText.uniqueSources, onLinkClick) {
             CitationUiUtils.createInlineContentMap(
                 annotatedText.uniqueSources,
                 style.size,
-                context
+                context,
+                onLinkClick
             )
         }
 
@@ -87,6 +89,7 @@ internal fun ConciergeResponse(
                     listTokens = listTokens,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
+                    onLinkClick = onLinkClick,
                     modifier = modifier
                 )
             } else {
@@ -94,6 +97,7 @@ internal fun ConciergeResponse(
                     text = annotatedText.text,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
+                    onLinkClick = onLinkClick,
                     modifier = modifier
                 )
             }
@@ -111,12 +115,17 @@ private fun ConciergeResponseWithLists(
     listTokens: List<MarkdownToken>,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    onLinkClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val context = LocalContext.current
     val contentSegments = remember(text, listTokens) {
         ContentSegmentParser.createSegments(text, listTokens)
+    }
+    val linkHandler = onLinkClick ?: { url ->
+        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+        context.startActivity(intent)
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -128,6 +137,7 @@ private fun ConciergeResponseWithLists(
                         text = segment.content,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
+                        onLinkClick = onLinkClick,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -135,10 +145,7 @@ private fun ConciergeResponseWithLists(
                 is ContentSegment.List -> {
                     ConciergeResponseList(
                         listTokens = segment.tokens,
-                        onLinkClick = { url ->
-                            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-                            context.startActivity(intent)
-                        },
+                        onLinkClick = linkHandler,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
                         modifier = Modifier.fillMaxWidth()

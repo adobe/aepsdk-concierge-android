@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
-import com.adobe.marketing.mobile.services.ServiceProvider
 
 /**
  * Component that displays a list of citations as individual accordion items.
@@ -48,7 +47,8 @@ internal fun ExpandedCitations(
     modifier: Modifier = Modifier,
     citations: List<Citation>,
     uniqueCitations: List<Citation>? = null,
-    expanded: Boolean
+    expanded: Boolean,
+    onLinkClick: (String) -> Unit = {}
 ) {
     // Use pre-computed unique sources if available, otherwise compute them
     val uniqueSources: List<Citation> = remember(citations, uniqueCitations) {
@@ -65,7 +65,8 @@ internal fun ExpandedCitations(
             uniqueSources.forEachIndexed { index, citation ->
                 CitationItem(
                     citation = citation,
-                    index = citation.citationNumber ?: (index + 1)
+                    index = citation.citationNumber ?: (index + 1),
+                    onLinkClick = onLinkClick
                 )
                 // Add separator line between items
                 if (index < uniqueSources.size - 1) {
@@ -92,7 +93,8 @@ internal fun ExpandedCitations(
 internal fun CitationItem(
     modifier: Modifier = Modifier,
     citation: Citation,
-    index: Int
+    index: Int,
+    onLinkClick: (String) -> Unit = {}
 ) {
     val style = ConciergeStyles.citationStyle
 
@@ -118,9 +120,7 @@ internal fun CitationItem(
             modifier = Modifier.then(
                 if (!citation.url.isNullOrBlank()) {
                     Modifier.clickable {
-                        citation.url?.let { url ->
-                            ServiceProvider.getInstance().uriService.openUri(url)
-                        }
+                        citation.url?.let { url -> onLinkClick(url) }
                     }
                 } else {
                     Modifier

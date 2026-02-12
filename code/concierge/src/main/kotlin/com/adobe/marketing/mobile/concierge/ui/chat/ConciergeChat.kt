@@ -18,6 +18,9 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -46,6 +49,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlay
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
@@ -158,6 +162,7 @@ fun ConciergeChat(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val webviewOverlay by viewModel.webviewOverlay.collectAsStateWithLifecycle(initialValue = null)
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
@@ -197,12 +202,46 @@ fun ConciergeChat(
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
             onEvent = viewModel::processEvent,
+            onLinkClick = viewModel::openWebviewOverlay,
             onPermissionResult = { granted ->
                 viewModel.refreshPermissionStatus()
             },
             onClose = onClose,
             modifier = modifier
         )
+    }
+
+    // In-app fullscreen WebView overlay
+    webviewOverlay?.let { url ->
+        Dialog(
+            onDismissRequest = viewModel::dismissWebviewOverlay,
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false
+            )
+        ) {
+            val parentView = LocalView.current.parent as View
+            val window = (parentView as DialogWindowProvider).window
+            window.setDimAmount(0f)
+            window.setLayout(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.attributes.fitInsetsTypes = 0
+                window.attributes.fitInsetsSides = 0
+            }
+            // Hide system bars (status + navigation) for fullscreen webview
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            WindowInsetsControllerCompat(window, parentView).apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+            WebviewOverlay(
+                url = url,
+                onDismiss = viewModel::dismissWebviewOverlay
+            )
+        }
     }
 }
 
@@ -217,6 +256,7 @@ internal fun ConciergeChat(
     isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
+    onLinkClick: (String) -> Unit = {},
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -261,6 +301,7 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
+                    onLinkClick = onLinkClick,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
