@@ -688,8 +688,7 @@ object ConciergeStyles {
         }
 
     /**
-     * Styling for the Concierge Webview top bar and close button.
-     * Uses primary colors for the bar and onPrimary for the close icon.
+     * Styling for the Concierge Webview overlay
      */
     @Immutable
     data class WebviewStyle(
@@ -697,17 +696,24 @@ object ConciergeStyles {
         val topBarContentColor: Color,
         val topBarPadding: Dp,
         val closeIconSize: Dp,
+        val closeButtonBackgroundColor: Color,
+        val closeButtonIconColor: Color,
         val contentBackgroundColor: Color
     )
 
     val webviewStyle: WebviewStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val barBackground = Color.Black
+            val closeBg = themeColors.primary
+            val closeIcon = Color.White
             return WebviewStyle(
-                topBarBackgroundColor = themeColors.primary,
-                topBarContentColor = themeColors.onPrimary,
+                topBarBackgroundColor = barBackground,
+                topBarContentColor = closeIcon,
                 topBarPadding = 8.dp,
                 closeIconSize = 24.dp,
+                closeButtonBackgroundColor = closeBg,
+                closeButtonIconColor = closeIcon,
                 contentBackgroundColor = themeColors.surface
             )
         }

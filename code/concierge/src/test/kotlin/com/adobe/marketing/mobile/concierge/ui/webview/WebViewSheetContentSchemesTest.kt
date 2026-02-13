@@ -16,54 +16,54 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class WebviewOverlaySchemesTest {
+class WebViewSheetContentSchemesTest {
 
     @Test
     fun `isAllowedScheme returns true for https URL`() {
-        assertTrue(WebviewOverlaySchemes.isAllowedScheme("https://example.com"))
-        assertTrue(WebviewOverlaySchemes.isAllowedScheme("HTTPS://example.com/path"))
+        assertTrue(WebViewSheetContentSchemes.isAllowedScheme("https://example.com"))
+        assertTrue(WebViewSheetContentSchemes.isAllowedScheme("HTTPS://example.com/path"))
     }
 
     @Test
     fun `isAllowedScheme returns true for http URL`() {
-        assertTrue(WebviewOverlaySchemes.isAllowedScheme("http://example.com"))
-        assertTrue(WebviewOverlaySchemes.isAllowedScheme("HTTP://example.com/path?q=1"))
+        assertTrue(WebViewSheetContentSchemes.isAllowedScheme("http://example.com"))
+        assertTrue(WebViewSheetContentSchemes.isAllowedScheme("HTTP://example.com/path?q=1"))
     }
 
     @Test
     fun `isAllowedScheme returns false for null`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme(null))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme(null))
     }
 
     @Test
     fun `isAllowedScheme returns false for blank string`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme(""))
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("   "))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme(""))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("   "))
     }
 
     @Test
     fun `isAllowedScheme returns false for file scheme`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("file:///android_asset/index.html"))
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("file:///data/local/tmp/file.html"))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("file:///android_asset/index.html"))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("file:///data/local/tmp/file.html"))
     }
 
     @Test
     fun `isAllowedScheme returns false for content scheme`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("content://com.example.provider/path"))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("content://com.example.provider/path"))
     }
 
     @Test
     fun `isAllowedScheme returns false for javascript scheme`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("javascript:alert(1)"))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("javascript:alert(1)"))
     }
 
     @Test
     fun `isAllowedScheme returns false for intent scheme`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("intent://example.com#Intent;end"))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("intent://example.com#Intent;end"))
     }
 
     @Test
     fun `isAllowedScheme returns false for unknown scheme`() {
-        assertFalse(WebviewOverlaySchemes.isAllowedScheme("custom-scheme://example.com"))
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("custom-scheme://example.com"))
     }
 }

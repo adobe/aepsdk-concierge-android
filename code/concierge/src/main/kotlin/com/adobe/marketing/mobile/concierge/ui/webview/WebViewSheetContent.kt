@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.webview
 
 import android.annotation.SuppressLint
+import android.graphics.Color as AndroidColor
 import android.os.Build
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
@@ -25,23 +26,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * URL scheme validation for the in-app WebView overlay.
+ * URL scheme validation for the WebView sheet content.
  * Only http and https are allowed; file:, content:, and other schemes are blocked.
  * Internal for unit testing.
  */
-internal object WebviewOverlaySchemes {
+internal object WebViewSheetContentSchemes {
     private val allowedSchemes = setOf("https", "http")
 
     fun isAllowedScheme(url: String?): Boolean {
@@ -52,15 +57,16 @@ internal object WebviewOverlaySchemes {
 }
 
 /**
- * Fullscreen in-app overlay that displays a URL in a WebView with a close button.
+ * Content of the WebView sheet: top bar with close button and WebView area.
+ * Shown inside [WebviewOverlayDialog].
  *
  * @param url The URL to load in the WebView (only http/https are loaded)
- * @param onDismiss Callback when the user closes the overlay
- * @param modifier Optional [Modifier] for the overlay container
+ * @param onDismiss Callback when the user closes the sheet
+ * @param modifier Optional [Modifier] for the container
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-internal fun WebviewOverlay(
+internal fun WebViewSheetContent(
     url: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -73,7 +79,7 @@ internal fun WebviewOverlay(
             .fillMaxSize()
             .background(style.contentBackgroundColor)
     ) {
-        // Top bar with primary background and close button
+        // Top bar (black bar, primary colored close button, white close icon)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -82,14 +88,17 @@ internal fun WebviewOverlay(
         ) {
             IconButton(
                 onClick = onDismiss,
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent),
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .size(style.closeIconSize)
+                    .size(style.closeIconSize + 16.dp)
+                    .background(style.closeButtonBackgroundColor, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    imageVector = Icons.Filled.Close,
                     contentDescription = "Close",
-                    tint = style.topBarContentColor
+                    tint = style.closeButtonIconColor,
+                    modifier = Modifier.size(style.closeIconSize)
                 )
             }
         }
@@ -103,12 +112,14 @@ internal fun WebviewOverlay(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        webViewClient = SecureOverlayWebViewClient()
+                        setBackgroundColor(AndroidColor.TRANSPARENT)
+                        webViewClient = SecureSheetWebViewClient()
                         applySecureSettings(settings)
                     }
                 },
                 update = { webView ->
-                    if (webView.url != url && WebviewOverlaySchemes.isAllowedScheme(url)) {
+                    webView.setBackgroundColor(AndroidColor.TRANSPARENT)
+                    if (webView.url != url && WebViewSheetContentSchemes.isAllowedScheme(url)) {
                         webView.loadUrl(url)
                     }
                 },
@@ -119,7 +130,7 @@ internal fun WebviewOverlay(
 }
 
 /**
- * Applies security-hardened WebSettings for the overlay WebView.
+ * Applies security-hardened WebSettings for the sheet WebView.
  * - Disables file and content URL access to prevent local file inclusion.
  * - Disables mixed content (HTTPS page loading HTTP resources).
  * - Enables Safe Browsing on API 26+ when available.
@@ -144,12 +155,12 @@ private fun applySecureSettings(settings: android.webkit.WebSettings) {
 /**
  * WebViewClient that restricts navigation to http/https only, blocking file:, content:, and other schemes.
  */
-private class SecureOverlayWebViewClient : WebViewClient() {
+private class SecureSheetWebViewClient : WebViewClient() {
     override fun shouldOverrideUrlLoading(
         view: WebView,
         request: WebResourceRequest
-    ): Boolean = !WebviewOverlaySchemes.isAllowedScheme(request.url?.toString())
+    ): Boolean = !WebViewSheetContentSchemes.isAllowedScheme(request.url?.toString())
 
     @Suppress("DEPRECATION")
-    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !WebviewOverlaySchemes.isAllowedScheme(url)
+    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = !WebViewSheetContentSchemes.isAllowedScheme(url)
 }

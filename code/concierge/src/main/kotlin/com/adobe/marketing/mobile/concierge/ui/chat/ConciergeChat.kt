@@ -18,9 +18,6 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -49,7 +47,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlay
+import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
@@ -153,6 +151,7 @@ fun ConciergeChat(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
@@ -211,37 +210,12 @@ fun ConciergeChat(
         )
     }
 
-    // In-app fullscreen WebView overlay
+    // WebView overlay dialog used for handling link clicks that require a browser.
     webviewOverlay?.let { url ->
-        Dialog(
-            onDismissRequest = viewModel::dismissWebviewOverlay,
-            properties = DialogProperties(
-                dismissOnBackPress = true,
-                dismissOnClickOutside = false
-            )
-        ) {
-            val parentView = LocalView.current.parent as View
-            val window = (parentView as DialogWindowProvider).window
-            window.setDimAmount(0f)
-            window.setLayout(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                window.attributes.fitInsetsTypes = 0
-                window.attributes.fitInsetsSides = 0
-            }
-            // Hide system bars (status + navigation) for fullscreen webview
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            WindowInsetsControllerCompat(window, parentView).apply {
-                hide(WindowInsetsCompat.Type.systemBars())
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            }
-            WebviewOverlay(
-                url = url,
-                onDismiss = viewModel::dismissWebviewOverlay
-            )
-        }
+        WebviewOverlayDialog(
+            url = url,
+            onDismiss = viewModel::dismissWebviewOverlay
+        )
     }
 }
 
