@@ -89,7 +89,6 @@ Brand Concierge expects the following keys to be present in the Configuration sh
 
 - **`concierge.server`**: String (server host or base domain used by Brand Concierge requests)
 - **`concierge.configId`**: String (datastream id)
-- **`concierge.surfaces`**: Array of String (one or more surface names)
 
 ECID is read from Edge Identity shared state.
 
@@ -110,17 +109,21 @@ This mode:
 
 #### Jetpack Compose
 
-The `ConciergeChat` composable can be configured with a UI element (button, floating action button, or any custom element) of your choice to act as a trigger to launch the chat interface.
+The `ConciergeChat` composable can be configured with a UI element (button, floating action button, or any custom element) of your choice to act as a trigger to launch the chat interface. Pass the list of surface URLs via **`surfaces`**.
 
 ```kotlin
 @Composable
 fun MyScreen() {
     val viewModel = viewModel<ConciergeChatViewModel>()
+    val surfaces = listOf("web://example.com/your-surface.html")
     
     // Your app content
     // ... other views ...
     
-    ConciergeChat(viewModel = viewModel) { showChat ->
+    ConciergeChat(
+        viewModel = viewModel,
+        surfaces = surfaces
+    ) { showChat ->
         // Your trigger button/view that launches ConciergeChat
         MyTriggerButton(onClick = { showChat() }) 
     }
@@ -159,9 +162,11 @@ class XmlActivity : AppCompatActivity() {
         
         // Obtain the ConciergeChatView and bind the triggerButton
         val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
+        val surfaces = listOf("web://example.com/your-surface.html")
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            surfaces = surfaces,
             theme = theme,  // Optional: apply custom theme
             triggerView = triggerButton
         )
@@ -181,12 +186,19 @@ In this mode, you should:
 
 #### Jetpack Compose
 
+Set surfaces via **`surfaces`** and ensure the extension is ready (configuration, ECID, and surfaces) before showing the chat.
+
 ```kotlin
 @Composable
 fun YourChatScreen() {
     val viewModel = viewModel<ConciergeChatViewModel>()
     val conciergeState by ConciergeStateRepository.instance.state.collectAsStateWithLifecycle()
-    val ready = conciergeState.configurationReady && conciergeState.experienceCloudId != null
+    val surfaces = listOf("web://example.com/your-surface.html")
+    // Set surfaces so they are available for the chat session
+    ConciergeStateRepository.instance.setSessionSurfaces(surfaces)
+    val ready = conciergeState.configurationReady &&
+        conciergeState.experienceCloudId != null &&
+        conciergeState.surfaces.isNotEmpty()
     
     if (ready) {
         ConciergeChat(
@@ -224,9 +236,11 @@ class XmlActivity : AppCompatActivity() {
         
         // Obtain the chat view and bind
         val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
+        val surfaces = listOf("web://example.com/your-surface.html")
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            surfaces = surfaces,
             theme = theme,  // Optional: apply custom theme
             onClose = { finish() }
         )

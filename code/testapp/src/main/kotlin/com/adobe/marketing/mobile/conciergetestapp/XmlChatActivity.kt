@@ -46,11 +46,15 @@ class XmlChatActivity : AppCompatActivity() {
             ConciergeThemeLoader.load(this, it)
         }
 
+        // Surfaces passed via ConciergeChatView.bind parameter
+        val surfaces = listOf("web://brand-concierge-demo-stage.corp.ethos270-stage-va7.ethos.adobe.net/customer-pages/745F37C35E4B776E0A49421B@AdobeOrg/acom_m15/index.html")
+
         // --- MODE 1: Direct Chat (Full-screen) with optional theme ---
         // Shows the chat interface directly without a wrapper
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            surfaces = surfaces,
             theme = theme,
             onClose = { finish() }
         )
@@ -66,6 +70,7 @@ class XmlChatActivity : AppCompatActivity() {
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            conciergeSurfaces = chatSurfaces,
             theme = theme,
             triggerView = triggerButton
         )*/

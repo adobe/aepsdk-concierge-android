@@ -31,7 +31,6 @@ internal object ConciergeConstants {
             const val EXTENSION_NAME = "com.adobe.module.configuration"
             const val CONCIERGE_SERVER = "concierge.server"
             const val CONCIERGE_CONFIG_ID = "concierge.configId"
-            const val CONCIERGE_SURFACES = "concierge.surfaces"
         }
         object Consent {
             const val EXTENSION_NAME = "com.adobe.edge.consent"

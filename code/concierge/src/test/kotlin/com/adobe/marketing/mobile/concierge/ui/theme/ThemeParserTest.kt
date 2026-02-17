@@ -996,6 +996,23 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `createColorsFromJson should set micButtonColor from primaryColors text when provided`() {
+        val themeColors = ConciergeThemeColors(
+            primaryColors = ConciergePrimaryColors(primary = "#EB1000", text = "#00FF00")
+        )
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertEquals(Color(0xFF00FF00), colors.micButtonColor)
+    }
+
+    @Test
+    fun `createColorsFromJson should fall back to default micButtonColor when primaryColors text is absent`() {
+        val themeColors = ConciergeThemeColors(primary = "#EB1000")
+        val defaultColors = DarkConciergeColors
+        val colors = ThemeParser.createColorsFromJson(themeColors, defaultColors)
+        assertEquals(defaultColors.micButtonColor, colors.micButtonColor)
+    }
+
+    @Test
     fun `parseThemeJson should parse complete real-world theme structure`() {
         val json = """
             {

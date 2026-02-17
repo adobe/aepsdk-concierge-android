@@ -52,7 +52,7 @@ internal fun SourcesAccordionButton(
                     id = if (expanded) R.drawable.chevron_down else R.drawable.chevron_right
                 ),
                 contentDescription = if (expanded) "Collapse sources" else "Expand sources",
-                tint = style.iconColor
+                tint = style.textColor
             )
             Spacer(modifier = Modifier.width(style.iconSpacing))
             Text(
