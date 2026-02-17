@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.utils.markdown
 
 import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -87,8 +88,9 @@ internal object MarkdownRenderer {
             builder.append(text)
 
             // Apply base text style with theme-aware color to regular text
+            val spanStyle = baseTextStyle.toSpanStyle()
             builder.addStyle(
-                baseTextStyle.toSpanStyle().copy(color = colorScheme.onSurface),
+                if (spanStyle.color != Color.Unspecified) spanStyle else spanStyle.copy(color = colorScheme.onSurface),
                 styleStart,
                 builder.length
             )
@@ -102,15 +104,15 @@ internal object MarkdownRenderer {
         baseTextStyle: TextStyle
     ) {
         when (token.type) {
-            TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme)
-            TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme)
+            TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme, baseTextStyle)
+            TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle)
             TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle)
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
-            TokenType.HEADING -> renderHeading(token, builder, colorScheme)
+            TokenType.HEADING -> renderHeading(token, builder, colorScheme, baseTextStyle)
             TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle)
             TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle)
         }
@@ -119,16 +121,18 @@ internal object MarkdownRenderer {
     private fun renderCodeBlock(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val codeContent = token.groups[0].trim()
         val styleStart = builder.length
+        val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
 
         builder.append(codeContent)
         builder.addStyle(
             SpanStyle(
                 background = colorScheme.surfaceContainerHighest,
-                color = colorScheme.onSurface,
+                color = contentColor,
                 fontSize = 16.sp,
                 fontFamily = FontFamily.Monospace
             ),
@@ -140,16 +144,18 @@ internal object MarkdownRenderer {
     private fun renderInlineCode(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val codeContent = token.groups[0]
         val styleStart = builder.length
+        val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
 
         builder.append(codeContent)
         builder.addStyle(
             SpanStyle(
                 background = colorScheme.surfaceContainer,
-                color = colorScheme.onSurface,
+                color = contentColor,
                 fontSize = 14.sp,
                 fontFamily = FontFamily.Monospace
             ),
@@ -275,10 +281,12 @@ internal object MarkdownRenderer {
         val styleStart = builder.length
 
         builder.append(boldContent)
+        val spanStyle = baseTextStyle.toSpanStyle()
+        val contentColor = if (spanStyle.color != Color.Unspecified) spanStyle.color else colorScheme.onSurface
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 fontWeight = FontWeight.Bold,
-                color = colorScheme.onSurface
+                color = contentColor
             ),
             styleStart,
             builder.length
@@ -295,10 +303,12 @@ internal object MarkdownRenderer {
         val styleStart = builder.length
 
         builder.append(italicContent)
+        val spanStyle = baseTextStyle.toSpanStyle()
+        val contentColor = if (spanStyle.color != Color.Unspecified) spanStyle.color else colorScheme.onSurface
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 fontStyle = FontStyle.Italic,
-                color = colorScheme.onSurface
+                color = contentColor
             ),
             styleStart,
             builder.length
@@ -308,11 +318,13 @@ internal object MarkdownRenderer {
     private fun renderHeading(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
-        colorScheme: ColorScheme
+        colorScheme: ColorScheme,
+        baseTextStyle: TextStyle
     ) {
         val headingLevel = token.groups[0].length
         val headingText = token.groups[1]
         val styleStart = builder.length
+        val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
 
         builder.append(headingText)
 
@@ -320,7 +332,7 @@ internal object MarkdownRenderer {
             1 -> colorScheme.primary
             2 -> colorScheme.secondary
             3 -> colorScheme.tertiary
-            else -> colorScheme.onSurface
+            else -> contentColor
         }
 
         val headingSize = when (headingLevel) {
@@ -369,6 +381,7 @@ internal object MarkdownRenderer {
     ) {
         val quoteText = token.groups[0]
 
+        val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
         renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle) { text, _, _ ->
             val styleStart = builder.length
             builder.append(text)
@@ -376,7 +389,7 @@ internal object MarkdownRenderer {
                 baseTextStyle.toSpanStyle().copy(
                     background = colorScheme.surfaceContainer,
                     fontStyle = FontStyle.Italic,
-                    color = colorScheme.onSurface
+                    color = contentColor
                 ),
                 styleStart,
                 builder.length
@@ -412,9 +425,10 @@ internal object MarkdownRenderer {
                     textRenderer(textBefore, currentIndex, nestedToken.start)
                 } else {
                     val styleStart = builder.length
+                    val spanStyle = baseTextStyle.toSpanStyle()
                     builder.append(textBefore)
                     builder.addStyle(
-                        baseTextStyle.toSpanStyle().copy(color = colorScheme.onSurface),
+                        if (spanStyle.color != Color.Unspecified) spanStyle else spanStyle.copy(color = colorScheme.onSurface),
                         styleStart,
                         builder.length
                     )
@@ -433,9 +447,10 @@ internal object MarkdownRenderer {
                 textRenderer(remainingText, currentIndex, content.length)
             } else {
                 val styleStart = builder.length
+                val spanStyle = baseTextStyle.toSpanStyle()
                 builder.append(remainingText)
                 builder.addStyle(
-                    baseTextStyle.toSpanStyle().copy(color = colorScheme.onSurface),
+                    if (spanStyle.color != Color.Unspecified) spanStyle else spanStyle.copy(color = colorScheme.onSurface),
                     styleStart,
                     builder.length
                 )

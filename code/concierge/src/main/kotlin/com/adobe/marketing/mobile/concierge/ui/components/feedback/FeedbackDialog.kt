@@ -171,6 +171,7 @@ internal fun FeedbackDialog(
                             onCheckedChange = null,
                             colors = CheckboxDefaults.colors(
                                 checkedColor = style.checkboxCheckedColor,
+                                checkmarkColor = style.checkboxCheckmarkColor,
                                 uncheckedColor = style.checkboxUncheckedColor
                             )
                         )

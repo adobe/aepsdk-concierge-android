@@ -38,7 +38,8 @@ internal object MarkdownParser {
     fun parse(markdown: String): AnnotatedString {
         val tokens = remember(markdown) { MarkdownTokenizer.tokenize(markdown) }
         val colorScheme = ConciergeTheme.colorScheme
-        val messageTextStyle = ConciergeStyles.messageBubbleStyle.textStyle
+        val messageBubbleStyle = ConciergeStyles.messageBubbleStyle
+        val messageTextStyle = messageBubbleStyle.textStyle.copy(color = messageBubbleStyle.botMessageTextColor)
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
