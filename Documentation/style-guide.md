@@ -104,6 +104,11 @@ class MainActivity : AppCompatActivity() {
 
 > **Important:** The `ConciergeTheme` composable provides theme tokens to all child composables through CompositionLocal.
 
+### Default Theming
+
+- **When no theme is loaded** (`theme = null`): The SDK uses built-in light or dark colors (`LightConciergeColors` / `DarkConciergeColors`) based on the device’s light/dark setting.
+- **When a theme is loaded** (`theme = <ConciergeThemeData>`): The theme JSON always takes precedence.
+
 ---
 
 ## JSON Structure
@@ -527,12 +532,12 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-outline-color` | `colors.input.outline` | `String?` | `null` | Input border color (hex) |
 | `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
 
-### Colors - Citations
+### Colors - Circular Citations
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--citations-background-color` | `colors.citation.backgroundColor` | `String` | `"#E0E0E0"` | Citation pill background (hex) |
-| `--citations-text-color` | `colors.citation.textColor` | `String` | `"#000000"` | Citation text color (hex) |
+| `--citations-text-color` | `colors.citation.textColor` | `String` | `"#000000"` | Citation pill text color (hex). |
 
 ### Colors - Feedback
 
@@ -665,9 +670,25 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
     "input.placeholder": "How can I help?",
     "input.messageInput.aria": "Message input",
     "input.send.aria": "Send message",
+    "input.aiChatIcon.tooltip": "Ask AI",
+    "input.mic.aria": "Voice input",
+    "card.aria.select": "Select example message",
+    "carousel.prev.aria": "Previous cards",
+    "carousel.next.aria": "Next cards",
+    "scroll.bottom.aria": "Scroll to bottom",
+    "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
+    "loading.message": "Generating response from our knowledge base...",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
+    "feedback.dialog.title.negative": "Your feedback is appreciated",
+    "feedback.dialog.question.positive": "What went well? Select all that apply.",
+    "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
+    "feedback.dialog.notes": "Notes",
     "feedback.dialog.submit": "Submit",
-    "feedback.dialog.cancel": "Cancel"
+    "feedback.dialog.cancel": "Cancel",
+    "feedback.dialog.notes.placeholder": "Additional notes (optional)",
+    "feedback.toast.success": "Thank you for the feedback.",
+    "feedback.thumbsUp.aria": "Thumbs up",
+    "feedback.thumbsDown.aria": "Thumbs down"
   },
   "arrays": {
     "welcome.examples": [
@@ -675,16 +696,30 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
         "text": "I'd like to explore templates to see what I can create.",
         "image": "https://example.com/template.png",
         "backgroundColor": "#F5F5F5"
+      },
+      {
+        "text": "Help me find recommendations.",
+        "image": "https://example.com/example.png",
+        "backgroundColor": "#F5F5F5"
+      },
+      {
+        "text": "Where can I learn more?",
+        "image": "https://example.com/learn-more.png",
+        "backgroundColor": "#F5F5F5"
       }
     ],
     "feedback.positive.options": [
       "Helpful and relevant recommendations",
       "Clear and easy to understand",
+      "Friendly and conversational tone",
+      "Visually appealing presentation",
       "Other"
     ],
     "feedback.negative.options": [
       "Didn't understand my request",
       "Unhelpful or irrelevant information",
+      "Too vague or lacking detail",
+      "Errors or poor quality response",
       "Other"
     ]
   },
@@ -702,52 +737,71 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
     "--line-height-body": "1.75",
     "--main-container-background": "#FFFFFF",
     "--main-container-bottom-background": "#FFFFFF",
-    "--message-blocker-background": "#FFFFFF",
-    "--input-height-mobile": "52px",
-    "--input-border-radius-mobile": "12px",
-    "--input-background": "#FFFFFF",
-    "--input-outline-color": null,
-    "--input-outline-width": "2px",
-    "--input-focus-outline-width": "2px",
-    "--input-focus-outline-color": "#4B75FF",
-    "--input-font-size": "16px",
-    "--input-text-color": "#292929",
-    "--input-button-height": "32px",
-    "--input-button-width": "32px",
-    "--input-button-border-radius": "8px",
-    "--input-box-shadow": "0 2px 8px 0 #00000014",
-    "--submit-button-fill-color": "#FFFFFF",
-    "--submit-button-fill-color-disabled": "#C6C6C6",
-    "--color-button-submit": "#292929",
-    "--button-disabled-background": "#FFFFFF",
-    "--button-primary-background": "#3B63FB",
-    "--button-primary-text": "#FFFFFF",
-    "--button-secondary-border": "#2C2C2C",
-    "--button-secondary-text": "#2C2C2C",
-    "--button-height-s": "30px",
-    "--disclaimer-color": "#4B4B4B",
-    "--disclaimer-font-size": "12px",
-    "--disclaimer-font-weight": "400",
-    "--message-user-background": "#EBEEFF",
-    "--message-user-text": "#292929",
+
+    "--message-blocker-background": "#00000066",
+
+    "--message-user-background": "#E3F2FD",
+    "--message-user-text": "#000000",
+
     "--message-concierge-background": "#F5F5F5",
-    "--message-concierge-text": "#292929",
-    "--message-concierge-link-color": "#274DEA",
+    "--message-concierge-text": "#000000",
+    "--message-concierge-link-color": "#1976D2",
+
+    "--message-max-width": "100%",
     "--message-border-radius": "10px",
     "--message-padding": "8px 16px",
-    "--message-max-width": "100%",
+
     "--chat-interface-max-width": "768px",
     "--chat-history-padding": "16px",
     "--chat-history-padding-top-expanded": "0",
     "--chat-history-bottom-padding": "0",
     "--message-blocker-height": "105px",
-    "--border-radius-card": "16px",
-    "--multimodal-card-box-shadow": "none",
-    "--feedback-container-gap": "4px",
+
+    "--input-height": "52px",
+    "--input-height-mobile": "52px",
+    "--input-border-radius": "12px",
+    "--input-border-radius-mobile": "12px",
+    "--button-primary-background": "#1976D2",
+    "--button-primary-text": "#FFFFFF",
+    "--button-secondary-border": "#1976D2",
+    "--button-secondary-text": "#1976D2",
+    "--button-height-s": "30px",
+    "--button-disabled-background": "#E0E0E0",
+
+    "--submit-button-fill-color": "#FFFFFF",
+    "--submit-button-fill-color-disabled": "#C6C6C6",
+    "--color-button-submit": "#1976D2",
+
+    "--disclaimer-color": "#757575",
+    "--disclaimer-font-size": "12px",
+    "--disclaimer-font-weight": "400",
+
+    "--input-background": "#FFFFFF",
+    "--input-outline-color": null,
+    "--input-outline-width": "2px",
+    "--input-box-shadow": "0 2px 8px 0 #00000014",
+    "--input-focus-outline-width": "2px",
+    "--input-text-color": "#000000",
+    "--input-focus-outline-color": "#1976D2",
+    "--input-font-size": "16px",
+    "--input-button-height": "32px",
+    "--input-button-width": "32px",
+    "--input-button-border-radius": "8px",
+
+    "--citations-text-font-weight": "700",
+    "--citations-desktop-button-font-size": "12px",
+    "--citations-background-color": "#E0E0E0",
+    "--citations-text-color": "#000000",
+
     "--feedback-icon-btn-background": "#FFFFFF",
     "--feedback-icon-btn-size-desktop": "32px",
-    "--citations-text-font-weight": "700",
-    "--citations-desktop-button-font-size": "12px"
+    "--feedback-container-gap": "4px",
+
+    "--multimodal-card-box-shadow": "none",
+    "--border-radius-card": "16px",
+
+    "--message-alignment": "left",
+    "--message-width": "100%"
   }
 }
 ```
@@ -874,16 +928,16 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, checkboxes, mic button, thinking animation |
-| `--color-text` | ✅ | Primary text color (mapped to `onPrimary`) - used for all text on main background | `ChatHeader`, `WelcomeCard`, `InputActionButtons` (icons) |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
+| `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
 | `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
 | `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
-| `--message-concierge-text` | ✅ | AI message text color, also used for feedback dialog text and feedback button icons | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons` |
-| `--message-concierge-link-color` | ⚠️ | Parsed but links use `primary` color | - |
+| `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter` |
+| `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs | `ExpandedCitations` (citation URLs); message body links when applied |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
 | `--button-primary-hover` | ⚠️ | Parsed but no hover states on Android | - |
@@ -901,10 +955,12 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-outline-color` | ✅ | Input field border color | `ChatInputPanel` |
 | `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
 | `--citations-background-color` | ✅ | Citation pill background | `CircularCitation` |
-| `--citations-text-color` | ✅ | Citation pill text | `CircularCitation` |
+| `--citations-text-color` | ✅ | Citation pill (badge) text | `CircularCitation` |
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
 | `--disclaimer-color` | ⚠️ | Parsed but not implemented | - |
+
+Note: The feedback dialog checkbox uses `--color-primary` for the check box filled color; the checkmark icon is white and is not configurable via theme.
 
 ### Theme Tokens - Layout
 
@@ -959,7 +1015,7 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 | Color | Purpose | Used In Composables |
 |-------|---------|---------------------|
 | `secondary` | Secondary accent color (currently unused) | - |
-| `onSurfaceVariant` | Muted text and icons for secondary UI elements | `PromptSuggestions`, `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
+| `onSurfaceVariant` | Muted text and icons for secondary UI elements | `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
 | `container` | Background for cards and container elements | `ProductCard`, `PromptSuggestions`, message bubbles (fallback), `ChatInputPanel` (fallback) |
 | `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
 | `error` | Error state background | `ErrorOverlay` background |
@@ -977,18 +1033,20 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 When creating themes for the Android SDK, focus on these **actively used** properties for the best results:
 
 **Essential Colors (Highest Impact):**
-- `--color-primary` - Primary brand color (used for buttons, checkboxes, mic button, thinking animation)
-- `--color-text` - **Primary text color for main background** (header, welcome card, close icon, other icons on main container)
-- `--main-container-background` - **Main screen background color** (welcome card, chat area)
+
+- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
+- `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
+- `--main-container-background` - Main screen background color (welcome card, chat area)
 - `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
-- `--message-concierge-background` / `--message-concierge-text` - AI message styling, feedback dialog styling, and feedback button icons
+- `--message-concierge-background` / `--message-concierge-text` - AI message styling, feedback dialog styling, feedback button icons, expanded citation text, chat footer (Sources label and icon)
+- `--message-concierge-link-color` - Links in AI content and expanded citation URLs
 - `--button-primary-background` / `--button-primary-text` - Primary buttons
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
 - `--submit-button-fill-color` / `--color-button-submit` - Submit button (not used for send/mic icons)
-- `--citations-background-color` / `--citations-text-color` - Citation pills
+- `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
 - `--feedback-icon-btn-background` - Feedback button styling
 
 **Essential Text/Copy:**
@@ -1024,6 +1082,7 @@ These properties are parsed but **not currently used** and can be omitted withou
 1. **Test core flows**: Create a theme, load it, send messages, provide feedback
 2. **Check on multiple devices**: Test on different screen sizes and Android versions
 3. **Verify contrast ratios**: Ensure text is readable on all backgrounds
-4. **Test light/dark modes**: If supporting both, verify colors work in both contexts
+4. **Test with and without a theme**: With no theme loaded, the welcome card and prompts follow system light/dark (dark background + light text in dark mode). With a theme loaded, welcome example `backgroundColor` and theme colors are applied
+5. **Test light/dark modes**: If supporting both, verify colors work in both contexts
 
 ---

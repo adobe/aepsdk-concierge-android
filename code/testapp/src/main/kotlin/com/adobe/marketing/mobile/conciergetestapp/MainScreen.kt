@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,10 +53,10 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
-    var selectedTheme by remember { mutableStateOf("default") }
 
     // Surfaces passed via ConciergeChat parameter
     val surfaces = listOf( "web://brand-concierge-demo-stage.corp.ethos270-stage-va7.ethos.adobe.net/customer-pages/745F37C35E4B776E0A49421B@AdobeOrg/acom_m15/index.html")
+    var selectedTheme by rememberSaveable { mutableStateOf("default") }
     
     // Theme options
     val themeOptions = listOf(

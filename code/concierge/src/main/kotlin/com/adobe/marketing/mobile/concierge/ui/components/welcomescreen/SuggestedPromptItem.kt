@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.components.welcome
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Data class representing a suggested prompt with optional image
@@ -62,12 +64,21 @@ fun SuggestedPromptItem(
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.welcomeCardStyle
+    val useDefaultPalette = ConciergeTheme.useDefaultPalette
+    val isDark = isSystemInDarkTheme()
+
+    // Theme loaded: use per-prompt backgroundColor from theme when set, else style. No theme + dark mode: use style (dark) only.
+    val useDefaultDarkModeStyling = useDefaultPalette && isDark
+    val surfaceColor = when {
+        useDefaultDarkModeStyling -> style.promptBackgroundColor
+        else -> prompt.backgroundColor ?: style.promptBackgroundColor
+    }
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        color = prompt.backgroundColor ?: style.promptBackgroundColor,
+        color = surfaceColor,
         shape = style.promptShape
     ) {
         Row(
