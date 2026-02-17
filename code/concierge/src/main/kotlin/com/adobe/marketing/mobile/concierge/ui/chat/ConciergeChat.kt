@@ -75,6 +75,7 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
  * - Displaying the chat in a properly configured full-screen dialog
  *
  * @param viewModel The ConciergeChatViewModel to use for the chat session
+ * @param surfaces List of surface URLs for the chat experience.
  * @param modifier Modifier to be applied to the chat content when displayed
  * @param content The content composable that will be displayed. This composable receives
  *                a `showChat` callback function that can be invoked to show the chat dialog.
@@ -85,10 +86,13 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
  * fun MyScreen() {
  *     val viewModel = viewModel<ConciergeChatViewModel>()
  *
- *     ConciergeChat(viewModel = viewModel) { showChat ->
- *           Button(onClick = { showChat() }) {
- *                 Text("Start Chat")
- *             }
+ *     ConciergeChat(
+ *         viewModel = viewModel,
+ *         surfaces = listOf("web://example.com/surface.html")
+ *     ) { showChat ->
+ *         Button(onClick = { showChat() }) {
+ *             Text("Start Chat")
+ *         }
  *     }
  * }
  * ```
@@ -97,11 +101,23 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 fun ConciergeChat(
     modifier: Modifier = Modifier,
     viewModel: ConciergeChatViewModel,
+    surfaces: List<String>? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
     val conciergeState by ConciergeStateRepository.instance.state.collectAsStateWithLifecycle()
-    val ready = conciergeState.configurationReady && conciergeState.experienceCloudId != null
+    val repository = ConciergeStateRepository.instance
+
+    // Set surfaces in state when provided
+    if (surfaces != null) {
+        repository.setSurfaces(surfaces)
+    }
+
+    // Use passed-in surfaces for ready check when present (state may not have emitted yet this frame)
+    val surfacesForReady = surfaces?.takeIf { it.isNotEmpty() } ?: conciergeState.surfaces
+    val ready = conciergeState.configurationReady &&
+        conciergeState.experienceCloudId != null &&
+        surfacesForReady.isNotEmpty()
 
     if (ready) {
         // Capture the current theme to update welcome card config

@@ -88,11 +88,13 @@ class MainActivity : AppCompatActivity() {
         
         // Load theme
         val theme = ConciergeThemeLoader.load(this, "my-theme")
+        val surfaces = listOf("web://example.com/your-surface.html")
         
         val chatView = findViewById<ConciergeChatView>(R.id.concierge_chat)
         chatView.bind(
             lifecycleOwner = this,
             viewModelStoreOwner = this,
+            surfaces = surfaces,
             theme = theme,
             onClose = { finish() }
         )
