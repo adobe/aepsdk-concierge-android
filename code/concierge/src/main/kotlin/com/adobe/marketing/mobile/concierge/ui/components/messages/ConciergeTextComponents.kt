@@ -31,7 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -99,23 +102,29 @@ internal fun ConciergeResponseText(
  * Reusable composable for rendering text with clickable links and optional inline content.
  *
  * @param text The annotated string to render
+ * @param textStyle Optional style to apply to the text
  * @param onLinkClick Callback for handling link clicks
  * @param modifier Optional modifier for the component
+ * @param textAlign Optional text alignment
  * @param inlineContent Optional map of inline content for embedded composables (e.g., citations)
  */
 @Composable
 internal fun ClickableText(
-    text: androidx.compose.ui.text.AnnotatedString,
+    text: AnnotatedString,
+    textStyle: TextStyle = TextStyle.Default,
     onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Start,
     inlineContent: Map<String, InlineTextContent> = emptyMap()
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Text(
         text = text,
+        style = textStyle,
         inlineContent = inlineContent,
         onTextLayout = { textLayoutResult = it },
+        textAlign = textAlign,
         softWrap = true,
         minLines = 1,
         maxLines = Int.MAX_VALUE,

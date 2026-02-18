@@ -69,4 +69,10 @@ internal object ConciergeConstants {
         const val FIRST_TIME_WELCOME_TEMPLATE = "Welcome to %s concierge!"
         const val DEFAULT_SUBHEADING = "Not sure where to start? Explore the suggested ideas below."
     }
+
+    object Disclaimer {
+        const val DEFAULT_TEXT = "AI responses may be inaccurate. Check answers and sources. {Terms}"
+        const val DEFAULT_TERMS_LABEL = "Terms"
+        const val DEFAULT_TERMS_URL = "https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html"
+    }
 }

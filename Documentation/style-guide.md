@@ -297,10 +297,10 @@ Legal disclaimer text with embedded links.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `disclaimer.text` | `String` | `"AI responses may be inaccurate..."` | Disclaimer text with `{placeholders}` for links |
-| `disclaimer.links` | `Array` | `[]` | Array of link objects |
-| `disclaimer.links[].text` | `String` | `""` | Link display text (matches placeholder) |
-| `disclaimer.links[].url` | `String` | `""` | Link URL |
+| `disclaimer.text` | `String` | `"AI responses may be inaccurate. Check answers and sources. {Terms}"` | Disclaimer text with `{placeholders}` for links |
+| `disclaimer.links` | `Array` | One default Terms link if empty | Array of link objects |
+| `disclaimer.links[].text` | `String` | `""` | Link display text (matches placeholder, e.g. `Terms` for `{Terms}`) |
+| `disclaimer.links[].url` | `String` | `""` | Link URL (opened when the user taps the link) |
 
 ### Example
 
@@ -317,6 +317,8 @@ Legal disclaimer text with embedded links.
   }
 }
 ```
+
+To hide the disclaimer, omit the `disclaimer` key from the theme or set `disclaimer.text` to an empty string.
 
 ---
 
@@ -863,8 +865,8 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `disclaimer.text` | ⚠️ | Parsed but not implemented | Disclaimer component |
-| `disclaimer.links` | ⚠️ | Parsed but not implemented | Disclaimer component |
+| `disclaimer.text` | ✅ | Rendered below chat input; default used if omitted | `ConciergeDisclaimer` |
+| `disclaimer.links` | ✅ | Placeholders in text replaced by tappable links | `ConciergeDisclaimer` |
 
 ### Text (Copy)
 
@@ -917,7 +919,7 @@ This section documents which properties are fully implemented, partially impleme
 | `--line-height-body` | ✅ | Body text line height | All text components via `ConciergeStyles.withThemeTypography` |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
 | `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
-| `--disclaimer-font-size` | ⚠️ | Parsed but not implemented | - |
+| `--disclaimer-font-size` | ✅ | Disclaimer text size | `ConciergeDisclaimer` (DisclaimerStyle) |
 
 ### Theme Tokens - Colors
 
@@ -958,7 +960,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--citations-text-color` | ✅ | Citation pill (badge) text | `CircularCitation` |
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
-| `--disclaimer-color` | ⚠️ | Parsed but not implemented | - |
+| `--disclaimer-color` | ✅ | Disclaimer text color | `ConciergeDisclaimer` (DisclaimerStyle) |
 
 Note: The feedback dialog checkbox uses `--color-primary` for the check box filled color; the checkmark icon is white and is not configurable via theme.
 
@@ -990,8 +992,8 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
 | `--citations-text-font-weight` | ⚠️ | Parsed but not used in composables | - |
 | `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
-| `--disclaimer-font-size` | ⚠️ | Parsed but not used in composables | - |
-| `--disclaimer-font-weight` | ⚠️ | Parsed but not used in composables | - |
+| `--disclaimer-font-size` | ✅ | Disclaimer text size (sp) | `ConciergeDisclaimer` (DisclaimerStyle) |
+| `--disclaimer-font-weight` | ✅ | Disclaimer font weight | `ConciergeDisclaimer` (DisclaimerStyle) |
 | `--welcome-input-order` | ⚠️ | Parsed but welcome layout not customizable | - |
 | `--welcome-cards-order` | ⚠️ | Parsed but welcome layout not customizable | - |
 
@@ -1045,7 +1047,8 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
-- `--submit-button-fill-color` / `--color-button-submit` - Submit button (not used for send/mic icons)
+- `--submit-button-fill-color` / `--color-button-submit` - Submit button
+- `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
 - `--feedback-icon-btn-background` - Feedback button styling
 
@@ -1062,6 +1065,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 **Essential Layout:**
 - `--input-outline-width` / `--input-focus-outline-width` - Input border thickness
 - `--input-font-size` - Input text size
+- `--disclaimer-font-size` - Disclaimer text size
 - `--citations-desktop-button-font-size` - Citation text size
 - `--line-height-body` - Text line spacing
 

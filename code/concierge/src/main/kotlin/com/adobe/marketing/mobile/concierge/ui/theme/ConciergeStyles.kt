@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -548,6 +549,37 @@ object ConciergeStyles {
                 iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconSpacing = 4.dp,
                 sourcesText = "Sources"
+            )
+        }
+
+    /**
+     * Styling for the disclaimer text and link
+     */
+    @Immutable
+    data class DisclaimerStyle(
+        val textStyle: TextStyle,
+        val textColor: Color,
+        val linkTextDecoration: TextDecoration,
+        val padding: Dp
+    )
+
+    val disclaimerStyle: DisclaimerStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val themeTypography = ConciergeTheme.typography
+            val bodySmall = MaterialTheme.typography.bodySmall
+            val fontSize = themeTypography?.disclaimerFontSize?.sp ?: bodySmall.fontSize
+            val fontWeight = themeTypography?.disclaimerFontWeight?.let { w ->
+                FontWeight(w.coerceIn(100, 900))
+            } ?: bodySmall.fontWeight
+            return DisclaimerStyle(
+                textStyle = bodySmall.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight
+                ),
+                textColor = themeColors.disclaimerColor ?: themeColors.onSurfaceVariant,
+                linkTextDecoration = TextDecoration.Underline,
+                padding = 8.dp
             )
         }
 
