@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.webview
 import android.annotation.SuppressLint
 import android.graphics.Color as AndroidColor
 import android.os.Build
+import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -115,6 +116,13 @@ internal fun WebViewSheetContent(
                         setBackgroundColor(AndroidColor.TRANSPARENT)
                         webViewClient = SecureSheetWebViewClient()
                         applySecureSettings(settings)
+                        setOnTouchListener { _, event ->
+                            when (event.action) {
+                                MotionEvent.ACTION_DOWN,
+                                MotionEvent.ACTION_UP -> parent?.requestDisallowInterceptTouchEvent(true)
+                            }
+                            false
+                        }
                     }
                 },
                 update = { webView ->
@@ -131,6 +139,7 @@ internal fun WebViewSheetContent(
 
 /**
  * Applies security-hardened WebSettings for the sheet WebView.
+ * - Enables DOM storage (localStorage/sessionStorage) so page scripts can use getItem/setItem.
  * - Disables file and content URL access to prevent local file inclusion.
  * - Disables mixed content (HTTPS page loading HTTP resources).
  * - Enables Safe Browsing on API 26+ when available.
@@ -138,6 +147,7 @@ internal fun WebViewSheetContent(
 @SuppressLint("SetJavaScriptEnabled")
 private fun applySecureSettings(settings: android.webkit.WebSettings) {
     settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
     settings.allowFileAccess = false
     settings.allowContentAccess = false
     @Suppress("DEPRECATION")
