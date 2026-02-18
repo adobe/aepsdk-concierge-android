@@ -344,6 +344,7 @@ internal fun ConciergeChat(
             // Disclaimer
             ConciergeDisclaimer(
                 disclaimerConfig = ConciergeTheme.disclaimer,
+                onLinkClick = onLinkClick,
                 modifier = Modifier.fillMaxWidth()
             )
         }

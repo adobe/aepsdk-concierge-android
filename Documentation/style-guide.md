@@ -1036,7 +1036,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 **Essential Colors (Highest Impact):**
 
-- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
+- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation, and the webview overlay close button)
 - `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
 - `--main-container-background` - Main screen background color (welcome card, chat area)
 - `--main-container-bottom-background` - Bottom container background (input area)

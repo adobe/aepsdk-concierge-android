@@ -18,6 +18,8 @@ import android.os.Build
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import java.nio.charset.StandardCharsets
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -114,6 +116,8 @@ internal fun WebViewSheetContent(
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
                         setBackgroundColor(AndroidColor.TRANSPARENT)
+                        isScrollbarFadingEnabled = true
+                        scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
                         webViewClient = SecureSheetWebViewClient()
                         applySecureSettings(settings)
                         setOnTouchListener { _, event ->
@@ -145,18 +149,18 @@ internal fun WebViewSheetContent(
  * - Enables Safe Browsing on API 26+ when available.
  */
 @SuppressLint("SetJavaScriptEnabled")
-private fun applySecureSettings(settings: android.webkit.WebSettings) {
+private fun applySecureSettings(settings: WebSettings) {
     settings.javaScriptEnabled = true
     settings.domStorageEnabled = true
     settings.allowFileAccess = false
     settings.allowContentAccess = false
+    settings.layoutAlgorithm = WebSettings.LayoutAlgorithm.NORMAL
+    settings.defaultTextEncodingName = StandardCharsets.UTF_8.name()
+    settings.databaseEnabled = false
     @Suppress("DEPRECATION")
     settings.allowFileAccessFromFileURLs = false
     @Suppress("DEPRECATION")
     settings.allowUniversalAccessFromFileURLs = false
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         settings.safeBrowsingEnabled = true
     }
