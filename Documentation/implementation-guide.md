@@ -39,33 +39,15 @@ The SDK handles permission requests internally when users interact with the micr
 
 ## Installation
 
-### Using Snapshot Builds
-
-If you need to use a snapshot version of the Brand Concierge extension (for example, to test pre-release features), add the Sonatype snapshot repository to your project's build configuration.
-
-**Step 1: Add the snapshot repository to your project's `build.gradle.kts` or `settings.gradle.kts`**
-
-```kotlin
-repositories {
-    google()
-    mavenCentral()
-    maven {
-        url = uri("https://central.sonatype.com/repository/maven-snapshots/")
-    }
-}
-```
-
-**Step 2: Add the snapshot dependency to your app module's `build.gradle.kts` alongside the other AEPSDK extensions**
+**Add the dependency to your app module's `build.gradle.kts` alongside the other AEPSDK extensions**
 
 ```kotlin
 dependencies {
-    implementation("com.adobe.marketing.mobile:concierge:3.0.0-SNAPSHOT")
+    implementation("com.adobe.marketing.mobile:concierge:3.0.0")
     implementation("com.adobe.marketing.mobile:core:3.5.0")
     implementation("com.adobe.marketing.mobile:edgeidentity:3.0.0")
 }
 ```
-
-**Note**: Snapshot versions are development builds and may not be stable. Use them only for testing purposes.
 
 ---
 
