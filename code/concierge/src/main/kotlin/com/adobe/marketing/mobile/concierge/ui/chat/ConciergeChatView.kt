@@ -15,6 +15,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 
@@ -88,16 +89,19 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
+     * @param surfaces List of surface URLs for the chat experience.
      * @param theme Optional complete theme data (config + tokens) to apply
      * @param onClose Optional callback when the close button is pressed
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
+        surfaces: List<String>? = null,
         theme: ConciergeThemeData? = null,
         onClose: () -> Unit
     ) {
         this.onCloseCallback = onClose
+        ConciergeStateRepository.instance.setSurfaces(surfaces)
 
         // Create or get existing ViewModel
         viewModel = ViewModelProvider(viewModelStoreOwner)[ConciergeChatViewModel::class.java]
@@ -126,12 +130,14 @@ class ConciergeChatView @JvmOverloads constructor(
      *
      * @param lifecycleOwner The lifecycle owner (usually Activity or Fragment)
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
+     * @param surfaces List of surface URLs for the chat experience.
      * @param theme Optional theme to apply
      * @param triggerView The view (e.g., Button) that will trigger the chat dialog when clicked
      */
     fun bind(
         lifecycleOwner: LifecycleOwner,
         viewModelStoreOwner: ViewModelStoreOwner,
+        surfaces: List<String>? = null,
         theme: ConciergeThemeData? = null,
         triggerView: View
     ) {
@@ -143,7 +149,9 @@ class ConciergeChatView @JvmOverloads constructor(
             ConciergeTheme(theme = theme) {
                 viewModel?.let { vm ->
                     // Use the dialog-based ConciergeChat wrapper (same as MainScreen.kt)
-                    ConciergeChat(viewModel = vm) { showChat ->
+                    ConciergeChat(
+                        viewModel = vm,
+                        surfaces = surfaces) { showChat ->
                         // Wrap trigger view in a Box to center it
                         Box(
                             modifier = Modifier.wrapContentSize(),

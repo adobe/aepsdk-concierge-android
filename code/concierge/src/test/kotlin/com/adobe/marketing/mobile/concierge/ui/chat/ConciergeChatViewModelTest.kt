@@ -383,7 +383,7 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `productActionClick with valid URL calls openUri`() = runTest {
+    fun `productActionClick with valid URL opens URL in overlay`() = runTest {
         val vm = ConciergeChatViewModel(app)
         
         val button = ProductActionButton(
@@ -397,8 +397,8 @@ class ConciergeChatViewModelTest {
         // Wait for all coroutines to complete
         advanceUntilIdle()
         
-        // Verify that openUri was called with the correct URL
-        verify { mockServiceProvider.uriService.openUri("https://example.com/product") }
+        // Verify that URL is set for in-app overlay
+        assertEquals("https://example.com/product", vm.webviewOverlay.value)
     }
 
     @Test
@@ -440,7 +440,7 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `productImageClick with valid productPageURL calls openUri`() = runTest {
+    fun `productImageClick with valid productPageURL opens URL in overlay`() = runTest {
         val vm = ConciergeChatViewModel(app)
         
         val element = MultimodalElement(
@@ -456,8 +456,8 @@ class ConciergeChatViewModelTest {
         // Wait for all coroutines to complete
         advanceUntilIdle()
         
-        // Verify that openUri was called with the correct URL
-        verify { mockServiceProvider.uriService.openUri("https://example.com/product-page") }
+        // Verify that URL is set for in-app overlay
+        assertEquals("https://example.com/product-page", vm.webviewOverlay.value)
     }
 
     @Test
@@ -521,6 +521,24 @@ class ConciergeChatViewModelTest {
         
         // Verify that openUri was not called
         verify(exactly = 0) { mockServiceProvider.uriService.openUri(any()) }
+    }
+
+    @Test
+    fun `webviewOverlay is null initially`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `dismissWebviewOverlay clears webviewOverlay`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.openWebviewOverlay("https://example.com/page")
+        advanceUntilIdle()
+        assertEquals("https://example.com/page", vm.webviewOverlay.value)
+
+        vm.dismissWebviewOverlay()
+        advanceUntilIdle()
+        assertNull(vm.webviewOverlay.value)
     }
 
     /**

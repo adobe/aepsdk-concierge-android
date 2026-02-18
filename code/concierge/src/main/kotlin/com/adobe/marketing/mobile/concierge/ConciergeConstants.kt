@@ -31,7 +31,6 @@ internal object ConciergeConstants {
             const val EXTENSION_NAME = "com.adobe.module.configuration"
             const val CONCIERGE_SERVER = "concierge.server"
             const val CONCIERGE_CONFIG_ID = "concierge.configId"
-            const val CONCIERGE_SURFACES = "concierge.surfaces"
         }
         object Consent {
             const val EXTENSION_NAME = "com.adobe.edge.consent"
@@ -69,5 +68,11 @@ internal object ConciergeConstants {
         const val RETURNING_USER_WELCOME = "Hey, welcome back!"
         const val FIRST_TIME_WELCOME_TEMPLATE = "Welcome to %s concierge!"
         const val DEFAULT_SUBHEADING = "Not sure where to start? Explore the suggested ideas below."
+    }
+
+    object Disclaimer {
+        const val DEFAULT_TEXT = "AI responses may be inaccurate. Check answers and sources. {Terms}"
+        const val DEFAULT_TERMS_LABEL = "Terms"
+        const val DEFAULT_TERMS_URL = "https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html"
     }
 }

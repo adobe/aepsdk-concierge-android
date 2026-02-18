@@ -55,10 +55,12 @@ class ConciergeConversationServiceClientTest {
     private lateinit var networkService: Networking
     private lateinit var mockStateRepository: ConciergeStateRepository
     private lateinit var mockSessionManager: ConciergeSessionManager
+    private val testSurfaces = listOf("surface1", "surface2")
+
     private val testState = ConciergeState(
         experienceCloudId = "test-ecid",
         configurationReady = true,
-        conciergeSurfaces = listOf("surface1", "surface2"),
+        surfaces = testSurfaces,
         conciergeServer = "https://test-server.com",
         conciergeConfigId = "test-config-id"
     )
@@ -71,7 +73,6 @@ class ConciergeConversationServiceClientTest {
         every { ServiceProvider.getInstance() } returns serviceProvider
         every { serviceProvider.networkService } returns networkService
         
-        // Mock ConciergeStateRepository
         mockStateRepository = mockk(relaxed = true)
         val stateFlow = MutableStateFlow(testState)
         every { mockStateRepository.state } returns stateFlow
@@ -934,9 +935,8 @@ class ConciergeConversationServiceClientTest {
 
     @Test
     fun `chat request with empty surfaces list`() = runTest {
-        val customState = testState.copy(conciergeSurfaces = emptyList())
-        val stateFlow = MutableStateFlow(customState)
-        every { mockStateRepository.state } returns stateFlow
+        val stateWithNoSurfaces = testState.copy(surfaces = emptyList())
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithNoSurfaces)
 
         val requestSlot = slot<NetworkRequest>()
         val connection = mockk<HttpConnecting>(relaxed = true)
@@ -956,10 +956,9 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
-    fun `chat request with null surfaces list`() = runTest {
-        val customState = testState.copy(conciergeSurfaces = null)
-        val stateFlow = MutableStateFlow(customState)
-        every { mockStateRepository.state } returns stateFlow
+    fun `chat request with empty surfaces from state`() = runTest {
+        val stateWithNoSurfaces = testState.copy(surfaces = emptyList())
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithNoSurfaces)
 
         val requestSlot = slot<NetworkRequest>()
         val connection = mockk<HttpConnecting>(relaxed = true)
@@ -974,7 +973,7 @@ class ConciergeConversationServiceClientTest {
         client.chat("test").toList()
 
         val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
-        // When surfaces is null, it's converted to empty list and joinToString produces [""]
+        // When surfaces is empty, joinToString produces [""]
         assertTrue(requestBody.contains("\"surfaces\": [\"\"]"))
     }
 

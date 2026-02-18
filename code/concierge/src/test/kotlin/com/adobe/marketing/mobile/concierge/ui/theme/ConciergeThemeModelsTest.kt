@@ -12,13 +12,12 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
-import androidx.compose.ui.graphics.Color
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConciergeThemeModelsTest {
@@ -327,7 +326,7 @@ class ConciergeThemeModelsTest {
             colors = ConciergeThemeColors(),
             styles = ConciergeThemeStyles(),
             text = ConciergeTextStrings(),
-            disclaimer = ConciergeDisclaimer(),
+            disclaimer = DisclaimerConfig(),
             welcomeExamples = listOf(ConciergeWelcomeExample("Example")),
             feedbackPositiveOptions = listOf("Good", "Helpful"),
             feedbackNegativeOptions = listOf("Bad", "Unhelpful"),
@@ -372,9 +371,9 @@ class ConciergeThemeModelsTest {
     }
 
     @Test
-    fun `ConciergeDisclaimerLink creates correctly`() {
+    fun `DisclaimerLink creates correctly`() {
         // Given & When
-        val link = ConciergeDisclaimerLink(
+        val link = DisclaimerLink(
             text = "Privacy Policy",
             url = "https://example.com/privacy"
         )
@@ -387,17 +386,33 @@ class ConciergeThemeModelsTest {
     @Test
     fun `ConciergeDisclaimer creates with text and links`() {
         // Given & When
-        val disclaimer = ConciergeDisclaimer(
+        val disclaimer = DisclaimerConfig(
             text = "By using this service, you agree to our terms.",
             links = listOf(
-                ConciergeDisclaimerLink("Terms", "https://example.com/terms"),
-                ConciergeDisclaimerLink("Privacy", "https://example.com/privacy")
+                DisclaimerLink("Terms", "https://example.com/terms"),
+                DisclaimerLink("Privacy", "https://example.com/privacy")
             )
         )
 
         // Then
         assertEquals("By using this service, you agree to our terms.", disclaimer.text)
         assertEquals(2, disclaimer.links?.size)
+    }
+
+    @Test
+    fun `DisclaimerConfig creates with ConciergeConstants default text and default Terms link`() {
+        val disclaimer = DisclaimerConfig(
+            text = ConciergeConstants.Disclaimer.DEFAULT_TEXT,
+            links = listOf(
+                DisclaimerLink("Terms", ConciergeConstants.Disclaimer.DEFAULT_TERMS_URL)
+            )
+        )
+
+        assertEquals(ConciergeConstants.Disclaimer.DEFAULT_TEXT, disclaimer.text)
+        assertNotNull(disclaimer.links)
+        assertEquals(1, disclaimer.links?.size)
+        assertEquals("Terms", disclaimer.links?.get(0)?.text)
+        assertEquals(ConciergeConstants.Disclaimer.DEFAULT_TERMS_URL, disclaimer.links?.get(0)?.url)
     }
 
     @Test
@@ -467,12 +482,14 @@ class ConciergeThemeModelsTest {
         val typography = ConciergeTypographyConfig(
             inputFontSize = 16.0,
             disclaimerFontSize = 12.0,
+            disclaimerFontWeight = 700,
             citationsFontSize = 14.0
         )
 
         // Then
         assertEquals(16.0, typography.inputFontSize)
         assertEquals(12.0, typography.disclaimerFontSize)
+        assertEquals(700, typography.disclaimerFontWeight)
         assertEquals(14.0, typography.citationsFontSize)
     }
 
@@ -484,6 +501,7 @@ class ConciergeThemeModelsTest {
         // Then
         assertNull(typography.inputFontSize)
         assertNull(typography.disclaimerFontSize)
+        assertNull(typography.disclaimerFontWeight)
         assertNull(typography.citationsFontSize)
     }
 

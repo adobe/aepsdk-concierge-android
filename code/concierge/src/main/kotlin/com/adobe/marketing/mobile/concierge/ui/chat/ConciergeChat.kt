@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -46,9 +47,11 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
+import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
@@ -75,6 +78,7 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
  * - Displaying the chat in a properly configured full-screen dialog
  *
  * @param viewModel The ConciergeChatViewModel to use for the chat session
+ * @param surfaces List of surface URLs for the chat experience.
  * @param modifier Modifier to be applied to the chat content when displayed
  * @param content The content composable that will be displayed. This composable receives
  *                a `showChat` callback function that can be invoked to show the chat dialog.
@@ -85,10 +89,13 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
  * fun MyScreen() {
  *     val viewModel = viewModel<ConciergeChatViewModel>()
  *
- *     ConciergeChat(viewModel = viewModel) { showChat ->
- *           Button(onClick = { showChat() }) {
- *                 Text("Start Chat")
- *             }
+ *     ConciergeChat(
+ *         viewModel = viewModel,
+ *         surfaces = listOf("web://example.com/surface.html")
+ *     ) { showChat ->
+ *         Button(onClick = { showChat() }) {
+ *             Text("Start Chat")
+ *         }
  *     }
  * }
  * ```
@@ -97,11 +104,23 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 fun ConciergeChat(
     modifier: Modifier = Modifier,
     viewModel: ConciergeChatViewModel,
+    surfaces: List<String>? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
     val conciergeState by ConciergeStateRepository.instance.state.collectAsStateWithLifecycle()
-    val ready = conciergeState.configurationReady && conciergeState.experienceCloudId != null
+    val repository = ConciergeStateRepository.instance
+
+    // Set surfaces in state when provided
+    if (surfaces != null) {
+        repository.setSurfaces(surfaces)
+    }
+
+    // Use passed-in surfaces for ready check when present (state may not have emitted yet this frame)
+    val surfacesForReady = surfaces?.takeIf { it.isNotEmpty() } ?: conciergeState.surfaces
+    val ready = conciergeState.configurationReady &&
+        conciergeState.experienceCloudId != null &&
+        surfacesForReady.isNotEmpty()
 
     if (ready) {
         // Capture the current theme to update welcome card config
@@ -149,6 +168,7 @@ fun ConciergeChat(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
@@ -158,6 +178,7 @@ fun ConciergeChat(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val webviewOverlay by viewModel.webviewOverlay.collectAsStateWithLifecycle(initialValue = null)
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
@@ -197,11 +218,20 @@ fun ConciergeChat(
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
             onEvent = viewModel::processEvent,
+            onLinkClick = viewModel::openWebviewOverlay,
             onPermissionResult = { granted ->
                 viewModel.refreshPermissionStatus()
             },
             onClose = onClose,
             modifier = modifier
+        )
+    }
+
+    // WebView overlay dialog used for handling link clicks that require a browser.
+    webviewOverlay?.let { url ->
+        WebviewOverlayDialog(
+            url = url,
+            onDismiss = viewModel::dismissWebviewOverlay
         )
     }
 }
@@ -217,6 +247,7 @@ internal fun ConciergeChat(
     isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
+    onLinkClick: (String) -> Unit = {},
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -261,6 +292,7 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
+                    onLinkClick = onLinkClick,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -306,6 +338,13 @@ internal fun ConciergeChat(
                 },
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Disclaimer
+            ConciergeDisclaimer(
+                disclaimerConfig = ConciergeTheme.disclaimer,
+                onLinkClick = onLinkClick,
                 modifier = Modifier.fillMaxWidth()
             )
         }

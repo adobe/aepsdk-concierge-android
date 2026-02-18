@@ -31,7 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -40,12 +43,15 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
  * Renders concierge response text with markdown formatting and circular citation components.
+ *
+ * @param onLinkClick Optional handler for link clicks; when null, opens URL in external browser
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    onLinkClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -55,14 +61,15 @@ internal fun ConciergeResponseText(
     val markdownAnnotatedString = MarkdownParser.parse(text)
 
     // Use provided inline content map or create it if not provided
-    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {
+    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size, onLinkClick) {
         if (inlineContentMap.isNotEmpty()) {
             inlineContentMap
         } else {
             CitationUiUtils.createInlineContentMap(
                 uniqueSources,
                 style.size,
-                context
+                context,
+                onLinkClick
             )
         }
     }
@@ -88,8 +95,11 @@ internal fun ConciergeResponseText(
             text = animatedText,
             inlineContent = finalInlineContentMap,
             onLinkClick = { url ->
-                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-                context.startActivity(intent)
+                onLinkClick?.invoke(url)
+                    ?: run {
+                        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                        context.startActivity(intent)
+                    }
             }
         )
     }
@@ -99,23 +109,29 @@ internal fun ConciergeResponseText(
  * Reusable composable for rendering text with clickable links and optional inline content.
  *
  * @param text The annotated string to render
+ * @param textStyle Optional style to apply to the text
  * @param onLinkClick Callback for handling link clicks
  * @param modifier Optional modifier for the component
+ * @param textAlign Optional text alignment
  * @param inlineContent Optional map of inline content for embedded composables (e.g., citations)
  */
 @Composable
 internal fun ClickableText(
-    text: androidx.compose.ui.text.AnnotatedString,
+    text: AnnotatedString,
+    textStyle: TextStyle = TextStyle.Default,
     onLinkClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Start,
     inlineContent: Map<String, InlineTextContent> = emptyMap()
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Text(
         text = text,
+        style = textStyle,
         inlineContent = inlineContent,
         onTextLayout = { textLayoutResult = it },
+        textAlign = textAlign,
         softWrap = true,
         minLines = 1,
         maxLines = Int.MAX_VALUE,

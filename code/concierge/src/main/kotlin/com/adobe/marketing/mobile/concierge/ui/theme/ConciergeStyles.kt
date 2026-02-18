@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -72,8 +74,7 @@ object ConciergeStyles {
     val headerStyle: HeaderStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            val textColor = themeColors.onPrimary
-            
+            val textColor = themeColors.onSurface
             return HeaderStyle(
                 padding = 16.dp,
                 titleStyle = MaterialTheme.typography.headlineSmall,
@@ -123,7 +124,7 @@ object ConciergeStyles {
                 outerPadding = 2.dp,
                 innerPadding = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
-                borderColor = themeColors.inputOutline,
+                borderColor = themeColors.inputOutline ?: themeColors.outline,
                 borderWidth = borderWidth,
                 focusBorderColor = themeColors.inputOutlineFocus ?: themeColors.primary,
                 focusBorderWidth = focusBorderWidth,
@@ -229,8 +230,8 @@ object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             return CitationBadgeStyle(
-                backgroundColor = themeColors.citationBackground ?: MaterialTheme.colorScheme.surfaceVariant,
-                textColor = themeColors.citationText ?: MaterialTheme.colorScheme.primary,
+                backgroundColor = themeColors.citationBackground ?: themeColors.outline,
+                textColor = themeColors.citationText ?: themeColors.onSurface,
                 shape = CircleShape,
                 size = 18.dp
             )
@@ -302,10 +303,10 @@ object ConciergeStyles {
                 imageHeight = 250.dp,
                 titleStyle = MaterialTheme.typography.bodyLarge,
                 titleFontWeight = FontWeight.Bold,
-                titleColor = themeColors.onSurface,
+                titleColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 titleMaxLines = 2,
                 captionStyle = MaterialTheme.typography.bodyLarge,
-                captionColor = themeColors.onSurface.copy(alpha = 0.9f),
+                captionColor = themeColors.conciergeMessageText?.copy(alpha = 0.9f) ?: themeColors.onSurface.copy(alpha = 0.9f),
                 captionTopPadding = 12.dp,
                 captionBottomPadding = 16.dp,
                 textTopPadding = 16.dp,
@@ -386,11 +387,11 @@ object ConciergeStyles {
                 imageHeight = 150.dp,
                 indicatorSize = 8.dp,
                 indicatorSpacing = 8.dp,
-                indicatorActiveColor = themeColors.onSurface,
-                indicatorInactiveColor = themeColors.onSurface.copy(alpha = 0.3f),
+                indicatorActiveColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                indicatorInactiveColor = themeColors.conciergeMessageText?.copy(alpha = 0.3f) ?: themeColors.onSurface.copy(alpha = 0.3f),
                 indicatorInactiveAlpha = 0.3f,
-                navigationIconActiveColor = themeColors.onSurface,
-                navigationIconInactiveColor = themeColors.onSurface.copy(alpha = 0.3f),
+                navigationIconActiveColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                navigationIconInactiveColor = themeColors.conciergeMessageText?.copy(alpha = 0.3f) ?: themeColors.onSurface.copy(alpha = 0.3f),
                 navigationIconInactiveAlpha = 0.3f,
                 navigationSpacing = 8.dp
             )
@@ -466,6 +467,7 @@ object ConciergeStyles {
     val promptSuggestionsStyle: PromptSuggestionsStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val contentColor = themeColors.conciergeMessageText ?: themeColors.onSurface
             return PromptSuggestionsStyle(
                 containerTopPadding = 6.dp,
                 containerStartPadding = 12.dp,
@@ -476,10 +478,10 @@ object ConciergeStyles {
                 itemHorizontalPadding = 16.dp,
                 itemVerticalPadding = 12.dp,
                 iconSize = 10.dp,
-                iconColor = themeColors.onSurfaceVariant,
+                iconColor = contentColor,
                 iconSpacing = 12.dp,
                 textStyle = MaterialTheme.typography.bodyMedium,
-                textColor = themeColors.onSurfaceVariant,
+                textColor = contentColor,
                 textMaxLines = 2
             )
         }
@@ -515,9 +517,9 @@ object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = fontSize ?: MaterialTheme.typography.bodyMedium.fontSize
                 ),
-                textColor = themeColors.citationText ?: themeColors.onSurface,
+                textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textLength = 2,
-                urlColor = themeColors.primary,
+                urlColor = themeColors.messageConciergeLink ?: themeColors.onSurface,
                 expandAnimationDuration = 200,
                 collapseAnimationDuration = 200,
                 fontSize = fontSize
@@ -543,10 +545,41 @@ object ConciergeStyles {
             return ChatFooterStyle(
                 sourcesButtonPadding = 0.dp,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                textColor = themeColors.onSurfaceVariant,
-                iconColor = themeColors.onSurfaceVariant,
+                textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconSpacing = 4.dp,
                 sourcesText = "Sources"
+            )
+        }
+
+    /**
+     * Styling for the disclaimer text and link
+     */
+    @Immutable
+    data class DisclaimerStyle(
+        val textStyle: TextStyle,
+        val textColor: Color,
+        val linkTextDecoration: TextDecoration,
+        val padding: Dp
+    )
+
+    val disclaimerStyle: DisclaimerStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val themeTypography = ConciergeTheme.typography
+            val bodySmall = MaterialTheme.typography.bodySmall
+            val fontSize = themeTypography?.disclaimerFontSize?.sp ?: bodySmall.fontSize
+            val fontWeight = themeTypography?.disclaimerFontWeight?.let { w ->
+                FontWeight(w.coerceIn(100, 900))
+            } ?: bodySmall.fontWeight
+            return DisclaimerStyle(
+                textStyle = bodySmall.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight
+                ),
+                textColor = themeColors.disclaimerColor ?: themeColors.onSurfaceVariant,
+                linkTextDecoration = TextDecoration.Underline,
+                padding = 8.dp
             )
         }
 
@@ -624,11 +657,12 @@ object ConciergeStyles {
     val micButtonStyle: MicButtonStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val micColor = themeColors.primary
             return MicButtonStyle(
                 size = 24.dp,
-                iconColor = themeColors.primary,
-                recordingIconColor = themeColors.primary,
-                pulsingBackgroundColor = themeColors.primary,
+                iconColor = micColor,
+                recordingIconColor = micColor,
+                pulsingBackgroundColor = micColor,
                 pulsingBackgroundAlpha = 0.25f,
                 pulseAnimationDuration = 1000,
                 pulseScaleRange = 1.5f to 2.0f,
@@ -651,7 +685,7 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return SendButtonStyle(
                 size = 24.dp,
-                enabledIconColor = themeColors.onPrimary,
+                enabledIconColor = themeColors.onSurface,
                 disabledIconAlpha = 0.3f
             )
         }
@@ -684,6 +718,37 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return ChatScreenStyle(
                 backgroundColor = themeColors.background
+            )
+        }
+
+    /**
+     * Styling for the Concierge Webview overlay
+     */
+    @Immutable
+    data class WebviewStyle(
+        val topBarBackgroundColor: Color,
+        val topBarContentColor: Color,
+        val topBarPadding: Dp,
+        val closeIconSize: Dp,
+        val closeButtonBackgroundColor: Color,
+        val closeButtonIconColor: Color,
+        val contentBackgroundColor: Color
+    )
+
+    val webviewStyle: WebviewStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val barBackground = Color.Black
+            val closeBg = themeColors.primary
+            val closeIcon = Color.White
+            return WebviewStyle(
+                topBarBackgroundColor = barBackground,
+                topBarContentColor = closeIcon,
+                topBarPadding = 8.dp,
+                closeIconSize = 24.dp,
+                closeButtonBackgroundColor = closeBg,
+                closeButtonIconColor = closeIcon,
+                contentBackgroundColor = Color.White
             )
         }
 
@@ -747,6 +812,7 @@ object ConciergeStyles {
         val questionSpacing: Dp,
         val categorySpacing: Dp,
         val checkboxCheckedColor: Color,
+        val checkboxCheckmarkColor: Color,
         val checkboxUncheckedColor: Color,
         val checkboxSpacing: Dp,
         val categoryTextStyle: TextStyle,
@@ -773,7 +839,10 @@ object ConciergeStyles {
             // Use concierge message colors for dialog
             val dialogBackground = themeColors.conciergeMessageBackground ?: themeColors.surface
             val dialogTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface
-            
+            // Checkbox: primary background when checked, white checkmark in both light and dark
+            val checkboxCheckedColor = themeColors.feedbackDialogCheckboxCheckedColor ?: themeColors.primary
+            val checkboxCheckmarkColor = Color.White
+
             return FeedbackDialogStyle(
                 padding = 16.dp,
                 backgroundColor = dialogBackground,
@@ -787,7 +856,8 @@ object ConciergeStyles {
                 questionColor = dialogTextColor.copy(alpha = 0.7f),
                 questionSpacing = 6.dp,
                 categorySpacing = 0.dp,
-                checkboxCheckedColor = themeColors.primary,
+                checkboxCheckedColor = checkboxCheckedColor,
+                checkboxCheckmarkColor = checkboxCheckmarkColor,
                 checkboxUncheckedColor = dialogTextColor.copy(alpha = 0.3f),
                 checkboxSpacing = 8.dp,
                 categoryTextStyle = MaterialTheme.typography.bodyMedium,
@@ -802,15 +872,16 @@ object ConciergeStyles {
                 textFieldBorderColor = dialogTextColor.copy(alpha = 0.2f),
                 textFieldTextColor = dialogTextColor,
                 buttonSpacing = 8.dp,
-                cancelButtonColor = themeColors.primary,
-                submitButtonColor = themeColors.buttonSubmitFill ?: themeColors.primary,
-                submitButtonTextColor = themeColors.buttonSubmitText ?: themeColors.onPrimary,
+                cancelButtonColor = themeColors.feedbackDialogCancelButtonColor ?: themeColors.primary,
+                submitButtonColor = themeColors.feedbackDialogSubmitButtonColor ?: themeColors.buttonSubmitFill ?: themeColors.primary,
+                submitButtonTextColor = themeColors.feedbackDialogSubmitButtonTextColor ?: themeColors.buttonSubmitText ?: themeColors.onPrimary,
                 buttonTextStyle = MaterialTheme.typography.labelMedium
             )
         }
 
     /**
-     * Styling for the welcome card
+     * Styling for the welcome card and its suggested prompt items.
+     * When no theme is loaded and device is in dark mode, uses default dark palette; otherwise follows theme JSON.
      */
     @Immutable
     data class WelcomeCardStyle(
@@ -841,11 +912,18 @@ object ConciergeStyles {
 
     val welcomeCardStyle: WelcomeCardStyle
         @Composable get() {
+            val isDark = isSystemInDarkTheme()
             val themeColors = ConciergeTheme.colors
-            val textColor = themeColors.onPrimary
-            
+            val useDefaultPalette = ConciergeTheme.useDefaultPalette
+
+            // When no theme is loaded and device is in dark mode, use default dark palette; otherwise use theme colors
+            val useDefaultDarkModeStyling = useDefaultPalette && isDark
+            val cardBackground = if (useDefaultDarkModeStyling) DarkConciergeColors.background else themeColors.background
+            val cardSurface = if (useDefaultDarkModeStyling) DarkConciergeColors.surface else themeColors.surface
+            val textColor = if (useDefaultDarkModeStyling) DarkConciergeColors.onSurface else themeColors.onSurface
+
             return WelcomeCardStyle(
-                backgroundColor = themeColors.background,
+                backgroundColor = cardBackground,
                 shape = RoundedCornerShape(12.dp),
                 elevation = 0.dp,
                 contentPadding = 20.dp,
@@ -859,7 +937,7 @@ object ConciergeStyles {
                 promptsHeaderTextColor = textColor.copy(alpha = 0.8f),
                 promptsHeaderBottomSpacing = 12.dp,
                 promptsSpacing = 8.dp,
-                promptBackgroundColor = themeColors.surface,
+                promptBackgroundColor = cardSurface,
                 promptShape = RoundedCornerShape(8.dp),
                 promptPadding = 0.dp,
                 promptImageSize = 75.dp,

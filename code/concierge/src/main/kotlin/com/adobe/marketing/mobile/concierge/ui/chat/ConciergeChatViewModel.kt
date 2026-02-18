@@ -175,6 +175,26 @@ class ConciergeChatViewModel : AndroidViewModel {
     val isConciergeActive: StateFlow<Boolean> = _isConciergeActive.asStateFlow()
 
     /**
+     * URL to show in the in-app fullscreen WebView overlay, or null when overlay is dismissed.
+     */
+    private val _webviewOverlay = MutableStateFlow<String?>(null)
+    internal val webviewOverlay: StateFlow<String?> = _webviewOverlay.asStateFlow()
+
+    /**
+     * Opens the given URL in the in-app fullscreen WebView overlay.
+     */
+    internal fun openWebviewOverlay(url: String) {
+        _webviewOverlay.value = url
+    }
+
+    /**
+     * Dismisses the in-app WebView overlay.
+     */
+    internal fun dismissWebviewOverlay() {
+        _webviewOverlay.value = null
+    }
+
+    /**
      * Speech capturing implementation that will be used for this session
      */
     private val speechCapturing: SpeechCapturing
@@ -320,7 +340,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Button pressed: ${button.text}, opening URL: ${button.url}"
         )
-        ServiceProvider.getInstance().uriService.openUri(button.url.toString())
+        openWebviewOverlay(button.url.toString())
     }
 
     /**
@@ -339,7 +359,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}"
         )
-        ServiceProvider.getInstance().uriService.openUri(url)
+        openWebviewOverlay(url)
     }
 
     /**

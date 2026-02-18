@@ -75,4 +75,10 @@ dependencies {
     testImplementation(BuildConstants.Dependencies.ROBOLECTRIC)
     testImplementation(BuildConstants.Dependencies.ESPRESSO_CORE)
 
+    // Compose UI testing dependencies
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:${BuildConstants.Versions.COMPOSE}")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:${BuildConstants.Versions.COMPOSE}")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation(BuildConstants.Dependencies.ESPRESSO_CORE)
+
 }
