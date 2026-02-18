@@ -24,7 +24,7 @@ import java.io.InputStreamReader
 /**
  * Parser for JSON theme configuration files.
  */
-object ThemeParser {
+internal object ThemeParser {
     private const val TAG = "ThemeParser"
 
     /**

@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
  * Organized by composable-level styles for consistency and maintainability.
  * Fully supports light and dark modes through MaterialTheme and ConciergeTheme.
  */
-object ConciergeStyles {
+internal object ConciergeStyles {
 
     /**
      * Helper function to apply theme typography (font family and line height) to a TextStyle

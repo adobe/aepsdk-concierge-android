@@ -41,7 +41,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * @param modifier Optional modifier for the component
  */
 @Composable
-fun WelcomeCard(
+internal fun WelcomeCard(
     config: WelcomeConfig,
     isReturningUser: Boolean,
     onPromptClick: (String) -> Unit,

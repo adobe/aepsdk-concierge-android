@@ -101,13 +101,13 @@ internal class ConciergeConversationServiceClient(
         processResponse(connection).collect { event ->
             when (event) {
                 is StreamingEvent.EventReceived -> {
-                    val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                    val parsed = ConversationResponseParser.parseConversationData(event.data)
                     eventOrDataReceived = true
                     parsed.forEach { emit(it) }
                 }
 
                 is StreamingEvent.DataReceived -> {
-                    val parsed = TempConversationResponseParser.parseConversationData(event.data)
+                    val parsed = ConversationResponseParser.parseConversationData(event.data)
                     eventOrDataReceived = true
                     parsed.forEach { emit(it) }
                 }

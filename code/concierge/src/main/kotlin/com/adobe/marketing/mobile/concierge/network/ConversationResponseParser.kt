@@ -18,11 +18,11 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * TEMPORARY!! Parser for conversation API responses that extracts message content from JSON data events.
+ * Parser for conversation API responses that extracts message content from JSON data events.
  * This parser is designed to handle the specific JSON structure returned by the conversation API.
  * TODO: Replace to use DataReader.opt* methods available in the platform SDK.
  */
-internal object TempConversationResponseParser {
+internal object ConversationResponseParser {
     private const val TAG = "ConversationResponseParser"
     private const val CONVERSATION_TYPE = "brand-concierge:conversation"
 

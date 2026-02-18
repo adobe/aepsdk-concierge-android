@@ -36,7 +36,7 @@ internal fun Color.toHexString(): String {
  * Converts CSS values to Android/Compose equivalents.
  * Handles color parsing, dimension extraction, and other CSS value transformations.
  */
-object CSSValueConverter {
+internal object CSSValueConverter {
     
     /**
      * Parses a CSS color value into a Compose Color.
