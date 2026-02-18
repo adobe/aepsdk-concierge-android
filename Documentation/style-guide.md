@@ -930,7 +930,7 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation, webview overlay close button |
 | `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
 | `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
@@ -938,7 +938,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
 | `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
-| `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter` |
+| `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter`, `ProductCard` text, `ProductCarousel` switcher color |
 | `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs | `ExpandedCitations` (citation URLs); message body links when applied |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
@@ -1022,7 +1022,7 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 | `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
 | `error` | Error state background | `ErrorOverlay` background |
 | `onError` | Error state text | `ErrorOverlay` message text |
-| `onSurface` | Primary text on surface backgrounds | `VoiceRecordingPanel`, `ProductCard`, `FeedbackDialog`, fallback for feedback buttons and thinking animation |
+| `onSurface` | Primary text on surface backgrounds | `VoiceRecordingPanel`, `FeedbackDialog`, fallback for feedback buttons and thinking animation |
 
 **Note**: While these colors provide consistent fallback styling, they cannot be overridden in theme JSON files. If you need custom colors for these UI elements, use the theme-specific CSS variables that map to these elements (e.g., use `--input-outline-color` instead of relying on the `outline` fallback).
 
