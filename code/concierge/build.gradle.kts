@@ -54,7 +54,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:${BuildConstants.Versions.COMPOSE}")
     implementation("androidx.compose.material3:material3:$material3Version")
     implementation("androidx.compose.ui:ui:${BuildConstants.Versions.COMPOSE}")
-    implementation("androidx.activity:activity-compose:${BuildConstants.Versions.COMPOSE}")
+    implementation("androidx.activity:activity-compose:${BuildConstants.Versions.ANDROIDX_ACTIVITY_COMPOSE}")
     
     // Material Icons for UI components
     implementation("androidx.compose.material:material-icons-core:${BuildConstants.Versions.COMPOSE}")
@@ -74,6 +74,5 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation(BuildConstants.Dependencies.ROBOLECTRIC)
     testImplementation(BuildConstants.Dependencies.ESPRESSO_CORE)
-    implementation("androidx.test.ext:junit:1.1.5")
 
 }
