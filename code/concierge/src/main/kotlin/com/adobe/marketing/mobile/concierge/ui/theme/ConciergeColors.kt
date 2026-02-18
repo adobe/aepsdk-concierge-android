@@ -63,10 +63,17 @@ data class ConciergeColors(
     val inputText: Color? = null,
     val inputOutline: Color? = null,
     val inputOutlineFocus: Color? = null,
+    val micButtonColor: Color? = null,
 
     // Feedback-specific colors (from CSS themes)
     val feedbackIconButtonBackground: Color? = null,
     val feedbackIconButtonHoverBackground: Color? = null,
+
+    // Feedback dialog (rom CSS themes)
+    val feedbackDialogCheckboxCheckedColor: Color? = null,
+    val feedbackDialogCancelButtonColor: Color? = null,
+    val feedbackDialogSubmitButtonColor: Color? = null,
+    val feedbackDialogSubmitButtonTextColor: Color? = null,
 
     // Citation/Disclaimer colors (from CSS themes)
     val citationBackground: Color? = null,
@@ -75,24 +82,30 @@ data class ConciergeColors(
 )
 
 /**
- * Light mode color scheme - Soft pastel blue palette
+ * Light mode color scheme - default when no theme JSON is loaded.
+ * Black text on white background.
  */
 val LightConciergeColors = ConciergeColors(
-    primary = Color(0xFF3949AB),
+    primary = Color(0xFF000000),
     onPrimary = Color.White,
-    secondary = Color(0xFFE7E4F3),
-    surface = Color(0xFFFAFAFA),
-    onSurface = Color(0xFF1C1B1F),
-    onSurfaceVariant = Color(0xFF49454F),
+    secondary = Color(0xFFE0E0E0),
+    surface = Color.White,
+    onSurface = Color.Black,
+    onSurfaceVariant = Color(0xFF424242),
     background = Color.White,
-    container = Color(0xFFF5F5F5),
-    outline = Color(0xFFC4EBFF),
-    error = Color(0xFFE99B9B),
-    onError = Color(0xFF3D1515)
+    container = Color.White,
+    outline = Color.Black.copy(alpha = 0.24f),
+    error = Color(0xFFB00020),
+    onError = Color.White,
+    userMessageBackground = Color(0xFFE5E5E5),
+    userMessageText = Color.Black,
+    conciergeMessageText = Color.Black,
+    messageConciergeLink = Color.Blue
 )
 
 /**
- * Dark mode color scheme
+ * Dark mode color scheme - default for device dark mode when no theme JSON is loaded.
+ * White text on black / gray background.
  */
 val DarkConciergeColors = ConciergeColors(
     primary = Color(0xFF1E88E5),
@@ -105,5 +118,21 @@ val DarkConciergeColors = ConciergeColors(
     container = Color(0xFF2B2930),
     outline = Color(0xFF938F99),
     error = Color(0xFFF2B8B5),
-    onError = Color(0xFF601410)
+    onError = Color(0xFF601410),
+    userMessageBackground = Color(0xFF6B6B6B),
+    userMessageText = Color(0xFFE6E1E5),
+    conciergeMessageBackground = Color(0xFF2B2930),
+    conciergeMessageText = Color(0xFFE6E1E5),
+    inputBackground = Color(0xFF1C1B1F),
+    inputText = Color(0xFFE6E1E5),
+    inputOutline = Color(0xFF938F99),
+    inputOutlineFocus = Color(0xFF1E88E5),
+    micButtonColor = Color(0xFF6B6B6B),
+    citationBackground = Color(0xFF6B6B6B),
+    citationText = Color(0xFFCAC4D0),
+    messageConciergeLink = Color.Blue,
+    feedbackDialogCheckboxCheckedColor = null,
+    feedbackDialogCancelButtonColor = Color(0xFF6B6B6B),
+    feedbackDialogSubmitButtonColor = Color(0xFF6B6B6B),
+    feedbackDialogSubmitButtonTextColor = Color(0xFFE6E1E5)
 )

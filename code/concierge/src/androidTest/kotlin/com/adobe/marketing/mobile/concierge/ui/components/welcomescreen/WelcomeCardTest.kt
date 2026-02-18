@@ -248,4 +248,34 @@ class WelcomeCardTest {
 
         composeTestRule.waitForIdle()
     }
+
+    @Test
+    fun welcomeCard_withNoThemeAndDarkMode_displaysWithDefaultDarkStyling() {
+        val config = WelcomeConfig(
+            welcomeHeader = "Welcome",
+            subHeader = "Choose an option.",
+            suggestedPrompts = listOf(
+                SuggestedPrompt(text = "Option A"),
+                SuggestedPrompt(text = "Option B")
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(darkTheme = true, theme = null) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    WelcomeCard(
+                        config = config,
+                        isReturningUser = false,
+                        onPromptClick = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Welcome").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Choose an option.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Option A").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Option B").assertIsDisplayed()
+    }
 }

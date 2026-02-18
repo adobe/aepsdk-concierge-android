@@ -270,7 +270,9 @@ object ThemeParser {
             ?: themeColors.surface?.toComposeColor()
             ?: defaultColors.surface
         
+        // Use theme text color for onSurface when not explicitly set, so --color-text drives all body text (welcome card, prompts, input)
         val onSurface = themeColors.onSurface?.toComposeColor()
+            ?: themeColors.primaryColors?.text?.toComposeColor()
             ?: defaultColors.onSurface
 
         val result = ConciergeColors(
@@ -280,7 +282,8 @@ object ThemeParser {
                 ?: defaultColors.secondary,
             surface = surface,
             onSurface = onSurface,
-            onSurfaceVariant = themeColors.onSurfaceVariant?.toComposeColor() 
+            onSurfaceVariant = themeColors.onSurfaceVariant?.toComposeColor()
+                ?: themeColors.primaryColors?.text?.toComposeColor()
                 ?: defaultColors.onSurfaceVariant,
             background = background,
             container = themeColors.container?.toComposeColor()
@@ -291,11 +294,12 @@ object ThemeParser {
                 ?: defaultColors.error,
             onError = themeColors.onError?.toComposeColor() 
                 ?: defaultColors.onError,
-            // Message-specific colors from CSS themes
+            // Message-specific colors from CSS themes. When not set by theme, use defaults so message text
+            // contrasts with bubble background (e.g. dark text on white concierge card) instead of inheriting --color-text.
             userMessageBackground = themeColors.message?.userBackground?.toComposeColor(),
-            userMessageText = themeColors.message?.userText?.toComposeColor(),
+            userMessageText = themeColors.message?.userText?.toComposeColor() ?: defaultColors.userMessageText,
             conciergeMessageBackground = themeColors.message?.conciergeBackground?.toComposeColor(),
-            conciergeMessageText = themeColors.message?.conciergeText?.toComposeColor(),
+            conciergeMessageText = themeColors.message?.conciergeText?.toComposeColor() ?: defaultColors.conciergeMessageText,
             messageConciergeLink = themeColors.message?.conciergeLink?.toComposeColor(),
             // Button-specific colors from CSS themes
             buttonPrimaryBackground = themeColors.button?.primaryBackground?.toComposeColor(),
@@ -313,6 +317,7 @@ object ThemeParser {
             inputText = themeColors.input?.text?.toComposeColor(),
             inputOutline = themeColors.input?.outline?.toComposeColor(),
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
+            micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),

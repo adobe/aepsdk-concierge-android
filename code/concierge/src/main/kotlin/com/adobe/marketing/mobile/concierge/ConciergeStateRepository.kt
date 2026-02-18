@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.update
  * @property experienceCloudId The Experience Cloud ID (ECID) from the EdgeIdentity extension.
  *                              Null indicates the ECID is not yet available or failed to load.
  * @property configurationReady Indicates whether the configuration is ready.
- * @property conciergeSurfaces List of surface URLs from concierge.surfaces configuration.
+ * @property surfaces List of surface URLs set via the [ConciergeChat] surfaces parameter.
  * @property conciergeServer Server URL from concierge.server configuration.
  * @property conciergeConfigId Configuration ID from concierge.configId configuration.
  * @property consent Consent value from the Consent extension. Default is "in".
@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.update
 internal data class ConciergeState(
     val experienceCloudId: String? = null,
     val configurationReady: Boolean = false,
-    val conciergeSurfaces: List<String>? = null,
+    val surfaces: List<String> = emptyList(),
     val conciergeServer: String? = null,
     val conciergeConfigId: String? = null,
     val consent: String? = ConciergeConstants.ConsentValues.DEFAULT_VALUE
@@ -66,6 +66,29 @@ internal class ConciergeStateRepository internal constructor(
 
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<ConciergeState> = _state.asStateFlow()
+
+    /**
+     * Sets the list of surface URLs for the chat experience. Updates [ConciergeState.surfaces].
+     * Pass null or empty list to clear.
+     *
+     * @param surfaces List of surface URLs to use for the chat experience, or null to clear.
+     */
+    fun setSurfaces(surfaces: List<String>?) {
+        val list = surfaces?.takeIf { it.isNotEmpty() } ?: emptyList()
+        _state.update { it.copy(surfaces = list) }
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            LOG_TAG,
+            "Surfaces set: $surfaces"
+        )
+    }
+
+    /**
+     * Returns the surfaces from state.
+     */
+    fun getSurfaces(): List<String> {
+        return _state.value.surfaces
+    }
 
     /**
      * Updates the Experience Cloud ID.
@@ -119,7 +142,6 @@ internal class ConciergeStateRepository internal constructor(
             _state.update {
                 it.copy(
                     configurationReady = false,
-                    conciergeSurfaces = emptyList(),
                     conciergeServer = "",
                     conciergeConfigId = ""
                 )
@@ -135,16 +157,7 @@ internal class ConciergeStateRepository internal constructor(
         }
 
         val configMap = configuration?.value as? Map<String?, Any?>
-        
-        val surfaces: List<String>? = configMap?.let { map ->
-            DataReader.optTypedList(
-                String::class.java,
-                map,
-                ConciergeConstants.SharedState.Configuration.CONCIERGE_SURFACES,
-                null
-            )?.filterNotNull()?.takeIf { it.isNotEmpty() }
-        }
-        
+
         val server: String? = configMap?.let { map ->
             DataReader.optString(
                 map,
@@ -163,10 +176,9 @@ internal class ConciergeStateRepository internal constructor(
                 ?.takeIf { it.isNotEmpty() }
         }
 
-        _state.update { 
+        _state.update {
             it.copy(
                 configurationReady = true,
-                conciergeSurfaces = surfaces,
                 conciergeServer = server,
                 conciergeConfigId = configId
             )
@@ -175,10 +187,7 @@ internal class ConciergeStateRepository internal constructor(
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             LOG_TAG,
-            "Updated ConciergeState with\n" +
-                    "configId: $configId,\n" +
-                    "server: $server,\n" +
-                    "surfaces: $surfaces"
+            "Updated ConciergeState with configId: $configId, server: $server"
         )
     }
 

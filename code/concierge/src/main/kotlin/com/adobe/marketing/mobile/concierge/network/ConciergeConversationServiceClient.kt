@@ -136,7 +136,7 @@ internal class ConciergeConversationServiceClient(
      * Creates the JSON request body for the conversation request.
      */
     private fun createRequestBody(message: String, state: ConciergeState): String {
-        val surfaces = state.conciergeSurfaces ?: emptyList()
+        val surfaces = state.surfaces
         return """
         {
             "events": [
@@ -150,7 +150,6 @@ internal class ConciergeConversationServiceClient(
                     },
                     "query": {
                         "conversation": {
-                            "fetchConversationalExperience": true,
                             "surfaces": ${surfaces.joinToString(",", "[\"", "\"]") { it }},
                             "message": "${message.replace("\"", "\\\"")}"
                         }
