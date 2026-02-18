@@ -43,12 +43,15 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
  * Renders concierge response text with markdown formatting and circular citation components.
+ *
+ * @param onLinkClick Optional handler for link clicks; when null, opens URL in external browser
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    onLinkClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -58,14 +61,15 @@ internal fun ConciergeResponseText(
     val markdownAnnotatedString = MarkdownParser.parse(text)
 
     // Use provided inline content map or create it if not provided
-    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {
+    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size, onLinkClick) {
         if (inlineContentMap.isNotEmpty()) {
             inlineContentMap
         } else {
             CitationUiUtils.createInlineContentMap(
                 uniqueSources,
                 style.size,
-                context
+                context,
+                onLinkClick
             )
         }
     }
@@ -91,8 +95,11 @@ internal fun ConciergeResponseText(
             text = animatedText,
             inlineContent = finalInlineContentMap,
             onLinkClick = { url ->
-                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-                context.startActivity(intent)
+                onLinkClick?.invoke(url)
+                    ?: run {
+                        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                        context.startActivity(intent)
+                    }
             }
         )
     }

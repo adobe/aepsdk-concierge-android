@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -46,6 +47,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
@@ -166,6 +168,7 @@ fun ConciergeChat(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
@@ -175,6 +178,7 @@ fun ConciergeChat(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val webviewOverlay by viewModel.webviewOverlay.collectAsStateWithLifecycle(initialValue = null)
     // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
@@ -214,11 +218,20 @@ fun ConciergeChat(
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
             onEvent = viewModel::processEvent,
+            onLinkClick = viewModel::openWebviewOverlay,
             onPermissionResult = { granted ->
                 viewModel.refreshPermissionStatus()
             },
             onClose = onClose,
             modifier = modifier
+        )
+    }
+
+    // WebView overlay dialog used for handling link clicks that require a browser.
+    webviewOverlay?.let { url ->
+        WebviewOverlayDialog(
+            url = url,
+            onDismiss = viewModel::dismissWebviewOverlay
         )
     }
 }
@@ -234,6 +247,7 @@ internal fun ConciergeChat(
     isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
+    onLinkClick: (String) -> Unit = {},
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -278,6 +292,7 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
+                    onLinkClick = onLinkClick,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -329,6 +344,7 @@ internal fun ConciergeChat(
             // Disclaimer
             ConciergeDisclaimer(
                 disclaimerConfig = ConciergeTheme.disclaimer,
+                onLinkClick = onLinkClick,
                 modifier = Modifier.fillMaxWidth()
             )
         }

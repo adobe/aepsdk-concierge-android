@@ -32,13 +32,15 @@ internal object CitationUiUtils {
      *
      * @param uniqueSources List of citation sources
      * @param badgeSize Size of the citation badge
-     * @param context Android context for handling URL clicks
+     * @param context Android context for handling URL clicks (used when onLinkClick is null)
+     * @param onLinkClick Optional handler for link clicks; when null, opens URL in external browser
      * @return Map of citation IDs to InlineTextContent for embedding circular citation badges
      */
     internal fun createInlineContentMap(
         uniqueSources: List<Citation>,
         badgeSize: Dp,
-        context: Context
+        context: Context,
+        onLinkClick: ((String) -> Unit)? = null
     ): Map<String, InlineTextContent> {
         val inlineContentMap = mutableMapOf<String, InlineTextContent>()
 
@@ -59,8 +61,11 @@ internal object CitationUiUtils {
                     citationNumber = citationNumber,
                     onClick = {
                         source.url?.let { url ->
-                            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-                            context.startActivity(intent)
+                            onLinkClick?.invoke(url)
+                                ?: run {
+                                    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                                    context.startActivity(intent)
+                                }
                         }
                     }
                 )

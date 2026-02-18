@@ -303,10 +303,10 @@ object ConciergeStyles {
                 imageHeight = 250.dp,
                 titleStyle = MaterialTheme.typography.bodyLarge,
                 titleFontWeight = FontWeight.Bold,
-                titleColor = themeColors.onSurface,
+                titleColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 titleMaxLines = 2,
                 captionStyle = MaterialTheme.typography.bodyLarge,
-                captionColor = themeColors.onSurface.copy(alpha = 0.9f),
+                captionColor = themeColors.conciergeMessageText?.copy(alpha = 0.9f) ?: themeColors.onSurface.copy(alpha = 0.9f),
                 captionTopPadding = 12.dp,
                 captionBottomPadding = 16.dp,
                 textTopPadding = 16.dp,
@@ -387,11 +387,11 @@ object ConciergeStyles {
                 imageHeight = 150.dp,
                 indicatorSize = 8.dp,
                 indicatorSpacing = 8.dp,
-                indicatorActiveColor = themeColors.onSurface,
-                indicatorInactiveColor = themeColors.onSurface.copy(alpha = 0.3f),
+                indicatorActiveColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                indicatorInactiveColor = themeColors.conciergeMessageText?.copy(alpha = 0.3f) ?: themeColors.onSurface.copy(alpha = 0.3f),
                 indicatorInactiveAlpha = 0.3f,
-                navigationIconActiveColor = themeColors.onSurface,
-                navigationIconInactiveColor = themeColors.onSurface.copy(alpha = 0.3f),
+                navigationIconActiveColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                navigationIconInactiveColor = themeColors.conciergeMessageText?.copy(alpha = 0.3f) ?: themeColors.onSurface.copy(alpha = 0.3f),
                 navigationIconInactiveAlpha = 0.3f,
                 navigationSpacing = 8.dp
             )
@@ -718,6 +718,37 @@ object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return ChatScreenStyle(
                 backgroundColor = themeColors.background
+            )
+        }
+
+    /**
+     * Styling for the Concierge Webview overlay
+     */
+    @Immutable
+    data class WebviewStyle(
+        val topBarBackgroundColor: Color,
+        val topBarContentColor: Color,
+        val topBarPadding: Dp,
+        val closeIconSize: Dp,
+        val closeButtonBackgroundColor: Color,
+        val closeButtonIconColor: Color,
+        val contentBackgroundColor: Color
+    )
+
+    val webviewStyle: WebviewStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val barBackground = Color.Black
+            val closeBg = themeColors.primary
+            val closeIcon = Color.White
+            return WebviewStyle(
+                topBarBackgroundColor = barBackground,
+                topBarContentColor = closeIcon,
+                topBarPadding = 8.dp,
+                closeIconSize = 24.dp,
+                closeButtonBackgroundColor = closeBg,
+                closeButtonIconColor = closeIcon,
+                contentBackgroundColor = Color.White
             )
         }
 

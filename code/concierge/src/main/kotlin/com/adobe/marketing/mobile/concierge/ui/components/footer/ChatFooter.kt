@@ -44,6 +44,7 @@ internal fun ChatFooter(
     uniqueCitations: List<Citation>? = null,
     interactionId: String?,
     onFeedback: (FeedbackEvent) -> Unit,
+    onLinkClick: (String) -> Unit = {},
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val hasCitations = !citations.isNullOrEmpty()
@@ -84,7 +85,8 @@ internal fun ChatFooter(
             ExpandedCitations(
                 citations = citations!!,
                 uniqueCitations = uniqueCitations,
-                expanded = sourcesExpanded
+                expanded = sourcesExpanded,
+                onLinkClick = onLinkClick
             )
         }
     }

@@ -31,11 +31,13 @@ import com.adobe.marketing.mobile.services.ServiceProvider
  * Disclaimer text and link.
  * The disclaimer is rendered when [disclaimerConfig] is non-null and has text.
  * Placeholders in text like `{Terms}` are replaced by clickable links from [DisclaimerConfig.links].
+ * When [onLinkClick] is non-null, link taps use it (e.g. open in webview); otherwise links open via UriService.
  */
 @Composable
 internal fun ConciergeDisclaimer(
     modifier: Modifier = Modifier,
-    disclaimerConfig: DisclaimerConfig?
+    disclaimerConfig: DisclaimerConfig?,
+    onLinkClick: ((String) -> Unit)? = null
 ) {
     if (disclaimerConfig?.text.isNullOrBlank()) return
     val config = disclaimerConfig!!
@@ -47,6 +49,9 @@ internal fun ConciergeDisclaimer(
     val modifierWithPadding = modifier
         .fillMaxWidth()
         .padding(style.padding)
+    val linkClickHandler: (String) -> Unit = onLinkClick ?: { url: String ->
+        ServiceProvider.getInstance().uriService.openUri(url)
+    }
 
     if (annotatedText.getStringAnnotations("URL", 0, annotatedText.length).isEmpty()) {
         Text(
@@ -60,9 +65,7 @@ internal fun ConciergeDisclaimer(
         ClickableText(
             text = annotatedText,
             textStyle = style.textStyle,
-            onLinkClick = { url ->
-                ServiceProvider.getInstance().uriService.openUri(url)
-            },
+            onLinkClick = linkClickHandler,
             textAlign = TextAlign.Center,
             modifier = modifierWithPadding
         )
