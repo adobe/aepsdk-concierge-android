@@ -23,7 +23,7 @@ typealias CSSAssignment = (String, ConciergeThemeTokens) -> ConciergeThemeTokens
  * Maps CSS variable names (ex: "--input-box-shadow") directly to property assignments.
  * Used to convert web CSS theme format to ConciergeTheme structure.
  */
-object CSSKeyMapper {
+internal object CSSKeyMapper {
     
     private const val LOG_TAG = "ConciergeTheme"
     

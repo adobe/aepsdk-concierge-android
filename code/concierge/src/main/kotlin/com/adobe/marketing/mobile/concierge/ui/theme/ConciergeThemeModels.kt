@@ -55,7 +55,7 @@ data class ConciergeWelcomeExample(
 /**
  * Converts theme configuration to WelcomeConfig
  */
-fun ConciergeThemeConfig.toWelcomeConfig(
+internal fun ConciergeThemeConfig.toWelcomeConfig(
     showWelcomeCard: Boolean = true
 ): WelcomeConfig {
     return WelcomeConfig(
@@ -436,7 +436,7 @@ data class ConciergeWelcomeCardStyle(
  * Converts a hex color string to Compose Color
  * Supports formats: #RGB, #RRGGBB, #AARRGGBB
  */
-fun String.toComposeColor(): Color? {
+internal fun String.toComposeColor(): Color? {
     return try {
         val hex = this.removePrefix("#")
         when (hex.length) {
@@ -472,7 +472,7 @@ fun String.toComposeColor(): Color? {
 /**
  * Converts a string to FontWeight
  */
-fun String.toFontWeight(): FontWeight? {
+internal fun String.toFontWeight(): FontWeight? {
     return when (this.lowercase()) {
         "thin" -> FontWeight.Thin
         "extralight", "extra_light" -> FontWeight.ExtraLight
@@ -490,10 +490,10 @@ fun String.toFontWeight(): FontWeight? {
 /**
  * Converts Double to Dp
  */
-fun Double.toDp(): Dp = this.dp
+internal fun Double.toDp(): Dp = this.dp
 
 /**
  * Converts Float to alpha value
  */
-fun Double.toAlpha(): Float = this.toFloat().coerceIn(0f, 1f)
+internal fun Double.toAlpha(): Float = this.toFloat().coerceIn(0f, 1f)
 

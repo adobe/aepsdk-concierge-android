@@ -43,7 +43,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 /**
  * Data class representing a suggested prompt with optional image
  */
-data class SuggestedPrompt(
+internal data class SuggestedPrompt(
     val text: String,
     val imageVector: ImageVector? = null,
     val imagePainter: Painter? = null,
@@ -58,7 +58,7 @@ data class SuggestedPrompt(
  * @param onClick Callback when the prompt is clicked
  */
 @Composable
-fun SuggestedPromptItem(
+internal fun SuggestedPromptItem(
     prompt: SuggestedPrompt,
     onClick: () -> Unit,
     modifier: Modifier = Modifier

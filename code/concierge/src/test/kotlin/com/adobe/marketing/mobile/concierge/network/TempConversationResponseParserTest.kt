@@ -21,32 +21,32 @@ class TempConversationResponseParserTest {
 
     @Test
     fun `parseConversationData returns empty list for blank input`() {
-        val result = TempConversationResponseParser.parseConversationData("")
+        val result = ConversationResponseParser.parseConversationData("")
         assertTrue(result.isEmpty())
     }
 
     @Test
     fun `parseConversationData returns empty list for whitespace input`() {
-        val result = TempConversationResponseParser.parseConversationData("   ")
+        val result = ConversationResponseParser.parseConversationData("   ")
         assertTrue(result.isEmpty())
     }
 
     @Test
     fun `parseConversationData returns empty list for invalid JSON`() {
-        val result = TempConversationResponseParser.parseConversationData("not valid json")
+        val result = ConversationResponseParser.parseConversationData("not valid json")
         assertTrue(result.isEmpty())
     }
 
     @Test
     fun `parseConversationData returns empty list for empty JSON object`() {
-        val result = TempConversationResponseParser.parseConversationData("{}")
+        val result = ConversationResponseParser.parseConversationData("{}")
         assertTrue(result.isEmpty())
     }
 
     @Test
     fun `parseConversationData returns empty list for missing handle field`() {
         val json = """{"someField": "someValue"}"""
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertTrue(result.isEmpty())
     }
 
@@ -70,7 +70,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals("Hello, how can I help?", result[0].messageContent)
         assertEquals(ConversationState.IN_PROGRESS, result[0].state)
@@ -98,7 +98,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals("Test message", result[0].messageContent)
         assertEquals("conv-123", result[0].conversationId)
@@ -127,7 +127,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(3, result[0].promptSuggestions.size)
         assertEquals("Tell me more", result[0].promptSuggestions[0])
@@ -156,7 +156,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].promptSuggestions.isEmpty())
     }
@@ -183,7 +183,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(2, result.size)
         assertEquals("First message", result[0].messageContent)
         assertEquals("Second message", result[1].messageContent)
@@ -216,7 +216,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals("Should be included", result[0].messageContent)
     }
@@ -238,7 +238,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertTrue(result.isEmpty())
     }
 
@@ -260,7 +260,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertTrue(result.isEmpty())
     }
 
@@ -282,7 +282,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals("", result[0].messageContent)
         assertEquals(ConversationState.COMPLETED, result[0].state)
@@ -315,7 +315,7 @@ class TempConversationResponseParserTest {
                 }
             """.trimIndent()
 
-            val result = TempConversationResponseParser.parseConversationData(json)
+            val result = ConversationResponseParser.parseConversationData(json)
             assertEquals("Failed for state: $stateString", 1, result.size)
             assertEquals("Failed for state: $stateString", expectedState, result[0].state)
         }
@@ -360,7 +360,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].multimodalElements.size)
 
@@ -423,7 +423,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].multimodalElements.size)
 
@@ -461,7 +461,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].multimodalElements.size)
 
@@ -500,7 +500,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(0, result[0].multimodalElements.size)
     }
@@ -541,7 +541,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(3, result[0].multimodalElements.size)
         assertEquals("Product 1", result[0].multimodalElements[0].title)
@@ -569,7 +569,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].multimodalElements.isEmpty())
     }
@@ -595,7 +595,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].multimodalElements.isEmpty())
     }
@@ -636,7 +636,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(2, result[0].sources.size)
 
@@ -681,7 +681,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].sources.size)
 
@@ -718,7 +718,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].sources.isEmpty())
     }
@@ -748,7 +748,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].sources.isEmpty())
     }
@@ -774,7 +774,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].sources.isEmpty())
     }
@@ -799,7 +799,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].sources.isEmpty())
     }
@@ -847,7 +847,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
 
         val message = result[0]
@@ -891,7 +891,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].multimodalElements.size)
 
@@ -929,7 +929,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].sources.size)
         assertNull(result[0].sources[0].citationNumber)
@@ -962,7 +962,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(1, result[0].sources.size)
         assertNull(result[0].sources[0].citationNumber)
@@ -1001,7 +1001,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(2, result[0].sources.size)
 
@@ -1046,7 +1046,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertEquals(0, result[0].multimodalElements.size)
     }
@@ -1081,7 +1081,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals("Click Here", element.content["primaryText"])
@@ -1118,7 +1118,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertNull(element.content["secondaryText"])
@@ -1156,7 +1156,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertNull(element.content["primaryText"])
@@ -1194,7 +1194,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals(1, element.width)
@@ -1234,7 +1234,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertNull(element.width)
@@ -1272,7 +1272,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals(Int.MAX_VALUE, element.width)
@@ -1308,7 +1308,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals("Product", element.content["productName"])
@@ -1346,7 +1346,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals(800, element.width)
@@ -1390,7 +1390,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals("Buy Now", element.content["primaryText"])
@@ -1430,7 +1430,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertNull(element.content["primaryText"])
@@ -1486,7 +1486,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
 
@@ -1549,7 +1549,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals(800, element.width)
@@ -1587,7 +1587,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertNull(element.content["primaryText"])
@@ -1626,7 +1626,7 @@ class TempConversationResponseParserTest {
             }
         """.trimIndent()
 
-        val result = TempConversationResponseParser.parseConversationData(json)
+        val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         val element = result[0].multimodalElements[0]
         assertEquals("Product \"Special\" Name", element.title)

@@ -243,7 +243,7 @@ data class ConciergePositioningLayout(
 /**
  * CSS variable mapping for backwards compatibility with web-based themes
  */
-object CSSVariableMapper {
+internal object CSSVariableMapper {
     private val colorMappings = mapOf(
         "--color-primary" to "primary",
         "--color-on-primary" to "onPrimary",

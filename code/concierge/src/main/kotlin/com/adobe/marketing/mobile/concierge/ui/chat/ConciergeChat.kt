@@ -179,7 +179,6 @@ fun ConciergeChat(
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val webviewOverlay by viewModel.webviewOverlay.collectAsStateWithLifecycle(initialValue = null)
-    // TODO: Need to expose this permission to the app level to handle permission requests
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
     val welcomeConfig by viewModel.welcomeConfig.collectAsStateWithLifecycle()
