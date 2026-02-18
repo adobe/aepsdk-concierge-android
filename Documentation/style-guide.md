@@ -1047,8 +1047,8 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
-- `--submit-button-fill-color` / `--color-button-submit` - Submit button (not used for send/mic icons)
-- `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer below input
+- `--submit-button-fill-color` / `--color-button-submit` - Submit button
+- `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
 - `--feedback-icon-btn-background` - Feedback button styling
 
