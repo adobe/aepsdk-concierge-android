@@ -3,10 +3,6 @@
 <!-- [![CircleCI](https://img.shields.io/circleci/project/github/adobe/aepsdk-concierge-android/main.svg?logo=circleci)](https://circleci.com/gh/adobe/workflows/aepsdk-concierge-android)
 [![Code Coverage](https://codecov.io/gh/adobe/aepsdk-concierge-android/branch/main/graph/badge.svg?token=3RLMTJQ1TM)](https://codecov.io/gh/adobe/aepsdk-concierge-android) -->
 
-## LIMITED AVAILABILITY
-
-This AEPBrandConcierge extension is not for use by the general public. Please get in touch with your Adobe account representative if you would like more information.
-
 ## About this project
 
 Adobe Experience Platform (AEP) Brand Concierge Extension is an extension for the [Adobe Experience Platform Android SDK](https://github.com/adobe/aepsdk-core-android).
