@@ -1,0 +1,54 @@
+#
+# Copyright 2025 Adobe. All rights reserved.
+# This file is licensed to you under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License. You may obtain a copy
+# of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under
+# the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+# OF ANY KIND, either express or implied. See the License for the specific language
+# governing permissions and limitations under the License.
+#
+
+name: Publish Release
+
+on: 
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag (version) to be released (ex: 1.2.3).'
+        type: string
+        required: true
+
+      create-github-release:
+        description: 'Create GitHub release using tag. If the provided `tag` does not exist, it will be created.'
+        type: boolean
+        required: true
+        default: true
+
+      core-dependency:
+        description: 'The Core dependency version in gradle.properties to be validated (ex: 1.2.3).'
+        type: string
+        required: true
+
+      edge-dependency:
+        description: 'The Edge dependency version in gradle.properties to be validated (ex: 1.2.3).'
+        type: string
+        required: true
+
+      edge-identity-dependency:
+        description: 'The EdgeIdentity dependency version in gradle.properties to be validated (ex: 1.2.3).'
+        type: string
+        required: true
+
+jobs:
+  publish:
+    permissions:
+        contents: write
+    uses: adobe/aepsdk-commons/.github/workflows/android-maven-release.yml@gha-android-3.4.3
+    with:
+      tag: ${{ github.event.inputs.tag }}
+      create-github-release: ${{ github.event.inputs.create-github-release == 'true' }}
+      version-validation-paths: code/gradle.properties, code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ConciergeConstants.kt
+      version-validation-dependencies: Core ${{ github.event.inputs.core-dependency }}, Edge ${{ github.event.inputs.edge-dependency }}, EdgeIdentity ${{ github.event.inputs.edge-identity-dependency }}
+    secrets: inherit

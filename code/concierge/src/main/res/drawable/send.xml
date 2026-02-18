@@ -1,0 +1,23 @@
+<!--
+
+    Copyright 2025 Adobe. All rights reserved.
+    This file is licensed to you under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License. You may obtain a copy
+    of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software distributed under
+    the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+    OF ANY KIND, either express or implied. See the License for the specific language
+    governing permissions and limitations under the License.
+
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="20"
+    android:viewportHeight="20">
+  <path
+      android:pathData="m18.649,9.974c-0,-0.295 -0.172,-0.562 -0.443,-0.683L4.058,2.933c-0.256,-0.115 -0.556,-0.077 -0.776,0.098 -0.22,0.176 -0.323,0.46 -0.267,0.736l1.272,6.241 -1.222,6.23c-0.049,0.247 0.03,0.5 0.205,0.675 0.02,0.02 0.042,0.04 0.065,0.058 0.221,0.174 0.52,0.211 0.775,0.095l14.098,-6.408c0.269,-0.122 0.44,-0.39 0.44,-0.684ZM14.406,9.227l-8.742,0.027 -0.887,-4.353 9.629,4.326ZM4.817,15.097l0.852,-4.344 8.763,-0.027 -9.615,4.371Z"
+      android:strokeWidth="0"
+      android:fillColor="#222"/>
+</vector>
