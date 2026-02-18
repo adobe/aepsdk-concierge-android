@@ -716,7 +716,7 @@ object ConciergeStyles {
                 closeIconSize = 24.dp,
                 closeButtonBackgroundColor = closeBg,
                 closeButtonIconColor = closeIcon,
-                contentBackgroundColor = themeColors.surface
+                contentBackgroundColor = Color.White
             )
         }
 
