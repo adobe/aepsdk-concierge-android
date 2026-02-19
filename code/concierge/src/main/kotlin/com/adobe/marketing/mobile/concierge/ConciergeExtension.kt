@@ -20,7 +20,7 @@ import com.adobe.marketing.mobile.SharedStateResolution
 import com.adobe.marketing.mobile.SharedStateResult
 import com.adobe.marketing.mobile.concierge.ConciergeConstants.EXTENSION_FRIENDLY_NAME
 import com.adobe.marketing.mobile.concierge.ConciergeConstants.EXTENSION_NAME
-import com.adobe.marketing.mobile.concierge.ConciergeConstants.EXTENSION_VERSION
+import com.adobe.marketing.mobile.concierge.ConciergeConstants.VERSION
 import com.adobe.marketing.mobile.services.Log
 
 class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
@@ -37,7 +37,7 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
     }
 
     override fun getVersion(): String {
-        return EXTENSION_VERSION
+        return VERSION
     }
 
     override fun onRegistered() {

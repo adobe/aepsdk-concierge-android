@@ -405,7 +405,7 @@ internal class ConciergeConversationServiceClient(
             "implementationDetails": {
             	"environment": "app",
             	"name": "https:\/\/ns.adobe.com\/experience\/mobilesdk\/android",
-                "version": "3.5.0+${ConciergeConstants.EXTENSION_VERSION}"
+                "version": "3.5.0+${ConciergeConstants.VERSION}"
             }
         }
     }]
