@@ -51,4 +51,5 @@ jobs:
       create-github-release: ${{ github.event.inputs.create-github-release == 'true' }}
       version-validation-paths: code/gradle.properties, code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ConciergeConstants.kt
       version-validation-dependencies: Core ${{ github.event.inputs.core-dependency }}, Edge ${{ github.event.inputs.edge-dependency }}, EdgeIdentity ${{ github.event.inputs.edge-identity-dependency }}
+      staging-dir: code/concierge/build/staging-deploy
     secrets: inherit
