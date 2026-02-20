@@ -546,7 +546,7 @@ class ConciergeConversationServiceClientTest {
         
         assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
         assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
-        assertTrue("Request should contain consent value", requestBody.contains("\"val\": \"unknown\""))
+        assertTrue("Request should contain consent state string", requestBody.contains("\"state\": \"unknown\""))
     }
 
     @Test
@@ -575,7 +575,7 @@ class ConciergeConversationServiceClientTest {
         val capturedRequest = requestSlot.captured
         val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
         
-        assertTrue("Request should contain consent value 'out'", requestBody.contains("\"val\": \"out\""))
+        assertTrue("Request should contain consent state 'out'", requestBody.contains("\"state\": \"out\""))
     }
 
     @Test
@@ -604,7 +604,7 @@ class ConciergeConversationServiceClientTest {
         val capturedRequest = requestSlot.captured
         val requestBody = String(capturedRequest.body, StandardCharsets.UTF_8)
         
-        assertTrue("Request should contain consent value 'unknown'", requestBody.contains("\"val\": \"unknown\""))
+        assertTrue("Request should contain consent state 'unknown'", requestBody.contains("\"state\": \"unknown\""))
     }
 
     // ========== Feedback Tests ==========
@@ -713,6 +713,31 @@ class ConciergeConversationServiceClientTest {
         assertEquals("application/json", request.headers["Content-Type"])
         assertEquals(30, request.connectTimeout)
         assertEquals(60, request.readTimeout)
+    }
+
+    @Test
+    fun `sendFeedback includes default consent value in meta`() = runTest {
+        val feedback = Feedback(
+            interactionId = "interaction-123",
+            feedbackType = FeedbackType.POSITIVE
+        )
+
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendFeedback(feedback)
+
+        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
+        assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
+        assertTrue("Request should contain consent", requestBody.contains("\"consent\""))
+        assertTrue("Request should contain consent state string", requestBody.contains("\"state\": \"unknown\""))
     }
 
     @Test

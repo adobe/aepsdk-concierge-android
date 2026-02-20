@@ -143,9 +143,7 @@ internal class ConciergeConversationServiceClient(
                 {
                     "meta": {
                          "consent": {
-                            "state": {
-                                "val": "${state.consent}"
-                            }
+                            "state": "${state.consent}"
                         }
                     },
                     "query": {
@@ -372,9 +370,7 @@ internal class ConciergeConversationServiceClient(
     "events": [{
         "meta": {
             "consent": {
-                "state": {
-                    "val": "${state.consent}"
-                }
+                "state": "${state.consent}"
             }
         },
         "xdm": {

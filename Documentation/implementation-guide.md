@@ -43,7 +43,7 @@ The SDK handles permission requests internally when users interact with the micr
 
 ```kotlin
 dependencies {
-    implementation("com.adobe.marketing.mobile:concierge:3.0.0")
+    implementation("com.adobe.marketing.mobile:concierge:3.+")
     implementation("com.adobe.marketing.mobile:core:3.5.0")
     implementation("com.adobe.marketing.mobile:edgeidentity:3.0.0")
 }
