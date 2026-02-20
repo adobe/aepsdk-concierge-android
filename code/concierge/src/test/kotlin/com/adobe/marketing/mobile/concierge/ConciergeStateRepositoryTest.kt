@@ -757,7 +757,7 @@ class ConciergeStateRepositoryTest {
 
         // Then
         assertEquals(ConciergeConstants.ConsentValues.DEFAULT_VALUE, repository.state.value.consent)
-        assertEquals(ConciergeConstants.ConsentValues.UNKNOWN_VALUE, repository.state.value.consent)
+        assertEquals(ConciergeConstants.ConsentValues.IN_VALUE, repository.state.value.consent)
     }
 
     // ========== Helper Methods ==========

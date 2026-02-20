@@ -44,7 +44,7 @@ internal object ConciergeConstants {
         const val IN_VALUE = "in"
         const val OUT_VALUE = "out"
         const val UNKNOWN_VALUE = "unknown"
-        const val DEFAULT_VALUE = UNKNOWN_VALUE
+        const val DEFAULT_VALUE = IN_VALUE
     }
 
     object ChatInteraction {
