@@ -14,7 +14,7 @@ package com.adobe.marketing.mobile.concierge
 internal object ConciergeConstants {
     const val EXTENSION_NAME = "brandconcierge"
     const val EXTENSION_FRIENDLY_NAME = "BrandConcierge"
-    const val VERSION = "3.0.0"
+    const val VERSION = "3.0.1"
     const val LOG_TAG = "BrandConcierge"
     const val DATA_STORE_NAME = EXTENSION_NAME
 
