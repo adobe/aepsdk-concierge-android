@@ -546,7 +546,7 @@ class ConciergeConversationServiceClientTest {
         
         assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
         assertTrue("Request should contain consent state", requestBody.contains("\"consent\""))
-        assertTrue("Request should contain consent state string", requestBody.contains("\"state\": \"unknown\""))
+        assertTrue("Request should contain consent state string", requestBody.contains("\"state\": \"in\""))
     }
 
     @Test
@@ -737,7 +737,7 @@ class ConciergeConversationServiceClientTest {
         val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
         assertTrue("Request should contain meta.consent", requestBody.contains("\"meta\""))
         assertTrue("Request should contain consent", requestBody.contains("\"consent\""))
-        assertTrue("Request should contain consent state string", requestBody.contains("\"state\": \"unknown\""))
+        assertTrue("Request should contain consent state string", requestBody.contains("\"state\": \"in\""))
     }
 
     @Test
