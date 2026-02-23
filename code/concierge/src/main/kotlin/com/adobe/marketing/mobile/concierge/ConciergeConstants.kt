@@ -14,7 +14,7 @@ package com.adobe.marketing.mobile.concierge
 internal object ConciergeConstants {
     const val EXTENSION_NAME = "brandconcierge"
     const val EXTENSION_FRIENDLY_NAME = "BrandConcierge"
-    const val VERSION = "3.0.1"
+    const val VERSION = "3.0.2"
     const val LOG_TAG = "BrandConcierge"
     const val DATA_STORE_NAME = EXTENSION_NAME
 
@@ -44,7 +44,7 @@ internal object ConciergeConstants {
         const val IN_VALUE = "in"
         const val OUT_VALUE = "out"
         const val UNKNOWN_VALUE = "unknown"
-        const val DEFAULT_VALUE = UNKNOWN_VALUE
+        const val DEFAULT_VALUE = IN_VALUE
     }
 
     object ChatInteraction {
