@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -100,13 +101,6 @@ internal fun ProductImage(
             // Product ID overlay in bottom-left corner if there is more than 1 element
             if (isMultiElement) {
                 var useSmallText by remember { mutableStateOf(false) }
-                val displayText = element.content["productName"] as? String ?: element.id
-                val fontSize = if (useSmallText) {
-                    (imageStyle.overlayTextSize.value * 0.750f).sp
-                } else {
-                    imageStyle.overlayTextSize.value.sp
-                }
-
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -114,6 +108,7 @@ internal fun ProductImage(
                 ) {
                     Box(
                         modifier = Modifier
+                            .wrapContentWidth(Alignment.Start)
                             .background(
                                 color = imageStyle.overlayBackgroundColor,
                                 shape = imageStyle.overlayShape
@@ -121,9 +116,9 @@ internal fun ProductImage(
                             .padding(imageStyle.overlayInnerPadding)
                     ) {
                         Text(
-                            text = displayText,
+                            text = element.content["productName"] as? String ?: element.id,
                             color = imageStyle.overlayTextColor,
-                            fontSize = fontSize,
+                            fontSize = if (useSmallText) (imageStyle.overlayTextSize.value * 0.75f).sp else imageStyle.overlayTextSize.value.sp,
                             fontWeight = imageStyle.overlayTextFontWeight,
                             style = imageStyle.overlayTextStyle,
                             maxLines = 2,

@@ -1699,6 +1699,69 @@ class TempConversationResponseParserTest {
         assertEquals("Description with 'quotes' and <html>", element.transcript)
         assertEquals("#FF00FF", element.content["backgroundColor"])
     }
+
+    @Test
+    fun `parseConversationData parses details from entity_info`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Product with details",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "elem-1",
+                              "entity_info": {
+                                "productName": "Product",
+                                "details": "Additional details from EntityInfo"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("Additional details from EntityInfo", element.content["details"])
+    }
+
+    @Test
+    fun `parseConversationData handles multimodalElements as array format`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Intermediate response",
+                        "multimodalElements": []
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(result[0].multimodalElements.isEmpty())
+    }
 }
 
 

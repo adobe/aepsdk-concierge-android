@@ -57,6 +57,7 @@ internal object ConversationResponseParser {
     private const val FIELD_BACKGROUND_COLOR = "backgroundColor"
     private const val FIELD_LEARNING_RESOURCE = "learningResource"
     private const val FIELD_LOGO = "logo"
+    private const val FIELD_DETAILS = "details"
     private const val FIELD_PRIMARY = "primary"
     private const val FIELD_SECONDARY = "secondary"
     private const val FIELD_BUTTON_TEXT = "text"
@@ -170,16 +171,16 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts multimodal elements from the response object
+     * Extracts multimodal elements from the response object.
      */
     private fun extractMultimodalElements(response: JSONObject): List<MultimodalElement> {
         val multimodalObj = response.optJSONObject(FIELD_MULTIMODAL_ELEMENTS)
         if (multimodalObj == null) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "No multimodalElements found in response."
-            )
+            if (response.optJSONArray(FIELD_MULTIMODAL_ELEMENTS) != null) {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "multimodalElements array format; ignoring.")
+            } else {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
+            }
             return emptyList()
         }
 
@@ -232,7 +233,7 @@ internal object ConversationResponseParser {
 
     /**
      * Parses a single multimodal element from a [JSONObject].
-     * Requires [entity_info]. Returns null if missing, id empty, or parsing fails.
+     * Requires entity_info. Returns null if missing or id empty.
      */
     private fun parseMultimodalElement(elementObj: JSONObject): MultimodalElement? {
         val entityInfo = elementObj.optJSONObject(FIELD_ENTITY_INFO) ?: return null
@@ -260,6 +261,7 @@ internal object ConversationResponseParser {
         val learningResource =
             entityInfo.optString(FIELD_LEARNING_RESOURCE).takeIf { it.isNotEmpty() }
         val logo = entityInfo.optString(FIELD_LOGO).takeIf { it.isNotEmpty() }
+        val details = entityInfo.optString(FIELD_DETAILS).takeIf { it.isNotEmpty() }
 
         val primaryAction = entityInfo.optJSONObject(FIELD_PRIMARY)
         val secondaryAction = entityInfo.optJSONObject(FIELD_SECONDARY)
@@ -268,7 +270,6 @@ internal object ConversationResponseParser {
         val productWasPrice =
             entityInfo.optString(FIELD_PRODUCT_WAS_PRICE).takeIf { it.isNotEmpty() }
 
-        // Add element fields to content
         productName?.let { content["productName"] = it }
         productDescription?.let { content["productDescription"] = it }
         description?.let { content["description"] = it }
@@ -277,10 +278,10 @@ internal object ConversationResponseParser {
         backgroundColor?.let { content["backgroundColor"] = it }
         learningResource?.let { content["learningResource"] = it }
         logo?.let { content["logo"] = it }
+        details?.let { content["details"] = it }
         productPrice?.let { content["productPrice"] = it }
         productWasPrice?.let { content["productWasPrice"] = it }
 
-        // Add action buttons
         primaryAction?.let { action ->
             val primaryText = action.optString(FIELD_BUTTON_TEXT).takeIf { it.isNotEmpty() }
             val primaryUrl = action.optString(FIELD_BUTTON_URL).takeIf { it.isNotEmpty() }
