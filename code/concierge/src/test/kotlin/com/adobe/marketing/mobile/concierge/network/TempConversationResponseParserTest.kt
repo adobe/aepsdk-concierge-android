@@ -336,18 +336,20 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-1",
-                              "productName": "Amazing Widget",
-                              "productDescription": "Best widget ever",
-                              "description": "Product details",
-                              "productPageURL": "https://example.com/product",
-                              "productImageURL": "https://example.com/image.jpg",
-                              "backgroundColor": "#FF0000",
-                              "learningResource": "https://example.com/learn",
-                              "logo": "https://example.com/logo.png",
                               "width": 400,
                               "height": 300,
                               "thumbnail_width": 100,
-                              "thumbnail_height": 75
+                              "thumbnail_height": 75,
+                              "entity_info": {
+                                "productName": "Amazing Widget",
+                                "productDescription": "Best widget ever",
+                                "description": "Product details",
+                                "productPageURL": "https://example.com/product",
+                                "productImageURL": "https://example.com/image.jpg",
+                                "backgroundColor": "#FF0000",
+                                "learningResource": "https://example.com/learn",
+                                "logo": "https://example.com/logo.png"
+                              }
                             }
                           ]
                         }
@@ -401,15 +403,17 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-2",
-                              "productName": "Test Product",
-                              "productImageURL": "https://example.com/image.jpg",
-                              "primary": {
-                                "text": "Buy Now",
-                                "url": "https://example.com/buy"
-                              },
-                              "secondary": {
-                                "text": "Learn More",
-                                "url": "https://example.com/learn"
+                              "entity_info": {
+                                "productName": "Test Product",
+                                "productImageURL": "https://example.com/image.jpg",
+                                "primary": {
+                                  "text": "Buy Now",
+                                  "url": "https://example.com/buy"
+                                },
+                                "secondary": {
+                                  "text": "Learn More",
+                                  "url": "https://example.com/learn"
+                                }
                               }
                             }
                           ]
@@ -448,7 +452,8 @@ class TempConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "id": "minimal-1"
+                              "id": "minimal-1",
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -487,7 +492,42 @@ class TempConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "productName": "No ID Product"
+                              "entity_info": {
+                                "productName": "No ID Product"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(0, result[0].multimodalElements.size)
+    }
+
+    @Test
+    fun `parseConversationData handles multimodal element without entity_info`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Element without entity_info",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "productName": "Flat structure - should be ignored"
                             }
                           ]
                         }
@@ -520,15 +560,15 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-1",
-                              "productName": "Product 1"
+                              "entity_info": { "productName": "Product 1" }
                             },
                             {
                               "id": "product-2",
-                              "productName": "Product 2"
+                              "entity_info": { "productName": "Product 2" }
                             },
                             {
                               "id": "product-3",
-                              "productName": "Product 3"
+                              "entity_info": { "productName": "Product 3" }
                             }
                           ]
                         }
@@ -822,11 +862,13 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "prod-1",
-                              "productName": "Widget Pro",
-                              "productImageURL": "https://example.com/widget.jpg",
-                              "primary": {
-                                "text": "View",
-                                "url": "https://example.com/view"
+                              "entity_info": {
+                                "productName": "Widget Pro",
+                                "productImageURL": "https://example.com/widget.jpg",
+                                "primary": {
+                                  "text": "View",
+                                  "url": "https://example.com/view"
+                                }
                               }
                             }
                           ]
@@ -878,7 +920,8 @@ class TempConversationResponseParserTest {
                               "width": -100,
                               "height": 0,
                               "thumbnail_width": -1,
-                              "thumbnail_height": 0
+                              "thumbnail_height": 0,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1033,7 +1076,7 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "",
-                              "productName": "Should be ignored"
+                              "entity_info": { "productName": "Should be ignored" }
                             }
                           ]
                         }
@@ -1066,8 +1109,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {
-                                "text": "Click Here"
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Click Here"
+                                }
                               }
                             }
                           ]
@@ -1103,8 +1148,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "secondary": {
-                                "url": "https://example.com"
+                              "entity_info": {
+                                "secondary": {
+                                  "url": "https://example.com"
+                                }
                               }
                             }
                           ]
@@ -1140,9 +1187,11 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {
-                                "text": "",
-                                "url": ""
+                              "entity_info": {
+                                "primary": {
+                                  "text": "",
+                                  "url": ""
+                                }
                               }
                             }
                           ]
@@ -1181,7 +1230,8 @@ class TempConversationResponseParserTest {
                               "width": 1,
                               "height": 1,
                               "thumbnail_width": 1,
-                              "thumbnail_height": 1
+                              "thumbnail_height": 1,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1221,7 +1271,8 @@ class TempConversationResponseParserTest {
                               "width": 0,
                               "height": 0,
                               "thumbnail_width": 0,
-                              "thumbnail_height": 0
+                              "thumbnail_height": 0,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1259,7 +1310,8 @@ class TempConversationResponseParserTest {
                             {
                               "id": "elem-1",
                               "width": 2147483647,
-                              "height": 2147483647
+                              "height": 2147483647,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1294,8 +1346,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "productName": "Product",
-                              "backgroundColor": "#FF0000"
+                              "entity_info": {
+                                "productName": "Product",
+                                "backgroundColor": "#FF0000"
+                              }
                             }
                           ]
                         }
@@ -1333,7 +1387,8 @@ class TempConversationResponseParserTest {
                             {
                               "id": "elem-1",
                               "width": 800,
-                              "height": 600
+                              "height": 600,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1371,12 +1426,14 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {
-                                "text": "Buy Now",
-                                "url": "https://buy.example.com"
-                              },
-                              "secondary": {
-                                "text": "Learn More"
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Buy Now",
+                                  "url": "https://buy.example.com"
+                                },
+                                "secondary": {
+                                  "text": "Learn More"
+                                }
                               }
                             }
                           ]
@@ -1414,9 +1471,11 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "secondary": {
-                                "text": "Secondary Action",
-                                "url": "https://secondary.example.com"
+                              "entity_info": {
+                                "secondary": {
+                                  "text": "Secondary Action",
+                                  "url": "https://secondary.example.com"
+                                }
                               }
                             }
                           ]
@@ -1454,25 +1513,27 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "complete-1",
-                              "productName": "Complete Product",
-                              "productDescription": "Full Description",
-                              "description": "Caption Text",
-                              "productPageURL": "https://page.example.com",
-                              "productImageURL": "https://image.example.com/img.jpg",
-                              "backgroundColor": "#0000FF",
-                              "learningResource": "https://learn.example.com",
-                              "logo": "https://logo.example.com/logo.png",
                               "width": 1920,
                               "height": 1080,
                               "thumbnail_width": 320,
                               "thumbnail_height": 240,
-                              "primary": {
-                                "text": "Primary",
-                                "url": "https://primary.example.com"
-                              },
-                              "secondary": {
-                                "text": "Secondary",
-                                "url": "https://secondary.example.com"
+                              "entity_info": {
+                                "productName": "Complete Product",
+                                "productDescription": "Full Description",
+                                "description": "Caption Text",
+                                "productPageURL": "https://page.example.com",
+                                "productImageURL": "https://image.example.com/img.jpg",
+                                "backgroundColor": "#0000FF",
+                                "learningResource": "https://learn.example.com",
+                                "logo": "https://logo.example.com/logo.png",
+                                "primary": {
+                                  "text": "Primary",
+                                  "url": "https://primary.example.com"
+                                },
+                                "secondary": {
+                                  "text": "Secondary",
+                                  "url": "https://secondary.example.com"
+                                }
                               }
                             }
                           ]
@@ -1536,7 +1597,8 @@ class TempConversationResponseParserTest {
                               "width": 800,
                               "height": 0,
                               "thumbnail_width": 0,
-                              "thumbnail_height": 100
+                              "thumbnail_height": 100,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1573,8 +1635,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {},
-                              "secondary": {}
+                              "entity_info": {
+                                "primary": {},
+                                "secondary": {}
+                              }
                             }
                           ]
                         }
@@ -1611,9 +1675,11 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "productName": "Product \"Special\" Name",
-                              "productDescription": "Description with 'quotes' and <html>",
-                              "backgroundColor": "#FF00FF"
+                              "entity_info": {
+                                "productName": "Product \"Special\" Name",
+                                "productDescription": "Description with 'quotes' and <html>",
+                                "backgroundColor": "#FF00FF"
+                              }
                             }
                           ]
                         }

@@ -61,6 +61,9 @@ internal object ConversationResponseParser {
     private const val FIELD_SECONDARY = "secondary"
     private const val FIELD_BUTTON_TEXT = "text"
     private const val FIELD_BUTTON_URL = "url"
+    private const val FIELD_ENTITY_INFO = "entity_info"
+    private const val FIELD_PRODUCT_PRICE = "productPrice"
+    private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -229,38 +232,41 @@ internal object ConversationResponseParser {
 
     /**
      * Parses a single multimodal element from a [JSONObject].
-     * Returns null if required fields are missing or parsing fails.
+     * Requires [entity_info]. Returns null if missing, id empty, or parsing fails.
      */
     private fun parseMultimodalElement(elementObj: JSONObject): MultimodalElement? {
+        val entityInfo = elementObj.optJSONObject(FIELD_ENTITY_INFO) ?: return null
+
         val id = elementObj.optString(FIELD_ID)
         if (id.isEmpty()) return null
 
         val content = mutableMapOf<String, Any>()
 
-        // get image fields from the base json object element
         val width = elementObj.optInt(FIELD_WIDTH, -1).takeIf { it > 0 }
         val height = elementObj.optInt(FIELD_HEIGHT, -1).takeIf { it > 0 }
         val thumbnailWidth = elementObj.optInt(FIELD_THUMBNAIL_WIDTH, -1).takeIf { it > 0 }
         val thumbnailHeight = elementObj.optInt(FIELD_THUMBNAIL_HEIGHT, -1).takeIf { it > 0 }
 
-        // Extract product information
-        val productName = elementObj.optString(FIELD_PRODUCT_NAME).takeIf { it.isNotEmpty() }
+        val productName = entityInfo.optString(FIELD_PRODUCT_NAME).takeIf { it.isNotEmpty() }
         val productDescription =
-            elementObj.optString(FIELD_PRODUCT_DESCRIPTION).takeIf { it.isNotEmpty() }
-        val description = elementObj.optString(FIELD_DESCRIPTION).takeIf { it.isNotEmpty() }
+            entityInfo.optString(FIELD_PRODUCT_DESCRIPTION).takeIf { it.isNotEmpty() }
+        val description = entityInfo.optString(FIELD_DESCRIPTION).takeIf { it.isNotEmpty() }
         val productPageUrl =
-            elementObj.optString(FIELD_PRODUCT_PAGE_URL).takeIf { it.isNotEmpty() }
+            entityInfo.optString(FIELD_PRODUCT_PAGE_URL).takeIf { it.isNotEmpty() }
         val productImageUrl =
-            elementObj.optString(FIELD_PRODUCT_IMAGE_URL).takeIf { it.isNotEmpty() }
+            entityInfo.optString(FIELD_PRODUCT_IMAGE_URL).takeIf { it.isNotEmpty() }
         val backgroundColor =
-            elementObj.optString(FIELD_BACKGROUND_COLOR).takeIf { it.isNotEmpty() }
+            entityInfo.optString(FIELD_BACKGROUND_COLOR).takeIf { it.isNotEmpty() }
         val learningResource =
-            elementObj.optString(FIELD_LEARNING_RESOURCE).takeIf { it.isNotEmpty() }
-        val logo = elementObj.optString(FIELD_LOGO).takeIf { it.isNotEmpty() }
+            entityInfo.optString(FIELD_LEARNING_RESOURCE).takeIf { it.isNotEmpty() }
+        val logo = entityInfo.optString(FIELD_LOGO).takeIf { it.isNotEmpty() }
 
-        // Extract primary and secondary action buttons
-        val primaryAction = elementObj.optJSONObject(FIELD_PRIMARY)
-        val secondaryAction = elementObj.optJSONObject(FIELD_SECONDARY)
+        val primaryAction = entityInfo.optJSONObject(FIELD_PRIMARY)
+        val secondaryAction = entityInfo.optJSONObject(FIELD_SECONDARY)
+
+        val productPrice = entityInfo.optString(FIELD_PRODUCT_PRICE).takeIf { it.isNotEmpty() }
+        val productWasPrice =
+            entityInfo.optString(FIELD_PRODUCT_WAS_PRICE).takeIf { it.isNotEmpty() }
 
         // Add element fields to content
         productName?.let { content["productName"] = it }
@@ -271,6 +277,8 @@ internal object ConversationResponseParser {
         backgroundColor?.let { content["backgroundColor"] = it }
         learningResource?.let { content["learningResource"] = it }
         logo?.let { content["logo"] = it }
+        productPrice?.let { content["productPrice"] = it }
+        productWasPrice?.let { content["productWasPrice"] = it }
 
         // Add action buttons
         primaryAction?.let { action ->

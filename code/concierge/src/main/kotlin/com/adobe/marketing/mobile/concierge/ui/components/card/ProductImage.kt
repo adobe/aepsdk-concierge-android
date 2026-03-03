@@ -24,6 +24,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -95,6 +99,14 @@ internal fun ProductImage(
 
             // Product ID overlay in bottom-left corner if there is more than 1 element
             if (isMultiElement) {
+                var useSmallText by remember { mutableStateOf(false) }
+                val displayText = element.content["productName"] as? String ?: element.id
+                val fontSize = if (useSmallText) {
+                    (imageStyle.overlayTextSize.value * 0.750f).sp
+                } else {
+                    imageStyle.overlayTextSize.value.sp
+                }
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -109,11 +121,13 @@ internal fun ProductImage(
                             .padding(imageStyle.overlayInnerPadding)
                     ) {
                         Text(
-                            text = element.content["productName"] as? String ?: element.id,
+                            text = displayText,
                             color = imageStyle.overlayTextColor,
-                            fontSize = imageStyle.overlayTextSize.value.sp,
+                            fontSize = fontSize,
                             fontWeight = imageStyle.overlayTextFontWeight,
-                            style = imageStyle.overlayTextStyle
+                            style = imageStyle.overlayTextStyle,
+                            maxLines = 2,
+                            onTextLayout = { if (it.lineCount > 1) useSmallText = true }
                         )
                     }
                 }
