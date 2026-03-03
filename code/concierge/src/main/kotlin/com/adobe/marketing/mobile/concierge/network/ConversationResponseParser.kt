@@ -14,13 +14,14 @@ package com.adobe.marketing.mobile.concierge.network
 
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.services.Log
+import com.adobe.marketing.mobile.util.DataReader
+import com.adobe.marketing.mobile.util.JSONUtils
 import org.json.JSONException
 import org.json.JSONObject
 
 /**
  * Parser for conversation API responses that extracts message content from JSON data events.
  * This parser is designed to handle the specific JSON structure returned by the conversation API.
- * TODO: Replace to use DataReader.opt* methods available in the platform SDK.
  */
 internal object ConversationResponseParser {
     private const val TAG = "ConversationResponseParser"
@@ -79,7 +80,8 @@ internal object ConversationResponseParser {
 
         return try {
             val jsonObject = JSONObject(jsonData)
-            extractConversationMessages(jsonObject)
+            val conversationMap = JSONUtils.toMap(jsonObject) ?: return emptyList()
+            extractConversationMessages(conversationMap)
         } catch (e: JSONException) {
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
@@ -98,27 +100,21 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts conversation messages from the parsed JSON object.
+     * Extracts conversation messages from the root map (from [JSONUtils.toMap]).
      */
-    private fun extractConversationMessages(jsonObject: JSONObject): List<ParsedConversationMessage> {
+    private fun extractConversationMessages(conversationMap: Map<String, Any?>): List<ParsedConversationMessage> {
         val messages = mutableListOf<ParsedConversationMessage>()
+        val handleList = DataReader.optTypedListOfMap(Any::class.java, conversationMap, FIELD_HANDLE, null) ?: return emptyList()
 
-        val handleArray = jsonObject.optJSONArray(FIELD_HANDLE) ?: return emptyList()
+        for (handle in handleList) {
+            if (DataReader.optString(handle, FIELD_TYPE, null) != CONVERSATION_TYPE) continue
 
-        for (i in 0 until handleArray.length()) {
-            val handle = handleArray.optJSONObject(i) ?: continue
+            val payloadList = DataReader.optTypedListOfMap(Any::class.java, handle, FIELD_PAYLOAD, null) ?: continue
 
-            // Only process conversation-type handles
-            if (handle.optString(FIELD_TYPE) == CONVERSATION_TYPE) {
-                val payloadArray = handle.optJSONArray(FIELD_PAYLOAD) ?: continue
-
-                for (j in 0 until payloadArray.length()) {
-                    val payload = payloadArray.optJSONObject(j) ?: continue
-
-                    val parsedMessage = extractMessageFromPayload(payload)
-                    if (parsedMessage != null) {
-                        messages.add(parsedMessage)
-                    }
+            for (payload in payloadList) {
+                val parsedMessage = extractMessageFromPayload(payload)
+                if (parsedMessage != null) {
+                    messages.add(parsedMessage)
                 }
             }
         }
@@ -127,36 +123,24 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts a conversation message from a single payload object.
+     * Extracts a conversation message from a single payload map.
+     * Returns null if response is missing or message is blank (except when state is completed).
      */
-    private fun extractMessageFromPayload(payload: JSONObject): ParsedConversationMessage? {
-        val response = payload.optJSONObject(FIELD_RESPONSE) ?: return null
+    private fun extractMessageFromPayload(payload: Map<String, Any?>): ParsedConversationMessage? {
+        val response = DataReader.optTypedMap(Any::class.java, payload, FIELD_RESPONSE, null) ?: return null
 
-        // Determine conversation state first to handle blank final messages on completion
-        val state = ConversationState.fromString(payload.optString(FIELD_STATE))
-        val message = response.optString(FIELD_MESSAGE, "")
+        val state = ConversationState.fromString(DataReader.optString(payload, FIELD_STATE, ""))
+        val message = DataReader.optString(response, FIELD_MESSAGE, "")
         if (message.isEmpty() && state != ConversationState.COMPLETED) {
             return null
         }
-        val conversationId = payload.optString(FIELD_CONVERSATION_ID).takeIf { it.isNotEmpty() }
-        val interactionId = payload.optString(FIELD_INTERACTION_ID).takeIf { it.isNotEmpty() }
+        val conversationId = DataReader.optString(payload, FIELD_CONVERSATION_ID, null)?.takeIf { it.isNotEmpty() }
+        val interactionId = DataReader.optString(payload, FIELD_INTERACTION_ID, null)?.takeIf { it.isNotEmpty() }
 
-        // Extract prompt suggestions
-        val promptSuggestions = mutableListOf<String>()
-        val suggestionsArray = response.optJSONArray(FIELD_PROMPT_SUGGESTIONS)
-        if (suggestionsArray != null) {
-            for (k in 0 until suggestionsArray.length()) {
-                val suggestion = suggestionsArray.optString(k)
-                if (suggestion.isNotEmpty()) {
-                    promptSuggestions.add(suggestion)
-                }
-            }
-        }
+        val promptSuggestions = (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
+            ?: emptyList()).filter { it.isNotEmpty() }
 
-        // Extract multimodal elements
         val multimodalElements = extractMultimodalElements(response)
-
-        // Extract sources
         val sources = extractSources(response)
 
         return ParsedConversationMessage(
@@ -171,33 +155,40 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts multimodal elements from the response object.
+     * Extracts multimodal elements from the response map.
+     * Ignores array-format multimodalElements; expects object with elements list.
      */
-    private fun extractMultimodalElements(response: JSONObject): List<MultimodalElement> {
-        val multimodalObj = response.optJSONObject(FIELD_MULTIMODAL_ELEMENTS)
-        if (multimodalObj == null) {
-            if (response.optJSONArray(FIELD_MULTIMODAL_ELEMENTS) != null) {
-                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "multimodalElements array format; ignoring.")
-            } else {
-                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
-            }
+    private fun extractMultimodalElements(response: Map<String, Any?>): List<MultimodalElement> {
+        val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS]
+        if (multimodalRaw == null) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
+            return emptyList()
+        }
+        if (multimodalRaw is List<*>) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "multimodalElements array format; ignoring.")
+            return emptyList()
+        }
+        val multimodalMap = multimodalRaw as? Map<*, *>
+        if (multimodalMap == null) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
             return emptyList()
         }
 
-        val elementsArray = multimodalObj.optJSONArray(FIELD_ELEMENTS)
-        if (elementsArray == null) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "No elements array found in multimodalElements."
-            )
+        @Suppress("UNCHECKED_CAST")
+        val elementsList = DataReader.optTypedListOfMap(
+            Any::class.java,
+            multimodalMap as Map<String, Any?>,
+            FIELD_ELEMENTS,
+            null
+        )
+        if (elementsList == null) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements array found in multimodalElements.")
             return emptyList()
         }
 
         val elements = mutableListOf<MultimodalElement>()
-        for (i in 0 until elementsArray.length()) {
-            val elementObj = elementsArray.optJSONObject(i) ?: continue
-            val element = parseMultimodalElement(elementObj)
+        elementsList.forEachIndexed { i, elementMap ->
+            val element = parseMultimodalElement(elementMap)
             if (element != null) {
                 elements.add(element)
                 Log.debug(
@@ -215,60 +206,49 @@ internal object ConversationResponseParser {
         }
 
         if (elements.isNotEmpty()) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Successfully parsed ${elements.size} multimodal elements from response."
-            )
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Successfully parsed ${elements.size} multimodal elements from response.")
         } else {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "No valid multimodal elements found in elements array."
-            )
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No valid multimodal elements found in elements array.")
         }
 
         return elements
     }
 
     /**
-     * Parses a single multimodal element from a [JSONObject].
-     * Requires entity_info. Returns null if missing or id empty.
+     * Parses a single multimodal element from an element map.
+     * Prefers entity_info when present; falls back to root element for missing fields.
+     * Returns null if id is empty.
      */
-    private fun parseMultimodalElement(elementObj: JSONObject): MultimodalElement? {
-        val entityInfo = elementObj.optJSONObject(FIELD_ENTITY_INFO) ?: return null
-
-        val id = elementObj.optString(FIELD_ID)
+    private fun parseMultimodalElement(elementMap: Map<String, Any?>): MultimodalElement? {
+        val id = DataReader.optString(elementMap, FIELD_ID, "")
         if (id.isEmpty()) return null
+
+        val entityInfo = DataReader.optTypedMap(Any::class.java, elementMap, FIELD_ENTITY_INFO, null)
 
         val content = mutableMapOf<String, Any>()
 
-        val width = elementObj.optInt(FIELD_WIDTH, -1).takeIf { it > 0 }
-        val height = elementObj.optInt(FIELD_HEIGHT, -1).takeIf { it > 0 }
-        val thumbnailWidth = elementObj.optInt(FIELD_THUMBNAIL_WIDTH, -1).takeIf { it > 0 }
-        val thumbnailHeight = elementObj.optInt(FIELD_THUMBNAIL_HEIGHT, -1).takeIf { it > 0 }
+        val width = DataReader.optInt(elementMap, FIELD_WIDTH, -1).takeIf { it > 0 }
+        val height = DataReader.optInt(elementMap, FIELD_HEIGHT, -1).takeIf { it > 0 }
+        val thumbnailWidth = DataReader.optInt(elementMap, FIELD_THUMBNAIL_WIDTH, -1).takeIf { it > 0 }
+        val thumbnailHeight = DataReader.optInt(elementMap, FIELD_THUMBNAIL_HEIGHT, -1).takeIf { it > 0 }
 
-        val productName = entityInfo.optString(FIELD_PRODUCT_NAME).takeIf { it.isNotEmpty() }
-        val productDescription =
-            entityInfo.optString(FIELD_PRODUCT_DESCRIPTION).takeIf { it.isNotEmpty() }
-        val description = entityInfo.optString(FIELD_DESCRIPTION).takeIf { it.isNotEmpty() }
-        val productPageUrl =
-            entityInfo.optString(FIELD_PRODUCT_PAGE_URL).takeIf { it.isNotEmpty() }
-        val productImageUrl =
-            entityInfo.optString(FIELD_PRODUCT_IMAGE_URL).takeIf { it.isNotEmpty() }
-        val backgroundColor =
-            entityInfo.optString(FIELD_BACKGROUND_COLOR).takeIf { it.isNotEmpty() }
-        val learningResource =
-            entityInfo.optString(FIELD_LEARNING_RESOURCE).takeIf { it.isNotEmpty() }
-        val logo = entityInfo.optString(FIELD_LOGO).takeIf { it.isNotEmpty() }
-        val details = entityInfo.optString(FIELD_DETAILS).takeIf { it.isNotEmpty() }
+        val productName = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_NAME)
+        val productDescription = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_DESCRIPTION)
+        val description = optStringFallback(entityInfo, elementMap, FIELD_DESCRIPTION)
+        val productPageUrl = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_PAGE_URL)
+        val productImageUrl = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_IMAGE_URL)
+        val backgroundColor = optStringFallback(entityInfo, elementMap, FIELD_BACKGROUND_COLOR)
+        val learningResource = optStringFallback(entityInfo, elementMap, FIELD_LEARNING_RESOURCE)
+        val logo = optStringFallback(entityInfo, elementMap, FIELD_LOGO)
+        val details = optStringFallback(entityInfo, elementMap, FIELD_DETAILS)
 
-        val primaryAction = entityInfo.optJSONObject(FIELD_PRIMARY)
-        val secondaryAction = entityInfo.optJSONObject(FIELD_SECONDARY)
+        val primaryAction = entityInfo?.let { DataReader.optTypedMap(Any::class.java, it, FIELD_PRIMARY, null) }
+            ?: DataReader.optTypedMap(Any::class.java, elementMap, FIELD_PRIMARY, null)
+        val secondaryAction = entityInfo?.let { DataReader.optTypedMap(Any::class.java, it, FIELD_SECONDARY, null) }
+            ?: DataReader.optTypedMap(Any::class.java, elementMap, FIELD_SECONDARY, null)
 
-        val productPrice = entityInfo.optString(FIELD_PRODUCT_PRICE).takeIf { it.isNotEmpty() }
-        val productWasPrice =
-            entityInfo.optString(FIELD_PRODUCT_WAS_PRICE).takeIf { it.isNotEmpty() }
+        val productPrice = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_PRICE)
+        val productWasPrice = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_WAS_PRICE)
 
         productName?.let { content["productName"] = it }
         productDescription?.let { content["productDescription"] = it }
@@ -283,15 +263,15 @@ internal object ConversationResponseParser {
         productWasPrice?.let { content["productWasPrice"] = it }
 
         primaryAction?.let { action ->
-            val primaryText = action.optString(FIELD_BUTTON_TEXT).takeIf { it.isNotEmpty() }
-            val primaryUrl = action.optString(FIELD_BUTTON_URL).takeIf { it.isNotEmpty() }
+            val primaryText = DataReader.optString(action, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotEmpty() }
+            val primaryUrl = DataReader.optString(action, FIELD_BUTTON_URL, null)?.takeIf { it.isNotEmpty() }
             primaryText?.let { content["primaryText"] = it }
             primaryUrl?.let { content["primaryUrl"] = it }
         }
 
         secondaryAction?.let { action ->
-            val secondaryText = action.optString(FIELD_BUTTON_TEXT).takeIf { it.isNotEmpty() }
-            val secondaryUrl = action.optString(FIELD_BUTTON_URL).takeIf { it.isNotEmpty() }
+            val secondaryText = DataReader.optString(action, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotEmpty() }
+            val secondaryUrl = DataReader.optString(action, FIELD_BUTTON_URL, null)?.takeIf { it.isNotEmpty() }
             secondaryText?.let { content["secondaryText"] = it }
             secondaryUrl?.let { content["secondaryUrl"] = it }
         }
@@ -319,72 +299,65 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts sources from the response object
+     * Returns the string value from primary map if non-empty, otherwise from fallback map.
      */
-    private fun extractSources(response: JSONObject): List<Citation> {
-        val sourcesArray = response.optJSONArray(FIELD_SOURCES)
-        if (sourcesArray == null) {
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "No sources found in response."
-            )
+    private fun optStringFallback(
+        primary: Map<String, Any?>?,
+        fallback: Map<String, Any?>,
+        field: String
+    ): String? {
+        val primaryVal = DataReader.optString(primary, field, null)?.takeIf { it.isNotEmpty() }
+        if (primaryVal != null) return primaryVal
+        return DataReader.optString(fallback, field, null)?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Extracts citation sources from the response map.
+     */
+    private fun extractSources(response: Map<String, Any?>): List<Citation> {
+        val sourcesList = DataReader.optTypedListOfMap(Any::class.java, response, FIELD_SOURCES, null)
+        if (sourcesList == null) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No sources found in response.")
             return emptyList()
         }
 
-        val sources = (0 until sourcesArray.length())
-            .mapNotNull { i ->
-                sourcesArray.optJSONObject(i)?.let { sourceObj ->
-                    parseSource(sourceObj)?.also { source ->
-                        Log.debug(
-                            ConciergeConstants.EXTENSION_NAME,
-                            TAG,
-                            "Parsed source ${i + 1}: citationNumber=${source.citationNumber}, title=${source.title}."
-                        )
-                    }
-                }
+        val sources = sourcesList.mapIndexedNotNull { i, sourceMap ->
+            parseSource(sourceMap)?.also { source ->
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Parsed source ${i + 1}: citationNumber=${source.citationNumber}, title=${source.title}."
+                )
             }
+        }
 
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            "Parsed ${sources.size} sources from response."
-        )
-
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed ${sources.size} sources from response.")
         return sources
     }
 
     /**
-     * Parses a single source from a [JSONObject] and creates a [Citation].
-     * Returns the created citation or null if parsing fails.
+     * Parses a single source from a map and creates a [Citation].
+     * Returns null if title or url is missing.
      */
-    private fun parseSource(sourceObj: JSONObject): Citation? {
-        val title = sourceObj.optString("title")
-        if (title.isEmpty()) {
-            Log.warning(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Source missing required title field."
-            )
+    private fun parseSource(sourceMap: Map<String, Any?>): Citation? {
+        val title = DataReader.optString(sourceMap, "title", null)
+        if (title.isNullOrEmpty()) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Source missing required title field.")
             return null
         }
 
-        val url = sourceObj.optString("url")
-        if (url.isEmpty()) {
-            Log.warning(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Source missing required url field."
-            )
+        val url = DataReader.optString(sourceMap, "url", null)
+        if (url.isNullOrEmpty()) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Source missing required url field.")
             return null
         }
 
         return Citation(
             title = title,
             url = url,
-            citationNumber = sourceObj.optInt(FIELD_CITATION_NUMBER, -1).takeIf { it > 0 },
-            startIndex = sourceObj.optInt(FIELD_START_INDEX, -1).takeIf { it >= 0 },
-            endIndex = sourceObj.optInt(FIELD_END_INDEX, -1).takeIf { it >= 0 }
+            citationNumber = DataReader.optInt(sourceMap, FIELD_CITATION_NUMBER, -1).takeIf { it > 0 },
+            startIndex = DataReader.optInt(sourceMap, FIELD_START_INDEX, -1).takeIf { it >= 0 },
+            endIndex = DataReader.optInt(sourceMap, FIELD_END_INDEX, -1).takeIf { it >= 0 }
         )
     }
 }

@@ -513,7 +513,7 @@ class TempConversationResponseParserTest {
     }
 
     @Test
-    fun `parseConversationData handles multimodal element without entity_info`() {
+    fun `parseConversationData parses multimodal element from root when entity_info absent`() {
         val json = """
             {
               "handle": [
@@ -527,7 +527,12 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-1",
-                              "productName": "Flat structure - should be ignored"
+                              "productName": "Flat structure product",
+                              "productImageURL": "https://example.com/image.jpg",
+                              "primary": {
+                                "text": "Buy",
+                                "url": "https://example.com/buy"
+                              }
                             }
                           ]
                         }
@@ -542,7 +547,94 @@ class TempConversationResponseParserTest {
 
         val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
-        assertEquals(0, result[0].multimodalElements.size)
+        assertEquals(1, result[0].multimodalElements.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("product-1", element.id)
+        assertEquals("Flat structure product", element.title)
+        assertEquals("https://example.com/image.jpg", element.url)
+        assertEquals("Buy", element.content["primaryText"])
+        assertEquals("https://example.com/buy", element.content["primaryUrl"])
+    }
+
+    @Test
+    fun `parseConversationData falls back to root when entity_info field is empty`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Partial entity_info",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "productName": "From root",
+                              "productImageURL": "https://root.com/img.jpg",
+                              "entity_info": {
+                                "productName": "From entity_info",
+                                "productDescription": "Entity description only"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("From entity_info", element.title)
+        assertEquals("Entity description only", element.content["productDescription"])
+        assertEquals("https://root.com/img.jpg", element.url)
+    }
+
+    @Test
+    fun `parseConversationData prefers entity_info over root when both have value`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Both sources",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "productName": "Root name",
+                              "productImageURL": "https://root.com/img.jpg",
+                              "entity_info": {
+                                "productName": "Entity name",
+                                "productImageURL": "https://entity.com/img.jpg"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("Entity name", element.title)
+        assertEquals("https://entity.com/img.jpg", element.url)
     }
 
     @Test
@@ -1761,6 +1853,202 @@ class TempConversationResponseParserTest {
         val result = ConversationResponseParser.parseConversationData(json)
         assertEquals(1, result.size)
         assertTrue(result[0].multimodalElements.isEmpty())
+    }
+
+    @Test
+    fun `parseConversationData continues when handle has missing payload`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation"
+                },
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {"message": "From second handle"},
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals("From second handle", result[0].messageContent)
+    }
+
+    @Test
+    fun `parseConversationData handles multimodalElements as non-object non-array`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Invalid multimodal type",
+                        "multimodalElements": "invalid"
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(result[0].multimodalElements.isEmpty())
+    }
+
+    @Test
+    fun `parseConversationData parses productPrice and productWasPrice from entity_info`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Product with pricing",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "prod-1",
+                              "entity_info": {
+                                "productName": "Widget",
+                                "productPrice": "29.99",
+                                "productWasPrice": "39.99"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("29.99", element.content["productPrice"])
+        assertEquals("39.99", element.content["productWasPrice"])
+    }
+
+    @Test
+    fun `parseConversationData parses mixed valid and invalid multimodal elements`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Mixed elements",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "valid-1",
+                              "entity_info": {"productName": "Valid Product"}
+                            },
+                            {
+                              "entity_info": {"productName": "No ID"}
+                            },
+                            {
+                              "id": "valid-2",
+                              "entity_info": {"productName": "Another Valid"}
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(2, result[0].multimodalElements.size)
+        assertEquals("Valid Product", result[0].multimodalElements[0].title)
+        assertEquals("Another Valid", result[0].multimodalElements[1].title)
+    }
+
+    @Test
+    fun `parseConversationData filters empty strings from prompt suggestions`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Suggestions",
+                        "promptSuggestions": ["First", "", "Second", "", "Third"]
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(listOf("First", "Second", "Third"), result[0].promptSuggestions)
+    }
+
+    @Test
+    fun `parseConversationData filters negative citation indices`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Cited",
+                        "sources": [
+                          {
+                            "title": "Doc",
+                            "url": "https://example.com",
+                            "citation_number": 1,
+                            "start_index": -1,
+                            "end_index": -1
+                          }
+                        ]
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val source = result[0].sources[0]
+        assertEquals(1, source.citationNumber)
+        assertNull(source.startIndex)
+        assertNull(source.endIndex)
     }
 }
 
