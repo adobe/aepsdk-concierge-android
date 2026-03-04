@@ -12,42 +12,53 @@
 
 package com.adobe.marketing.mobile.concierge.ui.webview
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Bottom sheet that presents a URL with a top bar and WebView.
+ * Full-height overlay dialog that presents a URL with a top bar and WebView.
  *
  * @param url The URL to load in the overlay WebView
- * @param onDismiss Callback when the sheet is dismissed (drag down, back, or close button)
+ * @param onDismiss Callback when the dialog is dismissed (back press or close button)
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WebviewOverlayDialog(
     url: String,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
-
-    ModalBottomSheet(
+    val style = ConciergeStyles.webviewStyle
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = null,
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-        modifier = Modifier.fillMaxHeight(0.92f)
-    ) {
-        WebViewSheetContent(
-            url = url,
-            onDismiss = onDismiss,
-            modifier = Modifier.fillMaxHeight()
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
         )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.92f)
+                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                .background(style.contentBackgroundColor),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            WebViewSheetContent(
+                url = url,
+                onDismiss = onDismiss,
+                modifier = Modifier.fillMaxHeight()
+            )
+        }
     }
 }
