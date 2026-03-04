@@ -55,9 +55,9 @@ internal fun WebviewOverlayDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.08f)
+                    .fillMaxHeight(style.scrimHeightFraction)
                     .align(Alignment.TopCenter)
-                    .background(Color.Black.copy(alpha = 0.4f))
+                    .background(Color.Black.copy(alpha = style.scrimAlpha))
                     .clickable(
                         onClick = onDismiss,
                         indication = null,
@@ -67,9 +67,9 @@ internal fun WebviewOverlayDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.95f)
+                    .fillMaxHeight(style.contentHeightFraction)
                     .align(Alignment.BottomCenter)
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .clip(RoundedCornerShape(topStart = style.contentCornerRadius, topEnd = style.contentCornerRadius))
                     .background(style.contentBackgroundColor),
                 contentAlignment = Alignment.TopCenter
             ) {

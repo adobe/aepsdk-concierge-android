@@ -723,6 +723,11 @@ internal object ConciergeStyles {
 
     /**
      * Styling for the Concierge Webview overlay
+     *
+     * @param scrimHeightFraction Fraction of screen height for the area above the dialog
+     * @param contentHeightFraction Fraction of screen height for the dialog content panel
+     * @param contentCornerRadius Corner radius for the top of the content panel
+     * @param scrimAlpha Alpha for the dimmed scrim
      */
     @Immutable
     data class WebviewStyle(
@@ -732,7 +737,11 @@ internal object ConciergeStyles {
         val closeIconSize: Dp,
         val closeButtonBackgroundColor: Color,
         val closeButtonIconColor: Color,
-        val contentBackgroundColor: Color
+        val contentBackgroundColor: Color,
+        val scrimHeightFraction: Float,
+        val contentHeightFraction: Float,
+        val contentCornerRadius: Dp,
+        val scrimAlpha: Float
     )
 
     val webviewStyle: WebviewStyle
@@ -748,7 +757,11 @@ internal object ConciergeStyles {
                 closeIconSize = 24.dp,
                 closeButtonBackgroundColor = closeBg,
                 closeButtonIconColor = closeIcon,
-                contentBackgroundColor = Color.White
+                contentBackgroundColor = Color.White,
+                scrimHeightFraction = 0.08f,
+                contentHeightFraction = 0.95f,
+                contentCornerRadius = 12.dp,
+                scrimAlpha = 0.4f
             )
         }
 
