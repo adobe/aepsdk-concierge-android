@@ -22,27 +22,12 @@ import android.webkit.WebSettings
 import java.nio.charset.StandardCharsets
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
  * URL scheme validation for the WebView sheet content.
@@ -60,11 +45,10 @@ internal object WebViewSheetContentSchemes {
 }
 
 /**
- * Content of the WebView sheet: top bar with close button and WebView area.
- * Shown inside [WebviewOverlayDialog].
+ * WebView sheet content shown inside [WebviewOverlayDialog].
  *
- * @param url The URL to load in the WebView (only http/https are loaded)
- * @param onDismiss Callback when the user closes the sheet
+ * @param url The URL to load (http/https only)
+ * @param onDismiss Callback when the sheet is dismissed
  * @param modifier Optional [Modifier] for the container
  */
 @SuppressLint("SetJavaScriptEnabled")
@@ -75,69 +59,37 @@ internal fun WebViewSheetContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val style = ConciergeStyles.webviewStyle
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(style.contentBackgroundColor)
-    ) {
-        // Top bar (black bar, primary colored close button, white close icon)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(style.topBarBackgroundColor)
-                .padding(style.topBarPadding)
-        ) {
-            IconButton(
-                onClick = onDismiss,
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Transparent),
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(style.closeIconSize + 16.dp)
-                    .background(style.closeButtonBackgroundColor, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Close",
-                    tint = style.closeButtonIconColor,
-                    modifier = Modifier.size(style.closeIconSize)
-                )
-            }
-        }
-
-        // WebView content area
-        Box(modifier = Modifier.fillMaxSize()) {
-            AndroidView(
-                factory = {
-                    WebView(context).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        setBackgroundColor(AndroidColor.TRANSPARENT)
-                        isScrollbarFadingEnabled = true
-                        scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
-                        webViewClient = SecureSheetWebViewClient()
-                        applySecureSettings(settings)
-                        setOnTouchListener { _, event ->
-                            when (event.action) {
-                                MotionEvent.ACTION_DOWN,
-                                MotionEvent.ACTION_UP -> parent?.requestDisallowInterceptTouchEvent(true)
-                            }
-                            false
+    Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
+            factory = {
+                WebView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    setBackgroundColor(AndroidColor.TRANSPARENT)
+                    isScrollbarFadingEnabled = true
+                    scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
+                    webViewClient = SecureSheetWebViewClient()
+                    applySecureSettings(settings)
+                    setOnTouchListener { _, event ->
+                        when (event.action) {
+                            MotionEvent.ACTION_DOWN,
+                            MotionEvent.ACTION_UP -> parent?.requestDisallowInterceptTouchEvent(true)
                         }
+                        false
                     }
-                },
-                update = { webView ->
-                    webView.setBackgroundColor(AndroidColor.TRANSPARENT)
-                    if (webView.url != url && WebViewSheetContentSchemes.isAllowedScheme(url)) {
-                        webView.loadUrl(url)
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+                }
+            },
+            update = { webView ->
+                webView.setBackgroundColor(AndroidColor.TRANSPARENT)
+                if (webView.url != url && WebViewSheetContentSchemes.isAllowedScheme(url)) {
+                    webView.loadUrl(url)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
