@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,12 +20,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PageSize
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -45,68 +43,64 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 /**
  * Composable that displays a carousel of product images with navigation controls.
  */
-// HorizontalPager must be used with the experimental opt-in annotation but has been stabilized
-// in the next available compose version.
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
     onImageClick: (MultimodalElement) -> Unit
 ) {
     val style = ConciergeStyles.productCarouselStyle
-    val pagerState = rememberPagerState(pageCount = { elements.size })
+    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val currentPage = listState.firstVisibleItemIndex
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Use a HorizontalPager to show the elements in a carousel
-        HorizontalPager(
-            state = pagerState,
-            pageSize = PageSize.Fixed(style.imageWidth),
-            // Use the image width for the end padding to allow the page indicator to scroll to
-            // the last recommendation in the carousel
+        LazyRow(
+            state = listState,
             contentPadding = PaddingValues(
                 start = style.horizontalPadding,
                 end = style.imageWidth,
                 top = style.verticalPadding,
                 bottom = style.verticalPadding
             ),
-            pageSpacing = style.itemSpacing,
-            beyondBoundsPageCount = 1,
+            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
             modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            ProductImage(
-                element = elements[page],
-                modifier = Modifier
-                    .width(style.imageWidth)
-                    .height(style.imageHeight),
-                onImageClick = onImageClick,
-                isMultiElement = true
-            )
+        ) {
+            items(elements.size) { index ->
+                ProductImage(
+                    element = elements[index],
+                    modifier = Modifier
+                        .width(style.imageWidth)
+                        .height(style.imageHeight),
+                    onImageClick = onImageClick,
+                    isMultiElement = true
+                )
+            }
         }
 
-        // Carousel switcher controls
         CarouselSwitcher(
-            currentPage = pagerState.settledPage,
+            currentPage = currentPage,
             totalPages = elements.size,
             onPreviousClick = {
-                if (pagerState.settledPage > 0) {
+                val page = listState.firstVisibleItemIndex
+                if (page > 0) {
                     coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.settledPage - 1)
+                        listState.animateScrollToItem(page - 1)
                     }
                 }
             },
             onNextClick = {
-                if (pagerState.settledPage < elements.size - 1) {
+                val page = listState.firstVisibleItemIndex
+                if (page < elements.size - 1) {
                     coroutineScope.launch {
-                        pagerState.animateScrollToPage(pagerState.settledPage + 1)
+                        listState.animateScrollToItem(page + 1)
                     }
                 }
             },
             onPageClick = { page ->
                 coroutineScope.launch {
-                    pagerState.animateScrollToPage(page)
+                    listState.animateScrollToItem(page)
                 }
             }
         )
