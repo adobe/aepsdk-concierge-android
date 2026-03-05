@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -79,6 +80,7 @@ internal fun ProductCard(
                 if (element.title != null) {
                     Text(
                         text = element.title,
+                        modifier = Modifier.wrapContentWidth(),
                         style = style.titleStyle,
                         fontWeight = style.titleFontWeight,
                         color = style.titleColor,

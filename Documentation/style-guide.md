@@ -930,7 +930,7 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation, webview overlay close button |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
 | `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
 | `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
@@ -1036,7 +1036,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 **Essential Colors (Highest Impact):**
 
-- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation, and the webview overlay close button)
+- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
 - `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
 - `--main-container-background` - Main screen background color (welcome card, chat area)
 - `--main-container-bottom-background` - Bottom container background (input area)

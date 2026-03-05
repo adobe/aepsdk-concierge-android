@@ -336,18 +336,20 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-1",
-                              "productName": "Amazing Widget",
-                              "productDescription": "Best widget ever",
-                              "description": "Product details",
-                              "productPageURL": "https://example.com/product",
-                              "productImageURL": "https://example.com/image.jpg",
-                              "backgroundColor": "#FF0000",
-                              "learningResource": "https://example.com/learn",
-                              "logo": "https://example.com/logo.png",
                               "width": 400,
                               "height": 300,
                               "thumbnail_width": 100,
-                              "thumbnail_height": 75
+                              "thumbnail_height": 75,
+                              "entity_info": {
+                                "productName": "Amazing Widget",
+                                "productDescription": "Best widget ever",
+                                "description": "Product details",
+                                "productPageURL": "https://example.com/product",
+                                "productImageURL": "https://example.com/image.jpg",
+                                "backgroundColor": "#FF0000",
+                                "learningResource": "https://example.com/learn",
+                                "logo": "https://example.com/logo.png"
+                              }
                             }
                           ]
                         }
@@ -401,15 +403,17 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-2",
-                              "productName": "Test Product",
-                              "productImageURL": "https://example.com/image.jpg",
-                              "primary": {
-                                "text": "Buy Now",
-                                "url": "https://example.com/buy"
-                              },
-                              "secondary": {
-                                "text": "Learn More",
-                                "url": "https://example.com/learn"
+                              "entity_info": {
+                                "productName": "Test Product",
+                                "productImageURL": "https://example.com/image.jpg",
+                                "primary": {
+                                  "text": "Buy Now",
+                                  "url": "https://example.com/buy"
+                                },
+                                "secondary": {
+                                  "text": "Learn More",
+                                  "url": "https://example.com/learn"
+                                }
                               }
                             }
                           ]
@@ -448,7 +452,8 @@ class TempConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "id": "minimal-1"
+                              "id": "minimal-1",
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -487,7 +492,9 @@ class TempConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "productName": "No ID Product"
+                              "entity_info": {
+                                "productName": "No ID Product"
+                              }
                             }
                           ]
                         }
@@ -506,6 +513,131 @@ class TempConversationResponseParserTest {
     }
 
     @Test
+    fun `parseConversationData parses multimodal element from root when entity_info absent`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Element without entity_info",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "productName": "Flat structure product",
+                              "productImageURL": "https://example.com/image.jpg",
+                              "primary": {
+                                "text": "Buy",
+                                "url": "https://example.com/buy"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].multimodalElements.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("product-1", element.id)
+        assertEquals("Flat structure product", element.title)
+        assertEquals("https://example.com/image.jpg", element.url)
+        assertEquals("Buy", element.content["primaryText"])
+        assertEquals("https://example.com/buy", element.content["primaryUrl"])
+    }
+
+    @Test
+    fun `parseConversationData falls back to root when entity_info field is empty`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Partial entity_info",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "productName": "From root",
+                              "productImageURL": "https://root.com/img.jpg",
+                              "entity_info": {
+                                "productName": "From entity_info",
+                                "productDescription": "Entity description only"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("From entity_info", element.title)
+        assertEquals("Entity description only", element.content["productDescription"])
+        assertEquals("https://root.com/img.jpg", element.url)
+    }
+
+    @Test
+    fun `parseConversationData prefers entity_info over root when both have value`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Both sources",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "productName": "Root name",
+                              "productImageURL": "https://root.com/img.jpg",
+                              "entity_info": {
+                                "productName": "Entity name",
+                                "productImageURL": "https://entity.com/img.jpg"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("Entity name", element.title)
+        assertEquals("https://entity.com/img.jpg", element.url)
+    }
+
+    @Test
     fun `parseConversationData handles multiple multimodal elements`() {
         val json = """
             {
@@ -520,15 +652,15 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "product-1",
-                              "productName": "Product 1"
+                              "entity_info": { "productName": "Product 1" }
                             },
                             {
                               "id": "product-2",
-                              "productName": "Product 2"
+                              "entity_info": { "productName": "Product 2" }
                             },
                             {
                               "id": "product-3",
-                              "productName": "Product 3"
+                              "entity_info": { "productName": "Product 3" }
                             }
                           ]
                         }
@@ -822,11 +954,13 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "prod-1",
-                              "productName": "Widget Pro",
-                              "productImageURL": "https://example.com/widget.jpg",
-                              "primary": {
-                                "text": "View",
-                                "url": "https://example.com/view"
+                              "entity_info": {
+                                "productName": "Widget Pro",
+                                "productImageURL": "https://example.com/widget.jpg",
+                                "primary": {
+                                  "text": "View",
+                                  "url": "https://example.com/view"
+                                }
                               }
                             }
                           ]
@@ -878,7 +1012,8 @@ class TempConversationResponseParserTest {
                               "width": -100,
                               "height": 0,
                               "thumbnail_width": -1,
-                              "thumbnail_height": 0
+                              "thumbnail_height": 0,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1033,7 +1168,7 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "",
-                              "productName": "Should be ignored"
+                              "entity_info": { "productName": "Should be ignored" }
                             }
                           ]
                         }
@@ -1066,8 +1201,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {
-                                "text": "Click Here"
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Click Here"
+                                }
                               }
                             }
                           ]
@@ -1103,8 +1240,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "secondary": {
-                                "url": "https://example.com"
+                              "entity_info": {
+                                "secondary": {
+                                  "url": "https://example.com"
+                                }
                               }
                             }
                           ]
@@ -1140,9 +1279,11 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {
-                                "text": "",
-                                "url": ""
+                              "entity_info": {
+                                "primary": {
+                                  "text": "",
+                                  "url": ""
+                                }
                               }
                             }
                           ]
@@ -1181,7 +1322,8 @@ class TempConversationResponseParserTest {
                               "width": 1,
                               "height": 1,
                               "thumbnail_width": 1,
-                              "thumbnail_height": 1
+                              "thumbnail_height": 1,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1221,7 +1363,8 @@ class TempConversationResponseParserTest {
                               "width": 0,
                               "height": 0,
                               "thumbnail_width": 0,
-                              "thumbnail_height": 0
+                              "thumbnail_height": 0,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1259,7 +1402,8 @@ class TempConversationResponseParserTest {
                             {
                               "id": "elem-1",
                               "width": 2147483647,
-                              "height": 2147483647
+                              "height": 2147483647,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1294,8 +1438,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "productName": "Product",
-                              "backgroundColor": "#FF0000"
+                              "entity_info": {
+                                "productName": "Product",
+                                "backgroundColor": "#FF0000"
+                              }
                             }
                           ]
                         }
@@ -1333,7 +1479,8 @@ class TempConversationResponseParserTest {
                             {
                               "id": "elem-1",
                               "width": 800,
-                              "height": 600
+                              "height": 600,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1371,12 +1518,14 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {
-                                "text": "Buy Now",
-                                "url": "https://buy.example.com"
-                              },
-                              "secondary": {
-                                "text": "Learn More"
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Buy Now",
+                                  "url": "https://buy.example.com"
+                                },
+                                "secondary": {
+                                  "text": "Learn More"
+                                }
                               }
                             }
                           ]
@@ -1414,9 +1563,11 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "secondary": {
-                                "text": "Secondary Action",
-                                "url": "https://secondary.example.com"
+                              "entity_info": {
+                                "secondary": {
+                                  "text": "Secondary Action",
+                                  "url": "https://secondary.example.com"
+                                }
                               }
                             }
                           ]
@@ -1454,25 +1605,27 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "complete-1",
-                              "productName": "Complete Product",
-                              "productDescription": "Full Description",
-                              "description": "Caption Text",
-                              "productPageURL": "https://page.example.com",
-                              "productImageURL": "https://image.example.com/img.jpg",
-                              "backgroundColor": "#0000FF",
-                              "learningResource": "https://learn.example.com",
-                              "logo": "https://logo.example.com/logo.png",
                               "width": 1920,
                               "height": 1080,
                               "thumbnail_width": 320,
                               "thumbnail_height": 240,
-                              "primary": {
-                                "text": "Primary",
-                                "url": "https://primary.example.com"
-                              },
-                              "secondary": {
-                                "text": "Secondary",
-                                "url": "https://secondary.example.com"
+                              "entity_info": {
+                                "productName": "Complete Product",
+                                "productDescription": "Full Description",
+                                "description": "Caption Text",
+                                "productPageURL": "https://page.example.com",
+                                "productImageURL": "https://image.example.com/img.jpg",
+                                "backgroundColor": "#0000FF",
+                                "learningResource": "https://learn.example.com",
+                                "logo": "https://logo.example.com/logo.png",
+                                "primary": {
+                                  "text": "Primary",
+                                  "url": "https://primary.example.com"
+                                },
+                                "secondary": {
+                                  "text": "Secondary",
+                                  "url": "https://secondary.example.com"
+                                }
                               }
                             }
                           ]
@@ -1536,7 +1689,8 @@ class TempConversationResponseParserTest {
                               "width": 800,
                               "height": 0,
                               "thumbnail_width": 0,
-                              "thumbnail_height": 100
+                              "thumbnail_height": 100,
+                              "entity_info": {}
                             }
                           ]
                         }
@@ -1573,8 +1727,10 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "primary": {},
-                              "secondary": {}
+                              "entity_info": {
+                                "primary": {},
+                                "secondary": {}
+                              }
                             }
                           ]
                         }
@@ -1611,9 +1767,11 @@ class TempConversationResponseParserTest {
                           "elements": [
                             {
                               "id": "elem-1",
-                              "productName": "Product \"Special\" Name",
-                              "productDescription": "Description with 'quotes' and <html>",
-                              "backgroundColor": "#FF00FF"
+                              "entity_info": {
+                                "productName": "Product \"Special\" Name",
+                                "productDescription": "Description with 'quotes' and <html>",
+                                "backgroundColor": "#FF00FF"
+                              }
                             }
                           ]
                         }
@@ -1632,6 +1790,265 @@ class TempConversationResponseParserTest {
         assertEquals("Product \"Special\" Name", element.title)
         assertEquals("Description with 'quotes' and <html>", element.transcript)
         assertEquals("#FF00FF", element.content["backgroundColor"])
+    }
+
+    @Test
+    fun `parseConversationData parses details from entity_info`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Product with details",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "elem-1",
+                              "entity_info": {
+                                "productName": "Product",
+                                "details": "Additional details from EntityInfo"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("Additional details from EntityInfo", element.content["details"])
+    }
+
+    @Test
+    fun `parseConversationData handles multimodalElements as array format`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Intermediate response",
+                        "multimodalElements": []
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(result[0].multimodalElements.isEmpty())
+    }
+
+    @Test
+    fun `parseConversationData continues when handle has missing payload`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation"
+                },
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {"message": "From second handle"},
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals("From second handle", result[0].messageContent)
+    }
+
+    @Test
+    fun `parseConversationData handles multimodalElements as non-object non-array`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Invalid multimodal type",
+                        "multimodalElements": "invalid"
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(result[0].multimodalElements.isEmpty())
+    }
+
+    @Test
+    fun `parseConversationData parses productPrice and productWasPrice from entity_info`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Product with pricing",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "prod-1",
+                              "entity_info": {
+                                "productName": "Widget",
+                                "productPrice": "29.99",
+                                "productWasPrice": "39.99"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val element = result[0].multimodalElements[0]
+        assertEquals("29.99", element.content["productPrice"])
+        assertEquals("39.99", element.content["productWasPrice"])
+    }
+
+    @Test
+    fun `parseConversationData parses mixed valid and invalid multimodal elements`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Mixed elements",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "valid-1",
+                              "entity_info": {"productName": "Valid Product"}
+                            },
+                            {
+                              "entity_info": {"productName": "No ID"}
+                            },
+                            {
+                              "id": "valid-2",
+                              "entity_info": {"productName": "Another Valid"}
+                            }
+                          ]
+                        }
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(2, result[0].multimodalElements.size)
+        assertEquals("Valid Product", result[0].multimodalElements[0].title)
+        assertEquals("Another Valid", result[0].multimodalElements[1].title)
+    }
+
+    @Test
+    fun `parseConversationData filters empty strings from prompt suggestions`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Suggestions",
+                        "promptSuggestions": ["First", "", "Second", "", "Third"]
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(listOf("First", "Second", "Third"), result[0].promptSuggestions)
+    }
+
+    @Test
+    fun `parseConversationData filters negative citation indices`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Cited",
+                        "sources": [
+                          {
+                            "title": "Doc",
+                            "url": "https://example.com",
+                            "citation_number": 1,
+                            "start_index": -1,
+                            "end_index": -1
+                          }
+                        ]
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val source = result[0].sources[0]
+        assertEquals(1, source.citationNumber)
+        assertNull(source.startIndex)
+        assertNull(source.endIndex)
     }
 }
 
