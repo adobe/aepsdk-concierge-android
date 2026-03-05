@@ -78,12 +78,7 @@ data class ConciergeColors(
     // Citation/Disclaimer colors (from CSS themes)
     val citationBackground: Color? = null,
     val citationText: Color? = null,
-    val disclaimerColor: Color? = null,
-
-    // Webview overlay
-    val webviewBarBackground: Color? = null,
-    val webviewCloseButtonBackground: Color? = null,
-    val webviewCloseButtonIcon: Color? = null
+    val disclaimerColor: Color? = null
 )
 
 /**

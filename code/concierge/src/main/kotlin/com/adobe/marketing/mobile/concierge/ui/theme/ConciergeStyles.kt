@@ -722,48 +722,25 @@ internal object ConciergeStyles {
         }
 
     /**
-     * Styling for the Concierge Webview overlay
+     * Styling for the Concierge WebView overlay dialog.
      *
-     * @param scrimHeightFraction Fraction of screen height for the area above the dialog
-     * @param contentHeightFraction Fraction of screen height for the dialog content panel
-     * @param contentCornerRadius Corner radius for the top of the content panel
-     * @param scrimAlpha Alpha for the dimmed scrim
+     * @param contentBackgroundColor Background color of the sheet
+     * @param contentHeightFraction Fraction of screen height for the sheet
+     * @param contentCornerRadius Corner radius for the top of the sheet
      */
     @Immutable
     data class WebviewStyle(
-        val topBarBackgroundColor: Color,
-        val topBarContentColor: Color,
-        val topBarPadding: Dp,
-        val closeIconSize: Dp,
-        val closeButtonBackgroundColor: Color,
-        val closeButtonIconColor: Color,
         val contentBackgroundColor: Color,
-        val scrimHeightFraction: Float,
         val contentHeightFraction: Float,
-        val contentCornerRadius: Dp,
-        val scrimAlpha: Float
+        val contentCornerRadius: Dp
     )
 
     val webviewStyle: WebviewStyle
-        @Composable get() {
-            val themeColors = ConciergeTheme.colors
-            val barBackground = Color.Black
-            val closeBg = themeColors.primary
-            val closeIcon = Color.White
-            return WebviewStyle(
-                topBarBackgroundColor = barBackground,
-                topBarContentColor = closeIcon,
-                topBarPadding = 8.dp,
-                closeIconSize = 24.dp,
-                closeButtonBackgroundColor = closeBg,
-                closeButtonIconColor = closeIcon,
-                contentBackgroundColor = Color.White,
-                scrimHeightFraction = 0.08f,
-                contentHeightFraction = 0.95f,
-                contentCornerRadius = 12.dp,
-                scrimAlpha = 0.4f
-            )
-        }
+        @Composable get() = WebviewStyle(
+            contentBackgroundColor = Color.White,
+            contentHeightFraction = 0.95f,
+            contentCornerRadius = 12.dp
+        )
 
     /**
      * Styling for chat text field
