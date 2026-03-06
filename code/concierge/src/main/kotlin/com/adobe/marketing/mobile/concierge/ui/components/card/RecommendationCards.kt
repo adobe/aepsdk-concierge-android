@@ -56,18 +56,27 @@ internal fun RecommendationCards(
         Column(
             modifier = modifier.fillMaxWidth()
         ) {
+            val useExtendedProductCards = elements.any { it.content["productPrice"] != null }
             // Special handling for single element - display as a product card
             if (elements.size == 1) {
-                ProductCard(
-                    element = elements[0],
-                    onImageClick = onImageClick,
-                    onActionClick = onActionClick
-                )
+                if (useExtendedProductCards) {
+                    ExtendedProductCard(
+                        element = elements[0],
+                        onCardClick = onImageClick
+                    )
+                } else {
+                    ProductCard(
+                        element = elements[0],
+                        onImageClick = onImageClick,
+                        onActionClick = onActionClick
+                    )
+                }
             } else {
                 // Multiple elements - display in a product carousel with navigation controls
                 ProductCarousel(
                     elements = elements,
-                    onImageClick = onImageClick
+                    onImageClick = onImageClick,
+                    useExtendedProductCards = useExtendedProductCards
                 )
             }
         }

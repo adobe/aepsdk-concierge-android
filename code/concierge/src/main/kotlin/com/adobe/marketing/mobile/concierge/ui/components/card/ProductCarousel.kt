@@ -41,14 +41,20 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Composable that displays a carousel of product images with navigation controls.
+ * Composable that displays a carousel of product items with navigation controls.
+ * When [useExtendedProductCards] is true (entity_info contains productPrice), shows extended product cards
+ * (image, badge, name, subtitle, price); otherwise shows image-only tiles.
  */
 @Composable
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
-    onImageClick: (MultimodalElement) -> Unit
+    onImageClick: (MultimodalElement) -> Unit,
+    useExtendedProductCards: Boolean = false
 ) {
-    val style = ConciergeStyles.productCarouselStyle
+    val carouselStyle = ConciergeStyles.productCarouselStyle
+    val extendedProductCardStyle = ConciergeStyles.extendedProductCardStyle
+    val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else carouselStyle.imageWidth
+    val itemHeight = if (useExtendedProductCards) extendedProductCardStyle.cardHeight else carouselStyle.imageHeight
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val currentPage = listState.firstVisibleItemIndex
@@ -59,23 +65,33 @@ internal fun ProductCarousel(
         LazyRow(
             state = listState,
             contentPadding = PaddingValues(
-                start = style.horizontalPadding,
-                end = style.imageWidth,
-                top = style.verticalPadding,
-                bottom = style.verticalPadding
+                start = carouselStyle.horizontalPadding,
+                end = itemWidth,
+                top = carouselStyle.verticalPadding,
+                bottom = carouselStyle.verticalPadding
             ),
-            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
+            horizontalArrangement = Arrangement.spacedBy(carouselStyle.itemSpacing),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(elements.size) { index ->
-                ProductImage(
-                    element = elements[index],
-                    modifier = Modifier
-                        .width(style.imageWidth)
-                        .height(style.imageHeight),
-                    onImageClick = onImageClick,
-                    isMultiElement = true
-                )
+                if (useExtendedProductCards) {
+                    ExtendedProductCard(
+                        element = elements[index],
+                        modifier = Modifier
+                            .width(itemWidth)
+                            .height(itemHeight),
+                        onCardClick = onImageClick
+                    )
+                } else {
+                    ProductImage(
+                        element = elements[index],
+                        modifier = Modifier
+                            .width(itemWidth)
+                            .height(itemHeight),
+                        onImageClick = onImageClick,
+                        isMultiElement = true
+                    )
+                }
             }
         }
 

@@ -540,7 +540,111 @@ internal object CSSKeyMapper {
                 layout?.copy(welcomeCardsOrder = order) ?: ConciergeLayout(welcomeCardsOrder = order)
             }
         },
-        
+
+        // Extended product cards
+        "product-card-title-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(productCardTitleFontWeight = weight) ?: ConciergeLayout(productCardTitleFontWeight = weight)
+            }
+        },
+        "product-card-title-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardTitleFontSize = size) ?: ConciergeLayout(productCardTitleFontSize = size)
+            }
+        },
+        "product-card-subtitle-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(productCardSubtitleFontWeight = weight) ?: ConciergeLayout(productCardSubtitleFontWeight = weight)
+            }
+        },
+        "product-card-subtitle-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardSubtitleFontSize = size) ?: ConciergeLayout(productCardSubtitleFontSize = size)
+            }
+        },
+        "product-card-price-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(productCardPriceFontWeight = weight) ?: ConciergeLayout(productCardPriceFontWeight = weight)
+            }
+        },
+        "product-card-price-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardPriceFontSize = size) ?: ConciergeLayout(productCardPriceFontSize = size)
+            }
+        },
+        "product-card-badge-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardBadgeFontSize = size) ?: ConciergeLayout(productCardBadgeFontSize = size)
+            }
+        },
+        "product-card-badge-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(productCardBadgeFontWeight = weight) ?: ConciergeLayout(productCardBadgeFontWeight = weight)
+            }
+        },
+        "product-card-badge-text-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardBadgeTextColor = color) ?: ConciergeLayout(productCardBadgeTextColor = color)
+            }
+        },
+        "product-card-badge-background-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardBadgeBackgroundColor = color) ?: ConciergeLayout(productCardBadgeBackgroundColor = color)
+            }
+        },
+        "product-card-background-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardBackgroundColor = color) ?: ConciergeLayout(productCardBackgroundColor = color)
+            }
+        },
+        "product-card-title-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardTitleColor = color) ?: ConciergeLayout(productCardTitleColor = color)
+            }
+        },
+        "product-card-subtitle-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardSubtitleColor = color) ?: ConciergeLayout(productCardSubtitleColor = color)
+            }
+        },
+        "product-card-price-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardPriceColor = color) ?: ConciergeLayout(productCardPriceColor = color)
+            }
+        },
+        "product-card-outline-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardOutlineColor = color) ?: ConciergeLayout(productCardOutlineColor = color)
+            }
+        },
+        "product-card-width" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val width = CSSValueConverter.parsePxValue(cssValue) ?: 222.0
+                layout?.copy(productCardWidth = width) ?: ConciergeLayout(productCardWidth = width)
+            }
+        },
+        "product-card-height" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val height = CSSValueConverter.parsePxValue(cssValue) ?: 285.0
+                layout?.copy(productCardHeight = height) ?: ConciergeLayout(productCardHeight = height)
+            }
+        },
+
         // Components - Feedback
         "feedback-icon-btn-size-desktop" to { cssValue, theme ->
             val size = CSSValueConverter.parsePxValue(cssValue) ?: 32.0

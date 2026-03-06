@@ -85,7 +85,26 @@ data class ConciergeLayout(
     // Welcome order
     val welcomeInputOrder: Int? = null,
     val welcomeCardsOrder: Int? = null,
-    
+
+    // Extended product cards
+    val productCardTitleFontWeight: Int? = null,
+    val productCardTitleFontSize: Double? = null,
+    val productCardSubtitleFontWeight: Int? = null,
+    val productCardSubtitleFontSize: Double? = null,
+    val productCardPriceFontWeight: Int? = null,
+    val productCardPriceFontSize: Double? = null,
+    val productCardBadgeFontSize: Double? = null,
+    val productCardBadgeFontWeight: Int? = null,
+    val productCardBadgeTextColor: String? = null,
+    val productCardBadgeBackgroundColor: String? = null,
+    val productCardBackgroundColor: String? = null,
+    val productCardTitleColor: String? = null,
+    val productCardSubtitleColor: String? = null,
+    val productCardPriceColor: String? = null,
+    val productCardOutlineColor: String? = null,
+    val productCardWidth: Double? = null,
+    val productCardHeight: Double? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,

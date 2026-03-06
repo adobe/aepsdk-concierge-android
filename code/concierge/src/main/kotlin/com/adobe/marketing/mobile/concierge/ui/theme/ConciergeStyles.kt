@@ -398,6 +398,88 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for extended product cards (carousel cards with image, badge, name, subtitle, price).
+     */
+    @Immutable
+    data class ExtendedProductCardStyle(
+        val cardShape: Shape,
+        val cardBackgroundColor: Color,
+        val cardOutlineColor: Color,
+        val cardWidth: Dp,
+        val cardHeight: Dp,
+        val imageHeight: Dp,
+        val badgeBackgroundColor: Color,
+        val badgeTextColor: Color,
+        val badgeFontSize: TextUnit,
+        val badgeFontWeight: FontWeight,
+        val titleColor: Color,
+        val titleFontSize: TextUnit,
+        val titleFontWeight: FontWeight,
+        val subtitleColor: Color,
+        val subtitleFontSize: TextUnit,
+        val subtitleFontWeight: FontWeight,
+        val priceColor: Color,
+        val priceFontSize: TextUnit,
+        val priceFontWeight: FontWeight,
+        val contentPadding: Dp,
+        val verticalSpacing: Dp
+    )
+
+    val extendedProductCardStyle: ExtendedProductCardStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val layout = ConciergeTheme.tokens?.cssLayout
+            fun parseColor(hex: String?, default: Color): Color =
+                if (!hex.isNullOrBlank()) try {
+                    CSSValueConverter.parseColor(hex)
+                } catch (_: Exception) {
+                    default
+                } else default
+            // When no theme JSON colors are set, use device light/dark scheme
+            val cardBg = parseColor(layout?.productCardBackgroundColor, themeColors.surface)
+            val titleColor = parseColor(layout?.productCardTitleColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
+            val subtitleColor = parseColor(layout?.productCardSubtitleColor, themeColors.onSurface.copy(alpha = 0.8f))
+            val priceColor = parseColor(layout?.productCardPriceColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
+            val badgeBg = parseColor(layout?.productCardBadgeBackgroundColor, themeColors.primary)
+            val badgeText = parseColor(layout?.productCardBadgeTextColor, themeColors.onPrimary)
+            val titleSize = (layout?.productCardTitleFontSize ?: 12.0).toFloat().sp
+            val subtitleSize = (layout?.productCardSubtitleFontSize ?: 12.0).toFloat().sp
+            val priceSize = (layout?.productCardPriceFontSize ?: 12.0).toFloat().sp
+            val badgeSize = (layout?.productCardBadgeFontSize ?: 12.0).toFloat().sp
+            val badgeWeight = FontWeight(layout?.productCardBadgeFontWeight ?: 700)
+            val titleWeight = FontWeight(layout?.productCardTitleFontWeight ?: 700)
+            val subtitleWeight = FontWeight(layout?.productCardSubtitleFontWeight ?: 500)
+            val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 500)
+            val borderRadius = (ConciergeTheme.tokens?.cssLayout?.borderRadiusCard ?: 16.0).toFloat().dp
+            val outlineColor = parseColor(layout?.productCardOutlineColor, Color.Transparent)
+            val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
+            val cardHeightDp = (layout?.productCardHeight ?: 285.0).toFloat().dp
+            return ExtendedProductCardStyle(
+                cardShape = RoundedCornerShape(borderRadius),
+                cardBackgroundColor = cardBg,
+                cardOutlineColor = outlineColor,
+                cardWidth = cardWidthDp,
+                cardHeight = cardHeightDp,
+                imageHeight = 150.dp,
+                badgeBackgroundColor = badgeBg,
+                badgeTextColor = badgeText,
+                badgeFontSize = badgeSize,
+                badgeFontWeight = badgeWeight,
+                titleColor = titleColor,
+                titleFontSize = titleSize,
+                titleFontWeight = titleWeight,
+                subtitleColor = subtitleColor,
+                subtitleFontSize = subtitleSize,
+                subtitleFontWeight = subtitleWeight,
+                priceColor = priceColor,
+                priceFontSize = priceSize,
+                priceFontWeight = priceWeight,
+                contentPadding = 6.dp,
+                verticalSpacing = 3.dp
+            )
+        }
+
+    /**
      * Styling for product action buttons
      */
     @Immutable
