@@ -46,7 +46,6 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 /**
  * Composable that displays a single product card containing a large image, badge,
  * product name, subtitle/description, and price.
- * Used in carousels when entity_info contains [productPrice].
  */
 @Composable
 internal fun ExtendedProductCard(

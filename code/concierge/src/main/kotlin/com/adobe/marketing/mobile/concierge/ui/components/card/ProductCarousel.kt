@@ -43,7 +43,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Composable that displays a carousel of product items with navigation controls.
- * When [useExtendedProductCards] is true (entity_info contains productPrice), shows extended product cards
+ * When [useExtendedProductCards] is true, shows extended product cards
  * (image, badge, name, subtitle, price); otherwise shows image-only tiles.
  */
 @Composable
