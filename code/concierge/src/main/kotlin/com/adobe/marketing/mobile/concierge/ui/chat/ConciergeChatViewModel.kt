@@ -539,8 +539,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     content = MessageContent.Text(""),
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
-                    citations = emptyList(),
-                    interactionId = "sample-interaction-${System.currentTimeMillis()}"
+                    citations = emptyList()
                 )
                 _messages.update { currentMessages -> currentMessages + assistantMessage }
 
@@ -592,6 +591,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 // Otherwise, replace with the final message.
                 if (parsedMessage.messageContent.isNotBlank()) {
                     replaceAssistantMessageContent(parsedMessage)
+                } else {
+                    setLastAssistantMessageSseComplete()
                 }
                 _state.update { currentState ->
             when (currentState) {
@@ -669,7 +670,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             messageContent,
             parsedMessage.promptSuggestions,
             parsedMessage.sources,
-            parsedMessage.interactionId
+            parsedMessage.interactionId,
+            sseComplete = true
         )
     }
 
@@ -679,12 +681,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param promptSuggestions Optional prompt suggestions to include with the message
      * @param sources Optional sources to include with the message
      * @param interactionId Optional interaction ID from the backend to use as a turnId for feedback
+     * @param sseComplete True when SSE stream has completed for this message
      */
     private fun updateAssistantMessageContent(
         content: MessageContent,
         promptSuggestions: List<String> = emptyList(),
         sources: List<Citation> = emptyList(),
-        interactionId: String? = null
+        interactionId: String? = null,
+        sseComplete: Boolean? = null
     ) {
         // Pre-compute unique citations once to avoid redundant processing
         val uniqueSources = if (sources.isNotEmpty()) {
@@ -703,12 +707,22 @@ class ConciergeChatViewModel : AndroidViewModel {
                     promptSuggestions = promptSuggestions,
                     citations = sources,
                     uniqueCitations = uniqueSources,
-                    interactionId = interactionId ?: lastAssistantMessage.interactionId
+                    interactionId = interactionId ?: lastAssistantMessage.interactionId,
+                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete
                 )
                 updatedMessages
             } else {
                 existingMessages
             }
+        }
+    }
+
+    private fun setLastAssistantMessageSseComplete() {
+        _messages.update { existing ->
+            val lastIdx = existing.lastIndex
+            if (lastIdx >= 0 && !existing[lastIdx].isFromUser) {
+                existing.toMutableList().apply { set(lastIdx, this[lastIdx].copy(sseComplete = true)) }
+            } else existing
         }
     }
 

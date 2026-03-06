@@ -34,6 +34,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
  * @param citations List of [Citation] to display in the sources accordion.
  * @param uniqueCitations Pre-computed list of unique citations.
  * @param interactionId interaction ID for feedback buttons.
+ * @param sseComplete True when the SSE stream for this message has completed.
  * @param onFeedback Callback invoked when a feedback button is pressed.
  * @param feedbackState Current feedback state for this interaction.
  */
@@ -43,12 +44,13 @@ internal fun ChatFooter(
     citations: List<Citation>?,
     uniqueCitations: List<Citation>? = null,
     interactionId: String?,
+    sseComplete: Boolean = false,
     onFeedback: (FeedbackEvent) -> Unit,
     onLinkClick: (String) -> Unit = {},
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val hasCitations = !citations.isNullOrEmpty()
-    val hasInteractionId = !interactionId.isNullOrEmpty()
+    val showFeedbackButtons = !interactionId.isNullOrEmpty() && sseComplete
     var sourcesExpanded by remember { mutableStateOf(false) }
     val arrangement = remember(hasCitations) {
         if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
@@ -70,8 +72,8 @@ internal fun ChatFooter(
                 )
             }
 
-            // Feedback buttons (right side)
-            if (hasInteractionId) {
+            // Feedback buttons (right side); only when we have an interaction id and SSE is complete
+            if (showFeedbackButtons) {
                 FeedbackButtons(
                     interactionId = interactionId!!,
                     onFeedback = onFeedback,

@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
@@ -61,7 +62,19 @@ internal fun ExtendedProductCard(
         ?: element.content["description"] as? String
         ?: element.content["learningResource"] as? String
     val imageUrl = element.url ?: element.thumbnailUrl
+    val imageWidth: Dp
+    val imageHeight: Dp
+    if (element.thumbnailWidth != null && element.thumbnailHeight != null) {
+        // Use thumbnail dimensions as image size
+        imageWidth = element.thumbnailWidth.dp
+        imageHeight = element.thumbnailHeight.dp
+    } else {
+    // otherwise just fill the image display area
+        imageWidth = style.cardWidth
+        imageHeight = style.imageHeight
+    }
 
+    // Clickable card container (image + badge row + title/subtitle/price).
     Card(
         modifier = modifier
             .width(style.cardWidth)
@@ -77,29 +90,32 @@ internal fun ExtendedProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
+        // Main column: image, badge row, content.
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Product image - full width at top
+            // Image display box: image sized by thumbnail width/height, centered.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(style.imageHeight)
-                    .clip(style.cardShape)
+                    .clip(style.cardShape),
+                contentAlignment = Alignment.Center
             ) {
                 if (imageUrl != null) {
                     AsyncImage(
                         url = imageUrl,
                         contentDescription = productName,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.FillBounds,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(style.imageHeight)
+                            .width(imageWidth)
+                            .height(imageHeight)
                     )
                 }
             }
 
+            // Badge row (optional label above title).
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,6 +145,7 @@ internal fun ExtendedProductCard(
                 }
             }
 
+            // Content area: title, subtitle, price (bottom-aligned).
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -140,6 +157,7 @@ internal fun ExtendedProductCard(
                         bottom = style.contentPadding
                     )
             ) {
+                // Title, subtitle, and price column.
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -169,6 +187,7 @@ internal fun ExtendedProductCard(
                         )
                     }
                     if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
+                        // Price row (was-price strikethrough + current price).
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(3.dp),
