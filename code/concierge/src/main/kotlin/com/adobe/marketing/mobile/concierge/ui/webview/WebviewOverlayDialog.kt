@@ -40,14 +40,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -70,7 +68,7 @@ internal fun WebviewOverlayDialog(
     val style = ConciergeStyles.webviewStyle
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
-    val dismissThresholdPx = with(density) { 80.dp.toPx() }
+    val dismissThresholdPx = with(density) { style.dismissDragThreshold.toPx() }
     val offsetY = remember { Animatable(0f) }
     var contentHeightPx by remember { mutableStateOf(0f) }
 
@@ -105,7 +103,7 @@ internal fun WebviewOverlayDialog(
                     .onSizeChanged { size: IntSize -> contentHeightPx = size.height.toFloat() }
                     .offset { IntOffset(0, offsetY.value.roundToInt()) }
                     .shadow(
-                        elevation = 8.dp,
+                        elevation = style.contentElevation,
                         shape = RoundedCornerShape(topStart = style.contentCornerRadius, topEnd = style.contentCornerRadius)
                     )
                     .clip(RoundedCornerShape(topStart = style.contentCornerRadius, topEnd = style.contentCornerRadius))
@@ -120,9 +118,9 @@ internal fun WebviewOverlayDialog(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .width(120.dp)
-                        .height(32.dp)
-                        .padding(top = 8.dp)
+                        .width(style.handleWidth)
+                        .height(style.handleHeight)
+                        .padding(top = style.handleTopPadding)
                         .pointerInput(Unit) {
                             detectVerticalDragGestures(
                                 onVerticalDrag = { change, dragAmount ->
@@ -153,9 +151,9 @@ internal fun WebviewOverlayDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp, 4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color.Gray.copy(alpha = 0.5f))
+                            .size(style.handlePillWidth, style.handlePillHeight)
+                            .clip(RoundedCornerShape(style.handlePillCornerRadius))
+                            .background(style.handlePillColor)
                     )
                 }
             }

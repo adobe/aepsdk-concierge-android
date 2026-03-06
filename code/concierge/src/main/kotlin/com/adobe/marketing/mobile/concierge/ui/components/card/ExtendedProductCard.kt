@@ -132,7 +132,6 @@ internal fun ExtendedProductCard(
                 }
             }
 
-            // Text content: price anchored to bottom, then subtitle and title stacked above (no reserved space when absent)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -146,7 +145,7 @@ internal fun ExtendedProductCard(
             ) {
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
+                        .align(Alignment.TopStart)
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)
                 ) {

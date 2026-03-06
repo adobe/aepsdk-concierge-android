@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Composable that displays a carousel of product items with navigation controls.
@@ -51,10 +52,12 @@ internal fun ProductCarousel(
     onImageClick: (MultimodalElement) -> Unit,
     useExtendedProductCards: Boolean = false
 ) {
-    val carouselStyle = ConciergeStyles.productCarouselStyle
+    val style = ConciergeStyles.productCarouselStyle
     val extendedProductCardStyle = ConciergeStyles.extendedProductCardStyle
-    val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else carouselStyle.imageWidth
-    val itemHeight = if (useExtendedProductCards) extendedProductCardStyle.cardHeight else carouselStyle.imageHeight
+    val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else style.imageWidth
+    val itemHeight = if (useExtendedProductCards) extendedProductCardStyle.cardHeight else style.imageHeight
+    val carouselMode = ConciergeTheme.behavior?.multimodalCarousel?.carouselStyle ?: "paged"
+    val isPaged = carouselMode == "paged"
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val currentPage = listState.firstVisibleItemIndex
@@ -65,12 +68,12 @@ internal fun ProductCarousel(
         LazyRow(
             state = listState,
             contentPadding = PaddingValues(
-                start = carouselStyle.horizontalPadding,
-                end = itemWidth,
-                top = carouselStyle.verticalPadding,
-                bottom = carouselStyle.verticalPadding
+                start = style.horizontalPadding,
+                end = if (isPaged) itemWidth else style.horizontalPadding,
+                top = style.verticalPadding,
+                bottom = style.verticalPadding
             ),
-            horizontalArrangement = Arrangement.spacedBy(carouselStyle.itemSpacing),
+            horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(elements.size) { index ->
@@ -95,31 +98,33 @@ internal fun ProductCarousel(
             }
         }
 
-        CarouselSwitcher(
-            currentPage = currentPage,
-            totalPages = elements.size,
-            onPreviousClick = {
-                val page = listState.firstVisibleItemIndex
-                if (page > 0) {
+        if (isPaged) {
+            CarouselSwitcher(
+                currentPage = currentPage,
+                totalPages = elements.size,
+                onPreviousClick = {
+                    val page = listState.firstVisibleItemIndex
+                    if (page > 0) {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(page - 1)
+                        }
+                    }
+                },
+                onNextClick = {
+                    val page = listState.firstVisibleItemIndex
+                    if (page < elements.size - 1) {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(page + 1)
+                        }
+                    }
+                },
+                onPageClick = { page ->
                     coroutineScope.launch {
-                        listState.animateScrollToItem(page - 1)
+                        listState.animateScrollToItem(page)
                     }
                 }
-            },
-            onNextClick = {
-                val page = listState.firstVisibleItemIndex
-                if (page < elements.size - 1) {
-                    coroutineScope.launch {
-                        listState.animateScrollToItem(page + 1)
-                    }
-                }
-            },
-            onPageClick = { page ->
-                coroutineScope.launch {
-                    listState.animateScrollToItem(page)
-                }
-            }
-        )
+            )
+        }
     }
 }
 

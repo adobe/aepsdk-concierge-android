@@ -147,7 +147,25 @@ data class ConciergeThemeBehavior(
     val enableCitations: Boolean = true,
     val enableVoiceInput: Boolean = true,
     val maxMessageLength: Int = 2000,
-    val typingIndicatorDelay: Int = 500
+    val typingIndicatorDelay: Int = 500,
+    val productCard: ConciergeProductCardBehavior? = null,
+    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null
+)
+
+/**
+ * Product card behavior: cardStyle "actionButton" = image overlay with action buttons,
+ * "productDetail" = structured layout (image, badge, title, subtitle, price).
+ */
+data class ConciergeProductCardBehavior(
+    val cardStyle: String = "actionButton"
+)
+
+/**
+ * Multimodal carousel behavior: carouselStyle "paged" = snap to item with prev/next and dots,
+ * "scroll" = continuous horizontal scroll with no paging controls.
+ */
+data class ConciergeMultimodalCarouselBehavior(
+    val carouselStyle: String = "paged"
 )
 
 /**

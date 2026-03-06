@@ -809,19 +809,46 @@ internal object ConciergeStyles {
      * @param contentBackgroundColor Background color of the sheet
      * @param contentHeightFraction Fraction of screen height for the sheet
      * @param contentCornerRadius Corner radius for the top of the sheet
+     * @param contentElevation Shadow elevation of the sheet
+     * @param dismissDragThreshold Drag distance (dp) past which the sheet dismisses
+     * @param handleWidth Width of the drag-handle touch area
+     * @param handleHeight Height of the drag-handle touch area
+     * @param handleTopPadding Top padding above the handle
+     * @param handlePillWidth Width of the visible pill
+     * @param handlePillHeight Height of the visible pill
+     * @param handlePillCornerRadius Corner radius of the pill
+     * @param handlePillColor Background color of the pill
      */
     @Immutable
     data class WebviewStyle(
         val contentBackgroundColor: Color,
         val contentHeightFraction: Float,
-        val contentCornerRadius: Dp
+        val contentCornerRadius: Dp,
+        val contentElevation: Dp,
+        val dismissDragThreshold: Dp,
+        val handleWidth: Dp,
+        val handleHeight: Dp,
+        val handleTopPadding: Dp,
+        val handlePillWidth: Dp,
+        val handlePillHeight: Dp,
+        val handlePillCornerRadius: Dp,
+        val handlePillColor: Color
     )
 
     val webviewStyle: WebviewStyle
         @Composable get() = WebviewStyle(
             contentBackgroundColor = Color.White,
             contentHeightFraction = 0.95f,
-            contentCornerRadius = 12.dp
+            contentCornerRadius = 12.dp,
+            contentElevation = 8.dp,
+            dismissDragThreshold = 80.dp,
+            handleWidth = 120.dp,
+            handleHeight = 32.dp,
+            handleTopPadding = 8.dp,
+            handlePillWidth = 40.dp,
+            handlePillHeight = 4.dp,
+            handlePillCornerRadius = 2.dp,
+            handlePillColor = Color.Gray.copy(alpha = 0.5f)
         )
 
     /**
