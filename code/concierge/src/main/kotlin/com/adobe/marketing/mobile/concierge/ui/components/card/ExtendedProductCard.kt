@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -101,11 +100,10 @@ internal fun ExtendedProductCard(
                 }
             }
 
-            // Badge row - min height for alignment; grows with badge when font is larger
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 25.dp),
+                    .height(28.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!productBadge.isNullOrBlank()) {
@@ -144,7 +142,7 @@ internal fun ExtendedProductCard(
             ) {
                 Column(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(Alignment.BottomStart)
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)
                 ) {
