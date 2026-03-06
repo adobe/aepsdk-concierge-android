@@ -811,6 +811,8 @@ internal object ConciergeStyles {
      * @param contentCornerRadius Corner radius for the top of the sheet
      * @param contentElevation Shadow elevation of the sheet
      * @param dismissDragThreshold Drag distance (dp) past which the sheet dismisses
+     * @param slideAnimationDurationMs Duration (ms) of slide-in and slide-out animations
+     * @param slideInInitialOffsetDp Initial offset (dp) below the sheet for slide-in (sheet starts off-screen)
      * @param handleWidth Width of the drag-handle touch area
      * @param handleHeight Height of the drag-handle touch area
      * @param handleTopPadding Top padding above the handle
@@ -826,6 +828,8 @@ internal object ConciergeStyles {
         val contentCornerRadius: Dp,
         val contentElevation: Dp,
         val dismissDragThreshold: Dp,
+        val slideAnimationDurationMs: Int,
+        val slideInInitialOffsetDp: Dp,
         val handleWidth: Dp,
         val handleHeight: Dp,
         val handleTopPadding: Dp,
@@ -842,6 +846,8 @@ internal object ConciergeStyles {
             contentCornerRadius = 12.dp,
             contentElevation = 8.dp,
             dismissDragThreshold = 80.dp,
+            slideAnimationDurationMs = 300,
+            slideInInitialOffsetDp = 1200.dp,
             handleWidth = 120.dp,
             handleHeight = 32.dp,
             handleTopPadding = 8.dp,
