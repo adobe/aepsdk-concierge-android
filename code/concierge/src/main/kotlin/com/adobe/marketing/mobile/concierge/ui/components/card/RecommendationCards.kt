@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.services.Log
 
 private const val TAG = "RecommendationCards"
@@ -56,18 +57,26 @@ internal fun RecommendationCards(
         Column(
             modifier = modifier.fillMaxWidth()
         ) {
-            // Special handling for single element - display as a product card
+            val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: "actionButton"
+            val useExtendedProductCards = cardStyle == "productDetail"
             if (elements.size == 1) {
-                ProductCard(
-                    element = elements[0],
-                    onImageClick = onImageClick,
-                    onActionClick = onActionClick
-                )
+                if (useExtendedProductCards) {
+                    ExtendedProductCard(
+                        element = elements[0],
+                        onCardClick = onImageClick
+                    )
+                } else {
+                    ProductCard(
+                        element = elements[0],
+                        onImageClick = onImageClick,
+                        onActionClick = onActionClick
+                    )
+                }
             } else {
-                // Multiple elements - display in a product carousel with navigation controls
                 ProductCarousel(
                     elements = elements,
-                    onImageClick = onImageClick
+                    onImageClick = onImageClick,
+                    useExtendedProductCards = useExtendedProductCards
                 )
             }
         }

@@ -363,6 +363,24 @@ internal object ThemeParser {
             false
         }
         
+        val productCardMap = typedMap?.get("productCard") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val productCardTyped = productCardMap as? MutableMap<String?, Any?>
+        val productCard = productCardTyped?.let {
+            ConciergeProductCardBehavior(
+                cardStyle = DataReader.optString(it, "cardStyle", "actionButton")
+            )
+        }
+
+        val carouselMap = typedMap?.get("multimodalCarousel") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val carouselTyped = carouselMap as? MutableMap<String?, Any?>
+        val multimodalCarousel = carouselTyped?.let {
+            ConciergeMultimodalCarouselBehavior(
+                carouselStyle = DataReader.optString(it, "carouselStyle", "paged")
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -374,7 +392,9 @@ internal object ThemeParser {
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
             enableVoiceInput = enableVoiceInput,
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
-            typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500)
+            typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
+            productCard = productCard,
+            multimodalCarousel = multimodalCarousel
         )
     }
 

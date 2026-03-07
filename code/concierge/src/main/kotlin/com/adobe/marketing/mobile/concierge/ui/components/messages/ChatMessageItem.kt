@@ -131,6 +131,7 @@ private fun RenderTextMessage(
                             citations = message.citations,
                             uniqueCitations = message.uniqueCitations,
                             interactionId = message.interactionId,
+                            sseComplete = message.sseComplete,
                             onFeedback = onFeedback,
                             onLinkClick = onLinkClick,
                             feedbackState = feedbackState
@@ -217,6 +218,7 @@ private fun RenderMixedMessage(
                                 citations = message.citations,
                                 uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
+                                sseComplete = message.sseComplete,
                                 onFeedback = onFeedback,
                                 onLinkClick = onLinkClick,
                                 feedbackState = feedbackState
