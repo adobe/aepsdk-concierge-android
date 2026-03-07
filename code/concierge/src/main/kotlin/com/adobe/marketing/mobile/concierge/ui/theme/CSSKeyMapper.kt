@@ -644,6 +644,36 @@ internal object CSSKeyMapper {
                 layout?.copy(productCardHeight = height) ?: ConciergeLayout(productCardHeight = height)
             }
         },
+        "product-card-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(productCardBorderRadius = radius) ?: ConciergeLayout(productCardBorderRadius = radius)
+            }
+        },
+        "product-card-was-price-color" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val color = cssValue.trim()
+                layout?.copy(productCardWasPriceColor = color) ?: ConciergeLayout(productCardWasPriceColor = color)
+            }
+        },
+        "product-card-was-price-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardWasPriceFontSize = size) ?: ConciergeLayout(productCardWasPriceFontSize = size)
+            }
+        },
+        "product-card-was-price-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(productCardWasPriceFontWeight = weight) ?: ConciergeLayout(productCardWasPriceFontWeight = weight)
+            }
+        },
+        "product-card-was-price-text-prefix" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val prefix = cssValue.removeSurrounding("\"").removeSurrounding("'")
+                layout?.copy(productCardWasPriceTextPrefix = prefix) ?: ConciergeLayout(productCardWasPriceTextPrefix = prefix)
+            }
+        },
 
         // Components - Feedback
         "feedback-icon-btn-size-desktop" to { cssValue, theme ->

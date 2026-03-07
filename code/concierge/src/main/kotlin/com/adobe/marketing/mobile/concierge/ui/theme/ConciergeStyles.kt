@@ -407,22 +407,40 @@ internal object ConciergeStyles {
         val cardOutlineColor: Color,
         val cardWidth: Dp,
         val cardHeight: Dp,
+        val cardPadding: Dp,
+        val cardElevation: Dp,
+        val imageWidth: Dp,
         val imageHeight: Dp,
+        val contentPaddingTop: Dp,
         val badgeBackgroundColor: Color,
         val badgeTextColor: Color,
         val badgeFontSize: TextUnit,
         val badgeFontWeight: FontWeight,
+        val badgePaddingHorizontal: Dp,
+        val badgePaddingVertical: Dp,
         val titleColor: Color,
         val titleFontSize: TextUnit,
         val titleFontWeight: FontWeight,
+        val titleLineHeight: TextUnit,
         val subtitleColor: Color,
         val subtitleFontSize: TextUnit,
         val subtitleFontWeight: FontWeight,
+        val subtitleLineHeight: TextUnit,
+        val subtitleLetterSpacing: TextUnit,
         val priceColor: Color,
         val priceFontSize: TextUnit,
         val priceFontWeight: FontWeight,
+        val priceLineHeight: TextUnit,
+        val priceLetterSpacing: TextUnit,
+        val wasPriceFontSize: TextUnit,
+        val wasPriceFontWeight: FontWeight,
+        val wasPriceLineHeight: TextUnit,
+        val wasPriceColor: Color,
+        val wasPriceTextPrefix: String,
         val contentPadding: Dp,
-        val verticalSpacing: Dp
+        val contentPaddingBottom: Dp,
+        val verticalSpacing: Dp,
+        val headlineGap: Dp
     )
 
     val extendedProductCardStyle: ExtendedProductCardStyle
@@ -442,40 +460,61 @@ internal object ConciergeStyles {
             val priceColor = parseColor(layout?.productCardPriceColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
             val badgeBg = parseColor(layout?.productCardBadgeBackgroundColor, themeColors.primary)
             val badgeText = parseColor(layout?.productCardBadgeTextColor, themeColors.onPrimary)
-            val titleSize = (layout?.productCardTitleFontSize ?: 12.0).toFloat().sp
+            val titleSize = (layout?.productCardTitleFontSize ?: 14.0).toFloat().sp
             val subtitleSize = (layout?.productCardSubtitleFontSize ?: 12.0).toFloat().sp
-            val priceSize = (layout?.productCardPriceFontSize ?: 12.0).toFloat().sp
+            val priceSize = (layout?.productCardPriceFontSize ?: 14.0).toFloat().sp
             val badgeSize = (layout?.productCardBadgeFontSize ?: 12.0).toFloat().sp
             val badgeWeight = FontWeight(layout?.productCardBadgeFontWeight ?: 700)
             val titleWeight = FontWeight(layout?.productCardTitleFontWeight ?: 700)
-            val subtitleWeight = FontWeight(layout?.productCardSubtitleFontWeight ?: 500)
-            val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 500)
-            val borderRadius = (ConciergeTheme.tokens?.cssLayout?.borderRadiusCard ?: 16.0).toFloat().dp
-            val outlineColor = parseColor(layout?.productCardOutlineColor, Color.Transparent)
+            val subtitleWeight = FontWeight(layout?.productCardSubtitleFontWeight ?: 400)
+            val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 400)
+            val cardBorderRadius = (ConciergeTheme.tokens?.cssLayout?.productCardBorderRadius ?: 8.0).toFloat().dp
+            val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
             val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
-            val cardHeightDp = (layout?.productCardHeight ?: 285.0).toFloat().dp
+            val cardHeightDp = (maxOf(layout?.productCardHeight ?: 359.0, 359.0)).toFloat().dp
+            val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF6E6E6E))
+            val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
+            val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
             return ExtendedProductCardStyle(
-                cardShape = RoundedCornerShape(borderRadius),
+                cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
                 cardOutlineColor = outlineColor,
                 cardWidth = cardWidthDp,
                 cardHeight = cardHeightDp,
-                imageHeight = 150.dp,
+                cardPadding = 16.dp,
+                cardElevation = 1.dp,
+                imageWidth = 190.dp,
+                imageHeight = 190.dp,
+                contentPaddingTop = 24.dp,
                 badgeBackgroundColor = badgeBg,
                 badgeTextColor = badgeText,
                 badgeFontSize = badgeSize,
                 badgeFontWeight = badgeWeight,
+                badgePaddingHorizontal = 12.dp,
+                badgePaddingVertical = 4.dp,
                 titleColor = titleColor,
                 titleFontSize = titleSize,
                 titleFontWeight = titleWeight,
+                titleLineHeight = 17.sp,
                 subtitleColor = subtitleColor,
                 subtitleFontSize = subtitleSize,
                 subtitleFontWeight = subtitleWeight,
+                subtitleLineHeight = 14.sp,
+                subtitleLetterSpacing = (-0.5).sp,
                 priceColor = priceColor,
                 priceFontSize = priceSize,
                 priceFontWeight = priceWeight,
-                contentPadding = 6.dp,
-                verticalSpacing = 3.dp
+                priceLineHeight = 17.sp,
+                priceLetterSpacing = (-0.5).sp,
+                wasPriceFontSize = (layout?.productCardWasPriceFontSize ?: 12.0).toFloat().sp,
+                wasPriceFontWeight = wasPriceWeight,
+                wasPriceLineHeight = 14.sp,
+                wasPriceColor = wasPriceColor,
+                wasPriceTextPrefix = wasPriceTextPrefix,
+                contentPadding = 0.dp,
+                contentPaddingBottom = 8.dp,
+                verticalSpacing = 6.dp,
+                headlineGap = 8.dp
             )
         }
 
@@ -705,21 +744,6 @@ internal object ConciergeStyles {
         val dismissTextColor: Color,
         val dismissStartPadding: Dp
     )
-
-    val errorOverlayStyle: ErrorOverlayStyle
-        @Composable get() {
-            val themeColors = ConciergeTheme.colors
-            return ErrorOverlayStyle(
-                padding = 16.dp,
-                backgroundColor = themeColors.error,
-                contentPadding = 16.dp,
-                messageTextStyle = MaterialTheme.typography.bodyMedium,
-                messageTextColor = themeColors.onError,
-                dismissTextStyle = MaterialTheme.typography.bodySmall,
-                dismissTextColor = themeColors.primary,
-                dismissStartPadding = 8.dp
-            )
-        }
 
     /**
      * Styling for microphone button

@@ -34,8 +34,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -69,8 +69,7 @@ internal fun ExtendedProductCard(
         imageWidth = element.thumbnailWidth.dp
         imageHeight = element.thumbnailHeight.dp
     } else {
-    // otherwise just fill the image display area
-        imageWidth = style.cardWidth
+        imageWidth = style.imageWidth
         imageHeight = style.imageHeight
     }
 
@@ -87,50 +86,58 @@ internal fun ExtendedProductCard(
             )
             .clickable { onCardClick(element) },
         shape = style.cardShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = style.cardElevation),
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
         // Main column: image, badge row, content.
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(style.cardPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Image display box: image sized by thumbnail width/height, centered.
+            // Image with badge overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(style.imageHeight)
-                    .clip(style.cardShape),
-                contentAlignment = Alignment.Center
             ) {
-                if (imageUrl != null) {
-                    AsyncImage(
-                        url = imageUrl,
-                        contentDescription = productName,
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier
-                            .width(imageWidth)
-                            .height(imageHeight)
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(style.imageHeight)
+                        .clip(style.cardShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUrl != null) {
+                        AsyncImage(
+                            url = imageUrl,
+                            contentDescription = productName,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .width(imageWidth)
+                                .height(imageHeight)
+                        )
+                    }
                 }
-            }
 
-            // Badge row (optional label above title).
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
                 if (!productBadge.isNullOrBlank()) {
                     Box(
                         modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = (-style.cardPadding))
                             .wrapContentWidth(unbounded = true)
                             .background(
                                 color = style.badgeBackgroundColor,
                                 shape = RectangleShape
                             )
-                            .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                            .padding(
+                                start = style.badgePaddingHorizontal,
+                                end = style.badgePaddingHorizontal,
+                                top = style.badgePaddingVertical,
+                                bottom = style.badgePaddingVertical
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -145,7 +152,7 @@ internal fun ExtendedProductCard(
                 }
             }
 
-            // Content area: title, subtitle, price (bottom-aligned).
+            // Info block
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -153,64 +160,74 @@ internal fun ExtendedProductCard(
                     .padding(
                         start = style.contentPadding,
                         end = style.contentPadding,
-                        top = style.verticalSpacing,
-                        bottom = style.contentPadding
+                        top = style.contentPaddingTop,
+                        bottom = style.contentPaddingBottom
                     )
             ) {
                 // Title, subtitle, and price column.
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
+                        .fillMaxSize()
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)
                 ) {
-                    if (!productName.isNullOrBlank()) {
-                        Text(
-                            text = productName,
-                            color = style.titleColor,
-                            fontSize = style.titleFontSize,
-                            fontWeight = style.titleFontWeight,
-                            lineHeight = style.titleFontSize,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    if (!subtitle.isNullOrBlank()) {
-                        Text(
-                            text = subtitle,
-                            color = style.subtitleColor,
-                            fontSize = style.subtitleFontSize,
-                            fontWeight = style.subtitleFontWeight,
-                            lineHeight = style.subtitleFontSize,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    // Headline: title + subtitle
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(style.headlineGap)
+                    ) {
+                        if (!productName.isNullOrBlank()) {
+                            Text(
+                                text = productName,
+                                color = style.titleColor,
+                                fontSize = style.titleFontSize,
+                                fontWeight = style.titleFontWeight,
+                                lineHeight = style.titleLineHeight,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (!subtitle.isNullOrBlank()) {
+                            Text(
+                                text = subtitle,
+                                color = style.subtitleColor,
+                                fontSize = style.subtitleFontSize,
+                                fontWeight = style.subtitleFontWeight,
+                                lineHeight = style.subtitleLineHeight,
+                                letterSpacing = style.subtitleLetterSpacing,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                     if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
-                        // Price row (was-price strikethrough + current price).
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Price block
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.Top
                         ) {
-                            if (!productWasPrice.isNullOrBlank()) {
-                                Text(
-                                    text = productWasPrice,
-                                    color = style.priceColor,
-                                    fontSize = style.priceFontSize,
-                                    fontWeight = style.priceFontWeight,
-                                    textDecoration = TextDecoration.LineThrough,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
                             if (!productPrice.isNullOrBlank()) {
                                 Text(
                                     text = productPrice,
                                     color = style.priceColor,
                                     fontSize = style.priceFontSize,
                                     fontWeight = style.priceFontWeight,
-                                    maxLines = 1,
+                                    lineHeight = style.priceLineHeight,
+                                    letterSpacing = style.priceLetterSpacing,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (!productWasPrice.isNullOrBlank()) {
+                                Text(
+                                    text = style.wasPriceTextPrefix + productWasPrice,
+                                    color = style.wasPriceColor,
+                                    fontSize = style.wasPriceFontSize,
+                                    fontWeight = style.wasPriceFontWeight,
+                                    lineHeight = style.wasPriceLineHeight,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }

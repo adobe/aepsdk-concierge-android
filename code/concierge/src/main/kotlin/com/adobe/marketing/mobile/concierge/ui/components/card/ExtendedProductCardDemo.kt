@@ -27,8 +27,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardBehavio
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
-private const val DEMO_IMAGE_URL = "https://picsum.photos/222/150"
-private const val DEMO_IMAGE_SIZE_DP = 150
+private const val DEMO_IMAGE_URL = "https://picsum.photos/190/190"
+private const val DEMO_IMAGE_SIZE_DP = 190
 
 /** Demo elements: title+price, title+price+subtitle+badge, title+badge+price, full. */
 internal fun extendedProductCardDemoElements(): List<MultimodalElement> = listOf(

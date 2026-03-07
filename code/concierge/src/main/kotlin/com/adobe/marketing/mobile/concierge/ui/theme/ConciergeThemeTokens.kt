@@ -104,6 +104,11 @@ data class ConciergeLayout(
     val productCardOutlineColor: String? = null,
     val productCardWidth: Double? = null,
     val productCardHeight: Double? = null,
+    val productCardBorderRadius: Double? = null,
+    val productCardWasPriceColor: String? = null,
+    val productCardWasPriceFontSize: Double? = null,
+    val productCardWasPriceFontWeight: Int? = null,
+    val productCardWasPriceTextPrefix: String? = null,
 
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
