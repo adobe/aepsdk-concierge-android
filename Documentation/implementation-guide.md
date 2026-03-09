@@ -254,9 +254,11 @@ More information regarding theme customization can be found in the [style-guide]
 
 ### Deep Links and App Links
 
-The SDK automatically opens links via `Intent.ACTION_VIEW` when your app is the verified handler for the URL's domain (e.g., listed in the domain's `assetlinks.json`). If your app is not the handler, the link opens in the in-app WebView overlay.
+The SDK automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). If your app is not the handler, the link opens in the in-app WebView overlay.
 
-To customize this behavior, provide an `onLinkClick` callback. Return `true` if your app handled the link; return `false` to use the default behavior (try App Link first, then WebView overlay).
+**Default link handling flow:** host `onLinkClick` callback (if provided) → App Link check → WebView overlay.
+
+To customize this behavior, provide an `onLinkClick` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with it's default behavior (trying to open it as an App Link first, then using the WebView overlay).
 
 **Compose (ConciergeChat):**
 ```kotlin
@@ -296,4 +298,4 @@ chatView.bind(
 )
 ```
 
-When `onLinkClick` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, links open in the default in-app WebView.
+When `onLinkClick` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying to open it as an App Link first, then using the WebView overlay).
