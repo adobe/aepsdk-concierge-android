@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.CarouselStyle
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
@@ -56,8 +57,8 @@ internal fun ProductCarousel(
     val extendedProductCardStyle = ConciergeStyles.extendedProductCardStyle
     val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else style.imageWidth
     val itemHeight = if (useExtendedProductCards) extendedProductCardStyle.cardHeight else style.imageHeight
-    val carouselMode = ConciergeTheme.behavior?.multimodalCarousel?.carouselStyle ?: "paged"
-    val isPaged = carouselMode == "paged"
+    val carouselMode = ConciergeTheme.behavior?.multimodalCarousel?.carouselStyle ?: CarouselStyle.PAGED
+    val isPaged = carouselMode == CarouselStyle.PAGED
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val currentPage = listState.firstVisibleItemIndex

@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardBehavior
+import com.adobe.marketing.mobile.concierge.ui.theme.ProductCardStyle
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
@@ -133,7 +134,7 @@ private fun ExtendedProductCardDemoCarouselPreview() {
         config = ConciergeThemeConfig(),
         tokens = ConciergeThemeTokens(
             behavior = ConciergeThemeBehavior(
-                productCard = ConciergeProductCardBehavior(cardStyle = "productDetail")
+                productCard = ConciergeProductCardBehavior(cardStyle = ProductCardStyle.PRODUCT_DETAIL)
             )
         )
     )

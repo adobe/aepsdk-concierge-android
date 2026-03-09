@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ProductCardStyle
 import com.adobe.marketing.mobile.services.Log
 
 private const val TAG = "RecommendationCards"
@@ -57,8 +58,8 @@ internal fun RecommendationCards(
         Column(
             modifier = modifier.fillMaxWidth()
         ) {
-            val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: "actionButton"
-            val useExtendedProductCards = cardStyle == "productDetail"
+            val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
+            val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
             if (elements.size == 1) {
                 if (useExtendedProductCards) {
                     ExtendedProductCard(

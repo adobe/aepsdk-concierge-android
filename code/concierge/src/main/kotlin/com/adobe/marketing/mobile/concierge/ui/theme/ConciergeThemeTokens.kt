@@ -158,19 +158,39 @@ data class ConciergeThemeBehavior(
 )
 
 /**
- * Product card behavior: cardStyle "actionButton" = image overlay with action buttons,
- * "productDetail" = structured layout (image, badge, title, subtitle, price).
+ * Product card behavior: ACTION_BUTTON = image overlay with action buttons,
+ * PRODUCT_DETAIL = structured layout (image, badge, title, subtitle, price).
  */
-data class ConciergeProductCardBehavior(
-    val cardStyle: String = "actionButton"
-)
+enum class ProductCardStyle(val value: String) {
+    ACTION_BUTTON("actionButton"),
+    PRODUCT_DETAIL("productDetail");
+
+    companion object {
+        fun fromString(value: String): ProductCardStyle =
+            values().find { it.value == value } ?: ACTION_BUTTON
+    }
+}
 
 /**
- * Multimodal carousel behavior: carouselStyle "paged" = snap to item with prev/next and dots,
- * "scroll" = continuous horizontal scroll with no paging controls.
+ * Multimodal carousel behavior: PAGED = snap to item with prev/next and dots,
+ * SCROLL = continuous horizontal scroll with no paging controls.
  */
+enum class CarouselStyle(val value: String) {
+    PAGED("paged"),
+    SCROLL("scroll");
+
+    companion object {
+        fun fromString(value: String): CarouselStyle =
+            values().find { it.value == value } ?: PAGED
+    }
+}
+
+data class ConciergeProductCardBehavior(
+    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON
+)
+
 data class ConciergeMultimodalCarouselBehavior(
-    val carouselStyle: String = "paged"
+    val carouselStyle: CarouselStyle = CarouselStyle.PAGED
 )
 
 /**

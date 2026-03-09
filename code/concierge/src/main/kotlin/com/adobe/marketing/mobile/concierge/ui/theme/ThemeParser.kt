@@ -368,7 +368,7 @@ internal object ThemeParser {
         val productCardTyped = productCardMap as? MutableMap<String?, Any?>
         val productCard = productCardTyped?.let {
             ConciergeProductCardBehavior(
-                cardStyle = DataReader.optString(it, "cardStyle", "actionButton")
+                cardStyle = ProductCardStyle.fromString(DataReader.optString(it, "cardStyle", "actionButton"))
             )
         }
 
@@ -377,7 +377,7 @@ internal object ThemeParser {
         val carouselTyped = carouselMap as? MutableMap<String?, Any?>
         val multimodalCarousel = carouselTyped?.let {
             ConciergeMultimodalCarouselBehavior(
-                carouselStyle = DataReader.optString(it, "carouselStyle", "paged")
+                carouselStyle = CarouselStyle.fromString(DataReader.optString(it, "carouselStyle", "paged"))
             )
         }
 
