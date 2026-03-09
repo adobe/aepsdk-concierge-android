@@ -250,4 +250,50 @@ fun MyScreen() {
 }
 ```
 
-More information regarding theme customization can be found in the [style-guide](./style-guide.md)
+More information regarding theme customization can be found in the [style-guide](./style-guide.md).
+
+### Deep Links and App Links
+
+The SDK automatically opens links via `Intent.ACTION_VIEW` when your app is the verified handler for the URL's domain (e.g., listed in the domain's `assetlinks.json`). If your app is not the handler, the link opens in the in-app WebView overlay.
+
+To customize this behavior, provide an `onLinkClick` callback. Return `true` if your app handled the link; return `false` to use the default behavior (try App Link first, then WebView overlay).
+
+**Compose (ConciergeChat):**
+```kotlin
+val context = LocalContext.current
+ConciergeChat(
+    viewModel = viewModel,
+    onClose = { finish() },
+    onLinkClick = { url ->
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            context.startActivity(intent)
+            true  // Handled
+        } catch (e: ActivityNotFoundException) {
+            false  // Fall back to WebView overlay
+        }
+    }
+)
+```
+
+**XML (ConciergeChatView):**
+```kotlin
+chatView.bind(
+    lifecycleOwner = this,
+    viewModelStoreOwner = this,
+    surfaces = surfaces,
+    theme = theme,
+    onLinkClick = { url ->
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+    },
+    onClose = { finish() }
+)
+```
+
+When `onLinkClick` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, links open in the default in-app WebView.

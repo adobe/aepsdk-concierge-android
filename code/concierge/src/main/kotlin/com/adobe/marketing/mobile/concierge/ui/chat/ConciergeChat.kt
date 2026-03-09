@@ -104,6 +104,7 @@ fun ConciergeChat(
     modifier: Modifier = Modifier,
     viewModel: ConciergeChatViewModel,
     surfaces: List<String>? = null,
+    onLinkClick: OnLinkClickHandler? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
@@ -159,7 +160,8 @@ fun ConciergeChat(
                 ConciergeChat(
                     viewModel = viewModel,
                     onClose = { viewModel.closeConcierge() },
-                    modifier = modifier
+                    modifier = modifier,
+                    onLinkClick = onLinkClick
                 )
             }
         }
@@ -167,11 +169,29 @@ fun ConciergeChat(
     }
 }
 
+/**
+ * Optional callback for intercepting link clicks (e.g., product cards, in-message links, citations).
+ * Return `true` if the link was handled (e.g., opened as a deep link); return `false` to use
+ * default behavior (in-app WebView overlay). When null, all links use the default WebView overlay.
+ */
+typealias OnLinkClickHandler = (url: String) -> Boolean
+
+/**
+ * Concierge chat composable (direct mode).
+ *
+ * @param viewModel The ConciergeChatViewModel for the chat session
+ * @param onClose Callback when the close button is pressed
+ * @param modifier Optional modifier for the chat content
+ * @param onLinkClick Optional callback to intercept link clicks (product cards, in-message links, citations).
+ *        Return true if the link was handled (e.g., opened as a deep link); return false to use
+ *        default behavior (in-app WebView overlay). When null, all links use the WebView overlay.
+ */
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLinkClick: OnLinkClickHandler? = null
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
@@ -204,6 +224,28 @@ fun ConciergeChat(
         }
     }
 
+    val effectiveOnLinkClick: (String) -> Unit = remember(onLinkClick) {
+        { url -> viewModel.handleLinkClick(url, onLinkClick) }
+    }
+
+    val effectiveOnEvent: (ChatEvent) -> Unit = remember(onLinkClick) {
+        { event ->
+            when (event) {
+                is ProductActionClick -> {
+                    val url = event.button.url
+                    if (url.isNullOrEmpty()) viewModel.processEvent(event)
+                    else viewModel.handleLinkClick(url, onLinkClick)
+                }
+                is ProductImageClick -> {
+                    val url = event.element.content["productPageURL"] as? String
+                    if (url.isNullOrEmpty()) viewModel.processEvent(event)
+                    else viewModel.handleLinkClick(url, onLinkClick)
+                }
+                else -> viewModel.processEvent(event)
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
         ConciergeChat(
             messages = messages,
@@ -214,8 +256,8 @@ fun ConciergeChat(
             welcomeConfig = welcomeConfig,
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
-            onEvent = viewModel::processEvent,
-            onLinkClick = viewModel::openWebviewOverlay,
+            onEvent = effectiveOnEvent,
+            onLinkClick = effectiveOnLinkClick,
             onPermissionResult = { granted ->
                 viewModel.refreshPermissionStatus()
             },

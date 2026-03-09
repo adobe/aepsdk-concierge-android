@@ -13,6 +13,18 @@
 
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for PackageManager.resolveActivity() on Android 11+ (API 30) to detect
+         which app handles VIEW intents for http/https URLs. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
     <application>
         <service android:name="com.adobe.marketing.mobile.ExtensionDiscoveryService"
             android:exported="false">

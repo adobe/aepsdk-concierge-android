@@ -14,7 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.Manifest
 import android.app.Application
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -192,6 +194,57 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     internal fun dismissWebviewOverlay() {
         _webviewOverlay.value = null
+    }
+
+    /**
+     * Handles a link click: host callback first, then App Link if host app is verified handler,
+     * else WebView overlay.
+     *
+     * @param url The URL to open
+     * @param onLinkClick Optional host callback; return true if handled
+     */
+    internal fun handleLinkClick(url: String, onLinkClick: ((String) -> Boolean)?) {
+        if (url.isBlank()) return
+        when {
+            onLinkClick?.invoke(url) == true -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: handled by host callback")
+            }
+            tryOpenAsAppLink(url) -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened as App Link")
+            }
+            else -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opening in WebView overlay")
+                openWebviewOverlay(url)
+            }
+        }
+    }
+
+    /**
+     * Attempts to open the URL as an App Link if the host app is the verified handler
+     * (e.g., listed in the domain's assetlinks.json). Returns true if the link was opened
+     * via Intent; false if the host app does not handle it (caller should fall back to WebView).
+     */
+    private fun tryOpenAsAppLink(url: String): Boolean {
+        if (url.isBlank()) return false
+        return try {
+            val app = getApplication<Application>()
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val resolveInfo = app.packageManager.resolveActivity(
+                intent,
+                PackageManager.MATCH_DEFAULT_ONLY
+            )
+            if (resolveInfo?.activityInfo?.packageName == app.packageName) {
+                app.startActivity(intent)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "tryOpenAsAppLink failed: ${e.message}")
+            false
+        }
     }
 
     /**
