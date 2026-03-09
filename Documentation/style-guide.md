@@ -867,7 +867,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--product-card-was-price-color": "#6E6E6E",
     "--product-card-was-price-font-size": "12px",
     "--product-card-was-price-font-weight": "400",
-    "--product-card-was-price-text-prefix": "marked down ",
+    "--product-card-was-price-text-prefix": "previously ",
 
     "--message-alignment": "left",
     "--message-width": "100%"
