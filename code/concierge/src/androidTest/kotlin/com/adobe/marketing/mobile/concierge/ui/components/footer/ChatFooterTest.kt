@@ -12,7 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.footer
 
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
