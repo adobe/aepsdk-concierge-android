@@ -19,6 +19,7 @@ This document provides a comprehensive reference for all styling properties supp
   - [Typography](#typography)
   - [Colors](#colors)
   - [Layout](#layout)
+  - [Extended Product Cards](#layout---extended-product-cards)
 - [Implementation Status](#implementation-status)
 
 ---
@@ -241,6 +242,13 @@ Feature toggles and interaction configuration.
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
 | `behavior.multimodalCarousel.cardClickAction` | `String` | `"openLink"` | Action when carousel card is tapped. Currently "openLink" is the only option available. |
+| `behavior.multimodalCarousel.carouselStyle` | `String` | `"paged"` | Carousel navigation style. `"paged"` = snap to item with prev/next buttons and page dots; `"scroll"` = continuous horizontal scroll with no paging controls. |
+
+### Product Card
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.productCard.cardStyle` | `String` | `"actionButton"` | Product card layout. `"actionButton"` = image overlay with primary/secondary action buttons; `"productDetail"` = extended card with image, badge, name, subtitle, and price. |
 
 ### Input
 
@@ -270,7 +278,11 @@ Feature toggles and interaction configuration.
 {
   "behavior": {
     "multimodalCarousel": {
-      "cardClickAction": "openLink"
+      "cardClickAction": "openLink",
+      "carouselStyle": "scroll"
+    },
+    "productCard": {
+      "cardStyle": "productDetail"
     },
     "input": {
       "enableVoiceInput": true,
@@ -593,6 +605,35 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--border-radius-card` | `cssLayout.borderRadiusCard` | `Double` | `16.0` | Card corner radius (dp) |
 | `--multimodal-card-box-shadow` | `cssLayout.multimodalCardBoxShadow` | `Map<String, Any>` | `null` | Card shadow |
 
+### Layout - Extended Product Cards
+
+When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendations display as extended cards with image, badge, name, subtitle, and price. The following theme tokens customize the extended product card appearance:
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--product-card-outline-color` | `cssLayout.productCardOutlineColor` | `String` | `"#E3E3E3"` | Card border stroke color (hex) |
+| `--product-card-width` | `cssLayout.productCardWidth` | `Double` | `222.0` | Card width (dp) |
+| `--product-card-height` | `cssLayout.productCardHeight` | `Double` | `359.0` | Card height (dp) |
+| `--product-card-border-radius` | `cssLayout.productCardBorderRadius` | `Double` | `8.0` | Card corner radius (dp) |
+| `--product-card-background-color` | `cssLayout.productCardBackgroundColor` | `String` | `"#FFFFFF"` | Card background (hex) |
+| `--product-card-title-font-size` | `cssLayout.productCardTitleFontSize` | `Double` | `14.0` | Title font size (sp) |
+| `--product-card-title-font-weight` | `cssLayout.productCardTitleFontWeight` | `Int` | `700` | Title font weight |
+| `--product-card-title-color` | `cssLayout.productCardTitleColor` | `String` | `"#191F1C"` | Title text color (hex) |
+| `--product-card-subtitle-font-size` | `cssLayout.productCardSubtitleFontSize` | `Double` | `12.0` | Subtitle font size (sp) |
+| `--product-card-subtitle-font-weight` | `cssLayout.productCardSubtitleFontWeight` | `Int` | `400` | Subtitle font weight |
+| `--product-card-subtitle-color` | `cssLayout.productCardSubtitleColor` | `String` | `"#4F4F4F"` | Subtitle text color (hex) |
+| `--product-card-price-font-size` | `cssLayout.productCardPriceFontSize` | `Double` | `14.0` | Price font size (sp) |
+| `--product-card-price-font-weight` | `cssLayout.productCardPriceFontWeight` | `Int` | `400` | Price font weight |
+| `--product-card-price-color` | `cssLayout.productCardPriceColor` | `String` | `"#191F1C"` | Price text color (hex) |
+| `--product-card-badge-font-size` | `cssLayout.productCardBadgeFontSize` | `Double` | `12.0` | Badge font size (sp) |
+| `--product-card-badge-font-weight` | `cssLayout.productCardBadgeFontWeight` | `Int` | `700` | Badge font weight |
+| `--product-card-badge-text-color` | `cssLayout.productCardBadgeTextColor` | `String` | `"#FFFFFF"` | Badge text color (hex) |
+| `--product-card-badge-background-color` | `cssLayout.productCardBadgeBackgroundColor` | `String` | primary color | Badge background (hex) |
+| `--product-card-was-price-color` | `cssLayout.productCardWasPriceColor` | `String` | `"#6E6E6E"` | "Was" price text color (hex) |
+| `--product-card-was-price-font-size` | `cssLayout.productCardWasPriceFontSize` | `Double` | `12.0` | "Was" price font size (sp) |
+| `--product-card-was-price-font-weight` | `cssLayout.productCardWasPriceFontWeight` | `Int` | `400` | "Was" price font weight |
+| `--product-card-was-price-text-prefix` | `cssLayout.productCardWasPriceTextPrefix` | `String` | `"was "` | Prefix for "Was" price (e.g., "marked down from $99") |
+
 ### Layout - Buttons
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
@@ -641,7 +682,11 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
   },
   "behavior": {
     "multimodalCarousel": {
-      "cardClickAction": "openLink"
+      "cardClickAction": "openLink",
+      "carouselStyle": "paged"
+    },
+    "productCard": {
+      "cardStyle": "actionButton"
     },
     "input": {
       "enableVoiceInput": true,
@@ -802,6 +847,28 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
     "--multimodal-card-box-shadow": "none",
     "--border-radius-card": "16px",
 
+    "--product-card-outline-color": "#E3E3E3",
+    "--product-card-width": "222",
+    "--product-card-height": "359",
+    "--product-card-title-font-weight": "700",
+    "--product-card-title-font-size": "14px",
+    "--product-card-title-color": "#191F1C",
+    "--product-card-subtitle-font-weight": "400",
+    "--product-card-subtitle-font-size": "12px",
+    "--product-card-subtitle-color": "#4F4F4F",
+    "--product-card-price-font-weight": "400",
+    "--product-card-price-font-size": "14px",
+    "--product-card-price-color": "#191F1C",
+    "--product-card-badge-font-weight": "700",
+    "--product-card-badge-font-size": "12px",
+    "--product-card-badge-text-color": "#FFFFFF",
+    "--product-card-badge-background-color": "#1976D2",
+    "--product-card-background-color": "#FFFFFF",
+    "--product-card-was-price-color": "#6E6E6E",
+    "--product-card-was-price-font-size": "12px",
+    "--product-card-was-price-font-weight": "400",
+    "--product-card-was-price-text-prefix": "marked down ",
+
     "--message-alignment": "left",
     "--message-width": "100%"
   }
@@ -853,6 +920,8 @@ This section documents which properties are fully implemented, partially impleme
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
 | `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables | - |
+| `behavior.multimodalCarousel.carouselStyle` | ✅ | Switches between paged (prev/next/dots) and continuous scroll | `ProductCarousel` |
+| `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
@@ -987,6 +1056,28 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
 | `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
 | `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--product-card-outline-color` | ✅ | Extended product card border color | `ExtendedProductCard` |
+| `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
+| `--product-card-height` | ✅ | Extended product card height | `ExtendedProductCard`, `ProductCarousel` |
+| `--product-card-border-radius` | ✅ | Extended product card corner radius | `ExtendedProductCard` |
+| `--product-card-background-color` | ✅ | Extended product card background | `ExtendedProductCard` |
+| `--product-card-title-font-size` | ✅ | Extended product card title size | `ExtendedProductCard` |
+| `--product-card-title-font-weight` | ✅ | Extended product card title weight | `ExtendedProductCard` |
+| `--product-card-title-color` | ✅ | Extended product card title color | `ExtendedProductCard` |
+| `--product-card-subtitle-font-size` | ✅ | Extended product card subtitle size | `ExtendedProductCard` |
+| `--product-card-subtitle-font-weight` | ✅ | Extended product card subtitle weight | `ExtendedProductCard` |
+| `--product-card-subtitle-color` | ✅ | Extended product card subtitle color | `ExtendedProductCard` |
+| `--product-card-price-font-size` | ✅ | Extended product card price size | `ExtendedProductCard` |
+| `--product-card-price-font-weight` | ✅ | Extended product card price weight | `ExtendedProductCard` |
+| `--product-card-price-color` | ✅ | Extended product card price color | `ExtendedProductCard` |
+| `--product-card-badge-font-size` | ✅ | Extended product card badge size | `ExtendedProductCard` |
+| `--product-card-badge-font-weight` | ✅ | Extended product card badge weight | `ExtendedProductCard` |
+| `--product-card-badge-text-color` | ✅ | Extended product card badge text color | `ExtendedProductCard` |
+| `--product-card-badge-background-color` | ✅ | Extended product card badge background | `ExtendedProductCard` |
+| `--product-card-was-price-color` | ✅ | Extended product card "was" price color | `ExtendedProductCard` |
+| `--product-card-was-price-font-size` | ✅ | Extended product card "was" price size | `ExtendedProductCard` |
+| `--product-card-was-price-font-weight` | ✅ | Extended product card "was" price weight | `ExtendedProductCard` |
+| `--product-card-was-price-text-prefix` | ✅ | Extended product card "was" price prefix | `ExtendedProductCard` |
 | `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
 | `--feedback-container-gap` | ⚠️ | Parsed but not used in composables | - |
 | `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
@@ -1061,6 +1152,8 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 **Essential Behavior:**
 - `behavior.input.enableVoiceInput` - Show/hide microphone button
+- `behavior.productCard.cardStyle` - Use `"productDetail"` for extended product cards (image, badge, name, subtitle, price)
+- `behavior.multimodalCarousel.carouselStyle` - Use `"paged"` for prev/next/dots or `"scroll"` for continuous scroll
 
 **Essential Layout:**
 - `--input-outline-width` / `--input-focus-outline-width` - Input border thickness
@@ -1068,6 +1161,13 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--disclaimer-font-size` - Disclaimer text size
 - `--citations-desktop-button-font-size` - Citation text size
 - `--line-height-body` - Text line spacing
+
+**Extended Product Cards** (when `behavior.productCard.cardStyle` is `"productDetail"`):
+- `--product-card-width` / `--product-card-height` - Card dimensions
+- `--product-card-title-*` / `--product-card-subtitle-*` / `--product-card-price-*` - Text styling
+- `--product-card-badge-*` - Badge styling
+- `--product-card-background-color` / `--product-card-outline-color` - Card appearance
+- `--product-card-was-price-*` - Strikethrough price styling
 
 ### What Can Be Skipped
 
