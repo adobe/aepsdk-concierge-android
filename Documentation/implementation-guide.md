@@ -250,4 +250,90 @@ fun MyScreen() {
 }
 ```
 
-More information regarding theme customization can be found in the [style-guide](./style-guide.md)
+More information regarding theme customization can be found in the [style-guide](./style-guide.md).
+
+### Deep Links and App Links
+
+#### Required manifest entries
+
+**1. Register your app as an App Link handler (all API levels)**
+
+Add an `<intent-filter>` with `android:autoVerify="true"` to the activity in your `AndroidManifest.xml` that should handle your domain's URLs. This triggers Android's domain verification against your domain's `assetlinks.json` file, which is what makes your app the verified handler. Without this, the Concierge extension's App Link check will always fall back to the in-app WebView.
+
+```xml
+<activity android:name=".YourActivity" ...>
+    <intent-filter android:autoVerify="true" android:exported="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="yourdomain.com" />
+    </intent-filter>
+</activity>
+```
+
+**2. Package visibility for Android 11 or higher**
+
+Add the following `<queries>` block to your `AndroidManifest.xml`. Without it, the Concierge extension cannot use `PackageManager.resolveActivity()` to detect the App Link handler on API 30 or higher, and App Links will silently fall back to the in-app WebView on that API level.
+
+```xml
+<!-- Required for PackageManager.resolveActivity() on Android 11+ to detect
+     which app handles VIEW intents for http/https URLs. -->
+<queries>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="https" />
+    </intent>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="http" />
+    </intent>
+</queries>
+```
+
+#### Concierge extension link handling
+
+The Concierge extension automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). If your app is not the handler, the link opens in the in-app WebView overlay.
+
+**Default link handling flow:** host `handleLink` callback (if provided) → App Link check → WebView overlay.
+
+To customize this behavior, provide an `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with it's default behavior (trying to open it as an App Link first, then using the WebView overlay).
+
+**Compose (ConciergeChat):**
+```kotlin
+val context = LocalContext.current
+ConciergeChat(
+    viewModel = viewModel,
+    onClose = { finish() },
+    handleLink = { url ->
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            context.startActivity(intent)
+            true  // Handled
+        } catch (e: ActivityNotFoundException) {
+            false  // Fall back to WebView overlay
+        }
+    }
+)
+```
+
+**XML (ConciergeChatView):**
+```kotlin
+chatView.bind(
+    lifecycleOwner = this,
+    viewModelStoreOwner = this,
+    surfaces = surfaces,
+    theme = theme,
+    handleLink = { url ->
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+    },
+    onClose = { finish() }
+)
+```
+
+When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying to open it as an App Link first, then using the WebView overlay).

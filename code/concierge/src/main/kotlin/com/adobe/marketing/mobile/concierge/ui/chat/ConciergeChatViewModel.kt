@@ -14,7 +14,12 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.Manifest
 import android.app.Application
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.verify.domain.DomainVerificationManager
+import android.content.pm.verify.domain.DomainVerificationUserState
+import android.net.Uri
+import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -54,6 +59,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
@@ -192,6 +198,79 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     internal fun dismissWebviewOverlay() {
         _webviewOverlay.value = null
+    }
+
+    /**
+     * Handles a link click: host callback first, then App Link if host app is verified handler,
+     * else WebView overlay.
+     *
+     * @param url The URL to open
+     * @param handleLink Optional host callback; return true if handled
+     */
+    internal fun handleLinkClick(url: String, handleLink: ((String) -> Boolean)?) {
+        if (url.isBlank()) return
+        when {
+            handleLink?.invoke(url) == true -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: handled by host callback")
+            }
+            tryOpenAsAppLink(url) -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened as App Link")
+            }
+            else -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opening in WebView overlay")
+                openWebviewOverlay(url)
+            }
+        }
+    }
+
+    /**
+     * Attempts to open the URL as an App Link if the host app is the verified handler
+     * (e.g., listed in the domain's assetlinks.json). Returns true if the link was opened
+     * via Intent; false if the host app does not handle it (caller should fall back to WebView).
+     *
+     * On Android 12 (API 31) and above, uses `DomainVerificationManager` to check verification
+     * state. On Android 11 and below, uses `resolveActivity` to determine the handler.
+     */
+    private fun tryOpenAsAppLink(url: String): Boolean {
+        if (url.isBlank()) return false
+        val app = getApplication<Application>()
+        val host = Uri.parse(url).host ?: return false
+
+        return try {
+            val wouldHandle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                app.isDomainVerifiedOrSelected(host)
+            } else {
+                app.isResolvedHandlerFor(url)
+            }
+            if (wouldHandle) {
+                app.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+            }
+            wouldHandle
+        } catch (e: Exception) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "tryOpenAsAppLink failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun Application.isDomainVerifiedOrSelected(host: String): Boolean {
+        val manager = getSystemService(DomainVerificationManager::class.java) ?: return false
+        val state = try {
+            manager.getDomainVerificationUserState(packageName)?.hostToStateMap?.get(host)
+                ?: DomainVerificationUserState.DOMAIN_STATE_NONE
+        } catch (e: Exception) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "getDomainVerificationUserState failed: ${e.message}")
+            return false
+        }
+        return state in setOf(
+            DomainVerificationUserState.DOMAIN_STATE_VERIFIED,
+            DomainVerificationUserState.DOMAIN_STATE_SELECTED
+        )
+    }
+
+    private fun Application.isResolvedHandlerFor(url: String): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        return packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.packageName == packageName
     }
 
     /**
