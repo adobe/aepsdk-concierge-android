@@ -104,6 +104,7 @@ fun ConciergeChat(
     modifier: Modifier = Modifier,
     viewModel: ConciergeChatViewModel,
     surfaces: List<String>? = null,
+    handleLink: LinkHandler? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
@@ -159,7 +160,8 @@ fun ConciergeChat(
                 ConciergeChat(
                     viewModel = viewModel,
                     onClose = { viewModel.closeConcierge() },
-                    modifier = modifier
+                    modifier = modifier,
+                    handleLink = handleLink
                 )
             }
         }
@@ -167,11 +169,29 @@ fun ConciergeChat(
     }
 }
 
+/**
+ * Optional callback for intercepting link clicks (e.g., product cards, in-message links, citations).
+ * Return `true` if the link was handled (e.g., opened as a deep link); return `false` to use
+ * default behavior (in-app WebView overlay). When null, all links use the default WebView overlay.
+ */
+typealias LinkHandler = (url: String) -> Boolean
+
+/**
+ * Concierge chat composable (direct mode).
+ *
+ * @param viewModel The ConciergeChatViewModel for the chat session
+ * @param onClose Callback when the close button is pressed
+ * @param modifier Optional modifier for the chat content
+ * @param handleLink Optional callback to intercept link clicks (product cards, in-message links, citations).
+ *        Return true if the link was handled (e.g., opened as a deep link); return false to use
+ *        default behavior (in-app WebView overlay). When null, all links use the WebView overlay.
+ */
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    handleLink: LinkHandler? = null
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
@@ -204,6 +224,28 @@ fun ConciergeChat(
         }
     }
 
+    val resolvedLinkClick: (String) -> Unit = remember(handleLink) {
+        { url -> viewModel.handleLinkClick(url, handleLink) }
+    }
+
+    val resolvedEvent: (ChatEvent) -> Unit = remember(handleLink) {
+        { event ->
+            when (event) {
+                is ProductActionClick -> {
+                    val url = event.button.url
+                    if (url.isNullOrEmpty()) viewModel.processEvent(event)
+                    else viewModel.handleLinkClick(url, handleLink)
+                }
+                is ProductImageClick -> {
+                    val url = event.element.content["productPageURL"] as? String
+                    if (url.isNullOrEmpty()) viewModel.processEvent(event)
+                    else viewModel.handleLinkClick(url, handleLink)
+                }
+                else -> viewModel.processEvent(event)
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
         ConciergeChat(
             messages = messages,
@@ -214,8 +256,8 @@ fun ConciergeChat(
             welcomeConfig = welcomeConfig,
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
-            onEvent = viewModel::processEvent,
-            onLinkClick = viewModel::openWebviewOverlay,
+            onEvent = resolvedEvent,
+            handleLink = resolvedLinkClick,
             onPermissionResult = { granted ->
                 viewModel.refreshPermissionStatus()
             },
@@ -244,7 +286,7 @@ internal fun ConciergeChat(
     isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
-    onLinkClick: (String) -> Unit = {},
+    handleLink: (String) -> Unit = {},
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -289,7 +331,7 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
-                    onLinkClick = onLinkClick,
+                    handleLink = handleLink,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -341,7 +383,7 @@ internal fun ConciergeChat(
             // Disclaimer
             ConciergeDisclaimer(
                 disclaimerConfig = ConciergeTheme.disclaimer,
-                onLinkClick = onLinkClick,
+                handleLink = handleLink,
                 modifier = Modifier.fillMaxWidth()
             )
         }

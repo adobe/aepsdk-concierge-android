@@ -49,7 +49,7 @@ import com.adobe.marketing.mobile.concierge.network.Citation
 internal fun ConciergeResponse(
     text: String,
     sources: List<Citation> = emptyList(),
-    onLinkClick: ((String) -> Unit)? = null,
+    handleLink: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -66,12 +66,12 @@ internal fun ConciergeResponse(
 
         // Create inline content map once for all child components to share
         // This avoids recreating the map for each list item
-        val inlineContentMap = remember(annotatedText.uniqueSources, onLinkClick) {
+        val inlineContentMap = remember(annotatedText.uniqueSources, handleLink) {
             CitationUiUtils.createInlineContentMap(
                 annotatedText.uniqueSources,
                 style.size,
                 context,
-                onLinkClick
+                handleLink
             )
         }
 
@@ -89,7 +89,7 @@ internal fun ConciergeResponse(
                     listTokens = listTokens,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
-                    onLinkClick = onLinkClick,
+                    handleLink = handleLink,
                     modifier = modifier
                 )
             } else {
@@ -97,7 +97,7 @@ internal fun ConciergeResponse(
                     text = annotatedText.text,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
-                    onLinkClick = onLinkClick,
+                    handleLink = handleLink,
                     modifier = modifier
                 )
             }
@@ -115,7 +115,7 @@ private fun ConciergeResponseWithLists(
     listTokens: List<MarkdownToken>,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
-    onLinkClick: ((String) -> Unit)? = null,
+    handleLink: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -123,7 +123,7 @@ private fun ConciergeResponseWithLists(
     val contentSegments = remember(text, listTokens) {
         ContentSegmentParser.createSegments(text, listTokens)
     }
-    val linkHandler = onLinkClick ?: { url ->
+    val linkHandler = handleLink ?: { url ->
         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         context.startActivity(intent)
     }
@@ -137,7 +137,7 @@ private fun ConciergeResponseWithLists(
                         text = segment.content,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
-                        onLinkClick = onLinkClick,
+                        handleLink = handleLink,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -145,7 +145,7 @@ private fun ConciergeResponseWithLists(
                 is ContentSegment.List -> {
                     ConciergeResponseList(
                         listTokens = segment.tokens,
-                        onLinkClick = linkHandler,
+                        handleLink = linkHandler,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
                         modifier = Modifier.fillMaxWidth()

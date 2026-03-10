@@ -48,7 +48,7 @@ internal fun ExpandedCitations(
     citations: List<Citation>,
     uniqueCitations: List<Citation>? = null,
     expanded: Boolean,
-    onLinkClick: (String) -> Unit = {}
+    handleLink: (String) -> Unit = {}
 ) {
     // Use pre-computed unique sources if available, otherwise compute them
     val uniqueSources: List<Citation> = remember(citations, uniqueCitations) {
@@ -66,7 +66,7 @@ internal fun ExpandedCitations(
                 CitationItem(
                     citation = citation,
                     index = citation.citationNumber ?: (index + 1),
-                    onLinkClick = onLinkClick
+                    handleLink = handleLink
                 )
                 // Add separator line between items
                 if (index < uniqueSources.size - 1) {
@@ -94,7 +94,7 @@ internal fun CitationItem(
     modifier: Modifier = Modifier,
     citation: Citation,
     index: Int,
-    onLinkClick: (String) -> Unit = {}
+    handleLink: (String) -> Unit = {}
 ) {
     val style = ConciergeStyles.citationStyle
 
@@ -120,7 +120,7 @@ internal fun CitationItem(
             modifier = Modifier.then(
                 if (!citation.url.isNullOrBlank()) {
                     Modifier.clickable {
-                        citation.url?.let { url -> onLinkClick(url) }
+                        citation.url?.let { url -> handleLink(url) }
                     }
                 } else {
                     Modifier

@@ -66,6 +66,7 @@ internal object ConversationResponseParser {
     private const val FIELD_ENTITY_INFO = "entity_info"
     private const val FIELD_PRODUCT_PRICE = "productPrice"
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
+    private const val FIELD_PRODUCT_BADGE = "productBadge"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -249,6 +250,7 @@ internal object ConversationResponseParser {
 
         val productPrice = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_PRICE)
         val productWasPrice = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_WAS_PRICE)
+        val productBadge = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_BADGE)
 
         productName?.let { content["productName"] = it }
         productDescription?.let { content["productDescription"] = it }
@@ -261,6 +263,7 @@ internal object ConversationResponseParser {
         details?.let { content["details"] = it }
         productPrice?.let { content["productPrice"] = it }
         productWasPrice?.let { content["productWasPrice"] = it }
+        productBadge?.let { content["productBadge"] = it }
 
         primaryAction?.let { action ->
             val primaryText = DataReader.optString(action, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotEmpty() }

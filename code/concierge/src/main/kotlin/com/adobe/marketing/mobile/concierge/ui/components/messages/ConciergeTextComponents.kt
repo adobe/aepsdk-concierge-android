@@ -44,14 +44,14 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 /**
  * Renders concierge response text with markdown formatting and circular citation components.
  *
- * @param onLinkClick Optional handler for link clicks; when null, opens URL in external browser
+ * @param handleLink Optional handler for link clicks; when null, opens URL in external browser
  */
 @Composable
 internal fun ConciergeResponseText(
     text: String,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
-    onLinkClick: ((String) -> Unit)? = null,
+    handleLink: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -61,7 +61,7 @@ internal fun ConciergeResponseText(
     val markdownAnnotatedString = MarkdownParser.parse(text)
 
     // Use provided inline content map or create it if not provided
-    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size, onLinkClick) {
+    val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size, handleLink) {
         if (inlineContentMap.isNotEmpty()) {
             inlineContentMap
         } else {
@@ -69,7 +69,7 @@ internal fun ConciergeResponseText(
                 uniqueSources,
                 style.size,
                 context,
-                onLinkClick
+                handleLink
             )
         }
     }
@@ -94,8 +94,8 @@ internal fun ConciergeResponseText(
         ClickableText(
             text = animatedText,
             inlineContent = finalInlineContentMap,
-            onLinkClick = { url ->
-                onLinkClick?.invoke(url)
+            handleLink = { url ->
+                handleLink?.invoke(url)
                     ?: run {
                         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                         context.startActivity(intent)
@@ -110,7 +110,7 @@ internal fun ConciergeResponseText(
  *
  * @param text The annotated string to render
  * @param textStyle Optional style to apply to the text
- * @param onLinkClick Callback for handling link clicks
+ * @param handleLink Callback for handling link clicks
  * @param modifier Optional modifier for the component
  * @param textAlign Optional text alignment
  * @param inlineContent Optional map of inline content for embedded composables (e.g., citations)
@@ -119,7 +119,7 @@ internal fun ConciergeResponseText(
 internal fun ClickableText(
     text: AnnotatedString,
     textStyle: TextStyle = TextStyle.Default,
-    onLinkClick: (String) -> Unit,
+    handleLink: (String) -> Unit,
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
     inlineContent: Map<String, InlineTextContent> = emptyMap()
@@ -147,7 +147,7 @@ internal fun ClickableText(
                         text.getStringAnnotations(tag = "URL", start = offset, end = offset)
                             .firstOrNull()
                             ?.let { annotation ->
-                                onLinkClick(annotation.item)
+                                handleLink(annotation.item)
                             }
                     }
                 }
