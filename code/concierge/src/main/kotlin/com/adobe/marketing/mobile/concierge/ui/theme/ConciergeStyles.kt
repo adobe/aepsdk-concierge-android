@@ -398,6 +398,127 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for extended product cards (carousel cards with image, badge, name, subtitle, price).
+     */
+    @Immutable
+    data class ExtendedProductCardStyle(
+        val cardShape: Shape,
+        val cardBackgroundColor: Color,
+        val cardOutlineColor: Color,
+        val cardWidth: Dp,
+        val cardHeight: Dp,
+        val cardPadding: Dp,
+        val cardElevation: Dp,
+        val imageWidth: Dp,
+        val imageHeight: Dp,
+        val contentPaddingTop: Dp,
+        val badgeBackgroundColor: Color,
+        val badgeTextColor: Color,
+        val badgeFontSize: TextUnit,
+        val badgeFontWeight: FontWeight,
+        val badgePaddingHorizontal: Dp,
+        val badgePaddingVertical: Dp,
+        val titleColor: Color,
+        val titleFontSize: TextUnit,
+        val titleFontWeight: FontWeight,
+        val titleLineHeight: TextUnit,
+        val subtitleColor: Color,
+        val subtitleFontSize: TextUnit,
+        val subtitleFontWeight: FontWeight,
+        val subtitleLineHeight: TextUnit,
+        val subtitleLetterSpacing: TextUnit,
+        val priceColor: Color,
+        val priceFontSize: TextUnit,
+        val priceFontWeight: FontWeight,
+        val priceLineHeight: TextUnit,
+        val priceLetterSpacing: TextUnit,
+        val wasPriceFontSize: TextUnit,
+        val wasPriceFontWeight: FontWeight,
+        val wasPriceLineHeight: TextUnit,
+        val wasPriceColor: Color,
+        val wasPriceTextPrefix: String,
+        val contentPadding: Dp,
+        val contentPaddingBottom: Dp,
+        val verticalSpacing: Dp,
+        val headlineGap: Dp
+    )
+
+    val extendedProductCardStyle: ExtendedProductCardStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val layout = ConciergeTheme.tokens?.cssLayout
+            fun parseColor(hex: String?, default: Color): Color =
+                if (!hex.isNullOrBlank()) try {
+                    CSSValueConverter.parseColor(hex)
+                } catch (_: Exception) {
+                    default
+                } else default
+            // When no theme JSON colors are set, use device light/dark scheme
+            val cardBg = parseColor(layout?.productCardBackgroundColor, themeColors.surface)
+            val titleColor = parseColor(layout?.productCardTitleColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
+            val subtitleColor = parseColor(layout?.productCardSubtitleColor, themeColors.onSurface.copy(alpha = 0.8f))
+            val priceColor = parseColor(layout?.productCardPriceColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
+            val badgeBg = parseColor(layout?.productCardBadgeBackgroundColor, themeColors.primary)
+            val badgeText = parseColor(layout?.productCardBadgeTextColor, themeColors.onPrimary)
+            val titleSize = (layout?.productCardTitleFontSize ?: 14.0).toFloat().sp
+            val subtitleSize = (layout?.productCardSubtitleFontSize ?: 12.0).toFloat().sp
+            val priceSize = (layout?.productCardPriceFontSize ?: 14.0).toFloat().sp
+            val badgeSize = (layout?.productCardBadgeFontSize ?: 12.0).toFloat().sp
+            val badgeWeight = FontWeight(layout?.productCardBadgeFontWeight ?: 700)
+            val titleWeight = FontWeight(layout?.productCardTitleFontWeight ?: 700)
+            val subtitleWeight = FontWeight(layout?.productCardSubtitleFontWeight ?: 400)
+            val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 400)
+            val cardBorderRadius = (ConciergeTheme.tokens?.cssLayout?.productCardBorderRadius ?: 8.0).toFloat().dp
+            val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
+            val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
+            val cardHeightDp = (maxOf(layout?.productCardHeight ?: 359.0, 359.0)).toFloat().dp
+            val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF6E6E6E))
+            val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
+            val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
+            return ExtendedProductCardStyle(
+                cardShape = RoundedCornerShape(cardBorderRadius),
+                cardBackgroundColor = cardBg,
+                cardOutlineColor = outlineColor,
+                cardWidth = cardWidthDp,
+                cardHeight = cardHeightDp,
+                cardPadding = 16.dp,
+                cardElevation = 1.dp,
+                imageWidth = 190.dp,
+                imageHeight = 190.dp,
+                contentPaddingTop = 24.dp,
+                badgeBackgroundColor = badgeBg,
+                badgeTextColor = badgeText,
+                badgeFontSize = badgeSize,
+                badgeFontWeight = badgeWeight,
+                badgePaddingHorizontal = 12.dp,
+                badgePaddingVertical = 4.dp,
+                titleColor = titleColor,
+                titleFontSize = titleSize,
+                titleFontWeight = titleWeight,
+                titleLineHeight = 17.sp,
+                subtitleColor = subtitleColor,
+                subtitleFontSize = subtitleSize,
+                subtitleFontWeight = subtitleWeight,
+                subtitleLineHeight = 14.sp,
+                subtitleLetterSpacing = (-0.5).sp,
+                priceColor = priceColor,
+                priceFontSize = priceSize,
+                priceFontWeight = priceWeight,
+                priceLineHeight = 17.sp,
+                priceLetterSpacing = (-0.5).sp,
+                wasPriceFontSize = (layout?.productCardWasPriceFontSize ?: 12.0).toFloat().sp,
+                wasPriceFontWeight = wasPriceWeight,
+                wasPriceLineHeight = 14.sp,
+                wasPriceColor = wasPriceColor,
+                wasPriceTextPrefix = wasPriceTextPrefix,
+                contentPadding = 0.dp,
+                contentPaddingBottom = 8.dp,
+                verticalSpacing = 6.dp,
+                headlineGap = 8.dp
+            )
+        }
+
+    /**
      * Styling for product action buttons
      */
     @Immutable
@@ -624,21 +745,6 @@ internal object ConciergeStyles {
         val dismissStartPadding: Dp
     )
 
-    val errorOverlayStyle: ErrorOverlayStyle
-        @Composable get() {
-            val themeColors = ConciergeTheme.colors
-            return ErrorOverlayStyle(
-                padding = 16.dp,
-                backgroundColor = themeColors.error,
-                contentPadding = 16.dp,
-                messageTextStyle = MaterialTheme.typography.bodyMedium,
-                messageTextColor = themeColors.onError,
-                dismissTextStyle = MaterialTheme.typography.bodySmall,
-                dismissTextColor = themeColors.primary,
-                dismissStartPadding = 8.dp
-            )
-        }
-
     /**
      * Styling for microphone button
      */
@@ -727,19 +833,52 @@ internal object ConciergeStyles {
      * @param contentBackgroundColor Background color of the sheet
      * @param contentHeightFraction Fraction of screen height for the sheet
      * @param contentCornerRadius Corner radius for the top of the sheet
+     * @param contentElevation Shadow elevation of the sheet
+     * @param dismissDragThreshold Drag distance (dp) past which the sheet dismisses
+     * @param slideAnimationDurationMs Duration (ms) of slide-in and slide-out animations
+     * @param slideInInitialOffsetDp Initial offset (dp) below the sheet for slide-in (sheet starts off-screen)
+     * @param handleWidth Width of the drag-handle touch area
+     * @param handleHeight Height of the drag-handle touch area
+     * @param handleTopPadding Top padding above the handle
+     * @param handlePillWidth Width of the visible pill
+     * @param handlePillHeight Height of the visible pill
+     * @param handlePillCornerRadius Corner radius of the pill
+     * @param handlePillColor Background color of the pill
      */
     @Immutable
     data class WebviewStyle(
         val contentBackgroundColor: Color,
         val contentHeightFraction: Float,
-        val contentCornerRadius: Dp
+        val contentCornerRadius: Dp,
+        val contentElevation: Dp,
+        val dismissDragThreshold: Dp,
+        val slideAnimationDurationMs: Int,
+        val slideInInitialOffsetDp: Dp,
+        val handleWidth: Dp,
+        val handleHeight: Dp,
+        val handleTopPadding: Dp,
+        val handlePillWidth: Dp,
+        val handlePillHeight: Dp,
+        val handlePillCornerRadius: Dp,
+        val handlePillColor: Color
     )
 
     val webviewStyle: WebviewStyle
         @Composable get() = WebviewStyle(
             contentBackgroundColor = Color.White,
             contentHeightFraction = 0.95f,
-            contentCornerRadius = 12.dp
+            contentCornerRadius = 12.dp,
+            contentElevation = 8.dp,
+            dismissDragThreshold = 80.dp,
+            slideAnimationDurationMs = 300,
+            slideInInitialOffsetDp = 1200.dp,
+            handleWidth = 120.dp,
+            handleHeight = 32.dp,
+            handleTopPadding = 8.dp,
+            handlePillWidth = 40.dp,
+            handlePillHeight = 4.dp,
+            handlePillCornerRadius = 2.dp,
+            handlePillColor = Color.Gray.copy(alpha = 0.5f)
         )
 
     /**

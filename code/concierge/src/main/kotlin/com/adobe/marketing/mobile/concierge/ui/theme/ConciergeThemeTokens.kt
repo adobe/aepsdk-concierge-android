@@ -85,7 +85,31 @@ data class ConciergeLayout(
     // Welcome order
     val welcomeInputOrder: Int? = null,
     val welcomeCardsOrder: Int? = null,
-    
+
+    // Extended product cards
+    val productCardTitleFontWeight: Int? = null,
+    val productCardTitleFontSize: Double? = null,
+    val productCardSubtitleFontWeight: Int? = null,
+    val productCardSubtitleFontSize: Double? = null,
+    val productCardPriceFontWeight: Int? = null,
+    val productCardPriceFontSize: Double? = null,
+    val productCardBadgeFontSize: Double? = null,
+    val productCardBadgeFontWeight: Int? = null,
+    val productCardBadgeTextColor: String? = null,
+    val productCardBadgeBackgroundColor: String? = null,
+    val productCardBackgroundColor: String? = null,
+    val productCardTitleColor: String? = null,
+    val productCardSubtitleColor: String? = null,
+    val productCardPriceColor: String? = null,
+    val productCardOutlineColor: String? = null,
+    val productCardWidth: Double? = null,
+    val productCardHeight: Double? = null,
+    val productCardBorderRadius: Double? = null,
+    val productCardWasPriceColor: String? = null,
+    val productCardWasPriceFontSize: Double? = null,
+    val productCardWasPriceFontWeight: Int? = null,
+    val productCardWasPriceTextPrefix: String? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,
@@ -128,7 +152,45 @@ data class ConciergeThemeBehavior(
     val enableCitations: Boolean = true,
     val enableVoiceInput: Boolean = true,
     val maxMessageLength: Int = 2000,
-    val typingIndicatorDelay: Int = 500
+    val typingIndicatorDelay: Int = 500,
+    val productCard: ConciergeProductCardBehavior? = null,
+    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null
+)
+
+/**
+ * Product card behavior: ACTION_BUTTON = image overlay with action buttons,
+ * PRODUCT_DETAIL = structured layout (image, badge, title, subtitle, price).
+ */
+enum class ProductCardStyle(val value: String) {
+    ACTION_BUTTON("actionButton"),
+    PRODUCT_DETAIL("productDetail");
+
+    companion object {
+        fun fromString(value: String): ProductCardStyle =
+            values().find { it.value == value } ?: ACTION_BUTTON
+    }
+}
+
+/**
+ * Multimodal carousel behavior: PAGED = snap to item with prev/next and dots,
+ * SCROLL = continuous horizontal scroll with no paging controls.
+ */
+enum class CarouselStyle(val value: String) {
+    PAGED("paged"),
+    SCROLL("scroll");
+
+    companion object {
+        fun fromString(value: String): CarouselStyle =
+            values().find { it.value == value } ?: PAGED
+    }
+}
+
+data class ConciergeProductCardBehavior(
+    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON
+)
+
+data class ConciergeMultimodalCarouselBehavior(
+    val carouselStyle: CarouselStyle = CarouselStyle.PAGED
 )
 
 /**
