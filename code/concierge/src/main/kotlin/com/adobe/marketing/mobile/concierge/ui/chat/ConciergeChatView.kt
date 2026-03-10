@@ -91,7 +91,7 @@ class ConciergeChatView @JvmOverloads constructor(
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
      * @param surfaces List of surface URLs for the chat experience.
      * @param theme Optional complete theme data (config + tokens) to apply
-     * @param onLinkClick Optional callback to intercept link clicks (product cards, in-message links).
+     * @param handleLink Optional callback to intercept link clicks (product cards, in-message links).
      *        Return true if the link was handled (e.g., opened as a deep link); return false to use
      *        default behavior (in-app WebView overlay). When null, all links use the WebView overlay.
      * @param onClose Optional callback when the close button is pressed
@@ -101,7 +101,7 @@ class ConciergeChatView @JvmOverloads constructor(
         viewModelStoreOwner: ViewModelStoreOwner,
         surfaces: List<String>? = null,
         theme: ConciergeThemeData? = null,
-        onLinkClick: ((String) -> Boolean)? = null,
+        handleLink: ((String) -> Boolean)? = null,
         onClose: () -> Unit
     ) {
         this.onCloseCallback = onClose
@@ -117,7 +117,7 @@ class ConciergeChatView @JvmOverloads constructor(
                     ConciergeChat(
                         viewModel = vm,
                         onClose = onCloseCallback,
-                        onLinkClick = onLinkClick
+                        handleLink = handleLink
                     )
                 }
             }
@@ -137,7 +137,7 @@ class ConciergeChatView @JvmOverloads constructor(
      * @param viewModelStoreOwner The viewmodel store owner (usually Activity or Fragment)
      * @param surfaces List of surface URLs for the chat experience.
      * @param theme Optional theme to apply
-     * @param onLinkClick Optional callback to intercept link clicks. Return true if handled; false for default WebView.
+     * @param handleLink Optional callback to intercept link clicks. Return true if handled; false for default WebView.
      * @param triggerView The view (e.g., Button) that will trigger the chat dialog when clicked
      */
     fun bind(
@@ -145,7 +145,7 @@ class ConciergeChatView @JvmOverloads constructor(
         viewModelStoreOwner: ViewModelStoreOwner,
         surfaces: List<String>? = null,
         theme: ConciergeThemeData? = null,
-        onLinkClick: ((String) -> Boolean)? = null,
+        handleLink: ((String) -> Boolean)? = null,
         triggerView: View
     ) {
         // Create or get existing ViewModel
@@ -159,7 +159,7 @@ class ConciergeChatView @JvmOverloads constructor(
                     ConciergeChat(
                         viewModel = vm,
                         surfaces = surfaces,
-                        onLinkClick = onLinkClick
+                        handleLink = handleLink
                     ) { showChat ->
                         // Wrap trigger view in a Box to center it
                         Box(

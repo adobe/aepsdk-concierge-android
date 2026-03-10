@@ -205,12 +205,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      * else WebView overlay.
      *
      * @param url The URL to open
-     * @param onLinkClick Optional host callback; return true if handled
+     * @param handleLink Optional host callback; return true if handled
      */
-    internal fun handleLinkClick(url: String, onLinkClick: ((String) -> Boolean)?) {
+    internal fun handleLinkClick(url: String, handleLink: ((String) -> Boolean)?) {
         if (url.isBlank()) return
         when {
-            onLinkClick?.invoke(url) == true -> {
+            handleLink?.invoke(url) == true -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: handled by host callback")
             }
             tryOpenAsAppLink(url) -> {
