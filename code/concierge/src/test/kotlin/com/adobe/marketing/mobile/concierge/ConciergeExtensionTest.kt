@@ -127,7 +127,7 @@ class ConciergeExtensionTest {
         // Verify the constants used by the extension
         assertEquals("brandconcierge", ConciergeConstants.EXTENSION_NAME)
         assertEquals("BrandConcierge", ConciergeConstants.EXTENSION_FRIENDLY_NAME)
-        assertEquals("3.0.4", ConciergeConstants.VERSION)
+        assertEquals("3.1.0", ConciergeConstants.VERSION)
     }
 
     // ========== hasValidXdmSharedState Tests ==========
