@@ -439,7 +439,6 @@ internal object ConciergeStyles {
         val wasPriceTextPrefix: String,
         val contentPadding: Dp,
         val contentPaddingBottom: Dp,
-        val verticalSpacing: Dp,
         val headlineGap: Dp,
         val priceBlockHeight: Dp
     )
@@ -514,7 +513,6 @@ internal object ConciergeStyles {
                 wasPriceTextPrefix = wasPriceTextPrefix,
                 contentPadding = 0.dp,
                 contentPaddingBottom = 0.dp,
-                verticalSpacing = 16.dp,
                 headlineGap = 8.dp,
                 priceBlockHeight = 35.dp
             )

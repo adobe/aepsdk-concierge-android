@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -167,8 +166,7 @@ internal fun ExtendedProductCard(
                 // Title, subtitle, and price column.
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .fillMaxWidth(),
+                        .fillMaxSize(),
                     verticalArrangement = Arrangement.Top
                 ) {
                     // Headline: title + subtitle
@@ -197,6 +195,7 @@ internal fun ExtendedProductCard(
                                 fontWeight = style.subtitleFontWeight,
                                 lineHeight = style.subtitleLineHeight,
                                 letterSpacing = style.subtitleLetterSpacing,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }

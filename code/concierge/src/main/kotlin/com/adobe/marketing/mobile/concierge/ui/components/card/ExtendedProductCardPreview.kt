@@ -25,6 +25,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -239,4 +240,10 @@ fun ExtendedProductCardDemoScreen() {
             }
         }
     }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFFF5F5F5, widthDp = 480, heightDp = 900)
+@Composable
+internal fun ExtendedProductCardPreview() {
+    ExtendedProductCardDemoScreen()
 }
