@@ -169,11 +169,13 @@ internal fun ExtendedProductCard(
                     modifier = Modifier
                         .fillMaxSize()
                         .fillMaxWidth(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.Top
                 ) {
                     // Headline: title + subtitle
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(style.headlineGap)
                     ) {
                         if (!productName.isNullOrBlank()) {
@@ -195,7 +197,6 @@ internal fun ExtendedProductCard(
                                 fontWeight = style.subtitleFontWeight,
                                 lineHeight = style.subtitleLineHeight,
                                 letterSpacing = style.subtitleLetterSpacing,
-                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -203,7 +204,9 @@ internal fun ExtendedProductCard(
                     if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
                         // Price block
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(style.priceBlockHeight),
                             verticalArrangement = Arrangement.Top
                         ) {
                             if (!productPrice.isNullOrBlank()) {

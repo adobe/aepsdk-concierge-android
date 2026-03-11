@@ -440,7 +440,8 @@ internal object ConciergeStyles {
         val contentPadding: Dp,
         val contentPaddingBottom: Dp,
         val verticalSpacing: Dp,
-        val headlineGap: Dp
+        val headlineGap: Dp,
+        val priceBlockHeight: Dp
     )
 
     val extendedProductCardStyle: ExtendedProductCardStyle
@@ -514,7 +515,8 @@ internal object ConciergeStyles {
                 contentPadding = 0.dp,
                 contentPaddingBottom = 0.dp,
                 verticalSpacing = 16.dp,
-                headlineGap = 8.dp
+                headlineGap = 8.dp,
+                priceBlockHeight = 35.dp
             )
         }
 

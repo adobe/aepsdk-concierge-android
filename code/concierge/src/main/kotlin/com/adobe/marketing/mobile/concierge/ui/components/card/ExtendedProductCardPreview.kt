@@ -14,7 +14,6 @@ package com.adobe.marketing.mobile.concierge.ui.components.card
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,7 +25,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -153,11 +151,34 @@ private val sampleCards = listOf(
             "productWasPrice" to "\$199.99",
             "productBadge" to "Extended Sizes"
         )
+    ),
+    // Ranged price (e.g. multiple sizes/colors)
+    MultimodalElement(
+        id = "7",
+        url = "https://picsum.photos/id/70/190/190",
+        title = "Product Name Goes Here",
+        content = mapOf(
+            "productName" to "Product Name Goes Here",
+            "productDescription" to "Available in multiple options",
+            "productPrice" to "\$19.99 – \$49.99"
+        )
+    ),
+    // "See price in cart" variant
+    MultimodalElement(
+        id = "8",
+        url = "https://picsum.photos/id/80/190/190",
+        title = "Product Name Goes Here",
+        content = mapOf(
+            "productName" to "Product Name Goes Here",
+            "productDescription" to "Subtitle text goes here",
+            "productPrice" to "See price in cart",
+            "productWasPrice" to "\$199.99",
+        )
     )
 )
 
 /**
- * Public demo screen that renders sample extended product cards with varied content.
+ * Demo screen that renders sample extended product cards with varied content.
  * Intended for use in the test app to validate card layout and spacing.
  */
 @Composable
@@ -201,7 +222,7 @@ fun ExtendedProductCardDemoScreen() {
                         modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 4.dp)
                     )
                     Text(
-                        text = "Badge, subtitle, price, was price combinations",
+                        text = "Badge, subtitle, price, was price, ranged price, see price in cart",
                         fontSize = 13.sp,
                         color = Color(0xFF666666),
                         modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
@@ -218,10 +239,4 @@ fun ExtendedProductCardDemoScreen() {
             }
         }
     }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFFF5F5F5, widthDp = 480, heightDp = 900)
-@Composable
-internal fun ExtendedProductCardPreview() {
-    ExtendedProductCardDemoScreen()
 }
