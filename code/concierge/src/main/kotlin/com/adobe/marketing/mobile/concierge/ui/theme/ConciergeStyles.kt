@@ -380,7 +380,7 @@ internal object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             return ProductCarouselStyle(
-                itemSpacing = 12.dp,
+                itemSpacing = 8.dp,
                 horizontalPadding = 4.dp,
                 verticalPadding = 8.dp,
                 imageWidth = 200.dp,
@@ -456,7 +456,7 @@ internal object ConciergeStyles {
             // When no theme JSON colors are set, use device light/dark scheme
             val cardBg = parseColor(layout?.productCardBackgroundColor, themeColors.surface)
             val titleColor = parseColor(layout?.productCardTitleColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
-            val subtitleColor = parseColor(layout?.productCardSubtitleColor, themeColors.onSurface.copy(alpha = 0.8f))
+            val subtitleColor = parseColor(layout?.productCardSubtitleColor, Color(0xFF4F4F4F))
             val priceColor = parseColor(layout?.productCardPriceColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
             val badgeBg = parseColor(layout?.productCardBadgeBackgroundColor, themeColors.primary)
             val badgeText = parseColor(layout?.productCardBadgeTextColor, themeColors.onPrimary)
@@ -472,7 +472,7 @@ internal object ConciergeStyles {
             val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
             val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
             val cardHeightDp = (maxOf(layout?.productCardHeight ?: 359.0, 359.0)).toFloat().dp
-            val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF6E6E6E))
+            val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF4F4F4F))
             val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
             val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
             return ExtendedProductCardStyle(
@@ -482,7 +482,7 @@ internal object ConciergeStyles {
                 cardWidth = cardWidthDp,
                 cardHeight = cardHeightDp,
                 cardPadding = 16.dp,
-                cardElevation = 1.dp,
+                cardElevation = 4.dp,
                 imageWidth = 190.dp,
                 imageHeight = 190.dp,
                 contentPaddingTop = 24.dp,
@@ -512,8 +512,8 @@ internal object ConciergeStyles {
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
                 contentPadding = 0.dp,
-                contentPaddingBottom = 8.dp,
-                verticalSpacing = 6.dp,
+                contentPaddingBottom = 0.dp,
+                verticalSpacing = 16.dp,
                 headlineGap = 8.dp
             )
         }

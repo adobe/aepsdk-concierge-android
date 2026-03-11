@@ -114,7 +114,7 @@ internal fun ExtendedProductCard(
                         AsyncImage(
                             url = imageUrl,
                             contentDescription = productName,
-                            contentScale = ContentScale.FillBounds,
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .width(imageWidth)
                                 .height(imageHeight)
@@ -206,7 +206,7 @@ internal fun ExtendedProductCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
-                            verticalArrangement = Arrangement.Top
+                            verticalArrangement = Arrangement.Bottom
                         ) {
                             if (!productPrice.isNullOrBlank()) {
                                 Text(
