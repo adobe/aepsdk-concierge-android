@@ -140,9 +140,25 @@ fun MainScreen() {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Product card demo button
+                Button(
+                    onClick = {
+                        context.startActivity(Intent(context, ProductCardDemoActivity::class.java))
+                    },
+                    modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00796B)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("🃏 Product Card Demo", fontSize = 16.sp, color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // XML Integration button
                 Button(
-                    onClick = { 
+                    onClick = {
                         val intent = Intent(context, XmlChatActivity::class.java)
                         // Pass theme selection to XML activity
                         val themeFile = when (selectedTheme) {
