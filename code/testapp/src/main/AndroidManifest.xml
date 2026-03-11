@@ -55,6 +55,12 @@
             android:exported="false"
             android:label="XML Integration Demo"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
+        <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.ProductCardDemoActivity"
+            android:exported="false"
+            android:label="Product Card Demo"
+            android:theme="@style/Theme.AEPSDKBrandConciergeAgent" />
     </application>
 
 </manifest>
