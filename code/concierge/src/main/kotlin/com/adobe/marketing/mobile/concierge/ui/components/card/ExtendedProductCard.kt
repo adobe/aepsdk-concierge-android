@@ -169,7 +169,7 @@ internal fun ExtendedProductCard(
                     modifier = Modifier
                         .fillMaxSize()
                         .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     // Headline: title + subtitle
                     Column(
@@ -203,10 +203,8 @@ internal fun ExtendedProductCard(
                     if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
                         // Price block
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.Bottom
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.Top
                         ) {
                             if (!productPrice.isNullOrBlank()) {
                                 Text(
