@@ -674,6 +674,42 @@ internal object CSSKeyMapper {
                 layout?.copy(productCardWasPriceTextPrefix = prefix) ?: ConciergeLayout(productCardWasPriceTextPrefix = prefix)
             }
         },
+        "product-card-text-horizontal-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                layout?.copy(productCardTextHorizontalPadding = padding) ?: ConciergeLayout(productCardTextHorizontalPadding = padding)
+            }
+        },
+        "product-card-text-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(productCardTextSpacing = spacing) ?: ConciergeLayout(productCardTextSpacing = spacing)
+            }
+        },
+        "product-card-text-top-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
+                layout?.copy(productCardTextTopPadding = padding) ?: ConciergeLayout(productCardTextTopPadding = padding)
+            }
+        },
+        "product-card-text-bottom-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                layout?.copy(productCardTextBottomPadding = padding) ?: ConciergeLayout(productCardTextBottomPadding = padding)
+            }
+        },
+        "product-card-carousel-horizontal-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 4.0
+                layout?.copy(productCardCarouselHorizontalPadding = padding) ?: ConciergeLayout(productCardCarouselHorizontalPadding = padding)
+            }
+        },
+        "product-card-carousel-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(productCardCarouselSpacing = spacing) ?: ConciergeLayout(productCardCarouselSpacing = spacing)
+            }
+        },
 
         // Components - Feedback
         "feedback-icon-btn-size-desktop" to { cssValue, theme ->

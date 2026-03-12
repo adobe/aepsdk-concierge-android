@@ -183,7 +183,7 @@ private val sampleCards = listOf(
  * Intended for use in the test app to validate card layout and spacing.
  */
 @Composable
-fun ExtendedProductCardDemoScreen() {
+internal fun ExtendedProductCardDemoScreen() {
     CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
         ConciergeTheme(theme = ConciergeThemeLoader.default()) {
             LazyColumn(

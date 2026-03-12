@@ -379,9 +379,16 @@ internal object ConciergeStyles {
     val productCarouselStyle: ProductCarouselStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val layout = ConciergeTheme.tokens?.cssLayout
+            val carouselHorizontalPadding = (
+                layout?.productCardCarouselHorizontalPadding
+                    ?: layout?.chatHistoryPadding
+                    ?: 4.0
+            ).toFloat().dp
+            val carouselItemSpacing = (layout?.productCardCarouselSpacing ?: 12.0).toFloat().dp
             return ProductCarouselStyle(
-                itemSpacing = 8.dp,
-                horizontalPadding = 4.dp,
+                itemSpacing = carouselItemSpacing,
+                horizontalPadding = carouselHorizontalPadding,
                 verticalPadding = 8.dp,
                 imageWidth = 200.dp,
                 imageHeight = 150.dp,
@@ -407,10 +414,10 @@ internal object ConciergeStyles {
         val cardOutlineColor: Color,
         val cardWidth: Dp,
         val cardHeight: Dp,
-        val cardPadding: Dp,
         val cardElevation: Dp,
         val imageWidth: Dp,
         val imageHeight: Dp,
+        val imageTopPadding: Dp,
         val contentPaddingTop: Dp,
         val badgeBackgroundColor: Color,
         val badgeTextColor: Color,
@@ -439,8 +446,7 @@ internal object ConciergeStyles {
         val wasPriceTextPrefix: String,
         val contentPadding: Dp,
         val contentPaddingBottom: Dp,
-        val headlineGap: Dp,
-        val priceBlockHeight: Dp
+        val headlineGap: Dp
     )
 
     val extendedProductCardStyle: ExtendedProductCardStyle
@@ -481,11 +487,10 @@ internal object ConciergeStyles {
                 cardOutlineColor = outlineColor,
                 cardWidth = cardWidthDp,
                 cardHeight = cardHeightDp,
-                cardPadding = 16.dp,
-                cardElevation = 4.dp,
+                cardElevation = 1.dp,
                 imageWidth = 190.dp,
                 imageHeight = 190.dp,
-                contentPaddingTop = 24.dp,
+                imageTopPadding = 16.dp,
                 badgeBackgroundColor = badgeBg,
                 badgeTextColor = badgeText,
                 badgeFontSize = badgeSize,
@@ -511,10 +516,10 @@ internal object ConciergeStyles {
                 wasPriceLineHeight = 14.sp,
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
-                contentPadding = 0.dp,
-                contentPaddingBottom = 0.dp,
-                headlineGap = 8.dp,
-                priceBlockHeight = 35.dp
+                contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,
+                contentPaddingTop = (layout?.productCardTextTopPadding ?: 24.0).toFloat().dp,
+                contentPaddingBottom = (layout?.productCardTextBottomPadding ?: 16.0).toFloat().dp,
+                headlineGap = (layout?.productCardTextSpacing ?: 8.0).toFloat().dp
             )
         }
 

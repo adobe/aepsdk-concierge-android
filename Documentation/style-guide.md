@@ -633,6 +633,12 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--product-card-was-price-font-size` | `cssLayout.productCardWasPriceFontSize` | `Double` | `12.0` | "Was" price font size (sp) |
 | `--product-card-was-price-font-weight` | `cssLayout.productCardWasPriceFontWeight` | `Int` | `400` | "Was" price font weight |
 | `--product-card-was-price-text-prefix` | `cssLayout.productCardWasPriceTextPrefix` | `String` | `"was "` | Prefix for "Was" price (e.g., "marked down from $99") |
+| `--product-card-text-horizontal-padding` | `cssLayout.productCardTextHorizontalPadding` | `Double` | `16.0` | Horizontal padding for card text content (dp) |
+| `--product-card-text-top-padding` | `cssLayout.productCardTextTopPadding` | `Double` | `24.0` | Top padding for card text content (dp) |
+| `--product-card-text-bottom-padding` | `cssLayout.productCardTextBottomPadding` | `Double` | `16.0` | Bottom padding for card text content (dp) |
+| `--product-card-text-spacing` | `cssLayout.productCardTextSpacing` | `Double` | `8.0` | Gap between title and subtitle (dp) |
+| `--product-card-carousel-horizontal-padding` | `cssLayout.productCardCarouselHorizontalPadding` | `Double` | `16.0` | Carousel horizontal padding (dp) |
+| `--product-card-carousel-spacing` | `cssLayout.productCardCarouselSpacing` | `Double` | `12.0` | Spacing between carousel cards (dp) |
 
 ### Layout - Buttons
 
@@ -850,6 +856,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--product-card-outline-color": "#E3E3E3",
     "--product-card-width": "222",
     "--product-card-height": "359",
+    "--product-card-border-radius": "8px",
     "--product-card-title-font-weight": "700",
     "--product-card-title-font-size": "14px",
     "--product-card-title-color": "#191F1C",
@@ -868,6 +875,12 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--product-card-was-price-font-size": "12px",
     "--product-card-was-price-font-weight": "400",
     "--product-card-was-price-text-prefix": "previously ",
+    "--product-card-text-horizontal-padding": "16px",
+    "--product-card-text-top-padding": "24px",
+    "--product-card-text-bottom-padding": "16px",
+    "--product-card-text-spacing": "8px",
+    "--product-card-carousel-horizontal-padding": "16px",
+    "--product-card-carousel-spacing": "12px",
 
     "--message-alignment": "left",
     "--message-width": "100%"
@@ -1078,6 +1091,12 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--product-card-was-price-font-size` | ✅ | Extended product card "was" price size | `ExtendedProductCard` |
 | `--product-card-was-price-font-weight` | ✅ | Extended product card "was" price weight | `ExtendedProductCard` |
 | `--product-card-was-price-text-prefix` | ✅ | Extended product card "was" price prefix | `ExtendedProductCard` |
+| `--product-card-text-horizontal-padding` | ✅ | Extended product card text horizontal padding | `ExtendedProductCard` |
+| `--product-card-text-top-padding` | ✅ | Extended product card text top padding | `ExtendedProductCard` |
+| `--product-card-text-bottom-padding` | ✅ | Extended product card text bottom padding | `ExtendedProductCard` |
+| `--product-card-text-spacing` | ✅ | Gap between title and subtitle | `ExtendedProductCard` |
+| `--product-card-carousel-horizontal-padding` | ✅ | Carousel horizontal padding | `ProductCarousel` |
+| `--product-card-carousel-spacing` | ✅ | Spacing between carousel cards | `ProductCarousel` |
 | `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
 | `--feedback-container-gap` | ⚠️ | Parsed but not used in composables | - |
 | `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
