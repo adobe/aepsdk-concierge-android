@@ -19,7 +19,6 @@ This document provides a comprehensive reference for all styling properties supp
   - [Typography](#typography)
   - [Colors](#colors)
   - [Layout](#layout)
-  - [Extended Product Cards](#layout---extended-product-cards)
 - [Implementation Status](#implementation-status)
 
 ---
@@ -566,6 +565,21 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 |--------------|-----------------|------|---------|-------------|
 | `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
 
+### Colors - Extended Product Cards
+
+Used when `behavior.productCard.cardStyle` is `"productDetail"`.
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--product-card-outline-color` | `cssLayout.productCardOutlineColor` | `String` | `"#E3E3E3"` | Card border stroke color (hex) |
+| `--product-card-background-color` | `cssLayout.productCardBackgroundColor` | `String` | `"#FFFFFF"` | Card background (hex) |
+| `--product-card-title-color` | `cssLayout.productCardTitleColor` | `String` | `"#191F1C"` | Title text color (hex) |
+| `--product-card-subtitle-color` | `cssLayout.productCardSubtitleColor` | `String` | `"#4F4F4F"` | Subtitle text color (hex) |
+| `--product-card-price-color` | `cssLayout.productCardPriceColor` | `String` | `"#191F1C"` | Price text color (hex) |
+| `--product-card-badge-text-color` | `cssLayout.productCardBadgeTextColor` | `String` | `"#FFFFFF"` | Badge text color (hex) |
+| `--product-card-badge-background-color` | `cssLayout.productCardBadgeBackgroundColor` | `String` | primary color | Badge background (hex) |
+| `--product-card-was-price-color` | `cssLayout.productCardWasPriceColor` | `String` | `"#6E6E6E"` | "Was" price text color (hex) |
+
 ### Layout - Input
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
@@ -607,29 +621,21 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 
 ### Layout - Extended Product Cards
 
-When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendations display as extended cards with image, badge, name, subtitle, and price. The following theme tokens customize the extended product card appearance:
+When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendations display as extended cards with image, badge, name, subtitle, and price. The following theme tokens customize the extended product card layout. See [Colors - Extended Product Cards](#colors---extended-product-cards) for color properties.
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
-| `--product-card-outline-color` | `cssLayout.productCardOutlineColor` | `String` | `"#E3E3E3"` | Card border stroke color (hex) |
 | `--product-card-width` | `cssLayout.productCardWidth` | `Double` | `222.0` | Card width (dp) |
 | `--product-card-height` | `cssLayout.productCardHeight` | `Double` | `359.0` | Card height (dp) |
 | `--product-card-border-radius` | `cssLayout.productCardBorderRadius` | `Double` | `8.0` | Card corner radius (dp) |
-| `--product-card-background-color` | `cssLayout.productCardBackgroundColor` | `String` | `"#FFFFFF"` | Card background (hex) |
 | `--product-card-title-font-size` | `cssLayout.productCardTitleFontSize` | `Double` | `14.0` | Title font size (sp) |
 | `--product-card-title-font-weight` | `cssLayout.productCardTitleFontWeight` | `Int` | `700` | Title font weight |
-| `--product-card-title-color` | `cssLayout.productCardTitleColor` | `String` | `"#191F1C"` | Title text color (hex) |
 | `--product-card-subtitle-font-size` | `cssLayout.productCardSubtitleFontSize` | `Double` | `12.0` | Subtitle font size (sp) |
 | `--product-card-subtitle-font-weight` | `cssLayout.productCardSubtitleFontWeight` | `Int` | `400` | Subtitle font weight |
-| `--product-card-subtitle-color` | `cssLayout.productCardSubtitleColor` | `String` | `"#4F4F4F"` | Subtitle text color (hex) |
 | `--product-card-price-font-size` | `cssLayout.productCardPriceFontSize` | `Double` | `14.0` | Price font size (sp) |
 | `--product-card-price-font-weight` | `cssLayout.productCardPriceFontWeight` | `Int` | `400` | Price font weight |
-| `--product-card-price-color` | `cssLayout.productCardPriceColor` | `String` | `"#191F1C"` | Price text color (hex) |
 | `--product-card-badge-font-size` | `cssLayout.productCardBadgeFontSize` | `Double` | `12.0` | Badge font size (sp) |
 | `--product-card-badge-font-weight` | `cssLayout.productCardBadgeFontWeight` | `Int` | `700` | Badge font weight |
-| `--product-card-badge-text-color` | `cssLayout.productCardBadgeTextColor` | `String` | `"#FFFFFF"` | Badge text color (hex) |
-| `--product-card-badge-background-color` | `cssLayout.productCardBadgeBackgroundColor` | `String` | primary color | Badge background (hex) |
-| `--product-card-was-price-color` | `cssLayout.productCardWasPriceColor` | `String` | `"#6E6E6E"` | "Was" price text color (hex) |
 | `--product-card-was-price-font-size` | `cssLayout.productCardWasPriceFontSize` | `Double` | `12.0` | "Was" price font size (sp) |
 | `--product-card-was-price-font-weight` | `cssLayout.productCardWasPriceFontWeight` | `Int` | `400` | "Was" price font weight |
 | `--product-card-was-price-text-prefix` | `cssLayout.productCardWasPriceTextPrefix` | `String` | `"was "` | Prefix for "Was" price (e.g., "marked down from $99") |
@@ -1043,6 +1049,14 @@ These colors are used internally by composables but cannot be customized in them
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
 | `--disclaimer-color` | ✅ | Disclaimer text color | `ConciergeDisclaimer` (DisclaimerStyle) |
+| `--product-card-outline-color` | ✅ | Extended product card border color | `ExtendedProductCard` |
+| `--product-card-background-color` | ✅ | Extended product card background | `ExtendedProductCard` |
+| `--product-card-title-color` | ✅ | Extended product card title color | `ExtendedProductCard` |
+| `--product-card-subtitle-color` | ✅ | Extended product card subtitle color | `ExtendedProductCard` |
+| `--product-card-price-color` | ✅ | Extended product card price color | `ExtendedProductCard` |
+| `--product-card-badge-text-color` | ✅ | Extended product card badge text color | `ExtendedProductCard` |
+| `--product-card-badge-background-color` | ✅ | Extended product card badge background | `ExtendedProductCard` |
+| `--product-card-was-price-color` | ✅ | Extended product card "was" price color | `ExtendedProductCard` |
 
 Note: The feedback dialog checkbox uses `--color-primary` for the check box filled color; the checkmark icon is white and is not configurable via theme.
 
@@ -1069,25 +1083,17 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
 | `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
 | `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
-| `--product-card-outline-color` | ✅ | Extended product card border color | `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-height` | ✅ | Extended product card height | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-border-radius` | ✅ | Extended product card corner radius | `ExtendedProductCard` |
-| `--product-card-background-color` | ✅ | Extended product card background | `ExtendedProductCard` |
 | `--product-card-title-font-size` | ✅ | Extended product card title size | `ExtendedProductCard` |
 | `--product-card-title-font-weight` | ✅ | Extended product card title weight | `ExtendedProductCard` |
-| `--product-card-title-color` | ✅ | Extended product card title color | `ExtendedProductCard` |
 | `--product-card-subtitle-font-size` | ✅ | Extended product card subtitle size | `ExtendedProductCard` |
 | `--product-card-subtitle-font-weight` | ✅ | Extended product card subtitle weight | `ExtendedProductCard` |
-| `--product-card-subtitle-color` | ✅ | Extended product card subtitle color | `ExtendedProductCard` |
 | `--product-card-price-font-size` | ✅ | Extended product card price size | `ExtendedProductCard` |
 | `--product-card-price-font-weight` | ✅ | Extended product card price weight | `ExtendedProductCard` |
-| `--product-card-price-color` | ✅ | Extended product card price color | `ExtendedProductCard` |
 | `--product-card-badge-font-size` | ✅ | Extended product card badge size | `ExtendedProductCard` |
 | `--product-card-badge-font-weight` | ✅ | Extended product card badge weight | `ExtendedProductCard` |
-| `--product-card-badge-text-color` | ✅ | Extended product card badge text color | `ExtendedProductCard` |
-| `--product-card-badge-background-color` | ✅ | Extended product card badge background | `ExtendedProductCard` |
-| `--product-card-was-price-color` | ✅ | Extended product card "was" price color | `ExtendedProductCard` |
 | `--product-card-was-price-font-size` | ✅ | Extended product card "was" price size | `ExtendedProductCard` |
 | `--product-card-was-price-font-weight` | ✅ | Extended product card "was" price weight | `ExtendedProductCard` |
 | `--product-card-was-price-text-prefix` | ✅ | Extended product card "was" price prefix | `ExtendedProductCard` |
