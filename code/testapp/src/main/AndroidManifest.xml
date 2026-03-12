@@ -55,6 +55,7 @@
             android:exported="false"
             android:label="XML Integration Demo"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+
     </application>
 
 </manifest>
