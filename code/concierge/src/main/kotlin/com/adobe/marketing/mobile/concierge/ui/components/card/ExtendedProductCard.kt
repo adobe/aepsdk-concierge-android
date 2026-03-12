@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,8 +32,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -89,23 +88,22 @@ internal fun ExtendedProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = style.cardElevation),
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
-        // Main column: image, badge row, content.
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(style.cardPadding),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            // Image with badge overlay
+            // Image with optional badge overlay at BottomStart.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(style.imageHeight)
+                    .padding(top = style.imageTopPadding)
+                    .height(style.imageHeight),
+                contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .width(style.imageWidth)
                         .height(style.imageHeight)
                         .clip(style.cardShape),
                     contentAlignment = Alignment.Center
@@ -114,7 +112,7 @@ internal fun ExtendedProductCard(
                         AsyncImage(
                             url = imageUrl,
                             contentDescription = productName,
-                            contentScale = ContentScale.FillBounds,
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .width(imageWidth)
                                 .height(imageHeight)
@@ -126,7 +124,6 @@ internal fun ExtendedProductCard(
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
-                            .offset(x = (-style.cardPadding))
                             .wrapContentWidth(unbounded = true)
                             .background(
                                 color = style.badgeBackgroundColor,
@@ -152,8 +149,7 @@ internal fun ExtendedProductCard(
                 }
             }
 
-            // Info block
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = true)
@@ -162,76 +158,65 @@ internal fun ExtendedProductCard(
                         end = style.contentPadding,
                         top = style.contentPaddingTop,
                         bottom = style.contentPaddingBottom
-                    )
+                    ),
+                verticalArrangement = Arrangement.Top
             ) {
-                // Title, subtitle, and price column.
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)
-                ) {
-                    // Headline: title + subtitle
+                if (!productName.isNullOrBlank()) {
+                    Text(
+                        text = productName,
+                        color = style.titleColor,
+                        fontSize = style.titleFontSize,
+                        fontWeight = style.titleFontWeight,
+                        lineHeight = style.titleLineHeight,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = style.subtitleColor,
+                        fontSize = style.subtitleFontSize,
+                        fontWeight = style.subtitleFontWeight,
+                        lineHeight = style.subtitleLineHeight,
+                        letterSpacing = style.subtitleLetterSpacing,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = style.headlineGap)
+                    )
+                }
+
+                // Flexible spacer pushes price block to the bottom.
+                Column(modifier = Modifier.weight(1f)) {}
+
+                if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(style.headlineGap)
+                        verticalArrangement = Arrangement.Top
                     ) {
-                        if (!productName.isNullOrBlank()) {
+                        if (!productPrice.isNullOrBlank()) {
                             Text(
-                                text = productName,
-                                color = style.titleColor,
-                                fontSize = style.titleFontSize,
-                                fontWeight = style.titleFontWeight,
-                                lineHeight = style.titleLineHeight,
+                                text = productPrice,
+                                color = style.priceColor,
+                                fontSize = style.priceFontSize,
+                                fontWeight = style.priceFontWeight,
+                                lineHeight = style.priceLineHeight,
+                                letterSpacing = style.priceLetterSpacing,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        if (!subtitle.isNullOrBlank()) {
-                            Text(
-                                text = subtitle,
-                                color = style.subtitleColor,
-                                fontSize = style.subtitleFontSize,
-                                fontWeight = style.subtitleFontWeight,
-                                lineHeight = style.subtitleLineHeight,
-                                letterSpacing = style.subtitleLetterSpacing,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                    if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
-                        // Price block
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.Top
-                        ) {
-                            if (!productPrice.isNullOrBlank()) {
-                                Text(
-                                    text = productPrice,
-                                    color = style.priceColor,
-                                    fontSize = style.priceFontSize,
-                                    fontWeight = style.priceFontWeight,
-                                    lineHeight = style.priceLineHeight,
-                                    letterSpacing = style.priceLetterSpacing,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            if (!productWasPrice.isNullOrBlank()) {
-                                Text(
-                                    text = style.wasPriceTextPrefix + productWasPrice,
-                                    color = style.wasPriceColor,
-                                    fontSize = style.wasPriceFontSize,
-                                    fontWeight = style.wasPriceFontWeight,
-                                    lineHeight = style.wasPriceLineHeight,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
+                        Text(
+                            text = style.wasPriceTextPrefix + (productWasPrice ?: ""),
+                            color = style.wasPriceColor,
+                            fontSize = style.wasPriceFontSize,
+                            fontWeight = style.wasPriceFontWeight,
+                            lineHeight = style.wasPriceLineHeight,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            // Always rendered; alpha=0 when absent keeps price at a fixed Y position.
+                            modifier = Modifier.alpha(if (!productWasPrice.isNullOrBlank()) 1f else 0f)
+                        )
                     }
                 }
             }

@@ -142,7 +142,7 @@ fun MainScreen() {
 
                 // XML Integration button
                 Button(
-                    onClick = { 
+                    onClick = {
                         val intent = Intent(context, XmlChatActivity::class.java)
                         // Pass theme selection to XML activity
                         val themeFile = when (selectedTheme) {

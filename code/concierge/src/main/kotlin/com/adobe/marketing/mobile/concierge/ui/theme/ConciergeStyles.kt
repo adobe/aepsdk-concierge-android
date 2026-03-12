@@ -379,9 +379,16 @@ internal object ConciergeStyles {
     val productCarouselStyle: ProductCarouselStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val layout = ConciergeTheme.tokens?.cssLayout
+            val carouselHorizontalPadding = (
+                layout?.productCardCarouselHorizontalPadding
+                    ?: layout?.chatHistoryPadding
+                    ?: 4.0
+            ).toFloat().dp
+            val carouselItemSpacing = (layout?.productCardCarouselSpacing ?: 12.0).toFloat().dp
             return ProductCarouselStyle(
-                itemSpacing = 12.dp,
-                horizontalPadding = 4.dp,
+                itemSpacing = carouselItemSpacing,
+                horizontalPadding = carouselHorizontalPadding,
                 verticalPadding = 8.dp,
                 imageWidth = 200.dp,
                 imageHeight = 150.dp,
@@ -407,10 +414,10 @@ internal object ConciergeStyles {
         val cardOutlineColor: Color,
         val cardWidth: Dp,
         val cardHeight: Dp,
-        val cardPadding: Dp,
         val cardElevation: Dp,
         val imageWidth: Dp,
         val imageHeight: Dp,
+        val imageTopPadding: Dp,
         val contentPaddingTop: Dp,
         val badgeBackgroundColor: Color,
         val badgeTextColor: Color,
@@ -439,7 +446,6 @@ internal object ConciergeStyles {
         val wasPriceTextPrefix: String,
         val contentPadding: Dp,
         val contentPaddingBottom: Dp,
-        val verticalSpacing: Dp,
         val headlineGap: Dp
     )
 
@@ -456,7 +462,7 @@ internal object ConciergeStyles {
             // When no theme JSON colors are set, use device light/dark scheme
             val cardBg = parseColor(layout?.productCardBackgroundColor, themeColors.surface)
             val titleColor = parseColor(layout?.productCardTitleColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
-            val subtitleColor = parseColor(layout?.productCardSubtitleColor, themeColors.onSurface.copy(alpha = 0.8f))
+            val subtitleColor = parseColor(layout?.productCardSubtitleColor, Color(0xFF4F4F4F))
             val priceColor = parseColor(layout?.productCardPriceColor, themeColors.conciergeMessageText ?: themeColors.onSurface)
             val badgeBg = parseColor(layout?.productCardBadgeBackgroundColor, themeColors.primary)
             val badgeText = parseColor(layout?.productCardBadgeTextColor, themeColors.onPrimary)
@@ -472,7 +478,7 @@ internal object ConciergeStyles {
             val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
             val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
             val cardHeightDp = (maxOf(layout?.productCardHeight ?: 359.0, 359.0)).toFloat().dp
-            val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF6E6E6E))
+            val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF4F4F4F))
             val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
             val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
             return ExtendedProductCardStyle(
@@ -481,11 +487,10 @@ internal object ConciergeStyles {
                 cardOutlineColor = outlineColor,
                 cardWidth = cardWidthDp,
                 cardHeight = cardHeightDp,
-                cardPadding = 16.dp,
                 cardElevation = 1.dp,
                 imageWidth = 190.dp,
                 imageHeight = 190.dp,
-                contentPaddingTop = 24.dp,
+                imageTopPadding = 16.dp,
                 badgeBackgroundColor = badgeBg,
                 badgeTextColor = badgeText,
                 badgeFontSize = badgeSize,
@@ -511,10 +516,10 @@ internal object ConciergeStyles {
                 wasPriceLineHeight = 14.sp,
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
-                contentPadding = 0.dp,
-                contentPaddingBottom = 8.dp,
-                verticalSpacing = 6.dp,
-                headlineGap = 8.dp
+                contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,
+                contentPaddingTop = (layout?.productCardTextTopPadding ?: 24.0).toFloat().dp,
+                contentPaddingBottom = (layout?.productCardTextBottomPadding ?: 16.0).toFloat().dp,
+                headlineGap = (layout?.productCardTextSpacing ?: 8.0).toFloat().dp
             )
         }
 

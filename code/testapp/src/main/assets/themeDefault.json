@@ -22,6 +22,9 @@
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "productCard": {
+      "cardStyle": "actionButton"
     }
   },
   "disclaimer": {
@@ -169,24 +172,30 @@
     "--product-card-outline-color": "#E3E3E3",
     "--product-card-width": "222",
     "--product-card-height": "359",
+    "--product-card-border-radius": "8px",
+    "--product-card-background-color": "#FFFFFF",
     "--product-card-title-font-weight": "700",
     "--product-card-title-font-size": "14px",
+    "--product-card-title-color": "#191F1C",
     "--product-card-subtitle-font-weight": "400",
     "--product-card-subtitle-font-size": "12px",
+    "--product-card-subtitle-color": "#4F4F4F",
     "--product-card-price-font-weight": "400",
     "--product-card-price-font-size": "14px",
+    "--product-card-price-color": "#191F1C",
     "--product-card-badge-font-size": "12px",
     "--product-card-badge-font-weight": "700",
     "--product-card-badge-text-color": "#FFFFFF",
     "--product-card-badge-background-color": "#EB1000",
-    "--product-card-background-color": "#EBEEFF",
-    "--product-card-title-color": "#191F1C",
-    "--product-card-subtitle-color": "#4F4F4F",
-    "--product-card-price-color": "#191F1C",
-    "--product-card-background-color": "#FFFFFF",
     "--product-card-was-price-color": "#6E6E6E",
     "--product-card-was-price-font-size": "12px",
     "--product-card-was-price-font-weight": "400",
-    "--product-card-was-price-text-prefix": "was "
+    "--product-card-was-price-text-prefix": "was ",
+    "--product-card-text-horizontal-padding": "16px",
+    "--product-card-text-top-padding": "24px",
+    "--product-card-text-bottom-padding": "16px",
+    "--product-card-text-spacing": "8px",
+    "--product-card-carousel-horizontal-padding": "16px",
+    "--product-card-carousel-spacing": "12px"
   }
 }
