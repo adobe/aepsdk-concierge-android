@@ -63,7 +63,42 @@ class WebViewSheetContentSchemesTest {
     }
 
     @Test
+    fun `isAllowedScheme returns false for data scheme`() {
+        assertFalse(WebViewSheetContentSchemes.isAllowedScheme("data:text/html,<script>alert(1)</script>"))
+    }
+
+    @Test
     fun `isAllowedScheme returns false for unknown scheme`() {
         assertFalse(WebViewSheetContentSchemes.isAllowedScheme("custom-scheme://example.com"))
+    }
+
+    @Test
+    fun `isBlockedScheme returns true for dangerous schemes`() {
+        assertTrue(WebViewSheetContentSchemes.isBlockedScheme("javascript:alert(1)"))
+        assertTrue(WebViewSheetContentSchemes.isBlockedScheme("file:///data/local/tmp/file.html"))
+        assertTrue(WebViewSheetContentSchemes.isBlockedScheme("content://com.example.provider/path"))
+        assertTrue(WebViewSheetContentSchemes.isBlockedScheme("intent://example.com#Intent;end"))
+        assertTrue(WebViewSheetContentSchemes.isBlockedScheme("data:text/html,<script>alert(1)</script>"))
+    }
+
+    @Test
+    fun `isBlockedScheme returns false for system schemes`() {
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("mailto:user@example.com"))
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("tel:+15555550100"))
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("sms:+15555550100"))
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("myapp://screen/detail"))
+    }
+
+    @Test
+    fun `isBlockedScheme returns false for http and https`() {
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("http://example.com"))
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("https://example.com"))
+    }
+
+    @Test
+    fun `isBlockedScheme returns false for null and blank`() {
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme(null))
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme(""))
+        assertFalse(WebViewSheetContentSchemes.isBlockedScheme("   "))
     }
 }
