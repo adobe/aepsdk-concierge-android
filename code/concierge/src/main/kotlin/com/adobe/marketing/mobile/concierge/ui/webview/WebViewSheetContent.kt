@@ -46,7 +46,7 @@ internal object WebViewSheetContentSchemes {
     private val allowedSchemes = setOf("https", "http")
     internal val blockedSchemes = setOf("javascript", "file", "content", "intent", "data")
 
-    private fun scheme(url: String) = url.substringBefore(':', "").lowercase()
+    private fun scheme(url: String) = Uri.parse(url).scheme?.lowercase() ?: ""
 
     fun isAllowedScheme(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
@@ -160,14 +160,16 @@ private class SecureSheetWebViewClient(private val context: Context) : WebViewCl
 
     private fun handleUrl(url: String?): Boolean {
         if (url == null) return true
+        if (WebViewSheetContentSchemes.isBlockedScheme(url)) return true
         if (WebViewSheetContentSchemes.isAllowedScheme(url)) {
+            // http/https: forward to host app if it is a verified App Link handler,
+            // otherwise let the WebView load the page.
             return tryOpenAsAppLink(context, url)
         }
-        if (!WebViewSheetContentSchemes.isBlockedScheme(url)) {
-            try {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            } catch (_: Exception) { }
-        }
+        // All other schemes (e.g. mailto:, tel:, myapp://): forward to the system.
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) { }
         return true
     }
 }
