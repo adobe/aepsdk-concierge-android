@@ -152,7 +152,7 @@ private class SecureSheetWebViewClient(private val context: Context) : WebViewCl
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
         if (url != null && url.startsWith("data:", ignoreCase = true)) {
             view.stopLoading()
-            view.loadUrl("about:blank")
+            if (view.canGoBack()) view.goBack() else view.loadUrl("about:blank")
             return
         }
         super.onPageStarted(view, url, favicon)
@@ -168,7 +168,7 @@ private class SecureSheetWebViewClient(private val context: Context) : WebViewCl
         }
         // All other schemes (e.g. mailto:, tel:, myapp://): forward to the system.
         try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: Exception) { }
         return true
     }
