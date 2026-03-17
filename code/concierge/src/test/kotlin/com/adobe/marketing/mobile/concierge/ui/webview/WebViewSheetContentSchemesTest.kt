@@ -12,11 +12,33 @@
 
 package com.adobe.marketing.mobile.concierge.ui.webview
 
+import android.net.Uri
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class WebViewSheetContentSchemesTest {
+
+    @Before
+    fun setUp() {
+        mockkStatic(Uri::class)
+        every { Uri.parse(any()) } answers {
+            val url = firstArg<String>()
+            val scheme = url.substringBefore(':', "").lowercase().ifEmpty { null }
+            mockk<Uri> { every { this@mockk.scheme } returns scheme }
+        }
+    }
+
+    @After
+    fun tearDown() {
+        unmockkStatic(Uri::class)
+    }
 
     @Test
     fun `isAllowedScheme returns true for https URL`() {
