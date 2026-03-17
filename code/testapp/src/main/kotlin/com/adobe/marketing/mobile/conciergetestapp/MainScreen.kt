@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -136,6 +137,24 @@ fun MainScreen() {
                     ) {
                         Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
                     }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Link handling testing button
+                Button(
+                    onClick = { context.startActivity(Intent(context, LinkHandlingTestActivity::class.java)) },
+                    modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00897B)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "🔗 Test Link Handling",
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

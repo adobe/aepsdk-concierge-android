@@ -290,13 +290,13 @@ Add the following `<queries>` block to your `AndroidManifest.xml`. Without it, t
 </queries>
 ```
 
-#### Concierge extension link handling
+#### Chat message link handling
 
 The Concierge extension automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). If your app is not the handler, the link opens in the in-app WebView overlay.
 
 **Default link handling flow:** host `handleLink` callback (if provided) → App Link check → WebView overlay.
 
-To customize this behavior, provide an `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with it's default behavior (trying to open it as an App Link first, then using the WebView overlay).
+To customize this behavior, provide a `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with its default behavior (trying to open it as an App Link first, then using the WebView overlay).
 
 **Compose (ConciergeChat):**
 ```kotlin
@@ -337,3 +337,30 @@ chatView.bind(
 ```
 
 When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying to open it as an App Link first, then using the WebView overlay).
+
+To close the chat when a deeplink is clicked, call `viewModel.closeConcierge()` inside your `handleLink` callback before returning `true`:
+
+```kotlin
+ConciergeChat(
+    viewModel = viewModel,
+    handleLink = { url ->
+        if (url.startsWith("myapp://")) {
+            viewModel.closeConcierge()
+            // navigate to the deeplink destination
+            true
+        } else {
+            false
+        }
+    }
+) { showChat -> ... }
+```
+
+#### In-app WebView overlay link handling
+
+Links clicked inside the in-app WebView overlay (e.g., links on a product page) follow their own routing rules, independent of the `handleLink` callback:
+
+- **http/https URLs**: If your app is the verified App Link handler for the domain, the URL is forwarded to your app. Otherwise it loads in the WebView.
+- **Non-web schemes** (e.g., `mailto:`, `tel:`, `sms:`, `myapp://`): Forwarded to the system via `Intent.ACTION_VIEW`.
+- **Dangerous schemes** (`javascript:`, `file:`, `content:`, `intent:`, `data:`): Blocked.
+
+No additional configuration is required for this behavior. App Link forwarding within the WebView uses the same domain verification as chat message link handling.
