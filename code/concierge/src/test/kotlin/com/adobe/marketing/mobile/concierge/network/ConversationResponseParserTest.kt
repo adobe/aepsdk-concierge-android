@@ -17,7 +17,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TempConversationResponseParserTest {
+class ConversationResponseParserTest {
 
     @Test
     fun `parseConversationData returns empty list for blank input`() {
@@ -2049,6 +2049,417 @@ class TempConversationResponseParserTest {
         assertEquals(1, source.citationNumber)
         assertNull(source.startIndex)
         assertNull(source.endIndex)
+    }
+
+    // ========== CTA Button Tests ==========
+
+    @Test
+    fun `parseConversationData parses ctaButton from elements array`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Need help?",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": "https://www.example.com/live-chat"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNotNull(result[0].ctaButton)
+        assertEquals("Chat now", result[0].ctaButton!!.label)
+        assertEquals("https://www.example.com/live-chat", result[0].ctaButton!!.url)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton element is excluded from multimodalElements`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Here is a product and a CTA",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "product-1",
+                              "entity_info": {
+                                "productName": "My Product",
+                                "productImageURL": "https://example.com/img.jpg"
+                              }
+                            },
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": "https://example.com/chat"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        // Product card should be in multimodalElements
+        assertEquals(1, result[0].multimodalElements.size)
+        assertEquals("product-1", result[0].multimodalElements[0].id)
+        // CTA button should be parsed separately
+        assertNotNull(result[0].ctaButton)
+        assertEquals("Chat now", result[0].ctaButton!!.label)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton is null when no ctaButton element present`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Regular response"
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNull(result[0].ctaButton)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton is null when multimodalElements is array format`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Intermediate chunk",
+                        "multimodalElements": []
+                      },
+                      "state": "in-progress"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNull(result[0].ctaButton)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton is null when entity_info primary is missing`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Incomplete CTA",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {}
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNull(result[0].ctaButton)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton is null when primary text is empty`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "CTA missing label",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "",
+                                  "url": "https://example.com/chat"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNull(result[0].ctaButton)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton is null when primary url is empty`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "CTA missing url",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": ""
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNull(result[0].ctaButton)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton uses first ctaButton element when multiple present`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Multiple CTAs",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "cta-1",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "First CTA",
+                                  "url": "https://example.com/first"
+                                }
+                              }
+                            },
+                            {
+                              "type": "ctaButton",
+                              "id": "cta-2",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Second CTA",
+                                  "url": "https://example.com/second"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNotNull(result[0].ctaButton)
+        assertEquals("First CTA", result[0].ctaButton!!.label)
+        assertEquals("https://example.com/first", result[0].ctaButton!!.url)
+    }
+
+    @Test
+    fun `parseConversationData ctaButton falls back to root element when entity_info absent`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "CTA without entity_info",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "primary": {
+                                "text": "Chat now",
+                                "url": "https://example.com/chat"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertNotNull(result[0].ctaButton)
+        assertEquals("Chat now", result[0].ctaButton!!.label)
+        assertEquals("https://example.com/chat", result[0].ctaButton!!.url)
+    }
+
+    @Test
+    fun `parseConversationData parses ctaButton alongside product cards and sources`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "conversationId": "conv-abc",
+                      "interactionId": "inter-xyz",
+                      "response": {
+                        "message": "Here is a product [1]",
+                        "promptSuggestions": ["Tell me more"],
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "id": "prod-1",
+                              "entity_info": {
+                                "productName": "Great Product",
+                                "productImageURL": "https://example.com/img.jpg"
+                              }
+                            },
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Chat with us",
+                                  "url": "https://example.com/chat"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "sources": [
+                          {
+                            "title": "Product Guide",
+                            "url": "https://guide.example.com",
+                            "citation_number": 1
+                          }
+                        ]
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val message = result[0]
+        assertEquals("conv-abc", message.conversationId)
+        assertEquals(1, message.multimodalElements.size)
+        assertEquals("Great Product", message.multimodalElements[0].title)
+        assertEquals(1, message.sources.size)
+        assertEquals(1, message.promptSuggestions.size)
+        assertNotNull(message.ctaButton)
+        assertEquals("Chat with us", message.ctaButton!!.label)
+        assertEquals("https://example.com/chat", message.ctaButton!!.url)
     }
 }
 
