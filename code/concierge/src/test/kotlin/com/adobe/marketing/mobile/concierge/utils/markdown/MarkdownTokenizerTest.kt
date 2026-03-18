@@ -410,6 +410,34 @@ Trailing text""".trimIndent()
     }
     
     @Test
+    fun `test tokenize bullets separated by non-list text do not bleed into each other`() {
+        val markdown = """1) First Section Header
+• Bullet one
+• Bullet two
+
+2) Second Section Header
+• Bullet three
+• Bullet four""".trimIndent()
+
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+
+        assertEquals(4, listTokens.size)
+        assertEquals("Bullet two", listTokens[1].groups[0])
+        assertEquals("Bullet three", listTokens[2].groups[0])
+    }
+
+    @Test
+    fun `test hasPrecedingBlankLine does not trigger for multi-line items without blank line`() {
+        val markdown = "- Item A\n  continuation line\n  - Nested item"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+
+        val listTokens = tokens.filter { it.type == TokenType.LIST }
+        assertEquals(2, listTokens.size)
+        assertEquals(1, listTokens[1].indentationLevel)
+    }
+
+    @Test
     fun `test tokenize bold link`() {
         val markdown = "**[Adobe Premiere Pro](https://www.adobe.com/premiere)**"
         val tokens = MarkdownTokenizer.tokenize(markdown)
