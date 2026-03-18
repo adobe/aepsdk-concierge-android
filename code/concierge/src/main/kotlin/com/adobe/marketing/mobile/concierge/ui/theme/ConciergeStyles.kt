@@ -613,6 +613,44 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for CTA button
+     */
+    @Immutable
+    data class CtaButtonStyle(
+        val containerTopPadding: Dp,
+        val containerStartPadding: Dp,
+        val shape: Shape,
+        val backgroundColor: Color,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val iconSize: Dp,
+        val iconColor: Color,
+        val iconSpacing: Dp,
+        val textStyle: TextStyle,
+        val textColor: Color
+    )
+
+    val ctaButtonStyle: CtaButtonStyle
+        @Composable get() {
+            return CtaButtonStyle(
+                containerTopPadding = 6.dp,
+                containerStartPadding = 12.dp,
+                shape = RoundedCornerShape(99.dp),
+                backgroundColor = Color(0xFFEDEDED),
+                horizontalPadding = 16.dp,
+                verticalPadding = 12.dp,
+                iconSize = 16.dp,
+                iconColor = Color(0xFF161313),
+                iconSpacing = 4.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Normal
+                ),
+                textColor = Color(0xFF191F1C)
+            )
+        }
+
+    /**
      * Styling for citation items
      */
     @Immutable

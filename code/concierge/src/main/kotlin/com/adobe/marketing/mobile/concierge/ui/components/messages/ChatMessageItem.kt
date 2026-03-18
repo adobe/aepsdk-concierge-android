@@ -30,6 +30,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButt
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
@@ -47,11 +48,12 @@ internal fun ChatMessageItem(
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
     handleLink: (String) -> Unit = {},
-    feedbackState: FeedbackState = FeedbackState.None
+    feedbackState: FeedbackState = FeedbackState.None,
+    onCtaButtonClick: (String) -> Unit = {}
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message, onFeedback, onSuggestionClick, handleLink, feedbackState)
+            RenderTextMessage(message, onFeedback, onSuggestionClick, handleLink, feedbackState, onCtaButtonClick)
         }
 
         is MessageContent.Mixed -> {
@@ -62,7 +64,8 @@ internal fun ChatMessageItem(
                 onImageClick,
                 onSuggestionClick,
                 handleLink,
-                feedbackState
+                feedbackState,
+                onCtaButtonClick
             )
         }
     }
@@ -74,7 +77,8 @@ private fun RenderTextMessage(
     onFeedback: (FeedbackEvent) -> Unit,
     onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
-    feedbackState: FeedbackState
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
 
@@ -148,6 +152,16 @@ private fun RenderTextMessage(
                 onSuggestionClick = onSuggestionClick
             )
         }
+
+        // Show service intent CTA button if present
+        message.ctaButton?.let { cta ->
+            if (!message.isFromUser) {
+                CtaButton(
+                    cta = cta,
+                    onClick = onCtaButtonClick
+                )
+            }
+        }
     }
 }
 
@@ -159,7 +173,8 @@ private fun RenderMixedMessage(
     onImageClick: (MultimodalElement) -> Unit,
     onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
-    feedbackState: FeedbackState
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
 
@@ -234,6 +249,16 @@ private fun RenderMixedMessage(
                     suggestions = message.promptSuggestions,
                     onSuggestionClick = onSuggestionClick
                 )
+            }
+
+            // Show service intent CTA button if present
+            message.ctaButton?.let { cta ->
+                if (!message.isFromUser) {
+                    CtaButton(
+                        cta = cta,
+                        onClick = onCtaButtonClick
+                    )
+                }
             }
         }
     }

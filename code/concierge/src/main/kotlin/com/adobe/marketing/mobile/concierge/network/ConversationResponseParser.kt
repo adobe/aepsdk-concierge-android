@@ -67,6 +67,9 @@ internal object ConversationResponseParser {
     private const val FIELD_PRODUCT_PRICE = "productPrice"
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
     private const val FIELD_PRODUCT_BADGE = "productBadge"
+    private const val FIELD_CTA_BUTTON = "ctaButton"
+    private const val FIELD_CTA_BUTTON_LABEL = "label"
+    private const val FIELD_CTA_BUTTON_URL = "url"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -143,6 +146,7 @@ internal object ConversationResponseParser {
 
         val multimodalElements = extractMultimodalElements(response)
         val sources = extractSources(response)
+        val ctaButton = extractCtaButton(response)
 
         return ParsedConversationMessage(
             messageContent = message,
@@ -151,7 +155,8 @@ internal object ConversationResponseParser {
             interactionId = interactionId,
             promptSuggestions = promptSuggestions,
             multimodalElements = multimodalElements,
-            sources = sources
+            sources = sources,
+            ctaButton = ctaButton
         )
     }
 
@@ -312,6 +317,19 @@ internal object ConversationResponseParser {
         val primaryVal = DataReader.optString(primary, field, null)?.takeIf { it.isNotEmpty() }
         if (primaryVal != null) return primaryVal
         return DataReader.optString(fallback, field, null)?.takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Extracts a CTA button from the response map, if present.
+     */
+    private fun extractCtaButton(response: Map<String, Any?>): CtaButton? {
+        val ctaMap = DataReader.optTypedMap(Any::class.java, response, FIELD_CTA_BUTTON, null)
+            ?: return null
+        val label = DataReader.optString(ctaMap, FIELD_CTA_BUTTON_LABEL, null)?.takeIf { it.isNotEmpty() }
+            ?: return null
+        val url = DataReader.optString(ctaMap, FIELD_CTA_BUTTON_URL, null)?.takeIf { it.isNotEmpty() }
+            ?: return null
+        return CtaButton(label = label, url = url)
     }
 
     /**

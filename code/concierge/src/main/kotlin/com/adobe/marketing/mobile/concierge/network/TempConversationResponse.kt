@@ -55,7 +55,17 @@ internal data class ConversationRequest(
 internal data class ConversationResponse(
     val message: String,
     val multimodalElements: List<MultimodalElement> = emptyList(),
-    val promptSuggestions: List<String> = emptyList()
+    val promptSuggestions: List<String> = emptyList(),
+    val ctaButton: CtaButton? = null
+)
+
+/**
+ * Represents a CTA button (e.g., "Chat with a teammate")
+ * that appears below a bot message.
+ */
+internal data class CtaButton(
+    val label: String,
+    val url: String
 )
 
 /**
@@ -118,5 +128,6 @@ internal data class ParsedConversationMessage(
     val interactionId: String? = null,
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
-    val sources: List<Citation> = emptyList()
+    val sources: List<Citation> = emptyList(),
+    val ctaButton: CtaButton? = null
 )

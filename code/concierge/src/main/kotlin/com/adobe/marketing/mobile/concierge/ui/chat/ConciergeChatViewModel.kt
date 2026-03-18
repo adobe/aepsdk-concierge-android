@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.network.ConciergeConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -695,7 +696,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             parsedMessage.promptSuggestions,
             parsedMessage.sources,
             parsedMessage.interactionId,
-            sseComplete = true
+            sseComplete = true,
+            ctaButton = parsedMessage.ctaButton
         )
     }
 
@@ -712,7 +714,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         promptSuggestions: List<String> = emptyList(),
         sources: List<Citation> = emptyList(),
         interactionId: String? = null,
-        sseComplete: Boolean? = null
+        sseComplete: Boolean? = null,
+        ctaButton: CtaButton? = null
     ) {
         // Pre-compute unique citations once to avoid redundant processing
         val uniqueSources = if (sources.isNotEmpty()) {
@@ -732,7 +735,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     citations = sources,
                     uniqueCitations = uniqueSources,
                     interactionId = interactionId ?: lastAssistantMessage.interactionId,
-                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete
+                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete,
+                    ctaButton = ctaButton ?: lastAssistantMessage.ctaButton
                 )
                 updatedMessages
             } else {
