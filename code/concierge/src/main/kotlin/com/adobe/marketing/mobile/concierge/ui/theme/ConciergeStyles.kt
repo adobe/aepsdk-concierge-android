@@ -632,21 +632,26 @@ internal object ConciergeStyles {
 
     val ctaButtonStyle: CtaButtonStyle
         @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            val borderRadius = ctaLayout?.ctaButtonBorderRadius?.dp ?: 99.dp
+            val fontWeight = ctaLayout?.ctaButtonFontWeight?.let { FontWeight(it) } ?: FontWeight.Normal
+            val fontSize = ctaLayout?.ctaButtonFontSize?.sp ?: 14.sp
             return CtaButtonStyle(
                 containerTopPadding = 6.dp,
                 containerStartPadding = 12.dp,
-                shape = RoundedCornerShape(99.dp),
-                backgroundColor = Color(0xFFEDEDED),
-                horizontalPadding = 16.dp,
-                verticalPadding = 12.dp,
-                iconSize = 16.dp,
-                iconColor = Color(0xFF161313),
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.ctaButtonBackground ?: Color(0xFFEDEDED),
+                horizontalPadding = ctaLayout?.ctaButtonHorizontalPadding?.dp ?: 16.dp,
+                verticalPadding = ctaLayout?.ctaButtonVerticalPadding?.dp ?: 12.dp,
+                iconSize = ctaLayout?.ctaButtonIconSize?.dp ?: 16.dp,
+                iconColor = themeColors.ctaButtonIcon ?: Color(0xFF161313),
                 iconSpacing = 4.dp,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal
+                    fontSize = fontSize,
+                    fontWeight = fontWeight
                 ),
-                textColor = Color(0xFF191F1C)
+                textColor = themeColors.ctaButtonText ?: Color(0xFF191F1C)
             )
         }
 

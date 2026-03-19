@@ -142,7 +142,8 @@ data class ConciergeThemeColors(
     val button: ConciergeButtonColors? = null,
     val input: ConciergeInputColors? = null,
     val feedback: ConciergeFeedbackColors? = null,
-    val citation: ConciergeCitationColors? = null
+    val citation: ConciergeCitationColors? = null,
+    val ctaButton: ConciergeCtaButtonColors? = null
 )
 
 /**
@@ -197,6 +198,12 @@ data class ConciergeFeedbackColors(
 data class ConciergeCitationColors(
     val backgroundColor: String? = null,
     val textColor: String? = null
+)
+
+data class ConciergeCtaButtonColors(
+    val backgroundColor: String? = null,
+    val textColor: String? = null,
+    val iconColor: String? = null
 )
 
 /**
