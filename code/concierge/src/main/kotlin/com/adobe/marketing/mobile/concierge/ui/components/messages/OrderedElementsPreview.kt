@@ -92,6 +92,7 @@ private val ctaContact = NetworkCtaButton(label = "Contact Support", url = "http
  * the ordered element messages exactly as [ConciergeChatViewModel.appendOrderedElementMessages]
  * would append them (each CTA becomes a standalone message, all cards are one batched Mixed).
  */
+@OptIn(ExperimentalStdlibApi::class)
 private fun turn(
     userText: String,
     botText: String,
@@ -113,6 +114,7 @@ private fun cardsContent(cards: List<MultimodalElement>) = MessageContent.Mixed(
 // Each scenario reflects the exact message list the ViewModel produces.
 // Cards are always batched into one Mixed message at the first card's array position.
 
+@OptIn(ExperimentalStdlibApi::class)
 private val allMessages: List<ChatMessage> = buildList {
     // 1. Text-only response (no ordered elements)
     addAll(turn(
