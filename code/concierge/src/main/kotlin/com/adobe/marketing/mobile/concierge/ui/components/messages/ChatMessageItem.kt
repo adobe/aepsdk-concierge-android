@@ -68,7 +68,19 @@ internal fun ChatMessageItem(
                 onCtaButtonClick
             )
         }
+
+        is MessageContent.CtaButton -> {
+            RenderCtaButton(content = message.content, handleLink = handleLink)
+        }
     }
+}
+
+@Composable
+private fun RenderCtaButton(
+    content: MessageContent.CtaButton,
+    handleLink: (String) -> Unit
+) {
+    CtaButton(cta = content.button, onClick = handleLink)
 }
 
 @Composable
@@ -177,88 +189,85 @@ private fun RenderMixedMessage(
     onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val content = message.content as MessageContent.Mixed
 
-    if (message.content is MessageContent.Mixed) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(style.padding),
+            colors = CardDefaults.cardColors(
+                containerColor = style.botMessageBackgroundColor
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+            shape = style.shape
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(style.padding),
-                colors = CardDefaults.cardColors(
-                    containerColor = style.botMessageBackgroundColor
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-                shape = style.shape
+            Box(
+                modifier = Modifier.padding(style.innerPadding)
             ) {
-                Box(
-                    modifier = Modifier.padding(style.innerPadding)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        // Render text content if present
-                        if (message.content.text.isNotEmpty()) {
-                            ConciergeResponse(
-                                text = message.content.text,
-                                sources = message.citations ?: emptyList(),
-                                handleLink = handleLink,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                    // Render text content if present
+                    if (content.text.isNotEmpty()) {
+                        ConciergeResponse(
+                            text = content.text,
+                            sources = message.citations ?: emptyList(),
+                            handleLink = handleLink,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                        // Add spacing between text and recommendation cards if both are present
-                        if (message.content.text.isNotEmpty() &&
-                            !message.content.multimodalElements.isNullOrEmpty()
-                        ) {
-                            Spacer(modifier = Modifier.height(style.contentSpacing))
-                        }
+                    // Add spacing between text and recommendation cards if both are present
+                    if (content.text.isNotEmpty() && !content.multimodalElements.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(style.contentSpacing))
+                    }
 
-                        // Render multi-modal elements if present
-                        message.content.multimodalElements?.let { multimodalElements ->
-                            if (multimodalElements.isNotEmpty()) {
-                                RecommendationCards(
-                                    elements = multimodalElements,
-                                    onImageClick = onImageClick,
-                                    onActionClick = onActionClick
-                                )
-                            }
-                        }
-
-                        // Show footer if we have citations or have an interaction id for providing feedback
-                        if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
-                            ChatFooter(
-                                citations = message.citations,
-                                uniqueCitations = message.uniqueCitations,
-                                interactionId = message.interactionId,
-                                sseComplete = message.sseComplete,
-                                onFeedback = onFeedback,
-                                handleLink = handleLink,
-                                feedbackState = feedbackState
+                    // Render multi-modal elements if present
+                    content.multimodalElements?.let { multimodalElements ->
+                        if (multimodalElements.isNotEmpty()) {
+                            RecommendationCards(
+                                elements = multimodalElements,
+                                onImageClick = onImageClick,
+                                onActionClick = onActionClick
                             )
                         }
                     }
+
+                    // Show footer if we have citations or have an interaction id for providing feedback
+                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
+                        ChatFooter(
+                            citations = message.citations,
+                            uniqueCitations = message.uniqueCitations,
+                            interactionId = message.interactionId,
+                            sseComplete = message.sseComplete,
+                            onFeedback = onFeedback,
+                            handleLink = handleLink,
+                            feedbackState = feedbackState
+                        )
+                    }
                 }
             }
+        }
 
-            // Show prompt suggestions for concierge responses
-            if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-                PromptSuggestions(
-                    suggestions = message.promptSuggestions,
-                    onSuggestionClick = onSuggestionClick
+        // Show prompt suggestions for concierge responses
+        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
+            PromptSuggestions(
+                suggestions = message.promptSuggestions,
+                onSuggestionClick = onSuggestionClick
+            )
+        }
+
+        // Show service intent CTA button if present
+        message.ctaButton?.let { cta ->
+            if (!message.isFromUser) {
+                CtaButton(
+                    cta = cta,
+                    onClick = onCtaButtonClick
                 )
-            }
-
-            // Show service intent CTA button if present
-            message.ctaButton?.let { cta ->
-                if (!message.isFromUser) {
-                    CtaButton(
-                        cta = cta,
-                        onClick = onCtaButtonClick
-                    )
-                }
             }
         }
     }

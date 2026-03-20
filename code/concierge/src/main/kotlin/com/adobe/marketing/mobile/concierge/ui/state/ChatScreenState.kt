@@ -14,7 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
-import com.adobe.marketing.mobile.concierge.network.CtaButton
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 
@@ -148,6 +148,7 @@ internal sealed class MessageContent {
         val text: String,
         val multimodalElements: List<MultimodalElement>? = null
     ) : MessageContent()
+    data class CtaButton(val button: NetworkCtaButton) : MessageContent()
 }
 
 /**
@@ -163,11 +164,12 @@ internal data class ChatMessage(
     val sseComplete: Boolean = false,
     val promptSuggestions: List<String> = emptyList(),
     val feedbackState: FeedbackState = FeedbackState.None,
-    val ctaButton: CtaButton? = null
+    val ctaButton: NetworkCtaButton? = null
 ) {
     val text: String
         get() = when (content) {
             is MessageContent.Text -> content.text
             is MessageContent.Mixed -> content.text
+            is MessageContent.CtaButton -> content.button.label
         }
 }
