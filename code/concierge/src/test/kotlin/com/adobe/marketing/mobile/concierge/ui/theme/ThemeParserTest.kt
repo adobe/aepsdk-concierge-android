@@ -1269,5 +1269,166 @@ class ThemeParserTest {
         assertEquals(400, config?.typography?.disclaimerFontWeight)
         assertEquals(12.0, config?.typography?.citationsFontSize)
     }
+
+    // -----------------------------------------------------------------------
+    // Header text keys
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeJson should parse header title and subtitle`() {
+        val json = """
+            {
+                "text": {
+                    "header.title": "My Assistant",
+                    "header.subtitle": "Powered by Adobe"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+        assertEquals("My Assistant", config?.text?.headerTitle)
+        assertEquals("Powered by Adobe", config?.text?.headerSubtitle)
+    }
+
+    @Test
+    fun `parseThemeJson should return null header text when not provided`() {
+        val json = """
+            {
+                "text": {
+                    "input.placeholder": "Ask me anything"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+        assertNull(config?.text?.headerTitle)
+        assertNull(config?.text?.headerSubtitle)
+    }
+
+    // -----------------------------------------------------------------------
+    // Welcome card behavior
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeJson should parse welcomeCard closeButtonAlignment`() {
+        val json = """
+            {
+                "behavior": {
+                    "welcomeCard": {
+                        "closeButtonAlignment": "start"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertNotNull(tokens?.behavior?.welcomeCard)
+        assertEquals("start", tokens?.behavior?.welcomeCard?.closeButtonAlignment)
+    }
+
+    @Test
+    fun `parseThemeJson should default closeButtonAlignment to end`() {
+        val json = """
+            {
+                "behavior": {
+                    "welcomeCard": {}
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertEquals("end", tokens?.behavior?.welcomeCard?.closeButtonAlignment)
+    }
+
+    @Test
+    fun `parseThemeJson should return null welcomeCard when not provided`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "enableVoiceInput": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertNull(tokens?.behavior?.welcomeCard)
+    }
+
+    // -----------------------------------------------------------------------
+    // Welcome screen CSS layout keys
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeJson should parse welcome screen layout tokens`() {
+        val json = """
+            {
+                "theme": {
+                    "--header-title-font-size": "18px",
+                    "--welcome-title-font-size": "16px",
+                    "--welcome-text-align": "left",
+                    "--welcome-content-padding": "16px",
+                    "--welcome-prompt-image-size": "48px",
+                    "--welcome-prompt-spacing": "6px",
+                    "--welcome-title-bottom-spacing": "6px",
+                    "--welcome-prompts-top-spacing": "12px"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        val layout = tokens?.cssLayout
+        assertNotNull(layout)
+        assertEquals(18.0, layout?.headerTitleFontSize)
+        assertEquals(16.0, layout?.welcomeTitleFontSize)
+        assertEquals("left", layout?.welcomeTextAlign)
+        assertEquals(16.0, layout?.welcomeContentPadding)
+        assertEquals(48.0, layout?.welcomePromptImageSize)
+        assertEquals(6.0, layout?.welcomePromptSpacing)
+        assertEquals(6.0, layout?.welcomeTitleBottomSpacing)
+        assertEquals(12.0, layout?.welcomePromptsTopSpacing)
+    }
+
+    // -----------------------------------------------------------------------
+    // Input icon color keys
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeJson should parse input icon colors`() {
+        val json = """
+            {
+                "theme": {
+                    "--input-send-icon-color": "#FFFFFF",
+                    "--input-mic-icon-color": "#FF0000"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertNotNull(tokens?.colors?.input?.sendIconColor)
+        assertNotNull(tokens?.colors?.input?.micIconColor)
+    }
+
+    @Test
+    fun `createColorsFromJson should map send and mic icon colors`() {
+        val themeColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                sendIconColor = "#FFFFFF",
+                micIconColor = "#FF0000"
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertNotNull(colors.sendButtonColor)
+        assertEquals(Color.White, colors.sendButtonColor)
+    }
 }
 

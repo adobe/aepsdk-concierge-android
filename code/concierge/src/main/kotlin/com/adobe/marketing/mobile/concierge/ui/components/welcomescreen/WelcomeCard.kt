@@ -108,8 +108,8 @@ internal fun WelcomeCard(
                             onClick = { onPromptClick(prompt.text) }
                         )
                         Spacer(modifier = Modifier.height(style.promptsSpacing))
-                    }
                 }
             }
         }
     }
+}

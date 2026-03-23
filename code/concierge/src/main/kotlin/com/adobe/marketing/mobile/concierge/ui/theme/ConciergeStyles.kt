@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
@@ -1038,7 +1039,7 @@ internal object ConciergeStyles {
         val descriptionTextStyle: TextStyle,
         val descriptionTextColor: Color,
         val descriptionTextAlign: TextAlign,
-        val horizontalAlignment: androidx.compose.ui.Alignment.Horizontal,
+        val horizontalAlignment: Alignment.Horizontal,
         val promptsTopSpacing: Dp,
         val promptsHeaderTextStyle: TextStyle,
         val promptsHeaderTextColor: Color,
@@ -1069,15 +1070,16 @@ internal object ConciergeStyles {
             val textColor = if (useDefaultDarkModeStyling) DarkConciergeColors.onSurface else themeColors.onSurface
 
             // Resolve text alignment from theme (default: center to preserve existing behavior)
-            val textAlign = when (cssLayout?.welcomeTextAlign) {
+            val alignValue = cssLayout?.welcomeTextAlign
+            val textAlign = when (alignValue) {
                 "left", "start" -> TextAlign.Start
                 "right", "end" -> TextAlign.End
                 else -> TextAlign.Center
             }
-            val horizontalAlignment = when (cssLayout?.welcomeTextAlign) {
-                "left", "start" -> androidx.compose.ui.Alignment.Start
-                "right", "end" -> androidx.compose.ui.Alignment.End
-                else -> androidx.compose.ui.Alignment.CenterHorizontally
+            val horizontalAlignment = when (alignValue) {
+                "left", "start" -> Alignment.Start
+                "right", "end" -> Alignment.End
+                else -> Alignment.CenterHorizontally
             }
 
             // Resolve title text style from theme font size
