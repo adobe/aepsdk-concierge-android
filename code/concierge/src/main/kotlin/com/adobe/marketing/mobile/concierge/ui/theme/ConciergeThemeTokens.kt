@@ -82,9 +82,17 @@ data class ConciergeLayout(
     val disclaimerFontSize: Double? = null,
     val disclaimerFontWeight: Int? = null,
     
-    // Welcome order
+    // Welcome layout
     val welcomeInputOrder: Int? = null,
     val welcomeCardsOrder: Int? = null,
+    val welcomeTitleFontSize: Double? = null,
+    val welcomeTextAlign: String? = null,
+    val welcomeContentPadding: Double? = null,
+    val welcomePromptImageSize: Double? = null,
+    val welcomePromptSpacing: Double? = null,
+    val welcomeTitleBottomSpacing: Double? = null,
+    val welcomePromptsTopSpacing: Double? = null,
+    val headerTitleFontSize: Double? = null,
 
     // Extended product cards
     val productCardTitleFontWeight: Int? = null,
@@ -156,6 +164,7 @@ data class ConciergeThemeBehavior(
     val showTimestamps: Boolean = false,
     val enableMarkdown: Boolean = true,
     val enableCitations: Boolean = true,
+    val welcomeCard: ConciergeWelcomeCardBehavior? = null,
     val enableVoiceInput: Boolean = true,
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
@@ -197,6 +206,11 @@ data class ConciergeProductCardBehavior(
 
 data class ConciergeMultimodalCarouselBehavior(
     val carouselStyle: CarouselStyle = CarouselStyle.PAGED
+)
+
+data class ConciergeWelcomeCardBehavior(
+    val showHeaderSubtitle: Boolean = true,
+    val closeButtonAlignment: String = "end"
 )
 
 /**

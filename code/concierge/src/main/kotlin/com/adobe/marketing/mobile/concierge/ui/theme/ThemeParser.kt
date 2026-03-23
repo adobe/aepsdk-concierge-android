@@ -66,6 +66,8 @@ internal object ThemeParser {
             val textStrings = textMap?.let {
                 ConciergeTextStrings(
                     inputPlaceholder = DataReader.optString(it, "input.placeholder", null),
+                    headerTitle = DataReader.optString(it, "header.title", null),
+                    headerSubtitle = DataReader.optString(it, "header.subtitle", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),
@@ -317,7 +319,10 @@ internal object ThemeParser {
             inputText = themeColors.input?.text?.toComposeColor(),
             inputOutline = themeColors.input?.outline?.toComposeColor(),
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
-            micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
+            micButtonColor = themeColors.input?.micIconColor?.toComposeColor()
+                ?: themeColors.primaryColors?.text?.toComposeColor()
+                ?: defaultColors.micButtonColor,
+            sendButtonColor = themeColors.input?.sendIconColor?.toComposeColor(),
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
@@ -381,6 +386,16 @@ internal object ThemeParser {
             )
         }
 
+        val welcomeCardMap = typedMap?.get("welcomeCard") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val welcomeCardTyped = welcomeCardMap as? MutableMap<String?, Any?>
+        val welcomeCard = welcomeCardTyped?.let {
+            ConciergeWelcomeCardBehavior(
+                showHeaderSubtitle = DataReader.optBoolean(it, "showHeaderSubtitle", true),
+                closeButtonAlignment = DataReader.optString(it, "closeButtonAlignment", "end")
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -394,7 +409,8 @@ internal object ThemeParser {
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
             productCard = productCard,
-            multimodalCarousel = multimodalCarousel
+            multimodalCarousel = multimodalCarousel,
+            welcomeCard = welcomeCard
         )
     }
 

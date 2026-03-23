@@ -327,6 +327,16 @@ internal object CSSKeyMapper {
                 existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color)
             }
         },
+        "input-send-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color)
+            }
+        },
+        "input-mic-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
+            }
+        },
         
         // Colors - Feedback (using helper)
         "feedback-icon-btn-background" to { cssValue, theme ->
@@ -368,7 +378,7 @@ internal object CSSKeyMapper {
                 layout?.copy(inputHeight = height) ?: ConciergeLayout(inputHeight = height)
             }
         },
-        "input-border-radius-mobile" to { cssValue, theme ->
+        "input-border-radius" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val radius = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
                 layout?.copy(inputBorderRadius = radius) ?: ConciergeLayout(inputBorderRadius = radius)
@@ -538,6 +548,54 @@ internal object CSSKeyMapper {
             updateLayout(theme) { layout ->
                 val order = CSSValueConverter.parseOrder(cssValue)
                 layout?.copy(welcomeCardsOrder = order) ?: ConciergeLayout(welcomeCardsOrder = order)
+            }
+        },
+        "welcome-title-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
+                layout?.copy(welcomeTitleFontSize = size) ?: ConciergeLayout(welcomeTitleFontSize = size)
+            }
+        },
+        "welcome-text-align" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val align = cssValue.trim().lowercase()
+                layout?.copy(welcomeTextAlign = align) ?: ConciergeLayout(welcomeTextAlign = align)
+            }
+        },
+        "welcome-content-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 20.0
+                layout?.copy(welcomeContentPadding = padding) ?: ConciergeLayout(welcomeContentPadding = padding)
+            }
+        },
+        "welcome-prompt-image-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 75.0
+                layout?.copy(welcomePromptImageSize = size) ?: ConciergeLayout(welcomePromptImageSize = size)
+            }
+        },
+        "welcome-prompt-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomePromptSpacing = spacing) ?: ConciergeLayout(welcomePromptSpacing = spacing)
+            }
+        },
+        "welcome-title-bottom-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomeTitleBottomSpacing = spacing) ?: ConciergeLayout(welcomeTitleBottomSpacing = spacing)
+            }
+        },
+        "welcome-prompts-top-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomePromptsTopSpacing = spacing) ?: ConciergeLayout(welcomePromptsTopSpacing = spacing)
+            }
+        },
+        "header-title-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
+                layout?.copy(headerTitleFontSize = size) ?: ConciergeLayout(headerTitleFontSize = size)
             }
         },
 

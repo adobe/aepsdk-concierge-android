@@ -28,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Header component for the chat interface with title, subtitle, and close button.
@@ -40,6 +41,10 @@ internal fun ChatHeader(
     onClose: () -> Unit
 ) {
     val style = ConciergeStyles.headerStyle
+    val themeText = ConciergeTheme.text
+    val welcomeCardBehavior = ConciergeTheme.behavior?.welcomeCard
+    val showSubtitle = welcomeCardBehavior?.showHeaderSubtitle ?: true
+    val closeButtonAtStart = welcomeCardBehavior?.closeButtonAlignment.equals("start", ignoreCase = true)
 
     Row(
         modifier = modifier
@@ -48,30 +53,45 @@ internal fun ChatHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        if (closeButtonAtStart) {
+            CloseButton(style = style, onClose = onClose)
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = ConciergeConstants.ChatHeader.TITLE,
+                text = themeText?.headerTitle ?: ConciergeConstants.ChatHeader.TITLE,
                 style = style.titleStyle,
                 fontWeight = style.titleFontWeight,
                 color = style.titleColor
             )
-            Text(
-                text = ConciergeConstants.ChatHeader.SUBTITLE,
-                style = style.subtitleStyle,
-                color = style.subtitleColor
-            )
+            if (showSubtitle) {
+                Text(
+                    text = themeText?.headerSubtitle ?: ConciergeConstants.ChatHeader.SUBTITLE,
+                    style = style.subtitleStyle,
+                    color = style.subtitleColor
+                )
+            }
         }
 
-        // Close button
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.size(style.iconSize)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.close),
-                contentDescription = "Close chat",
-                tint = style.iconColor
-            )
+        if (!closeButtonAtStart) {
+            CloseButton(style = style, onClose = onClose)
         }
+    }
+}
+
+@Composable
+private fun CloseButton(
+    style: ConciergeStyles.HeaderStyle,
+    onClose: () -> Unit
+) {
+    IconButton(
+        onClick = onClose,
+        modifier = Modifier.size(style.iconSize)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.close),
+            contentDescription = "Close chat",
+            tint = style.iconColor
+        )
     }
 }

@@ -80,7 +80,11 @@ internal fun ConciergeThemeConfig.toWelcomeConfig(
 data class ConciergeTextStrings(
     // Input
     val inputPlaceholder: String? = null,
-    
+
+    // Header
+    val headerTitle: String? = null,
+    val headerSubtitle: String? = null,
+
     // Welcome
     val welcomeHeading: String? = null,
     val welcomeSubheading: String? = null,
@@ -186,7 +190,9 @@ data class ConciergeInputColors(
     val background: String? = null,
     val text: String? = null,
     val outline: String? = null,
-    val outlineFocus: String? = null
+    val outlineFocus: String? = null,
+    val sendIconColor: String? = null,
+    val micIconColor: String? = null
 )
 
 data class ConciergeFeedbackColors(
