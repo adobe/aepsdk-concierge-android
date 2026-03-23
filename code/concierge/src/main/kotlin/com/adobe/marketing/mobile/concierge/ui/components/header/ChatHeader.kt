@@ -43,7 +43,8 @@ internal fun ChatHeader(
     val style = ConciergeStyles.headerStyle
     val themeText = ConciergeTheme.text
     val welcomeCardBehavior = ConciergeTheme.behavior?.welcomeCard
-    val showSubtitle = welcomeCardBehavior?.showHeaderSubtitle ?: true
+    val subtitleText = themeText?.headerSubtitle ?: ConciergeConstants.ChatHeader.SUBTITLE
+    val showSubtitle = subtitleText.isNotBlank()
     val closeButtonAtStart = welcomeCardBehavior?.closeButtonAlignment.equals("start", ignoreCase = true)
 
     Row(
@@ -66,7 +67,7 @@ internal fun ChatHeader(
             )
             if (showSubtitle) {
                 Text(
-                    text = themeText?.headerSubtitle ?: ConciergeConstants.ChatHeader.SUBTITLE,
+                    text = subtitleText,
                     style = style.subtitleStyle,
                     color = style.subtitleColor
                 )

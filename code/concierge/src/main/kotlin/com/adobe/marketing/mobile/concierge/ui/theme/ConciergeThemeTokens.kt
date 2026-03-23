@@ -209,7 +209,6 @@ data class ConciergeMultimodalCarouselBehavior(
 )
 
 data class ConciergeWelcomeCardBehavior(
-    val showHeaderSubtitle: Boolean = true,
     val closeButtonAlignment: String = "end"
 )
 

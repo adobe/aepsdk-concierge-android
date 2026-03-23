@@ -27,7 +27,6 @@
       "cardStyle": "actionButton"
     },
     "welcomeCard": {
-      "showHeaderSubtitle": true,
       "closeButtonAlignment": "end"
     }
   },
@@ -131,7 +130,7 @@
     "--message-blocker-background": "#FFFFFF",
     "--input-height": "52px",
     "--input-height-mobile": "52px",
-    "--input-border-radius": "12px",
+    "--input-border-radius-mobile": "20px",
     "--input-background": "#FFFFFF",
     "--input-outline-color": null,
     "--input-outline-width": "2px",

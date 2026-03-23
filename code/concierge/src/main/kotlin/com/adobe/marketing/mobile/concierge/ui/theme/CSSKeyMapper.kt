@@ -378,7 +378,7 @@ internal object CSSKeyMapper {
                 layout?.copy(inputHeight = height) ?: ConciergeLayout(inputHeight = height)
             }
         },
-        "input-border-radius" to { cssValue, theme ->
+        "input-border-radius-mobile" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val radius = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
                 layout?.copy(inputBorderRadius = radius) ?: ConciergeLayout(inputBorderRadius = radius)

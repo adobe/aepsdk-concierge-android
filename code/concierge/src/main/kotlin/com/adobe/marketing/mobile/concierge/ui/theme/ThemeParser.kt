@@ -391,7 +391,6 @@ internal object ThemeParser {
         val welcomeCardTyped = welcomeCardMap as? MutableMap<String?, Any?>
         val welcomeCard = welcomeCardTyped?.let {
             ConciergeWelcomeCardBehavior(
-                showHeaderSubtitle = DataReader.optBoolean(it, "showHeaderSubtitle", true),
                 closeButtonAlignment = DataReader.optString(it, "closeButtonAlignment", "end")
             )
         }
