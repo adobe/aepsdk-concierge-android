@@ -186,7 +186,9 @@ data class ConciergeInputColors(
     val background: String? = null,
     val text: String? = null,
     val outline: String? = null,
-    val outlineFocus: String? = null
+    val outlineFocus: String? = null,
+    val sendIconColor: String? = null,
+    val micIconColor: String? = null
 )
 
 data class ConciergeFeedbackColors(

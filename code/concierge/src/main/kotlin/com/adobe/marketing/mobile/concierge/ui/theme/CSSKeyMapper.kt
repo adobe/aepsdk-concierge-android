@@ -327,7 +327,17 @@ internal object CSSKeyMapper {
                 existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color)
             }
         },
-        
+        "input-send-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color)
+            }
+        },
+        "input-mic-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
+            }
+        },
+
         // Colors - Feedback (using helper)
         "feedback-icon-btn-background" to { cssValue, theme ->
             updateFeedbackColors(cssValue, theme) { existing, color ->

@@ -64,6 +64,8 @@ data class ConciergeColors(
     val inputOutline: Color? = null,
     val inputOutlineFocus: Color? = null,
     val micButtonColor: Color? = null,
+    val sendIconColor: Color? = null,
+    val micIconColor: Color? = null,
 
     // Feedback-specific colors (from CSS themes)
     val feedbackIconButtonBackground: Color? = null,

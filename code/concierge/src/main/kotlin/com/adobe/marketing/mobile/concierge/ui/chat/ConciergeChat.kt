@@ -18,6 +18,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -156,6 +158,11 @@ fun ConciergeChat(
                     window.attributes.fitInsetsTypes = 0
                     window.attributes.fitInsetsSides = 0
                 }
+
+                // Resize the dialog when the keyboard appears so the
+                // header stays fixed and the weight(1f) messages area shrinks.
+                @Suppress("DEPRECATION")
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
                 ConciergeChat(
                     viewModel = viewModel,
@@ -356,7 +363,7 @@ internal fun ConciergeChat(
                         WelcomeCard(
                             config = welcomeConfig,
                             isReturningUser = isReturningUser,
-                            onPromptClick = { prompt -> onTextChanged(prompt) },
+                            onPromptClick = { prompt -> onEvent(ChatEvent.SendMessage(prompt)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)

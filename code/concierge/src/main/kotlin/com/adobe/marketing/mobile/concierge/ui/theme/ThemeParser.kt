@@ -318,6 +318,8 @@ internal object ThemeParser {
             inputOutline = themeColors.input?.outline?.toComposeColor(),
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
             micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
+            sendIconColor = themeColors.input?.sendIconColor?.toComposeColor(),
+            micIconColor = themeColors.input?.micIconColor?.toComposeColor(),
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
