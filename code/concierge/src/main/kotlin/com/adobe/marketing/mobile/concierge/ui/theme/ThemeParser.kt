@@ -78,6 +78,8 @@ internal object ThemeParser {
                     feedbackDialogCancel = DataReader.optString(it, "feedback.dialog.cancel", null),
                     feedbackDialogNotesPlaceholder = DataReader.optString(it, "feedback.dialog.notes.placeholder", null),
                     feedbackToastSuccess = DataReader.optString(it, "feedback.toast.success", null),
+                    feedbackHelpfulLabel = DataReader.optString(it, "feedbackHelpfulLabel", null),
+                    sourcesLabel = DataReader.optString(it, "sourcesLabel", null),
                     errorNetwork = DataReader.optString(it, "error.network", null)
                 )
             }
@@ -381,6 +383,25 @@ internal object ThemeParser {
             )
         }
 
+        val feedbackMap = typedMap?.get("feedback") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val feedbackTyped = feedbackMap as? MutableMap<String?, Any?>
+        val feedback = feedbackTyped?.let {
+            ConciergeFeedbackBehavior(
+                displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "card")),
+                thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline"))
+            )
+        }
+
+        val citationsMap = typedMap?.get("citations") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val citationsTyped = citationsMap as? MutableMap<String?, Any?>
+        val citations = citationsTyped?.let {
+            ConciergeCitationsBehavior(
+                showLinkIcon = DataReader.optBoolean(it, "showLinkIcon", false)
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -393,6 +414,8 @@ internal object ThemeParser {
             enableVoiceInput = enableVoiceInput,
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
+            feedback = feedback,
+            citations = citations,
             productCard = productCard,
             multimodalCarousel = multimodalCarousel
         )
@@ -469,7 +492,6 @@ internal object ThemeParser {
             feedbackTitle = DataReader.optString(typedMap, "feedbackTitle", "Provide feedback"),
             feedbackSubmit = DataReader.optString(typedMap, "feedbackSubmit", "Submit"),
             feedbackCancel = DataReader.optString(typedMap, "feedbackCancel", "Cancel"),
-            sourcesLabel = DataReader.optString(typedMap, "sourcesLabel", "Sources"),
             thinkingLabel = DataReader.optString(typedMap, "thinkingLabel", "Thinking"),
             listeningLabel = DataReader.optString(typedMap, "listeningLabel", "Listening")
         )

@@ -25,6 +25,13 @@
     },
     "productCard": {
       "cardStyle": "actionButton"
+    },
+    "feedback": {
+      "displayMode": "card",
+      "thumbsPlacement": "inline"
+    },
+    "citations": {
+      "showLinkIcon": false
     }
   },
   "disclaimer": {
@@ -50,6 +57,7 @@
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
     "loading.message": "Generating response from our knowledge base",
+    "feedbackHelpfulLabel": "Was this helpful?",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
     "feedback.dialog.title.negative": "Your feedback is appreciated",
     "feedback.dialog.question.positive": "What went well? Select all that apply.",

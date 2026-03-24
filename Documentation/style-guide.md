@@ -271,6 +271,19 @@ Feature toggles and interaction configuration.
 | `behavior.privacyNotice.title` | `String` | `"Privacy Notice"` | Privacy dialog title |
 | `behavior.privacyNotice.text` | `String` | `"Privacy notice text."` | Privacy notice content |
 
+### Feedback
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.feedback.displayMode` | `String` | `"card"` | Feedback dialog display mode. `"card"` renders inline as a Card overlay; `"modal"` renders as a ModalBottomSheet. |
+| `behavior.feedback.thumbsPlacement` | `String` | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
+
+### Citations
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.citations.showLinkIcon` | `Bool` | `false` | Show an external link icon next to citation URLs. |
+
 ### Example
 
 ```json
@@ -295,6 +308,13 @@ Feature toggles and interaction configuration.
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "feedback": {
+      "displayMode": "modal",
+      "thumbsPlacement": "below"
+    },
+    "citations": {
+      "showLinkIcon": true
     }
   }
 }
@@ -390,6 +410,13 @@ While there are no strict requirements for character limits in many of these tex
 | `text["feedback.thumbsUp.aria"]` | `"Thumbs up"` | Thumbs up accessibility |
 | `text["feedback.thumbsDown.aria"]` | `"Thumbs down"` | Thumbs down accessibility |
 
+### Sources & Feedback Footer
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["sourcesLabel"]` | `"Sources"` | Accordion label for the sources/feedback section |
+| `text["feedbackHelpfulLabel"]` | `"Was this helpful?"` | Label shown above feedback thumbs when `behavior.feedback.thumbsPlacement` is `"below"`. Set to `""` to hide. |
+
 ### Example
 
 ```json
@@ -398,7 +425,19 @@ While there are no strict requirements for character limits in many of these tex
     "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore.",
     "input.placeholder": "How can I help?",
-    "error.network": "I'm sorry, I'm having trouble connecting."
+    "error.network": "I'm sorry, I'm having trouble connecting.",
+    "loading.message": "Generating response from our knowledge base...",
+    "feedbackHelpfulLabel": "Was this helpful?",
+    "sourcesLabel": "Sources & Feedback",
+    "feedback.dialog.title.positive": "Your feedback is appreciated",
+    "feedback.dialog.title.negative": "Your feedback is appreciated",
+    "feedback.dialog.question.positive": "What went well? Select all that apply.",
+    "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
+    "feedback.dialog.notes": "Notes",
+    "feedback.dialog.submit": "Submit",
+    "feedback.dialog.cancel": "Cancel",
+    "feedback.dialog.notes.placeholder": "Additional notes (optional)",
+    "feedback.toast.success": "Thank you for the feedback."
   }
 }
 ```
@@ -712,6 +751,13 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "feedback": {
+      "displayMode": "card",
+      "thumbsPlacement": "inline"
+    },
+    "citations": {
+      "showLinkIcon": false
     }
   },
   "disclaimer": {
@@ -737,6 +783,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
     "loading.message": "Generating response from our knowledge base...",
+    "feedbackHelpfulLabel": "Was this helpful?",
+    "sourcesLabel": "Sources",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
     "feedback.dialog.title.negative": "Your feedback is appreciated",
     "feedback.dialog.question.positive": "What went well? Select all that apply.",
@@ -984,6 +1032,16 @@ This section documents which properties are fully implemented, partially impleme
 | `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented | - |
 | `text["feedback.thumbsUp.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["feedback.thumbsDown.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["sourcesLabel"]` | ✅ | Accordion label for sources/feedback section | `ChatFooter` → `SourcesAccordionButton` |
+| `text["feedbackHelpfulLabel"]` | ✅ | Feedback helpful label shown in `below` thumbs placement mode | `FeedbackButtons` |
+
+### Behavior — Feedback & Citations
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `behavior.feedback.displayMode` | ✅ | Card (default) or ModalBottomSheet feedback dialog | `FeedbackDialog` |
+| `behavior.feedback.thumbsPlacement` | ✅ | Inline (default) or below sources accordion | `ChatFooter` |
+| `behavior.citations.showLinkIcon` | ✅ | External link icon next to citation URLs | `ExpandedCitations` → `CitationItem` |
 
 ### Arrays
 

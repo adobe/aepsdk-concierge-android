@@ -98,7 +98,9 @@ data class ConciergeTextStrings(
     val feedbackDialogCancel: String? = null,
     val feedbackDialogNotesPlaceholder: String? = null,
     val feedbackToastSuccess: String? = null,
-    
+    val feedbackHelpfulLabel: String? = null,
+    val sourcesLabel: String? = null,
+
     // Error
     val errorNetwork: String? = null
 )

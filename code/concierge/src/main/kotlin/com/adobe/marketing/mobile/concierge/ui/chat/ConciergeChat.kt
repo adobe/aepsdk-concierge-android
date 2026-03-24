@@ -48,6 +48,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
+import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
@@ -58,6 +59,7 @@ import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
@@ -164,6 +166,14 @@ fun ConciergeChat(
                     handleLink = handleLink
                 )
             }
+
+            // Modal feedback bottom sheet rendered outside the Dialog window
+            val state by viewModel.state.collectAsStateWithLifecycle()
+            ModalFeedbackOverlay(
+                feedback = state.feedback,
+                onDismiss = { viewModel.processEvent(FeedbackEvent.DismissFeedbackDialog) },
+                onSubmit = { viewModel.processEvent(FeedbackEvent.SubmitFeedback(it)) }
+            )
         }
 
     }
@@ -265,6 +275,13 @@ fun ConciergeChat(
             modifier = modifier
         )
     }
+
+    // Modal feedback bottom sheet rendered outside the Dialog window
+    ModalFeedbackOverlay(
+        feedback = state.feedback,
+        onDismiss = { resolvedEvent(FeedbackEvent.DismissFeedbackDialog) },
+        onSubmit = { resolvedEvent(FeedbackEvent.SubmitFeedback(it)) }
+    )
 
     // WebView overlay dialog used for handling link clicks that require a browser.
     webviewOverlay?.let { url ->
@@ -388,19 +405,44 @@ internal fun ConciergeChat(
             )
         }
 
-        // Feedback dialog overlay
-        chatState.feedback?.let { feedback ->
+        // Feedback dialog overlay (Card mode only; modal mode is rendered at outer composable level)
+        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.BOTTOM_SHEET) {
+            chatState.feedback?.let { feedback ->
+                FeedbackDialog(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center),
+                    feedback = feedback,
+                    onDismiss = {
+                        onEvent(FeedbackEvent.DismissFeedbackDialog)
+                    },
+                    onSubmit = { submittedFeedback ->
+                        onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Renders the feedback bottom sheet outside the Dialog window when displayMode is "modal".
+ * This must be called at a composable scope that is NOT inside a Dialog, so the
+ * ModalBottomSheet has full-screen access.
+ */
+@Composable
+private fun ModalFeedbackOverlay(
+    feedback: Feedback?,
+    onDismiss: () -> Unit,
+    onSubmit: (Feedback) -> Unit
+) {
+    val displayMode = ConciergeTheme.behavior?.feedback?.displayMode
+    if (displayMode == FeedbackDisplayMode.BOTTOM_SHEET) {
+        feedback?.let {
             FeedbackDialog(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                feedback = feedback,
-                onDismiss = {
-                    onEvent(FeedbackEvent.DismissFeedbackDialog)
-                },
-                onSubmit = { submittedFeedback ->
-                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
-                }
+                feedback = it,
+                onDismiss = onDismiss,
+                onSubmit = onSubmit
             )
         }
     }

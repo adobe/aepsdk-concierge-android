@@ -763,7 +763,6 @@ class ThemeParserTest {
                         "feedbackTitle": "Give Feedback",
                         "feedbackSubmit": "Send",
                         "feedbackCancel": "Close",
-                        "sourcesLabel": "References",
                         "thinkingLabel": "Processing",
                         "listeningLabel": "Recording"
                     }
@@ -781,7 +780,6 @@ class ThemeParserTest {
         assertEquals("Give Feedback", tokens?.content?.text?.feedbackTitle)
         assertEquals("Send", tokens?.content?.text?.feedbackSubmit)
         assertEquals("Close", tokens?.content?.text?.feedbackCancel)
-        assertEquals("References", tokens?.content?.text?.sourcesLabel)
         assertEquals("Processing", tokens?.content?.text?.thinkingLabel)
         assertEquals("Recording", tokens?.content?.text?.listeningLabel)
     }

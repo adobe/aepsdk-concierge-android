@@ -644,7 +644,7 @@ internal object ConciergeStyles {
                     fontSize = fontSize ?: MaterialTheme.typography.bodyMedium.fontSize
                 ),
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
-                textLength = 2,
+                textLength = 1,
                 urlColor = themeColors.messageConciergeLink ?: themeColors.onSurface,
                 expandAnimationDuration = 200,
                 collapseAnimationDuration = 200,
@@ -674,7 +674,7 @@ internal object ConciergeStyles {
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconSpacing = 4.dp,
-                sourcesText = "Sources"
+                sourcesText = ConciergeTheme.text?.sourcesLabel ?: "Sources"
             )
         }
 
@@ -719,19 +719,26 @@ internal object ConciergeStyles {
         val spacing: Dp,
         val iconColor: Color,
         val backgroundColor: Color = Color.Transparent,
-        val hoverBackgroundColor: Color? = null
+        val hoverBackgroundColor: Color? = null,
+        val helpfulLabelText: String,
+        val helpfulLabelStyle: TextStyle,
+        val helpfulLabelColor: Color
     )
 
     val feedbackButtonsStyle: FeedbackButtonsStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val textColor = themeColors.conciergeMessageText ?: themeColors.onSurface
             return FeedbackButtonsStyle(
                 buttonSize = 32.dp,
                 iconSize = 16.dp,
                 spacing = 4.dp,
-                iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                iconColor = textColor,
                 backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
-                hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground
+                hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground,
+                helpfulLabelText = ConciergeTheme.text?.feedbackHelpfulLabel ?: "Was this helpful?",
+                helpfulLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                helpfulLabelColor = textColor
             )
         }
 

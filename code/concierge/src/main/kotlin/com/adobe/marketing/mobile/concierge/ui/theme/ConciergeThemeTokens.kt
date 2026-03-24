@@ -159,9 +159,25 @@ data class ConciergeThemeBehavior(
     val enableVoiceInput: Boolean = true,
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
+    val feedback: ConciergeFeedbackBehavior? = null,
+    val citations: ConciergeCitationsBehavior? = null,
     val productCard: ConciergeProductCardBehavior? = null,
     val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null
 )
+
+/**
+ * Display mode for the feedback dialog.
+ * CARD renders inline as a Card overlay; BOTTOM_SHEET renders as a ModalBottomSheet.
+ */
+enum class FeedbackDisplayMode(val value: String) {
+    CARD("card"),
+    BOTTOM_SHEET("modal");
+
+    companion object {
+        fun fromString(value: String): FeedbackDisplayMode =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CARD
+    }
+}
 
 /**
  * Product card behavior: ACTION_BUTTON = image overlay with action buttons,
@@ -190,6 +206,30 @@ enum class CarouselStyle(val value: String) {
             values().find { it.value == value } ?: PAGED
     }
 }
+
+data class ConciergeFeedbackBehavior(
+    val displayMode: FeedbackDisplayMode = FeedbackDisplayMode.CARD,
+    val thumbsPlacement: FeedbackThumbsPlacement = FeedbackThumbsPlacement.INLINE
+)
+
+/**
+ * Placement of the feedback thumbs relative to the sources accordion.
+ * INLINE renders thumbs on the same row as the sources label (default).
+ * BELOW renders thumbs on a separate row beneath the sources accordion with the feedback helpful label.
+ */
+enum class FeedbackThumbsPlacement(val value: String) {
+    INLINE("inline"),
+    BELOW("below");
+
+    companion object {
+        fun fromString(value: String): FeedbackThumbsPlacement =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: INLINE
+    }
+}
+
+data class ConciergeCitationsBehavior(
+    val showLinkIcon: Boolean = false
+)
 
 data class ConciergeProductCardBehavior(
     val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON
@@ -251,7 +291,6 @@ data class ConciergeTextContent(
     val feedbackTitle: String = "Provide feedback",
     val feedbackSubmit: String = "Submit",
     val feedbackCancel: String = "Cancel",
-    val sourcesLabel: String = "Sources",
     val thinkingLabel: String = "Thinking",
     val listeningLabel: String = "Listening"
 )

@@ -370,7 +370,6 @@ class ConciergeThemeTokensTest {
         assertEquals("Provide feedback", text.feedbackTitle)
         assertEquals("Submit", text.feedbackSubmit)
         assertEquals("Cancel", text.feedbackCancel)
-        assertEquals("Sources", text.sourcesLabel)
         assertEquals("Thinking", text.thinkingLabel)
         assertEquals("Listening", text.listeningLabel)
     }

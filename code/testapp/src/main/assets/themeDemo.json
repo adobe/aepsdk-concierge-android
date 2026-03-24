@@ -21,6 +21,13 @@
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "feedback": {
+      "displayMode": "modal",
+      "thumbsPlacement": "below"
+    },
+    "citations": {
+      "showLinkIcon": true
     }
   },
   "disclaimer": {
@@ -46,6 +53,7 @@
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
     "loading.message": "Generating response from our knowledge base",
+    "sourcesLabel": "Sources & Feedback",
     "feedback.dialog.title.positive": "[DEMO THEME] Thanks for your feedback!",
     "feedback.dialog.title.negative": "[DEMO THEME] Help us improve",
     "feedback.dialog.question.positive": "[DEMO] Tell us what you liked:",

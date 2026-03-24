@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,10 +27,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackThumbsPlacement
 
 /**
  * Footer component for chat messages that includes a sources accordion and feedback buttons.
  * The footer component is only displayed if there are citations provided in the ChatMessage.
+ *
+ * Layout is determined by `behavior.feedback.thumbsPlacement`:
+ * - `"inline"` (default): Sources accordion and feedback thumbs on the same row.
+ * - `"below"`: Feedback thumbs with a feedback "helpful" label appear below the sources accordion.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation] to display in the sources accordion.
@@ -52,44 +60,80 @@ internal fun ChatFooter(
     val hasCitations = !citations.isNullOrEmpty()
     val showFeedbackButtons = !interactionId.isNullOrEmpty() && sseComplete
     var sourcesExpanded by remember { mutableStateOf(false) }
-    val arrangement = remember(hasCitations) {
-        if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
-    }
+    val thumbsPlacement = ConciergeTheme.behavior?.feedback?.thumbsPlacement
+        ?: FeedbackThumbsPlacement.INLINE
 
     Column(modifier = modifier) {
-        // Top row: Sources label and feedback buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = arrangement,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Sources accordion button (left side)
-            if (hasCitations) {
-                SourcesAccordionButton(
-                    expanded = sourcesExpanded,
-                    onExpandedChange = { sourcesExpanded = it },
-                    modifier = Modifier.weight(1f)
-                )
+        when (thumbsPlacement) {
+            FeedbackThumbsPlacement.INLINE -> {
+                // Original layout: sources label and thumbs on the same row
+                val arrangement = remember(hasCitations) {
+                    if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = arrangement,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (hasCitations) {
+                        SourcesAccordionButton(
+                            expanded = sourcesExpanded,
+                            onExpandedChange = { sourcesExpanded = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (showFeedbackButtons) {
+                        FeedbackButtons(
+                            interactionId = interactionId!!,
+                            onFeedback = onFeedback,
+                            feedbackState = feedbackState
+                        )
+                    }
+                }
+                if (hasCitations) {
+                    ExpandedCitations(
+                        citations = citations!!,
+                        uniqueCitations = uniqueCitations,
+                        expanded = sourcesExpanded,
+                        handleLink = handleLink
+                    )
+                }
             }
 
-            // Feedback buttons (right side); only when we have an interaction id and SSE is complete
-            if (showFeedbackButtons) {
-                FeedbackButtons(
-                    interactionId = interactionId!!,
-                    onFeedback = onFeedback,
-                    feedbackState = feedbackState
-                )
+            FeedbackThumbsPlacement.BELOW -> {
+                // Design spec: feedback thumbs inside the Sources & Feedback accordion
+                if (hasCitations) {
+                    SourcesAccordionButton(
+                        expanded = sourcesExpanded,
+                        onExpandedChange = { sourcesExpanded = it }
+                    )
+                    ExpandedCitations(
+                        modifier = Modifier.padding(start = 28.dp),
+                        citations = citations!!,
+                        uniqueCitations = uniqueCitations,
+                        expanded = sourcesExpanded,
+                        handleLink = handleLink,
+                        footerContent = if (showFeedbackButtons) {
+                            {
+                                FeedbackButtons(
+                                    interactionId = interactionId!!,
+                                    onFeedback = onFeedback,
+                                    feedbackState = feedbackState,
+                                    showHelpfulLabel = true
+                                )
+                            }
+                        } else null
+                    )
+                } else if (showFeedbackButtons) {
+                    // No citations: show feedback standalone
+                    FeedbackButtons(
+                        interactionId = interactionId!!,
+                        onFeedback = onFeedback,
+                        feedbackState = feedbackState,
+                        showHelpfulLabel = true
+                    )
+                }
             }
-        }
-
-        // Only compose ExpandedCitations when actually needed
-        if (hasCitations) {
-            ExpandedCitations(
-                citations = citations!!,
-                uniqueCitations = uniqueCitations,
-                expanded = sourcesExpanded,
-                handleLink = handleLink
-            )
         }
     }
 }
