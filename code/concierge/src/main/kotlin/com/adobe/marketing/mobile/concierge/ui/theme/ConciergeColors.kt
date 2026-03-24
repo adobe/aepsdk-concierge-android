@@ -76,6 +76,10 @@ data class ConciergeColors(
     val feedbackDialogSubmitButtonColor: Color? = null,
     val feedbackDialogSubmitButtonTextColor: Color? = null,
 
+    // Prompt pill colors (from CSS themes)
+    val welcomePromptBackground: Color? = null,
+    val welcomePromptText: Color? = null,
+
     // Citation/Disclaimer colors (from CSS themes)
     val citationBackground: Color? = null,
     val citationText: Color? = null,

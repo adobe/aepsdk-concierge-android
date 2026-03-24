@@ -27,7 +27,10 @@
       "cardStyle": "actionButton"
     },
     "welcomeCard": {
-      "closeButtonAlignment": "end"
+      "closeButtonAlignment": "end",
+      "promptFullWidth": true,
+      "promptMaxLines": 1,
+      "contentAlignment": "top"
     }
   },
   "disclaimer": {
@@ -119,8 +122,12 @@
     "--welcome-prompt-image-size": "48px",
     "--welcome-content-padding": "16px",
     "--welcome-prompt-spacing": "6px",
-    "--welcome-title-bottom-spacing": "6px",
+    "--welcome-prompt-padding": "12px",
+    "--welcome-prompt-corner-radius": "20px",
+    "--welcome-prompt-background-color": "#F5F5F5",
+    "--welcome-prompt-text-color": "#000000",
     "--welcome-prompts-top-spacing": "12px",
+    "--welcome-title-bottom-spacing": "6px",
     "--font-family": "",
     "--color-primary": "#EB1000",
     "--color-text": "#131313",

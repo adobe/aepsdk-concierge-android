@@ -92,6 +92,8 @@ data class ConciergeLayout(
     val welcomePromptSpacing: Double? = null,
     val welcomeTitleBottomSpacing: Double? = null,
     val welcomePromptsTopSpacing: Double? = null,
+    val welcomePromptPadding: Double? = null,
+    val welcomePromptCornerRadius: Double? = null,
     val headerTitleFontSize: Double? = null,
 
     // Extended product cards
@@ -209,7 +211,10 @@ data class ConciergeMultimodalCarouselBehavior(
 )
 
 data class ConciergeWelcomeCardBehavior(
-    val closeButtonAlignment: String = "end"
+    val closeButtonAlignment: String = "end",
+    val promptFullWidth: Boolean = true,
+    val promptMaxLines: Int = Int.MAX_VALUE,
+    val contentAlignment: String = "top"
 )
 
 /**

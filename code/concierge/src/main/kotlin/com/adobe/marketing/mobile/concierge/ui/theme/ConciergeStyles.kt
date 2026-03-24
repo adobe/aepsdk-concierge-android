@@ -1053,7 +1053,9 @@ internal object ConciergeStyles {
         val promptImagePlaceholderColor: Color,
         val promptImageSpacing: Dp,
         val promptTextStyle: TextStyle,
-        val promptTextColor: Color
+        val promptTextColor: Color,
+        val promptFullWidth: Boolean,
+        val promptMaxLines: Int
     )
 
     val welcomeCardStyle: WelcomeCardStyle
@@ -1105,15 +1107,17 @@ internal object ConciergeStyles {
                 promptsHeaderTextColor = textColor.copy(alpha = 0.8f),
                 promptsHeaderBottomSpacing = 12.dp,
                 promptsSpacing = cssLayout?.welcomePromptSpacing?.dp ?: 8.dp,
-                promptBackgroundColor = cardSurface,
-                promptShape = RoundedCornerShape(8.dp),
-                promptPadding = 0.dp,
+                promptBackgroundColor = themeColors.welcomePromptBackground ?: cardSurface,
+                promptShape = RoundedCornerShape(cssLayout?.welcomePromptCornerRadius?.dp ?: 8.dp),
+                promptPadding = cssLayout?.welcomePromptPadding?.dp ?: 0.dp,
                 promptImageSize = cssLayout?.welcomePromptImageSize?.dp ?: 75.dp,
                 promptImageShape = RoundedCornerShape(4.dp),
                 promptImagePlaceholderColor = textColor.copy(alpha = 0.1f),
                 promptImageSpacing = 12.dp,
                 promptTextStyle = MaterialTheme.typography.bodyMedium,
-                promptTextColor = textColor
+                promptTextColor = themeColors.welcomePromptText ?: textColor,
+                promptFullWidth = ConciergeTheme.behavior?.welcomeCard?.promptFullWidth ?: true,
+                promptMaxLines = ConciergeTheme.behavior?.welcomeCard?.promptMaxLines ?: Int.MAX_VALUE
             )
         }
 }

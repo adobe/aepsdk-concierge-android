@@ -370,7 +370,27 @@ internal object CSSKeyMapper {
                 existing?.copy(textColor = color) ?: ConciergeCitationColors(textColor = color)
             }
         },
-        
+
+        // Colors - Prompt Pill
+        "welcome-prompt-background-color" to { cssValue, theme ->
+            val color = CSSValueConverter.parseColor(cssValue)
+            updateColors(theme) { colors ->
+                val promptColors = colors?.welcomePrompt?.copy(backgroundColor = color.toHexString())
+                    ?: ConciergeWelcomePromptColors(backgroundColor = color.toHexString())
+                colors?.copy(welcomePrompt = promptColors)
+                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            }
+        },
+        "welcome-prompt-text-color" to { cssValue, theme ->
+            val color = CSSValueConverter.parseColor(cssValue)
+            updateColors(theme) { colors ->
+                val promptColors = colors?.welcomePrompt?.copy(textColor = color.toHexString())
+                    ?: ConciergeWelcomePromptColors(textColor = color.toHexString())
+                colors?.copy(welcomePrompt = promptColors)
+                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            }
+        },
+
         // Layout - Input (using helper)
         "input-height-mobile" to { cssValue, theme ->
             updateLayout(theme) { layout ->
@@ -590,6 +610,18 @@ internal object CSSKeyMapper {
             updateLayout(theme) { layout ->
                 val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
                 layout?.copy(welcomePromptsTopSpacing = spacing) ?: ConciergeLayout(welcomePromptsTopSpacing = spacing)
+            }
+        },
+        "welcome-prompt-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 0.0
+                layout?.copy(welcomePromptPadding = padding) ?: ConciergeLayout(welcomePromptPadding = padding)
+            }
+        },
+        "welcome-prompt-corner-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomePromptCornerRadius = radius) ?: ConciergeLayout(welcomePromptCornerRadius = radius)
             }
         },
         "header-title-font-size" to { cssValue, theme ->

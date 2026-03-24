@@ -730,6 +730,18 @@ class CSSKeyMapperTest {
         assertEquals(12.0, result.cssLayout?.welcomePromptsTopSpacing)
     }
 
+    @Test
+    fun `apply maps welcome-prompt-padding`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-padding", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.welcomePromptPadding)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-corner-radius`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-corner-radius", "20px", emptyTheme)
+        assertEquals(20.0, result.cssLayout?.welcomePromptCornerRadius)
+    }
+
     // -----------------------------------------------------------------------
     // Input Icon Colors
     // -----------------------------------------------------------------------
@@ -744,5 +756,21 @@ class CSSKeyMapperTest {
     fun `apply maps input-mic-icon-color`() {
         val result = CSSKeyMapper.apply("--input-mic-icon-color", "#FF0000", emptyTheme)
         assertNotNull(result.colors?.input?.micIconColor)
+    }
+
+    // -----------------------------------------------------------------------
+    // Welcome Prompt Colors
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps welcome-prompt-background-color`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-background-color", "#F5F5F5", emptyTheme)
+        assertNotNull(result.colors?.welcomePrompt?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-text-color`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-text-color", "#000000", emptyTheme)
+        assertNotNull(result.colors?.welcomePrompt?.textColor)
     }
 }

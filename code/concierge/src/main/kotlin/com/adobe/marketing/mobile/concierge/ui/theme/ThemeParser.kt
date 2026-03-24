@@ -326,6 +326,9 @@ internal object ThemeParser {
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
+            // Prompt pill colors from CSS themes
+            welcomePromptBackground = themeColors.welcomePrompt?.backgroundColor?.toComposeColor(),
+            welcomePromptText = themeColors.welcomePrompt?.textColor?.toComposeColor(),
             // Citation/Disclaimer colors from CSS themes
             citationBackground = themeColors.citation?.backgroundColor?.toComposeColor(),
             citationText = themeColors.citation?.textColor?.toComposeColor(),
@@ -391,7 +394,10 @@ internal object ThemeParser {
         val welcomeCardTyped = welcomeCardMap as? MutableMap<String?, Any?>
         val welcomeCard = welcomeCardTyped?.let {
             ConciergeWelcomeCardBehavior(
-                closeButtonAlignment = DataReader.optString(it, "closeButtonAlignment", "end")
+                closeButtonAlignment = DataReader.optString(it, "closeButtonAlignment", "end"),
+                promptFullWidth = DataReader.optBoolean(it, "promptFullWidth", true),
+                promptMaxLines = DataReader.optInt(it, "promptMaxLines", Int.MAX_VALUE),
+                contentAlignment = DataReader.optString(it, "contentAlignment", "top")
             )
         }
 
