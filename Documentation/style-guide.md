@@ -575,7 +575,7 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
-| `--welcome-prompt-background-color` | `colors.welcomePrompt.backgroundColor` | `String?` | `null` (falls back to surface) | Prompt pill background color (hex) |
+| `--welcome-prompt-background-color` | `colors.welcomePrompt.backgroundColor` | `String?` | `null` (falls back to surface) | Prompt pill background color (hex). Only applied if a per-prompt `backgroundColor` is not defined in the prompt configuration. |
 | `--welcome-prompt-text-color` | `colors.welcomePrompt.textColor` | `String?` | `null` (falls back to `onSurface`) | Prompt pill text color (hex) |
 
 ### Colors - Circular Citations
