@@ -19,6 +19,8 @@ This document provides a comprehensive reference for all styling properties supp
   - [Typography](#typography)
   - [Colors](#colors)
   - [Layout](#layout)
+  - [Colors - CTA Button](#colors---cta-button)
+  - [Layout - CTA Button](#layout---cta-button)
 - [Implementation Status](#implementation-status)
 
 ---
@@ -642,6 +644,14 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 |--------------|-----------------|------|---------|-------------|
 | `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
 
+### Colors - CTA Button
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--cta-button-background-color` | `colors.ctaButton.background` | `String` | `"systemGray6"` | CTA button background color (hex) |
+| `--cta-button-text-color` | `colors.ctaButton.text` | `String` | `"primary"` | CTA button label text color (hex) |
+| `--cta-button-icon-color` | `colors.ctaButton.iconColor` | `String` | `"primary"` | CTA button icon color (hex) |
+
 ### Colors - Extended Product Cards
 
 Used when `behavior.productCard.cardStyle` is `"productDetail"`.
@@ -728,6 +738,17 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--button-height-s` | `cssLayout.buttonHeightSmall` | `Double` | `30.0` | Small button height (dp) |
+
+### Layout - CTA Button
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--cta-button-border-radius` | `layout.ctaButtonBorderRadius` | `Double` | `99.0` | CTA button corner radius (dp) |
+| `--cta-button-horizontal-padding` | `layout.ctaButtonHorizontalPadding` | `Double` | `16.0` | CTA button horizontal padding (dp) |
+| `--cta-button-vertical-padding` | `layout.ctaButtonVerticalPadding` | `Double` | `12.0` | CTA button vertical padding (dp) |
+| `--cta-button-font-size` | `layout.ctaButtonFontSize` | `Double` | `14.0` | CTA button label font size (sp) |
+| `--cta-button-font-weight` | `layout.ctaButtonFontWeight` | `Int` | `400` | CTA button label font weight |
+| `--cta-button-icon-size` | `layout.ctaButtonIconSize` | `Double` | `16.0` | CTA button icon size (dp) |
 
 ### Layout - Feedback
 
@@ -1197,6 +1218,9 @@ These colors are used internally by composables but cannot be customized in them
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
 | `--disclaimer-color` | ✅ | Disclaimer text color | `ConciergeDisclaimer` (DisclaimerStyle) |
+| `--cta-button-background-color` | ✅ | CTA button background color | `CtaButton` |
+| `--cta-button-text-color` | ✅ | CTA button label text color | `CtaButton` |
+| `--cta-button-icon-color` | ✅ | CTA button icon color | `CtaButton` |
 | `--product-card-outline-color` | ✅ | Extended product card border color | `ExtendedProductCard` |
 | `--product-card-background-color` | ✅ | Extended product card background | `ExtendedProductCard` |
 | `--product-card-title-color` | ✅ | Extended product card title color | `ExtendedProductCard` |
@@ -1252,6 +1276,12 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--product-card-carousel-horizontal-padding` | ✅ | Carousel horizontal padding | `ProductCarousel` |
 | `--product-card-carousel-spacing` | ✅ | Spacing between carousel cards | `ProductCarousel` |
 | `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
+| `--cta-button-border-radius` | ✅ | CTA button corner radius | `CtaButton` |
+| `--cta-button-horizontal-padding` | ✅ | CTA button horizontal padding | `CtaButton` |
+| `--cta-button-vertical-padding` | ✅ | CTA button vertical padding | `CtaButton` |
+| `--cta-button-font-size` | ✅ | CTA button label font size | `CtaButton` |
+| `--cta-button-font-weight` | ✅ | CTA button label font weight | `CtaButton` |
+| `--cta-button-icon-size` | ✅ | CTA button icon size | `CtaButton` |
 | `--feedback-container-gap` | ⚠️ | Parsed but not used in composables | - |
 | `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
 | `--citations-text-font-weight` | ⚠️ | Parsed but not used in composables | - |
