@@ -784,7 +784,6 @@ internal object ConciergeStyles {
     val micButtonStyle: MicButtonStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            val micColor = themeColors.micButtonColor ?: themeColors.primary
             val micColor = themeColors.primary
             val micIconColor = themeColors.micIconColor ?: micColor
             return MicButtonStyle(
@@ -814,7 +813,6 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return SendButtonStyle(
                 size = 24.dp,
-                enabledIconColor = themeColors.sendButtonColor ?: themeColors.onSurface,
                 enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
                 disabledIconAlpha = 0.3f
             )

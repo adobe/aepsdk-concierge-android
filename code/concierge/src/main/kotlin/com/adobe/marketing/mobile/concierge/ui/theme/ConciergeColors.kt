@@ -63,8 +63,6 @@ data class ConciergeColors(
     val inputText: Color? = null,
     val inputOutline: Color? = null,
     val inputOutlineFocus: Color? = null,
-    val micButtonColor: Color? = null,
-    val sendButtonColor: Color? = null,
     val sendIconColor: Color? = null,
     val micIconColor: Color? = null,
 
@@ -134,7 +132,6 @@ val DarkConciergeColors = ConciergeColors(
     inputText = Color(0xFFE6E1E5),
     inputOutline = Color(0xFF938F99),
     inputOutlineFocus = Color(0xFF1E88E5),
-    micButtonColor = Color(0xFF6B6B6B),
     citationBackground = Color(0xFF6B6B6B),
     citationText = Color(0xFFCAC4D0),
     messageConciergeLink = Color.Blue,
