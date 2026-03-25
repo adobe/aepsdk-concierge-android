@@ -977,8 +977,10 @@ internal object ConciergeStyles {
     val feedbackDialogStyle: FeedbackDialogStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            // Use concierge message colors for dialog
-            val dialogBackground = themeColors.conciergeMessageBackground ?: themeColors.surface
+            // Use the screen background for the dialog so it is always fully opaque.
+            // conciergeMessageBackground can be semi-transparent (e.g. an overlay tint
+            // for chat bubbles), which causes bleed-through when used on the dialog.
+            val dialogBackground = themeColors.background
             val dialogTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface
             // Checkbox: primary background when checked, white checkmark in both light and dark
             val checkboxCheckedColor = themeColors.feedbackDialogCheckboxCheckedColor ?: themeColors.primary
