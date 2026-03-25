@@ -168,6 +168,7 @@ data class ConciergeThemeBehavior(
     val enableCitations: Boolean = true,
     val welcomeCard: ConciergeWelcomeCardBehavior? = null,
     val enableVoiceInput: Boolean = true,
+    val sendButtonStyle: String = "default",
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
     val feedback: ConciergeFeedbackBehavior? = null,

@@ -16,7 +16,8 @@
     "input": {
       "enableVoiceInput": true,
       "disableMultiline": true,
-      "showAiChatIcon": null
+      "showAiChatIcon": null,
+      "sendButtonStyle": "arrow"
     },
     "chat": {
       "messageAlignment": "left",
@@ -185,6 +186,9 @@
     "--input-button-border-radius": "8px",
     "--input-send-icon-color": "#FFFFFF",
     "--input-mic-icon-color": "#FFFFFF",
+    "--input-mic-recording-icon-color" : "#FFFFFF",
+    "--input-send-arrow-icon-color": "#FFFFFF",
+    "--input-send-arrow-background-color": "#1E40AF",
 
     "--citations-text-font-weight": "700",
     "--citations-desktop-button-font-size": "14px",

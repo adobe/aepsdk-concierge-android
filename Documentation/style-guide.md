@@ -254,6 +254,7 @@ Feature toggles and interaction configuration.
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
 | `behavior.input.enableVoiceInput` | `Bool` | `false` | Enable voice input button |
+| `behavior.input.sendButtonStyle` | `String` | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | `Bool` | `true` | Disable multiline text input |
 | `behavior.input.showAiChatIcon` | `Object?` | `null` | AI chat icon configuration |
 
@@ -309,6 +310,7 @@ Feature toggles and interaction configuration.
     },
     "input": {
       "enableVoiceInput": true,
+      "sendButtonStyle": "default",
       "disableMultiline": false,
       "showAiChatIcon": null
     },
@@ -608,7 +610,10 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-outline-color` | `colors.input.outline` | `String?` | `null` | Input border color (hex) |
 | `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
 | `--input-send-icon-color` | `colors.input.sendIconColor` | `String?` | `null` | Send button icon color (hex). Falls back to `onSurface` |
+| `--input-send-arrow-icon-color` | `colors.input.sendArrowIconColor` | `String?` | `null` | Arrow send button icon (arrow) color (hex). Falls back to `onPrimary`. Only used when `sendButtonStyle` is `"arrow"` |
+| `--input-send-arrow-background-color` | `colors.input.sendArrowBackgroundColor` | `String?` | `null` | Arrow send button circle background color (hex). Falls back to `sendIconColor` then `primary`. Only used when `sendButtonStyle` is `"arrow"` |
 | `--input-mic-icon-color` | `colors.input.micIconColor` | `String?` | `null` | Mic button icon color (hex). Falls back to `primary` |
+| `--input-mic-recording-icon-color` | `colors.input.micRecordingIconColor` | `String?` | `null` | Waveform animation color during voice recording (hex). Falls back to `onPrimary` |
 
 ### Colors - Welcome Prompts
 
@@ -784,6 +789,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     },
     "input": {
       "enableVoiceInput": true,
+      "sendButtonStyle": "default",
       "disableMultiline": false,
       "showAiChatIcon": null
     },
@@ -954,7 +960,10 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--input-text-color": "#000000",
     "--input-focus-outline-color": "#1976D2",
     "--input-send-icon-color": "#000000",
+    "--input-send-arrow-icon-color": "#FFFFFF",
+    "--input-send-arrow-background-color": "#1976D2",
     "--input-mic-icon-color": "#000000",
+    "--input-mic-recording-icon-color": "#FFFFFF",
     "--input-font-size": "16px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
@@ -1057,6 +1066,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.carouselStyle` | ✅ | Switches between paged (prev/next/dots) and continuous scroll | `ProductCarousel` |
 | `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
+| `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
@@ -1175,8 +1185,11 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-text-color` | ✅ | Input field text color | `ChatTextField`, `FeedbackDialog` |
 | `--input-outline-color` | ✅ | Input field border color | `ChatInputPanel` |
 | `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
-| `--input-send-icon-color` | ✅ | Send button icon color | `SendButton` |
+| `--input-send-icon-color` | ✅ | Send button icon color (default style tint) | `SendButton` |
+| `--input-send-arrow-icon-color` | ✅ | Arrow send button icon color (arrow style only) | `SendButton` |
+| `--input-send-arrow-background-color` | ✅ | Arrow send button circle background (arrow style only) | `SendButton` |
 | `--input-mic-icon-color` | ✅ | Mic button icon color | `MicButton` |
+| `--input-mic-recording-icon-color` | ✅ | Waveform animation color during recording | `MicButton`, `AnimatedAudioWave` |
 | `--welcome-prompt-background-color` | ✅ | Welcome prompt pill background | `SuggestedPromptItem` |
 | `--welcome-prompt-text-color` | ✅ | Welcome prompt pill text | `SuggestedPromptItem` |
 | `--citations-background-color` | ✅ | Citation pill background | `CircularCitation` |
@@ -1309,6 +1322,8 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
 - `--input-send-icon-color` / `--input-mic-icon-color` - Send and mic button icon colors
+- `--input-send-arrow-icon-color` / `--input-send-arrow-background-color` - Arrow send button colors (when `sendButtonStyle` is `"arrow"`)
+- `--input-mic-recording-icon-color` - Waveform animation color during voice recording
 - `--submit-button-fill-color` / `--color-button-submit` - Submit button
 - `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
@@ -1325,6 +1340,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 **Essential Behavior:**
 - `behavior.input.enableVoiceInput` - Show/hide microphone button
+- `behavior.input.sendButtonStyle` - `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow)
 - `behavior.productCard.cardStyle` - Use `"productDetail"` for extended product cards (image, badge, name, subtitle, price)
 - `behavior.multimodalCarousel.carouselStyle` - Use `"paged"` for prev/next/dots or `"scroll"` for continuous scroll
 - `behavior.welcomeCard.closeButtonAlignment` - Close button position (`"start"` or `"end"`)
