@@ -1161,12 +1161,12 @@ These colors are used internally by composables but cannot be customized in them
 |--------------|--------|-------|---------|
 | `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
 | `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
-| `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
+| `--main-container-background` | ✅ | Main chat screen, welcome card, and feedback dialog background | `ChatScreen`, `WelcomeCard`, `FeedbackDialog` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
-| `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
+| `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
 | `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter`, `ProductCard` text, `ProductCarousel` switcher color |
 | `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs | `ExpandedCitations` (citation URLs); message body links when applied |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
@@ -1312,7 +1312,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 - `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
 - `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
-- `--main-container-background` - Main screen background color (welcome card, chat area)
+- `--main-container-background` - Main screen background color (welcome card, chat area, feedback dialog)
 - `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
 - `--message-concierge-background` / `--message-concierge-text` - AI message styling, feedback dialog styling, feedback button icons, expanded citation text, chat footer (Sources label and icon)
