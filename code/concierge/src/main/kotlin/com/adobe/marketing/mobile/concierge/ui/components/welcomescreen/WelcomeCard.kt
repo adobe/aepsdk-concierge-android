@@ -22,12 +22,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
@@ -80,7 +77,7 @@ internal fun WelcomeCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(style.contentPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = style.horizontalAlignment
         ) {
                 // Welcome message (title)
                 Text(
@@ -88,7 +85,7 @@ internal fun WelcomeCard(
                     style = style.titleTextStyle,
                     color = style.titleTextColor,
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
+                    textAlign = style.titleTextAlign
                 )
 
                 Spacer(modifier = Modifier.height(style.titleBottomSpacing))
@@ -98,7 +95,7 @@ internal fun WelcomeCard(
                     text = config.subHeader,
                     style = style.descriptionTextStyle,
                     color = style.descriptionTextColor,
-                    textAlign = TextAlign.Center
+                    textAlign = style.descriptionTextAlign
                 )
 
                 // Suggested prompts
@@ -111,8 +108,8 @@ internal fun WelcomeCard(
                             onClick = { onPromptClick(prompt.text) }
                         )
                         Spacer(modifier = Modifier.height(style.promptsSpacing))
-                    }
                 }
             }
         }
     }
+}

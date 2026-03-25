@@ -32,6 +32,9 @@
     },
     "citations": {
       "showLinkIcon": false
+    },
+    "welcomeCard": {
+      "contentAlignment": "center"
     }
   },
   "disclaimer": {
@@ -44,6 +47,8 @@
     ]
   },
   "text": {
+    "header.title": "Concierge",
+    "header.subtitle": "Powered by Adobe",
     "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need. Let's get started!\n\nNot sure where to start? Explore the suggested ideas below.",
     "input.placeholder": "How can I help?",
@@ -116,6 +121,7 @@
   "theme": {
     "--welcome-input-order": "3",
     "--welcome-cards-order": "2",
+    "--header-title-font-size": "18px",
     "--font-family": "",
     "--color-primary": "#EB1000",
     "--color-text": "#131313",
@@ -125,8 +131,6 @@
     "--message-blocker-background": "#FFFFFF",
     "--input-height": "52px",
     "--input-height-mobile": "52px",
-    "--input-border-radius": "12px",
-    "--input-border-radius-mobile": "12px",
     "--input-background": "#FFFFFF",
     "--input-outline-color": null,
     "--input-outline-width": "2px",

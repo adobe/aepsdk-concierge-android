@@ -55,6 +55,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDi
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -66,7 +67,6 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.Pro
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 /**
@@ -364,11 +364,17 @@ internal fun ConciergeChat(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
+                    val welcomeAlignment = when (
+                        ConciergeTheme.behavior?.welcomeCard?.contentAlignment
+                    ) {
+                        "center" -> Alignment.Center
+                        else -> Alignment.TopCenter
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(style.backgroundColor),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = welcomeAlignment
                     ) {
                         WelcomeCard(
                             config = welcomeConfig,

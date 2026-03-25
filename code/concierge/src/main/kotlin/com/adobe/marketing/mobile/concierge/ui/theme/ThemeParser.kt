@@ -66,6 +66,8 @@ internal object ThemeParser {
             val textStrings = textMap?.let {
                 ConciergeTextStrings(
                     inputPlaceholder = DataReader.optString(it, "input.placeholder", null),
+                    headerTitle = DataReader.optString(it, "header.title", null),
+                    headerSubtitle = DataReader.optString(it, "header.subtitle", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),
@@ -319,10 +321,16 @@ internal object ThemeParser {
             inputText = themeColors.input?.text?.toComposeColor(),
             inputOutline = themeColors.input?.outline?.toComposeColor(),
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
-            micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
+            micButtonColor = themeColors.input?.micIconColor?.toComposeColor()
+                ?: themeColors.primaryColors?.text?.toComposeColor()
+                ?: defaultColors.micButtonColor,
+            sendButtonColor = themeColors.input?.sendIconColor?.toComposeColor(),
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
+            // Prompt pill colors from CSS themes
+            welcomePromptBackground = themeColors.welcomePrompt?.backgroundColor?.toComposeColor(),
+            welcomePromptText = themeColors.welcomePrompt?.textColor?.toComposeColor(),
             // Citation/Disclaimer colors from CSS themes
             citationBackground = themeColors.citation?.backgroundColor?.toComposeColor(),
             citationText = themeColors.citation?.textColor?.toComposeColor(),
@@ -402,6 +410,18 @@ internal object ThemeParser {
             )
         }
 
+        val welcomeCardMap = typedMap?.get("welcomeCard") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val welcomeCardTyped = welcomeCardMap as? MutableMap<String?, Any?>
+        val welcomeCard = welcomeCardTyped?.let {
+            ConciergeWelcomeCardBehavior(
+                closeButtonAlignment = DataReader.optString(it, "closeButtonAlignment", "end"),
+                promptFullWidth = DataReader.optBoolean(it, "promptFullWidth", true),
+                promptMaxLines = DataReader.optInt(it, "promptMaxLines", Int.MAX_VALUE),
+                contentAlignment = DataReader.optString(it, "contentAlignment", "top")
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -417,7 +437,8 @@ internal object ThemeParser {
             feedback = feedback,
             citations = citations,
             productCard = productCard,
-            multimodalCarousel = multimodalCarousel
+            multimodalCarousel = multimodalCarousel,
+            welcomeCard = welcomeCard
         )
     }
 

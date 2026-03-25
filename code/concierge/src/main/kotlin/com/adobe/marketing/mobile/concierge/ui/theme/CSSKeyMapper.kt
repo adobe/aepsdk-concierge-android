@@ -327,6 +327,16 @@ internal object CSSKeyMapper {
                 existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color)
             }
         },
+        "input-send-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color)
+            }
+        },
+        "input-mic-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
+            }
+        },
         
         // Colors - Feedback (using helper)
         "feedback-icon-btn-background" to { cssValue, theme ->
@@ -360,7 +370,27 @@ internal object CSSKeyMapper {
                 existing?.copy(textColor = color) ?: ConciergeCitationColors(textColor = color)
             }
         },
-        
+
+        // Colors - Prompt Pill
+        "welcome-prompt-background-color" to { cssValue, theme ->
+            val color = CSSValueConverter.parseColor(cssValue)
+            updateColors(theme) { colors ->
+                val promptColors = colors?.welcomePrompt?.copy(backgroundColor = color.toHexString())
+                    ?: ConciergeWelcomePromptColors(backgroundColor = color.toHexString())
+                colors?.copy(welcomePrompt = promptColors)
+                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            }
+        },
+        "welcome-prompt-text-color" to { cssValue, theme ->
+            val color = CSSValueConverter.parseColor(cssValue)
+            updateColors(theme) { colors ->
+                val promptColors = colors?.welcomePrompt?.copy(textColor = color.toHexString())
+                    ?: ConciergeWelcomePromptColors(textColor = color.toHexString())
+                colors?.copy(welcomePrompt = promptColors)
+                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            }
+        },
+
         // Layout - Input (using helper)
         "input-height-mobile" to { cssValue, theme ->
             updateLayout(theme) { layout ->
@@ -538,6 +568,66 @@ internal object CSSKeyMapper {
             updateLayout(theme) { layout ->
                 val order = CSSValueConverter.parseOrder(cssValue)
                 layout?.copy(welcomeCardsOrder = order) ?: ConciergeLayout(welcomeCardsOrder = order)
+            }
+        },
+        "welcome-title-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
+                layout?.copy(welcomeTitleFontSize = size) ?: ConciergeLayout(welcomeTitleFontSize = size)
+            }
+        },
+        "welcome-text-align" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val align = cssValue.trim().lowercase()
+                layout?.copy(welcomeTextAlign = align) ?: ConciergeLayout(welcomeTextAlign = align)
+            }
+        },
+        "welcome-content-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 20.0
+                layout?.copy(welcomeContentPadding = padding) ?: ConciergeLayout(welcomeContentPadding = padding)
+            }
+        },
+        "welcome-prompt-image-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 75.0
+                layout?.copy(welcomePromptImageSize = size) ?: ConciergeLayout(welcomePromptImageSize = size)
+            }
+        },
+        "welcome-prompt-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomePromptSpacing = spacing) ?: ConciergeLayout(welcomePromptSpacing = spacing)
+            }
+        },
+        "welcome-title-bottom-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomeTitleBottomSpacing = spacing) ?: ConciergeLayout(welcomeTitleBottomSpacing = spacing)
+            }
+        },
+        "welcome-prompts-top-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomePromptsTopSpacing = spacing) ?: ConciergeLayout(welcomePromptsTopSpacing = spacing)
+            }
+        },
+        "welcome-prompt-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 0.0
+                layout?.copy(welcomePromptPadding = padding) ?: ConciergeLayout(welcomePromptPadding = padding)
+            }
+        },
+        "welcome-prompt-corner-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(welcomePromptCornerRadius = radius) ?: ConciergeLayout(welcomePromptCornerRadius = radius)
+            }
+        },
+        "header-title-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
+                layout?.copy(headerTitleFontSize = size) ?: ConciergeLayout(headerTitleFontSize = size)
             }
         },
 

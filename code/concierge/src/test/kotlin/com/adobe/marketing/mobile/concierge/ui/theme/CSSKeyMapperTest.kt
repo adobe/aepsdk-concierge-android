@@ -671,4 +671,106 @@ class CSSKeyMapperTest {
         assertEquals(52.0, withBoth.cssLayout?.inputHeight)
         assertEquals(10.0, withBoth.cssLayout?.messageBorderRadius)
     }
+
+    // -----------------------------------------------------------------------
+    // Welcome Screen Layout
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps header-title-font-size`() {
+        val result = CSSKeyMapper.apply("--header-title-font-size", "18px", emptyTheme)
+        assertEquals(18.0, result.cssLayout?.headerTitleFontSize)
+    }
+
+    @Test
+    fun `apply maps welcome-title-font-size`() {
+        val result = CSSKeyMapper.apply("--welcome-title-font-size", "16px", emptyTheme)
+        assertEquals(16.0, result.cssLayout?.welcomeTitleFontSize)
+    }
+
+    @Test
+    fun `apply maps welcome-text-align`() {
+        val result = CSSKeyMapper.apply("--welcome-text-align", "left", emptyTheme)
+        assertEquals("left", result.cssLayout?.welcomeTextAlign)
+    }
+
+    @Test
+    fun `apply maps welcome-text-align center`() {
+        val result = CSSKeyMapper.apply("--welcome-text-align", "center", emptyTheme)
+        assertEquals("center", result.cssLayout?.welcomeTextAlign)
+    }
+
+    @Test
+    fun `apply maps welcome-content-padding`() {
+        val result = CSSKeyMapper.apply("--welcome-content-padding", "16px", emptyTheme)
+        assertEquals(16.0, result.cssLayout?.welcomeContentPadding)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-image-size`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-image-size", "48px", emptyTheme)
+        assertEquals(48.0, result.cssLayout?.welcomePromptImageSize)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-spacing`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-spacing", "6px", emptyTheme)
+        assertEquals(6.0, result.cssLayout?.welcomePromptSpacing)
+    }
+
+    @Test
+    fun `apply maps welcome-title-bottom-spacing`() {
+        val result = CSSKeyMapper.apply("--welcome-title-bottom-spacing", "6px", emptyTheme)
+        assertEquals(6.0, result.cssLayout?.welcomeTitleBottomSpacing)
+    }
+
+    @Test
+    fun `apply maps welcome-prompts-top-spacing`() {
+        val result = CSSKeyMapper.apply("--welcome-prompts-top-spacing", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.welcomePromptsTopSpacing)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-padding`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-padding", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.welcomePromptPadding)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-corner-radius`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-corner-radius", "20px", emptyTheme)
+        assertEquals(20.0, result.cssLayout?.welcomePromptCornerRadius)
+    }
+
+    // -----------------------------------------------------------------------
+    // Input Icon Colors
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps input-send-icon-color`() {
+        val result = CSSKeyMapper.apply("--input-send-icon-color", "#FFFFFF", emptyTheme)
+        assertNotNull(result.colors?.input?.sendIconColor)
+    }
+
+    @Test
+    fun `apply maps input-mic-icon-color`() {
+        val result = CSSKeyMapper.apply("--input-mic-icon-color", "#FF0000", emptyTheme)
+        assertNotNull(result.colors?.input?.micIconColor)
+    }
+
+    // -----------------------------------------------------------------------
+    // Welcome Prompt Colors
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps welcome-prompt-background-color`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-background-color", "#F5F5F5", emptyTheme)
+        assertNotNull(result.colors?.welcomePrompt?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps welcome-prompt-text-color`() {
+        val result = CSSKeyMapper.apply("--welcome-prompt-text-color", "#000000", emptyTheme)
+        assertNotNull(result.colors?.welcomePrompt?.textColor)
+    }
 }

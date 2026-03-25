@@ -6,6 +6,10 @@
     "namespace": "concierge-demo-theme"
   },
   "behavior": {
+    "welcomeCard": {
+      "promptFullWidth": false,
+      "promptMaxLines": 2
+    },
     "multimodalCarousel": {
       "cardClickAction": "openLink"
     },
@@ -112,6 +116,18 @@
   "theme": {
     "--welcome-input-order": "3",
     "--welcome-cards-order": "2",
+    "--header-title-font-size": "18px",
+    "--welcome-title-font-size": "16px",
+    "--welcome-text-align": "left",
+    "--welcome-prompt-image-size": "32px",
+    "--welcome-prompt-padding": "12px",
+    "--welcome-prompt-corner-radius": "20px",
+    "--welcome-prompt-background-color": "#75A7F8",
+    "--welcome-prompt-text-color": "#FFFFFF",
+    "--welcome-content-padding": "16px",
+    "--welcome-prompt-spacing": "8px",
+    "--welcome-title-bottom-spacing": "6px",
+    "--welcome-prompts-top-spacing": "12px",
     "--font-family": "",
     "--color-primary": "#1E3A8A",
     "--color-text": "#FFFFFF",
