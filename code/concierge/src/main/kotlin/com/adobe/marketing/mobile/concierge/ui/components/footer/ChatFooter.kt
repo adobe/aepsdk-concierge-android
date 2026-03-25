@@ -63,7 +63,7 @@ internal fun ChatFooter(
     val thumbsPlacement = ConciergeTheme.behavior?.feedback?.thumbsPlacement
         ?: FeedbackThumbsPlacement.INLINE
 
-    Column(modifier = modifier) {
+    Column(modifier = modifier.padding(top = 12.dp)) {
         when (thumbsPlacement) {
             FeedbackThumbsPlacement.INLINE -> {
                 // Original layout: sources label and thumbs on the same row
