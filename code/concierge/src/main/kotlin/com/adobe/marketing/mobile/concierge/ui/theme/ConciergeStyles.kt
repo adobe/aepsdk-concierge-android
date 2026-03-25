@@ -62,14 +62,17 @@ internal object ConciergeStyles {
      */
     @Immutable
     data class HeaderStyle(
-        val padding: Dp,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
         val titleStyle: TextStyle,
         val titleFontWeight: FontWeight,
         val titleColor: Color,
         val subtitleStyle: TextStyle,
         val subtitleColor: Color,
         val iconSize: Dp,
-        val iconColor: Color
+        val iconColor: Color,
+        val dividerColor: Color,
+        val dividerThickness: Dp
     )
 
     val headerStyle: HeaderStyle
@@ -83,14 +86,17 @@ internal object ConciergeStyles {
             } ?: MaterialTheme.typography.headlineSmall
 
             return HeaderStyle(
-                padding = 16.dp,
+                horizontalPadding = 12.dp,
+                verticalPadding = 8.dp,
                 titleStyle = titleStyle,
                 titleFontWeight = FontWeight.Bold,
                 titleColor = textColor,
                 subtitleStyle = MaterialTheme.typography.bodySmall,
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
-                iconColor = textColor
+                iconColor = textColor,
+                dividerColor = textColor.copy(alpha = 0.12f),
+                dividerThickness = 0.5.dp
             )
         }
 
