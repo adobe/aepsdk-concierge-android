@@ -1443,8 +1443,8 @@ class ThemeParserTest {
         )
 
         val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
-        assertNotNull(colors.sendButtonColor)
-        assertEquals(Color.White, colors.sendButtonColor)
+        assertNotNull(colors.sendIconColor)
+        assertEquals(Color.White, colors.sendIconColor)
     }
 
     // -----------------------------------------------------------------------
