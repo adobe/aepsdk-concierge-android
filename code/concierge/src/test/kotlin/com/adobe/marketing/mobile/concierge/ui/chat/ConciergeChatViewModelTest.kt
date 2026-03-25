@@ -801,16 +801,20 @@ class ConciergeChatViewModelTest {
     // ========== Prompt Suggestion Tests ==========
 
     @Test
-    fun `promptSuggestionClick sets text in input field`() = runTest {
+    fun `promptSuggestionClick auto-sends message`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
-        
+
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
-        
+
         vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("What can you do?"))
-        
-        val inputState = vm.inputState.value as UserInputState.Editing
-        assertEquals("What can you do?", inputState.content)
+
+        // Prompt suggestion should auto-send, so input should be empty and message added
+        assertEquals(UserInputState.Empty, vm.inputState.value)
+        val messages = vm.messages.value
+        assertTrue(messages.isNotEmpty())
+        val userMessage = messages.first()
+        assertTrue(userMessage.isFromUser)
     }
 
     // ========== Text Input State Tests ==========

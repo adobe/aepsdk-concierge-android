@@ -141,6 +141,8 @@
     "--input-text-color": "#292929",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
+    "--input-send-icon-color": "#EB1000",
+    "--input-mic-icon-color": "#EB1000",
     "--submit-button-fill-color": "#FFFFFF",
     "--submit-button-fill-color-disabled": "#C6C6C6",
     "--color-button-submit": "#292929",

@@ -607,8 +607,8 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-text-color` | `colors.input.text` | `String` | `"#000000"` | Input text color (hex) |
 | `--input-outline-color` | `colors.input.outline` | `String?` | `null` | Input border color (hex) |
 | `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
-| `--input-send-icon-color` | `colors.input.sendIconColor` | `String?` | `null` (falls back to `onSurface`) | Send button icon color (hex) |
-| `--input-mic-icon-color` | `colors.input.micIconColor` | `String?` | `null` (falls back to `--color-text` or `primary`) | Mic button icon color (hex) |
+| `--input-send-icon-color` | `colors.input.sendIconColor` | `String?` | `null` | Send button icon color (hex). Falls back to `onSurface` |
+| `--input-mic-icon-color` | `colors.input.micIconColor` | `String?` | `null` | Mic button icon color (hex). Falls back to `primary` |
 
 ### Colors - Welcome Prompts
 
@@ -953,6 +953,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--input-focus-outline-width": "2px",
     "--input-text-color": "#000000",
     "--input-focus-outline-color": "#1976D2",
+    "--input-send-icon-color": "#000000",
+    "--input-mic-icon-color": "#000000",
     "--input-font-size": "16px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
@@ -1306,6 +1308,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
+- `--input-send-icon-color` / `--input-mic-icon-color` - Send and mic button icon colors
 - `--submit-button-fill-color` / `--color-button-submit` - Submit button
 - `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).

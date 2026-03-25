@@ -51,6 +51,7 @@ internal fun ChatInputPanel(
     onMicPressed: () -> Unit,
     onSend: (String) -> Unit,
     onVoiceCancel: (() -> Unit)? = null,
+    onClear: (() -> Unit)? = null,
     borderColors: List<Color> = emptyList(),
     isFocused: Boolean = false
 ) {
@@ -96,14 +97,15 @@ internal fun ChatInputPanel(
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
 
-            // Input action buttons (mic and send) with state-aware animations
+            // Input action buttons (clear, mic, and send) with state-aware animations
             InputActionButtons(
                 inputState = inputState,
                 text = text,
                 isProcessing = isProcessing,
                 onMicPressed = onMicPressed,
                 onVoiceCancel = { onVoiceCancel?.invoke() },
-                onSend = onSend
+                onSend = onSend,
+                onClear = { onClear?.invoke() }
             )
         }
     }

@@ -392,8 +392,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handlePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
-        // Set the suggestion text in the input field
-        _inputState.update { UserInputState.Editing(suggestion) }
+        // Auto-send the suggestion as a message
+        handleSendMessage(suggestion)
     }
 
     /**

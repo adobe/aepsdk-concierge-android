@@ -337,7 +337,7 @@ internal object CSSKeyMapper {
                 existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
             }
         },
-        
+
         // Colors - Feedback (using helper)
         "feedback-icon-btn-background" to { cssValue, theme ->
             updateFeedbackColors(cssValue, theme) { existing, color ->

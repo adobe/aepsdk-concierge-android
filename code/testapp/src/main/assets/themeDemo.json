@@ -183,6 +183,8 @@
     "--input-button-height": "32px",
     "--input-button-width": "32px",
     "--input-button-border-radius": "8px",
+    "--input-send-icon-color": "#FFFFFF",
+    "--input-mic-icon-color": "#FFFFFF",
 
     "--citations-text-font-weight": "700",
     "--citations-desktop-button-font-size": "14px",
