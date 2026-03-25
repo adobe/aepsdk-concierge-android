@@ -670,20 +670,33 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
         if (parsedMessage.orderedElements.isNotEmpty()) {
-            // New ordered-elements path: text message first, then each element as its own message
-            val textContent = MessageContent.Text(parsedMessage.messageContent)
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Replacing with final Text message (${parsedMessage.messageContent.length} chars), then appending ${parsedMessage.orderedElements.size} ordered elements."
-            )
-            updateAssistantMessageContent(
-                textContent,
-                parsedMessage.promptSuggestions,
-                parsedMessage.sources,
-                parsedMessage.interactionId,
-                sseComplete = true
-            )
+            if (parsedMessage.messageContent.isNotEmpty()) {
+                // Text + ordered elements: keep the text message, then append elements.
+                // Suppress interactionId (and thus feedback controls) when CTAs are present —
+                // service-intent responses are deterministic and don't warrant thumbs up/down.
+                val hasCtas = parsedMessage.orderedElements.any { it is ParsedMultimodalItem.Cta }
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Replacing with final Text message (${parsedMessage.messageContent.length} chars), then appending ${parsedMessage.orderedElements.size} ordered elements."
+                )
+                updateAssistantMessageContent(
+                    MessageContent.Text(parsedMessage.messageContent),
+                    parsedMessage.promptSuggestions,
+                    parsedMessage.sources,
+                    interactionId = if (hasCtas) null else parsedMessage.interactionId,
+                    sseComplete = true
+                )
+            } else {
+                // No text, ordered elements only: remove the streaming placeholder so feedback
+                // controls don't appear on an empty bubble.
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "No text content, removing placeholder and appending ${parsedMessage.orderedElements.size} ordered elements."
+                )
+                removeLastAssistantPlaceholder()
+            }
             appendOrderedElementMessages(parsedMessage.orderedElements)
         } else {
             // Legacy path: text-only or mixed message
@@ -784,10 +797,21 @@ class ConciergeChatViewModel : AndroidViewModel {
                     promptSuggestions = promptSuggestions,
                     citations = sources,
                     uniqueCitations = uniqueSources,
-                    interactionId = interactionId ?: lastAssistantMessage.interactionId,
+                    interactionId = interactionId,
                     sseComplete = sseComplete ?: lastAssistantMessage.sseComplete
                 )
                 updatedMessages
+            } else {
+                existingMessages
+            }
+        }
+    }
+
+    private fun removeLastAssistantPlaceholder() {
+        _messages.update { existingMessages ->
+            val lastIndex = existingMessages.lastIndex
+            if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
+                existingMessages.dropLast(1)
             } else {
                 existingMessages
             }

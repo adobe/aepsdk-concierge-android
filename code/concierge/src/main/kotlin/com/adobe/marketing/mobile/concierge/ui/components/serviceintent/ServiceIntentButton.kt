@@ -31,7 +31,7 @@ import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Displays a CTA pill button (e.g., "Chat with a teammate ↗")
+ * Displays a CTA pill button (e.g., "Chat now ↗")
  * below a bot message.
  *
  * @param cta The CTA button data containing the label and URL
@@ -42,15 +42,18 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 internal fun CtaButton(
     cta: CtaButton,
     onClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    applyContainerPadding: Boolean = true
 ) {
     val style = ConciergeStyles.ctaButtonStyle
 
     Card(
         modifier = modifier
-            .padding(
-                top = style.containerTopPadding,
-                start = style.containerStartPadding
+            .then(
+                if (applyContainerPadding) Modifier.padding(
+                    top = style.containerTopPadding,
+                    start = style.containerStartPadding
+                ) else Modifier
             )
             .clickable { onClick(cta.url) },
         colors = CardDefaults.cardColors(
