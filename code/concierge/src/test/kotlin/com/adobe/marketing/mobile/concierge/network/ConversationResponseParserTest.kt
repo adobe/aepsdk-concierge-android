@@ -2067,11 +2067,13 @@ class ConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
                               "entity_info": {
-                                "label": "Chat now",
-                                "url": "https://www.example.com/live-chat"
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": "https://www.example.com/live-chat"
+                                }
                               }
                             }
                           ]
@@ -2114,11 +2116,13 @@ class ConversationResponseParserTest {
                               }
                             },
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
                               "entity_info": {
-                                "label": "Chat now",
-                                "url": "https://example.com/chat"
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": "https://example.com/chat"
+                                }
                               }
                             }
                           ]
@@ -2206,10 +2210,12 @@ class ConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
                               "entity_info": {
-                                "url": "https://example.com/chat"
+                                "primary": {
+                                  "url": "https://example.com/chat"
+                                }
                               }
                             }
                           ]
@@ -2242,10 +2248,12 @@ class ConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
                               "entity_info": {
-                                "label": "Chat now"
+                                "primary": {
+                                  "text": "Chat now"
+                                }
                               }
                             }
                           ]
@@ -2278,18 +2286,18 @@ class ConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
-                              "entity_info": { "label": "Shop All", "url": "https://example.com/shop" }
+                              "entity_info": { "primary": { "text": "Shop All", "url": "https://example.com/shop" } }
                             },
                             {
                               "id": "card-1",
                               "entity_info": { "productName": "Product A" }
                             },
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-2",
-                              "entity_info": { "label": "Learn More", "url": "https://example.com/learn" }
+                              "entity_info": { "primary": { "text": "Learn More", "url": "https://example.com/learn" } }
                             }
                           ]
                         }
@@ -2327,14 +2335,14 @@ class ConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
-                              "entity_info": { "label": "First", "url": "https://example.com/first" }
+                              "entity_info": { "primary": { "text": "First", "url": "https://example.com/first" } }
                             },
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-2",
-                              "entity_info": { "label": "Second", "url": "https://example.com/second" }
+                              "entity_info": { "primary": { "text": "Second", "url": "https://example.com/second" } }
                             }
                           ]
                         }
@@ -2353,44 +2361,6 @@ class ConversationResponseParserTest {
         assertEquals(2, elements.size)
         assertEquals("First", (elements[0] as ParsedMultimodalItem.Cta).button.label)
         assertEquals("Second", (elements[1] as ParsedMultimodalItem.Cta).button.label)
-    }
-
-    @Test
-    fun `parseConversationData CTA uses text field as label fallback`() {
-        val json = """
-            {
-              "handle": [
-                {
-                  "type": "brand-concierge:conversation",
-                  "payload": [
-                    {
-                      "response": {
-                        "message": "CTA text fallback",
-                        "multimodalElements": {
-                          "elements": [
-                            {
-                              "elementType": "ctaButton",
-                              "id": "cta-1",
-                              "entity_info": {
-                                "text": "Click Me",
-                                "url": "https://example.com"
-                              }
-                            }
-                          ]
-                        }
-                      },
-                      "state": "completed"
-                    }
-                  ]
-                }
-              ]
-            }
-        """.trimIndent()
-
-        val result = ConversationResponseParser.parseConversationData(json)
-        assertEquals(1, result.size)
-        val cta = result[0].orderedElements[0] as ParsedMultimodalItem.Cta
-        assertEquals("Click Me", cta.button.label)
     }
 
     @Test
@@ -2458,11 +2428,13 @@ class ConversationResponseParserTest {
                               }
                             },
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-1",
                               "entity_info": {
-                                "label": "Chat with us",
-                                "url": "https://example.com/chat"
+                                "primary": {
+                                  "text": "Chat with us",
+                                  "url": "https://example.com/chat"
+                                }
                               }
                             }
                           ]
@@ -2496,6 +2468,126 @@ class ConversationResponseParserTest {
         val cta = message.orderedElements[1] as ParsedMultimodalItem.Cta
         assertEquals("Chat with us", cta.button.label)
         assertEquals("https://example.com/chat", cta.button.url)
+    }
+}
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Need help?",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": "https://www.dickssportinggoods.com/s/live-chat"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertEquals(1, result[0].orderedElements.size)
+        val cta = result[0].orderedElements[0] as ParsedMultimodalItem.Cta
+        assertEquals("Chat now", cta.button.label)
+        assertEquals("https://www.dickssportinggoods.com/s/live-chat", cta.button.url)
+    }
+
+    @Test
+    fun `parseConversationData CTA with type field is excluded from multimodalElements`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Need help?",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "service-intent-live-chat",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Chat now",
+                                  "url": "https://www.dickssportinggoods.com/s/live-chat"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(result[0].multimodalElements.isEmpty())
+    }
+
+    @Test
+    fun `parseConversationData parses CTA label from entity_info primary text`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "We can help!",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "elementType": "ctaButton",
+                              "id": "cta-primary",
+                              "entity_info": {
+                                "primary": {
+                                  "text": "Shop Now",
+                                  "url": "https://example.com/shop"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        val cta = result[0].orderedElements[0] as ParsedMultimodalItem.Cta
+        assertEquals("Shop Now", cta.button.label)
+        assertEquals("https://example.com/shop", cta.button.url)
     }
 }
 
