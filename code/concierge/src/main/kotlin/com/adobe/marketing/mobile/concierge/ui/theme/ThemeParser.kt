@@ -319,7 +319,10 @@ internal object ThemeParser {
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
             micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
             sendIconColor = themeColors.input?.sendIconColor?.toComposeColor(),
+            sendArrowIconColor = themeColors.input?.sendArrowIconColor?.toComposeColor(),
+            sendArrowBackgroundColor = themeColors.input?.sendArrowBackgroundColor?.toComposeColor(),
             micIconColor = themeColors.input?.micIconColor?.toComposeColor(),
+            micRecordingIconColor = themeColors.input?.micRecordingIconColor?.toComposeColor(),
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
@@ -356,9 +359,9 @@ internal object ThemeParser {
         @Suppress("UNCHECKED_CAST")
         val typedMap = map as? MutableMap<String?, Any?>
         val inputMap = typedMap?.get("input") as? Map<*, *>
-        val enableVoiceInput = if (inputMap != null) {
-            @Suppress("UNCHECKED_CAST")
-            val inputTypedMap = inputMap as? MutableMap<String?, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val inputTypedMap = inputMap as? MutableMap<String?, Any?>
+        val enableVoiceInput = if (inputTypedMap != null) {
             DataReader.optBoolean(inputTypedMap, "enableVoiceInput", true)
         } else {
             // Default to false if not specified
@@ -393,6 +396,7 @@ internal object ThemeParser {
             enableMarkdown = DataReader.optBoolean(typedMap, "enableMarkdown", true),
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
             enableVoiceInput = enableVoiceInput,
+            sendButtonStyle = DataReader.optString(inputTypedMap, "sendButtonStyle", "default") ?: "default",
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
             productCard = productCard,

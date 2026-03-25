@@ -332,9 +332,24 @@ internal object CSSKeyMapper {
                 existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color)
             }
         },
+        "input-send-arrow-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(sendArrowIconColor = color) ?: ConciergeInputColors(sendArrowIconColor = color)
+            }
+        },
+        "input-send-arrow-background-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(sendArrowBackgroundColor = color) ?: ConciergeInputColors(sendArrowBackgroundColor = color)
+            }
+        },
         "input-mic-icon-color" to { cssValue, theme ->
             updateInputColors(cssValue, theme) { existing, color ->
                 existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
+            }
+        },
+        "input-mic-recording-icon-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(micRecordingIconColor = color) ?: ConciergeInputColors(micRecordingIconColor = color)
             }
         },
 

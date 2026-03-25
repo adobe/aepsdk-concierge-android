@@ -773,7 +773,7 @@ internal object ConciergeStyles {
             return MicButtonStyle(
                 size = 24.dp,
                 iconColor = micIconColor,
-                recordingIconColor = themeColors.onPrimary,
+                recordingIconColor = themeColors.micRecordingIconColor ?: themeColors.onPrimary,
                 pulsingBackgroundColor = micColor,
                 pulsingBackgroundAlpha = 0.25f,
                 pulseAnimationDuration = 1000,
@@ -789,16 +789,23 @@ internal object ConciergeStyles {
     data class SendButtonStyle(
         val size: Dp,
         val enabledIconColor: Color,
-        val disabledIconAlpha: Float
+        val arrowCircleColor: Color,
+        val arrowIconColor: Color,
+        val disabledIconAlpha: Float,
+        val useArrowStyle: Boolean
     )
 
     val sendButtonStyle: SendButtonStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val sendButtonStyleName = ConciergeTheme.behavior?.sendButtonStyle ?: "default"
             return SendButtonStyle(
                 size = 24.dp,
                 enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
-                disabledIconAlpha = 0.3f
+                arrowCircleColor = themeColors.sendArrowBackgroundColor ?: themeColors.sendIconColor ?: themeColors.primary,
+                arrowIconColor = themeColors.sendArrowIconColor ?: themeColors.onPrimary,
+                disabledIconAlpha = 0.3f,
+                useArrowStyle = sendButtonStyleName == "arrow"
             )
         }
 

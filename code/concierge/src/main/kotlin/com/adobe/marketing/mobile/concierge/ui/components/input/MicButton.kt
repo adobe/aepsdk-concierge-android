@@ -101,17 +101,18 @@ internal fun MicButton(
             val baseIconColor = if (userInputState is UserInputState.Recording) style.recordingIconColor else style.iconColor
             val tintColor = if (isEnabled) baseIconColor else baseIconColor.copy(alpha = 0.38f)
 
-            Image(
-                painter = painterResource(
-                    if (userInputState is UserInputState.Recording) R.drawable.audiowave
-                    else R.drawable.microphone
-                ),
-                contentDescription = when (userInputState) {
-                    is UserInputState.Recording -> "Stop recording"
-                    else -> "Start voice input"
-                },
-                colorFilter = ColorFilter.tint(tintColor)
-            )
+            if (userInputState is UserInputState.Recording) {
+                AnimatedAudioWave(
+                    modifier = Modifier.size(style.size),
+                    color = tintColor
+                )
+            } else {
+                Image(
+                    painter = painterResource(R.drawable.microphone),
+                    contentDescription = "Start voice input",
+                    colorFilter = ColorFilter.tint(tintColor)
+                )
+            }
         }
     }
 }
