@@ -653,6 +653,133 @@ class CSSKeyMapperTest {
     }
 
     // -----------------------------------------------------------------------
+    // Layout - CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps cta-button-border-radius`() {
+        val result = CSSKeyMapper.apply("--cta-button-border-radius", "99px", emptyTheme)
+        assertEquals(99.0, result.cssLayout?.ctaButtonBorderRadius)
+    }
+
+    @Test
+    fun `apply maps cta-button-horizontal-padding`() {
+        val result = CSSKeyMapper.apply("--cta-button-horizontal-padding", "16px", emptyTheme)
+        assertEquals(16.0, result.cssLayout?.ctaButtonHorizontalPadding)
+    }
+
+    @Test
+    fun `apply maps cta-button-vertical-padding`() {
+        val result = CSSKeyMapper.apply("--cta-button-vertical-padding", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.ctaButtonVerticalPadding)
+    }
+
+    @Test
+    fun `apply maps cta-button-font-size`() {
+        val result = CSSKeyMapper.apply("--cta-button-font-size", "14px", emptyTheme)
+        assertEquals(14.0, result.cssLayout?.ctaButtonFontSize)
+    }
+
+    @Test
+    fun `apply maps cta-button-font-weight`() {
+        val result = CSSKeyMapper.apply("--cta-button-font-weight", "400", emptyTheme)
+        assertEquals(400, result.cssLayout?.ctaButtonFontWeight)
+    }
+
+    @Test
+    fun `apply maps cta-button-icon-size`() {
+        val result = CSSKeyMapper.apply("--cta-button-icon-size", "16px", emptyTheme)
+        assertEquals(16.0, result.cssLayout?.ctaButtonIconSize)
+    }
+
+    @Test
+    fun `apply maps all cta-button layout properties independently`() {
+        var theme = CSSKeyMapper.apply("--cta-button-border-radius", "24px", emptyTheme)
+        theme = CSSKeyMapper.apply("--cta-button-horizontal-padding", "20px", theme)
+        theme = CSSKeyMapper.apply("--cta-button-vertical-padding", "8px", theme)
+        theme = CSSKeyMapper.apply("--cta-button-font-size", "16px", theme)
+        theme = CSSKeyMapper.apply("--cta-button-font-weight", "700", theme)
+        theme = CSSKeyMapper.apply("--cta-button-icon-size", "18px", theme)
+        assertEquals(24.0, theme.cssLayout?.ctaButtonBorderRadius)
+        assertEquals(20.0, theme.cssLayout?.ctaButtonHorizontalPadding)
+        assertEquals(8.0, theme.cssLayout?.ctaButtonVerticalPadding)
+        assertEquals(16.0, theme.cssLayout?.ctaButtonFontSize)
+        assertEquals(700, theme.cssLayout?.ctaButtonFontWeight)
+        assertEquals(18.0, theme.cssLayout?.ctaButtonIconSize)
+    }
+
+    @Test
+    fun `apply preserves existing layout when adding cta-button layout`() {
+        val withInput = CSSKeyMapper.apply("--input-height-mobile", "52px", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--cta-button-border-radius", "99px", withInput)
+        assertEquals(52.0, withBoth.cssLayout?.inputHeight)
+        assertEquals(99.0, withBoth.cssLayout?.ctaButtonBorderRadius)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains cta button layout keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("cta-button-border-radius"))
+        assertTrue(keys.contains("cta-button-horizontal-padding"))
+        assertTrue(keys.contains("cta-button-vertical-padding"))
+        assertTrue(keys.contains("cta-button-font-size"))
+        assertTrue(keys.contains("cta-button-font-weight"))
+        assertTrue(keys.contains("cta-button-icon-size"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Colors - CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps cta-button-background-color`() {
+        val result = CSSKeyMapper.apply("--cta-button-background-color", "#EDEDED", emptyTheme)
+        assertNotNull(result.colors?.ctaButton?.backgroundColor)
+        assertEquals("#EDEDED", result.colors?.ctaButton?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps cta-button-text-color`() {
+        val result = CSSKeyMapper.apply("--cta-button-text-color", "#191F1C", emptyTheme)
+        assertNotNull(result.colors?.ctaButton?.textColor)
+        assertEquals("#191F1C", result.colors?.ctaButton?.textColor)
+    }
+
+    @Test
+    fun `apply maps cta-button-icon-color`() {
+        val result = CSSKeyMapper.apply("--cta-button-icon-color", "#161313", emptyTheme)
+        assertNotNull(result.colors?.ctaButton?.iconColor)
+        assertEquals("#161313", result.colors?.ctaButton?.iconColor)
+    }
+
+    @Test
+    fun `apply maps all three cta-button colors independently`() {
+        var theme = CSSKeyMapper.apply("--cta-button-background-color", "#FFFFFF", emptyTheme)
+        theme = CSSKeyMapper.apply("--cta-button-text-color", "#000000", theme)
+        theme = CSSKeyMapper.apply("--cta-button-icon-color", "#FF0000", theme)
+        assertEquals("#FFFFFF", theme.colors?.ctaButton?.backgroundColor)
+        assertEquals("#000000", theme.colors?.ctaButton?.textColor)
+        assertEquals("#FF0000", theme.colors?.ctaButton?.iconColor)
+    }
+
+    @Test
+    fun `apply preserves other cta-button colors when setting one`() {
+        val withBackground = CSSKeyMapper.apply("--cta-button-background-color", "#EDEDED", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--cta-button-text-color", "#191F1C", withBackground)
+        assertEquals("#EDEDED", withBoth.colors?.ctaButton?.backgroundColor)
+        assertEquals("#191F1C", withBoth.colors?.ctaButton?.textColor)
+        assertNull(withBoth.colors?.ctaButton?.iconColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains cta button keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("cta-button-background-color"))
+        assertTrue(keys.contains("cta-button-text-color"))
+        assertTrue(keys.contains("cta-button-icon-color"))
+    }
+
+    // -----------------------------------------------------------------------
     // Existing theme fields are preserved on incremental apply
     // -----------------------------------------------------------------------
 

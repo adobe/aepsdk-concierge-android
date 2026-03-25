@@ -628,6 +628,49 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for CTA button
+     */
+    @Immutable
+    data class CtaButtonStyle(
+        val containerTopPadding: Dp,
+        val containerStartPadding: Dp,
+        val shape: Shape,
+        val backgroundColor: Color,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val iconSize: Dp,
+        val iconColor: Color,
+        val iconSpacing: Dp,
+        val textStyle: TextStyle,
+        val textColor: Color
+    )
+
+    val ctaButtonStyle: CtaButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            val borderRadius = ctaLayout?.ctaButtonBorderRadius?.dp ?: 99.dp
+            val fontWeight = ctaLayout?.ctaButtonFontWeight?.let { FontWeight(it) } ?: FontWeight.Normal
+            val fontSize = ctaLayout?.ctaButtonFontSize?.sp ?: 14.sp
+            return CtaButtonStyle(
+                containerTopPadding = 6.dp,
+                containerStartPadding = 12.dp,
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.ctaButtonBackground ?: Color(0xFFEDEDED),
+                horizontalPadding = ctaLayout?.ctaButtonHorizontalPadding?.dp ?: 16.dp,
+                verticalPadding = ctaLayout?.ctaButtonVerticalPadding?.dp ?: 12.dp,
+                iconSize = ctaLayout?.ctaButtonIconSize?.dp ?: 16.dp,
+                iconColor = themeColors.ctaButtonIcon ?: Color(0xFF161313),
+                iconSpacing = 4.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight
+                ),
+                textColor = themeColors.ctaButtonText ?: Color(0xFF191F1C)
+            )
+        }
+
+    /**
      * Styling for citation items
      */
     @Immutable

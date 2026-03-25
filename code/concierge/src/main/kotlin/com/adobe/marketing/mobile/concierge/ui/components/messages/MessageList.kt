@@ -44,7 +44,8 @@ internal fun MessageList(
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
-    handleLink: (String) -> Unit = {}
+    handleLink: (String) -> Unit = {},
+    onCtaButtonClick: (String) -> Unit = {}
 ) {
     val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
@@ -97,7 +98,8 @@ internal fun MessageList(
                         onImageClick = onImageClick,
                         onSuggestionClick = onSuggestionClick,
                         handleLink = handleLink,
-                        feedbackState = message.feedbackState
+                        feedbackState = message.feedbackState,
+                        onCtaButtonClick = onCtaButtonClick
                     )
                 }
             }

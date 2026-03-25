@@ -211,6 +211,15 @@
     "--product-card-text-bottom-padding": "16px",
     "--product-card-text-spacing": "8px",
     "--product-card-carousel-horizontal-padding": "16px",
-    "--product-card-carousel-spacing": "12px"
+    "--product-card-carousel-spacing": "12px",
+    "--cta-button-background-color": "#EDEDED",
+    "--cta-button-text-color": "#191F1C",
+    "--cta-button-icon-color": "#161313",
+    "--cta-button-border-radius": "99px",
+    "--cta-button-horizontal-padding": "16px",
+    "--cta-button-vertical-padding": "12px",
+    "--cta-button-font-size": "14px",
+    "--cta-button-font-weight": "400",
+    "--cta-button-icon-size": "16px"
   }
 }

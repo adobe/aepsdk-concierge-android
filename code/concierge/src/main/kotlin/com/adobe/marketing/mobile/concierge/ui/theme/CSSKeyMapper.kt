@@ -136,6 +136,22 @@ internal object CSSKeyMapper {
     }
     
     /**
+     * Helper to update CTA button colors
+     */
+    private fun updateCtaButtonColors(
+        cssValue: String,
+        theme: ConciergeThemeTokens,
+        updater: (ConciergeCtaButtonColors?, String) -> ConciergeCtaButtonColors
+    ): ConciergeThemeTokens {
+        val color = CSSValueConverter.parseColor(cssValue)
+        return updateColors(theme) { colors ->
+            val ctaButtonColors = updater(colors?.ctaButton, color.toHexString())
+            colors?.copy(ctaButton = ctaButtonColors)
+                ?: ConciergeThemeColors(ctaButton = ctaButtonColors)
+        }
+    }
+
+    /**
      * Helper to update citation colors
      */
     private fun updateCitationColors(
@@ -813,6 +829,61 @@ internal object CSSKeyMapper {
             updateLayout(theme) { layout ->
                 val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
                 layout?.copy(productCardCarouselSpacing = spacing) ?: ConciergeLayout(productCardCarouselSpacing = spacing)
+            }
+        },
+
+        // Layout - CTA button
+        "cta-button-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 99.0
+                layout?.copy(ctaButtonBorderRadius = radius) ?: ConciergeLayout(ctaButtonBorderRadius = radius)
+            }
+        },
+        "cta-button-horizontal-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                layout?.copy(ctaButtonHorizontalPadding = padding) ?: ConciergeLayout(ctaButtonHorizontalPadding = padding)
+            }
+        },
+        "cta-button-vertical-padding" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 12.0
+                layout?.copy(ctaButtonVerticalPadding = padding) ?: ConciergeLayout(ctaButtonVerticalPadding = padding)
+            }
+        },
+        "cta-button-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 14.0
+                layout?.copy(ctaButtonFontSize = size) ?: ConciergeLayout(ctaButtonFontSize = size)
+            }
+        },
+        "cta-button-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(ctaButtonFontWeight = weight) ?: ConciergeLayout(ctaButtonFontWeight = weight)
+            }
+        },
+        "cta-button-icon-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                layout?.copy(ctaButtonIconSize = size) ?: ConciergeLayout(ctaButtonIconSize = size)
+            }
+        },
+
+        // Colors - CTA Button (using helper)
+        "cta-button-background-color" to { cssValue, theme ->
+            updateCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeCtaButtonColors(backgroundColor = color)
+            }
+        },
+        "cta-button-text-color" to { cssValue, theme ->
+            updateCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeCtaButtonColors(textColor = color)
+            }
+        },
+        "cta-button-icon-color" to { cssValue, theme ->
+            updateCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(iconColor = color) ?: ConciergeCtaButtonColors(iconColor = color)
             }
         },
 

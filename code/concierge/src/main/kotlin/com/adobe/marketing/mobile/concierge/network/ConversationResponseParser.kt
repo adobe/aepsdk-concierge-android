@@ -67,6 +67,9 @@ internal object ConversationResponseParser {
     private const val FIELD_PRODUCT_PRICE = "productPrice"
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
     private const val FIELD_PRODUCT_BADGE = "productBadge"
+    private const val FIELD_ELEMENT_TYPE = "elementType"
+    private const val ELEMENT_TYPE_CTA_BUTTON = "ctaButton"
+    private const val FIELD_LABEL = "label"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -141,7 +144,8 @@ internal object ConversationResponseParser {
         val promptSuggestions = (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
             ?: emptyList()).filter { it.isNotEmpty() }
 
-        val multimodalElements = extractMultimodalElements(response)
+        val orderedElements = extractOrderedElements(response)
+        val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
 
         return ParsedConversationMessage(
@@ -151,29 +155,20 @@ internal object ConversationResponseParser {
             interactionId = interactionId,
             promptSuggestions = promptSuggestions,
             multimodalElements = multimodalElements,
+            orderedElements = orderedElements,
             sources = sources
         )
     }
 
     /**
-     * Extracts multimodal elements from the response map.
-     * Ignores array-format multimodalElements; expects object with elements list.
+     * Extracts ordered elements from the response, preserving original array position.
+     * Each element is parsed as either a [ParsedMultimodalItem.Cta] (for ctaButton elements)
+     * or a [ParsedMultimodalItem.Card] (for all other element types).
      */
-    private fun extractMultimodalElements(response: Map<String, Any?>): List<MultimodalElement> {
-        val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS]
-        if (multimodalRaw == null) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
-            return emptyList()
-        }
-        if (multimodalRaw is List<*>) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "multimodalElements array format; ignoring.")
-            return emptyList()
-        }
-        val multimodalMap = multimodalRaw as? Map<*, *>
-        if (multimodalMap == null) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
-            return emptyList()
-        }
+    private fun extractOrderedElements(response: Map<String, Any?>): List<ParsedMultimodalItem> {
+        val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
+        if (multimodalRaw is List<*>) return emptyList()
+        val multimodalMap = multimodalRaw as? Map<*, *> ?: return emptyList()
 
         @Suppress("UNCHECKED_CAST")
         val elementsList = DataReader.optTypedListOfMap(
@@ -181,38 +176,44 @@ internal object ConversationResponseParser {
             multimodalMap as Map<String, Any?>,
             FIELD_ELEMENTS,
             null
-        )
-        if (elementsList == null) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements array found in multimodalElements.")
-            return emptyList()
-        }
+        ) ?: return emptyList()
 
-        val elements = mutableListOf<MultimodalElement>()
+        val items = mutableListOf<ParsedMultimodalItem>()
         elementsList.forEachIndexed { i, elementMap ->
-            val element = parseMultimodalElement(elementMap)
-            if (element != null) {
-                elements.add(element)
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Parsed multimodal element ${i + 1}: id=${element.id}, title=${element.title ?: "N/A"}."
-                )
+            val elementType = DataReader.optString(elementMap, FIELD_ELEMENT_TYPE, "")
+            if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
+                val ctaButton = parseCtaButton(elementMap)
+                if (ctaButton != null) {
+                    items.add(ParsedMultimodalItem.Cta(ctaButton))
+                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed CTA button ${i + 1}: label=${ctaButton.label}")
+                } else {
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse CTA button element ${i + 1}.")
+                }
             } else {
-                Log.warning(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Failed to parse multimodal element ${i + 1} from JSON."
-                )
+                val element = parseMultimodalElement(elementMap)
+                if (element != null) {
+                    items.add(ParsedMultimodalItem.Card(element))
+                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed card element ${i + 1}: id=${element.id}")
+                } else {
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse card element ${i + 1}.")
+                }
             }
         }
+        return items
+    }
 
-        if (elements.isNotEmpty()) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Successfully parsed ${elements.size} multimodal elements from response.")
-        } else {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No valid multimodal elements found in elements array.")
-        }
-
-        return elements
+    /**
+     * Parses a CTA button from an element map.
+     * Reads label and url from entity_info, falling back to root element fields.
+     * Returns null if label or url is empty.
+     */
+    private fun parseCtaButton(elementMap: Map<String, Any?>): CtaButton? {
+        val entityInfo = DataReader.optTypedMap(Any::class.java, elementMap, FIELD_ENTITY_INFO, null)
+        val label = optStringFallback(entityInfo, elementMap, FIELD_LABEL)
+            ?: optStringFallback(entityInfo, elementMap, FIELD_BUTTON_TEXT)
+        val url = optStringFallback(entityInfo, elementMap, FIELD_BUTTON_URL)
+        if (label.isNullOrEmpty() || url.isNullOrEmpty()) return null
+        return CtaButton(label = label, url = url)
     }
 
     /**

@@ -126,6 +126,14 @@ data class ConciergeLayout(
     val productCardCarouselHorizontalPadding: Double? = null,
     val productCardCarouselSpacing: Double? = null,
 
+    // CTA button layout
+    val ctaButtonBorderRadius: Double? = null,
+    val ctaButtonHorizontalPadding: Double? = null,
+    val ctaButtonVerticalPadding: Double? = null,
+    val ctaButtonFontSize: Double? = null,
+    val ctaButtonFontWeight: Int? = null,
+    val ctaButtonIconSize: Double? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,

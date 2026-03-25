@@ -87,7 +87,12 @@ data class ConciergeColors(
     // Citation/Disclaimer colors (from CSS themes)
     val citationBackground: Color? = null,
     val citationText: Color? = null,
-    val disclaimerColor: Color? = null
+    val disclaimerColor: Color? = null,
+
+    // CTA button colors (from CSS themes)
+    val ctaButtonBackground: Color? = null,
+    val ctaButtonText: Color? = null,
+    val ctaButtonIcon: Color? = null
 )
 
 /**

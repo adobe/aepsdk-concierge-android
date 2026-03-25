@@ -226,6 +226,15 @@
     "--product-card-was-price-color": "#6E6E6E",
     "--product-card-was-price-font-size": "12px",
     "--product-card-was-price-font-weight": "400",
-    "--product-card-was-price-text-prefix": "was "
+    "--product-card-was-price-text-prefix": "was ",
+    "--cta-button-background-color": "#EDEDED",
+    "--cta-button-text-color": "#191F1C",
+    "--cta-button-icon-color": "#161313",
+    "--cta-button-border-radius": "99px",
+    "--cta-button-horizontal-padding": "16px",
+    "--cta-button-vertical-padding": "12px",
+    "--cta-button-font-size": "14px",
+    "--cta-button-font-weight": "400",
+    "--cta-button-icon-size": "16px"
   }
 }

@@ -55,8 +55,26 @@ internal data class ConversationRequest(
 internal data class ConversationResponse(
     val message: String,
     val multimodalElements: List<MultimodalElement> = emptyList(),
-    val promptSuggestions: List<String> = emptyList()
+    val promptSuggestions: List<String> = emptyList(),
+    val ctaButton: CtaButton? = null
 )
+
+/**
+ * Represents a CTA button that appears as a standalone action below a bot message.
+ */
+internal data class CtaButton(
+    val label: String,
+    val url: String
+)
+
+/**
+ * Represents an ordered element from a multimodal API response.
+ * Preserves the original array position so CTAs and cards can be interleaved correctly.
+ */
+internal sealed class ParsedMultimodalItem {
+    data class Card(val element: MultimodalElement) : ParsedMultimodalItem()
+    data class Cta(val button: CtaButton) : ParsedMultimodalItem()
+}
 
 /**
  * Multimodal elements for rich content
@@ -118,5 +136,6 @@ internal data class ParsedConversationMessage(
     val interactionId: String? = null,
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
+    val orderedElements: List<ParsedMultimodalItem> = emptyList(),
     val sources: List<Citation> = emptyList()
 )

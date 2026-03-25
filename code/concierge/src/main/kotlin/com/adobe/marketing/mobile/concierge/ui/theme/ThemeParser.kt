@@ -336,7 +336,11 @@ internal object ThemeParser {
             // Citation/Disclaimer colors from CSS themes
             citationBackground = themeColors.citation?.backgroundColor?.toComposeColor(),
             citationText = themeColors.citation?.textColor?.toComposeColor(),
-            disclaimerColor = themeColors.disclaimer?.toComposeColor()
+            disclaimerColor = themeColors.disclaimer?.toComposeColor(),
+            // CTA button colors from CSS themes
+            ctaButtonBackground = themeColors.ctaButton?.backgroundColor?.toComposeColor(),
+            ctaButtonText = themeColors.ctaButton?.textColor?.toComposeColor(),
+            ctaButtonIcon = themeColors.ctaButton?.iconColor?.toComposeColor()
         )
         
         return result

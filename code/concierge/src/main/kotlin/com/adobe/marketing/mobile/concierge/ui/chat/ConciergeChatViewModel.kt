@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.network.ConciergeConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -668,35 +669,87 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param parsedMessage The parsed message containing the final complete content
      */
     private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
-        // Create message content - conditionally include multimodal content
-        val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
-            MessageContent.Text(parsedMessage.messageContent)
+        if (parsedMessage.orderedElements.isNotEmpty()) {
+            // New ordered-elements path: text message first, then each element as its own message
+            val textContent = MessageContent.Text(parsedMessage.messageContent)
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Replacing with final Text message (${parsedMessage.messageContent.length} chars), then appending ${parsedMessage.orderedElements.size} ordered elements."
+            )
+            updateAssistantMessageContent(
+                textContent,
+                parsedMessage.promptSuggestions,
+                parsedMessage.sources,
+                parsedMessage.interactionId,
+                sseComplete = true
+            )
+            appendOrderedElementMessages(parsedMessage.orderedElements)
         } else {
-            MessageContent.Mixed(
-                text = parsedMessage.messageContent,
-                multimodalElements = parsedMessage.multimodalElements
+            // Legacy path: text-only or mixed message
+            val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
+                MessageContent.Text(parsedMessage.messageContent)
+            } else {
+                MessageContent.Mixed(
+                    text = parsedMessage.messageContent,
+                    multimodalElements = parsedMessage.multimodalElements
+                )
+            }
+
+            val logMessage = if (parsedMessage.multimodalElements.isEmpty()) {
+                "Replacing with final Text message with length (${parsedMessage.messageContent.length} chars)"
+            } else {
+                "Replacing with final Mixed message with text (${parsedMessage.messageContent.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
+            }
+
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, logMessage)
+
+            updateAssistantMessageContent(
+                messageContent,
+                parsedMessage.promptSuggestions,
+                parsedMessage.sources,
+                parsedMessage.interactionId,
+                sseComplete = true
             )
         }
+    }
 
-        val logMessage = if (parsedMessage.multimodalElements.isEmpty()) {
-            "Replacing with final Text message with length (${parsedMessage.messageContent.length} chars)"
-        } else {
-            "Replacing with final Mixed message with text (${parsedMessage.messageContent.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
+    /**
+     * Appends standalone messages for each ordered element.
+     * All cards are batched into one Mixed message at the position of the first Card element.
+     * Each CTA becomes its own CtaButton message.
+     */
+    private fun appendOrderedElementMessages(orderedElements: List<ParsedMultimodalItem>) {
+        val cardElements = orderedElements
+            .filterIsInstance<ParsedMultimodalItem.Card>()
+            .map { it.element }
+        var cardMessageAppended = false
+
+        for (element in orderedElements) {
+            when (element) {
+                is ParsedMultimodalItem.Cta -> {
+                    val ctaMessage = ChatMessage(
+                        content = MessageContent.CtaButton(element.button),
+                        isFromUser = false,
+                        timestamp = System.currentTimeMillis(),
+                        sseComplete = true
+                    )
+                    _messages.update { it + ctaMessage }
+                }
+                is ParsedMultimodalItem.Card -> {
+                    if (!cardMessageAppended) {
+                        cardMessageAppended = true
+                        val cardMessage = ChatMessage(
+                            content = MessageContent.Mixed(text = "", multimodalElements = cardElements),
+                            isFromUser = false,
+                            timestamp = System.currentTimeMillis(),
+                            sseComplete = true
+                        )
+                        _messages.update { it + cardMessage }
+                    }
+                }
+            }
         }
-
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            logMessage
-        )
-
-        updateAssistantMessageContent(
-            messageContent,
-            parsedMessage.promptSuggestions,
-            parsedMessage.sources,
-            parsedMessage.interactionId,
-            sseComplete = true
-        )
     }
 
     /**
