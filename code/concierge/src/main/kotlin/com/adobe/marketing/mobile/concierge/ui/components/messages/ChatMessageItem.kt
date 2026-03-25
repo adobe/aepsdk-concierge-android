@@ -80,7 +80,11 @@ private fun RenderCtaButton(
     content: MessageContent.CtaButton,
     handleLink: (String) -> Unit
 ) {
-    CtaButton(cta = content.button, onClick = handleLink)
+    CtaButton(
+        cta = content.button,
+        onClick = handleLink,
+        applyContainerPadding = false
+    )
 }
 
 @Composable

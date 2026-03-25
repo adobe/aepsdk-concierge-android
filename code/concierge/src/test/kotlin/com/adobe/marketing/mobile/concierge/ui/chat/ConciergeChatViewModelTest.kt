@@ -1142,6 +1142,85 @@ class ConciergeChatViewModelTest {
         assertTrue(messages[1].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Mixed)
     }
 
+    @Test
+    fun `text message has no interactionId when orderedElements contains a CTA`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Connect") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "I'll connect you with an agent.",
+                state = ConversationState.COMPLETED,
+                interactionId = "interaction-123",
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Connect"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + CTA = 3
+        assertEquals(3, messages.size)
+        // text message must NOT have interactionId so feedback controls are suppressed
+        assertNull(messages[1].interactionId)
+        assertTrue(messages[2].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton)
+    }
+
+    @Test
+    fun `text message retains interactionId when orderedElements contains only cards`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Products") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Here are some products.",
+                state = ConversationState.COMPLETED,
+                interactionId = "interaction-456",
+                orderedElements = listOf(ParsedMultimodalItem.Card(MultimodalElement(id = "card-1")))
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Products"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + carousel = 3; text message retains interactionId for feedback
+        assertEquals(3, messages.size)
+        assertEquals("interaction-456", messages[1].interactionId)
+    }
+
+    @Test
+    fun `orderedElements with empty text removes placeholder and shows only CTA`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Chat") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Chat"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + CTA only — no empty text bubble
+        assertEquals(2, messages.size)
+        assertTrue(messages[1].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton)
+        val cta = messages[1].content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton
+        assertEquals("Chat now", cta.button.label)
+    }
+
     // ========== Theme Config Tests ==========
 
     @Test
