@@ -15,9 +15,12 @@ package com.adobe.marketing.mobile.concierge.ui.components.header
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -25,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -47,36 +51,47 @@ internal fun ChatHeader(
     val closeButtonAtStart = ConciergeTheme.behavior?.welcomeCard
         ?.closeButtonAlignment.equals("start", ignoreCase = true)
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(style.padding),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (closeButtonAtStart) {
-            CloseButton(style = style, onClose = onClose)
-        }
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = style.horizontalPadding,
+                    vertical = style.verticalPadding
+                ),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (closeButtonAtStart) {
+                CloseButton(style = style, onClose = onClose)
+                Spacer(modifier = Modifier.width(8.dp))
+            }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = themeText?.headerTitle ?: ConciergeConstants.ChatHeader.TITLE,
-                style = style.titleStyle,
-                fontWeight = style.titleFontWeight,
-                color = style.titleColor
-            )
-            if (showSubtitle) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = subtitleText,
-                    style = style.subtitleStyle,
-                    color = style.subtitleColor
+                    text = themeText?.headerTitle ?: ConciergeConstants.ChatHeader.TITLE,
+                    style = style.titleStyle,
+                    fontWeight = style.titleFontWeight,
+                    color = style.titleColor
                 )
+                if (showSubtitle) {
+                    Text(
+                        text = subtitleText,
+                        style = style.subtitleStyle,
+                        color = style.subtitleColor
+                    )
+                }
+            }
+
+            if (!closeButtonAtStart) {
+                CloseButton(style = style, onClose = onClose)
             }
         }
 
-        if (!closeButtonAtStart) {
-            CloseButton(style = style, onClose = onClose)
-        }
+        HorizontalDivider(
+            thickness = style.dividerThickness,
+            color = style.dividerColor
+        )
     }
 }
 
