@@ -2469,7 +2469,9 @@ class ConversationResponseParserTest {
         assertEquals("Chat with us", cta.button.label)
         assertEquals("https://example.com/chat", cta.button.url)
     }
-}
+
+    @Test
+    fun `parseConversationData parses CTA from type field`() {
         val json = """
             {
               "handle": [
@@ -2487,7 +2489,7 @@ class ConversationResponseParserTest {
                               "entity_info": {
                                 "primary": {
                                   "text": "Chat now",
-                                  "url": "https://www.dickssportinggoods.com/s/live-chat"
+                                  "url": "https://example.com/live-chat"
                                 }
                               }
                             }
@@ -2507,7 +2509,7 @@ class ConversationResponseParserTest {
         assertEquals(1, result[0].orderedElements.size)
         val cta = result[0].orderedElements[0] as ParsedMultimodalItem.Cta
         assertEquals("Chat now", cta.button.label)
-        assertEquals("https://www.dickssportinggoods.com/s/live-chat", cta.button.url)
+        assertEquals("https://example.com/live-chat", cta.button.url)
     }
 
     @Test
@@ -2529,7 +2531,7 @@ class ConversationResponseParserTest {
                               "entity_info": {
                                 "primary": {
                                   "text": "Chat now",
-                                  "url": "https://www.dickssportinggoods.com/s/live-chat"
+                                  "url": "https://example.com/live-chat"
                                 }
                               }
                             }
@@ -2563,7 +2565,7 @@ class ConversationResponseParserTest {
                         "multimodalElements": {
                           "elements": [
                             {
-                              "elementType": "ctaButton",
+                              "type": "ctaButton",
                               "id": "cta-primary",
                               "entity_info": {
                                 "primary": {

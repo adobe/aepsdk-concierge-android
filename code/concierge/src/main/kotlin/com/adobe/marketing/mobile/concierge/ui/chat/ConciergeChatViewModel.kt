@@ -612,9 +612,9 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
 
             ConversationState.COMPLETED -> {
-                // For COMPLETED state, if final message is blank, keep existing content and just transition to Idle.
-                // Otherwise, replace with the final message.
-                if (parsedMessage.messageContent.isNotBlank()) {
+                // For COMPLETED state, replace content if there is text or ordered elements.
+                // If both are absent, keep existing streamed content and just transition to Idle.
+                if (parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
                     setLastAssistantMessageSseComplete()
