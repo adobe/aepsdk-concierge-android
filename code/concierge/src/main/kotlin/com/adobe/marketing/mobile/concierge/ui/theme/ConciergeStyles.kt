@@ -913,7 +913,7 @@ internal object ConciergeStyles {
             val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
                 horizontalPadding = 8.dp,
-                maxLines = 7,
+                maxLines = 15,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,
                     fontSize = fontSize ?: MaterialTheme.typography.bodyLarge.fontSize
