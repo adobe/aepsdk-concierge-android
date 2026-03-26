@@ -378,6 +378,7 @@ internal object ThemeParser {
             // Default to false if not specified
             false
         }
+        val disableMultiline = DataReader.optBoolean(inputTypedMap, "disableMultiline", false)
         
         val productCardMap = typedMap?.get("productCard") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
@@ -438,6 +439,7 @@ internal object ThemeParser {
             enableMarkdown = DataReader.optBoolean(typedMap, "enableMarkdown", true),
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
             enableVoiceInput = enableVoiceInput,
+            disableMultiline = disableMultiline,
             sendButtonStyle = DataReader.optString(inputTypedMap, "sendButtonStyle", "default") ?: "default",
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),

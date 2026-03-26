@@ -50,6 +50,7 @@ internal fun ChatTextField(
     val style = ConciergeStyles.chatTextFieldStyle
     val textColor = ConciergeTheme.colors.onSurface
     val focusManager = LocalFocusManager.current
+    val disableMultiline = ConciergeTheme.behavior?.disableMultiline ?: false
 
     OutlinedTextField(
         value = value,
@@ -65,8 +66,8 @@ internal fun ChatTextField(
             )
         },
         enabled = isEnabled,
-        singleLine = false,
-        maxLines = style.maxLines,
+        singleLine = disableMultiline,
+        maxLines = if (disableMultiline) 1 else style.maxLines,
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done
