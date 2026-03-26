@@ -28,6 +28,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
@@ -1216,8 +1217,8 @@ class ConciergeChatViewModelTest {
         val messages = vm.messages.value
         // user + CTA only — no empty text bubble
         assertEquals(2, messages.size)
-        assertTrue(messages[1].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton)
-        val cta = messages[1].content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton
+        assertTrue(messages[1].content is MessageContent.CtaButton)
+        val cta = messages[1].content as MessageContent.CtaButton
         assertEquals("Chat now", cta.button.label)
     }
 
