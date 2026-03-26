@@ -956,7 +956,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
-| `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
