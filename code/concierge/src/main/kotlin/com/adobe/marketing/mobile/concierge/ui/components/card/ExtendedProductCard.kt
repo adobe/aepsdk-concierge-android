@@ -138,7 +138,7 @@ internal fun ExtendedProductCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = productBadge.uppercase(),
+                            text = productBadge,
                             color = style.badgeTextColor,
                             fontSize = style.badgeFontSize,
                             fontWeight = style.badgeFontWeight,

@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
@@ -61,29 +62,41 @@ internal object ConciergeStyles {
      */
     @Immutable
     data class HeaderStyle(
-        val padding: Dp,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
         val titleStyle: TextStyle,
         val titleFontWeight: FontWeight,
         val titleColor: Color,
         val subtitleStyle: TextStyle,
         val subtitleColor: Color,
         val iconSize: Dp,
-        val iconColor: Color
+        val iconColor: Color,
+        val dividerColor: Color,
+        val dividerThickness: Dp
     )
 
     val headerStyle: HeaderStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val textColor = themeColors.onSurface
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+
+            val titleStyle = cssLayout?.headerTitleFontSize?.let { size ->
+                MaterialTheme.typography.bodyLarge.copy(fontSize = size.sp)
+            } ?: MaterialTheme.typography.headlineSmall
+
             return HeaderStyle(
-                padding = 16.dp,
-                titleStyle = MaterialTheme.typography.headlineSmall,
+                horizontalPadding = 12.dp,
+                verticalPadding = 8.dp,
+                titleStyle = titleStyle,
                 titleFontWeight = FontWeight.Bold,
                 titleColor = textColor,
                 subtitleStyle = MaterialTheme.typography.bodySmall,
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
-                iconColor = textColor
+                iconColor = textColor,
+                dividerColor = textColor.copy(alpha = 0.12f),
+                dividerThickness = 0.5.dp
             )
         }
 
@@ -113,14 +126,16 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             val themeText = ConciergeTheme.text
             val tokens = ConciergeTheme.tokens
-            
+
             // Get border configuration from theme tokens
             val borderWidth = tokens?.cssLayout?.inputOutlineWidth?.dp ?: 0.dp
             val focusBorderWidth = tokens?.cssLayout?.inputFocusOutlineWidth?.dp ?: 2.dp
-            
+            val innerRadius = tokens?.cssLayout?.inputBorderRadius?.dp ?: 10.dp
+            val outerRadius = innerRadius + 2.dp
+
             return InputPanelStyle(
-                outerShape = RoundedCornerShape(12.dp),
-                innerShape = RoundedCornerShape(10.dp),
+                outerShape = RoundedCornerShape(outerRadius),
+                innerShape = RoundedCornerShape(innerRadius),
                 outerPadding = 2.dp,
                 innerPadding = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
@@ -613,6 +628,49 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for CTA button
+     */
+    @Immutable
+    data class CtaButtonStyle(
+        val containerTopPadding: Dp,
+        val containerStartPadding: Dp,
+        val shape: Shape,
+        val backgroundColor: Color,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val iconSize: Dp,
+        val iconColor: Color,
+        val iconSpacing: Dp,
+        val textStyle: TextStyle,
+        val textColor: Color
+    )
+
+    val ctaButtonStyle: CtaButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            val borderRadius = ctaLayout?.ctaButtonBorderRadius?.dp ?: 99.dp
+            val fontWeight = ctaLayout?.ctaButtonFontWeight?.let { FontWeight(it) } ?: FontWeight.Normal
+            val fontSize = ctaLayout?.ctaButtonFontSize?.sp ?: 14.sp
+            return CtaButtonStyle(
+                containerTopPadding = 6.dp,
+                containerStartPadding = 12.dp,
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.ctaButtonBackground ?: Color(0xFFEDEDED),
+                horizontalPadding = ctaLayout?.ctaButtonHorizontalPadding?.dp ?: 16.dp,
+                verticalPadding = ctaLayout?.ctaButtonVerticalPadding?.dp ?: 12.dp,
+                iconSize = ctaLayout?.ctaButtonIconSize?.dp ?: 16.dp,
+                iconColor = themeColors.ctaButtonIcon ?: Color(0xFF161313),
+                iconSpacing = 4.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight
+                ),
+                textColor = themeColors.ctaButtonText ?: Color(0xFF191F1C)
+            )
+        }
+
+    /**
      * Styling for citation items
      */
     @Immutable
@@ -644,7 +702,7 @@ internal object ConciergeStyles {
                     fontSize = fontSize ?: MaterialTheme.typography.bodyMedium.fontSize
                 ),
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
-                textLength = 2,
+                textLength = 1,
                 urlColor = themeColors.messageConciergeLink ?: themeColors.onSurface,
                 expandAnimationDuration = 200,
                 collapseAnimationDuration = 200,
@@ -674,7 +732,7 @@ internal object ConciergeStyles {
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconSpacing = 4.dp,
-                sourcesText = "Sources"
+                sourcesText = ConciergeTheme.text?.sourcesLabel ?: "Sources"
             )
         }
 
@@ -719,19 +777,26 @@ internal object ConciergeStyles {
         val spacing: Dp,
         val iconColor: Color,
         val backgroundColor: Color = Color.Transparent,
-        val hoverBackgroundColor: Color? = null
+        val hoverBackgroundColor: Color? = null,
+        val helpfulLabelText: String,
+        val helpfulLabelStyle: TextStyle,
+        val helpfulLabelColor: Color
     )
 
     val feedbackButtonsStyle: FeedbackButtonsStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val textColor = themeColors.conciergeMessageText ?: themeColors.onSurface
             return FeedbackButtonsStyle(
                 buttonSize = 32.dp,
                 iconSize = 16.dp,
                 spacing = 4.dp,
-                iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
+                iconColor = textColor,
                 backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
-                hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground
+                hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground,
+                helpfulLabelText = ConciergeTheme.text?.feedbackHelpfulLabel ?: "Was this helpful?",
+                helpfulLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                helpfulLabelColor = textColor
             )
         }
 
@@ -769,10 +834,11 @@ internal object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val micColor = themeColors.primary
+            val micIconColor = themeColors.micIconColor ?: micColor
             return MicButtonStyle(
                 size = 24.dp,
-                iconColor = micColor,
-                recordingIconColor = micColor,
+                iconColor = micIconColor,
+                recordingIconColor = themeColors.micRecordingIconColor ?: themeColors.onPrimary,
                 pulsingBackgroundColor = micColor,
                 pulsingBackgroundAlpha = 0.25f,
                 pulseAnimationDuration = 1000,
@@ -788,16 +854,23 @@ internal object ConciergeStyles {
     data class SendButtonStyle(
         val size: Dp,
         val enabledIconColor: Color,
-        val disabledIconAlpha: Float
+        val arrowCircleColor: Color,
+        val arrowIconColor: Color,
+        val disabledIconAlpha: Float,
+        val useArrowStyle: Boolean
     )
 
     val sendButtonStyle: SendButtonStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val sendButtonStyleName = ConciergeTheme.behavior?.sendButtonStyle ?: "default"
             return SendButtonStyle(
                 size = 24.dp,
-                enabledIconColor = themeColors.onSurface,
-                disabledIconAlpha = 0.3f
+                enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
+                arrowCircleColor = themeColors.sendArrowBackgroundColor ?: themeColors.sendIconColor ?: themeColors.primary,
+                arrowIconColor = themeColors.sendArrowIconColor ?: themeColors.onPrimary,
+                disabledIconAlpha = 0.3f,
+                useArrowStyle = sendButtonStyleName == "arrow"
             )
         }
 
@@ -905,7 +978,7 @@ internal object ConciergeStyles {
             val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
                 horizontalPadding = 8.dp,
-                maxLines = 7,
+                maxLines = 15,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,
                     fontSize = fontSize ?: MaterialTheme.typography.bodyLarge.fontSize
@@ -970,8 +1043,10 @@ internal object ConciergeStyles {
     val feedbackDialogStyle: FeedbackDialogStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            // Use concierge message colors for dialog
-            val dialogBackground = themeColors.conciergeMessageBackground ?: themeColors.surface
+            // Use the screen background for the dialog so it is always fully opaque.
+            // conciergeMessageBackground can be semi-transparent (e.g. an overlay tint
+            // for chat bubbles), which causes bleed-through when used on the dialog.
+            val dialogBackground = themeColors.background
             val dialogTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface
             // Checkbox: primary background when checked, white checkmark in both light and dark
             val checkboxCheckedColor = themeColors.feedbackDialogCheckboxCheckedColor ?: themeColors.primary
@@ -1026,8 +1101,11 @@ internal object ConciergeStyles {
         val titleTextStyle: TextStyle,
         val titleTextColor: Color,
         val titleBottomSpacing: Dp,
+        val titleTextAlign: TextAlign,
         val descriptionTextStyle: TextStyle,
         val descriptionTextColor: Color,
+        val descriptionTextAlign: TextAlign,
+        val horizontalAlignment: Alignment.Horizontal,
         val promptsTopSpacing: Dp,
         val promptsHeaderTextStyle: TextStyle,
         val promptsHeaderTextColor: Color,
@@ -1041,7 +1119,9 @@ internal object ConciergeStyles {
         val promptImagePlaceholderColor: Color,
         val promptImageSpacing: Dp,
         val promptTextStyle: TextStyle,
-        val promptTextColor: Color
+        val promptTextColor: Color,
+        val promptFullWidth: Boolean,
+        val promptMaxLines: Int
     )
 
     val welcomeCardStyle: WelcomeCardStyle
@@ -1049,6 +1129,7 @@ internal object ConciergeStyles {
             val isDark = isSystemInDarkTheme()
             val themeColors = ConciergeTheme.colors
             val useDefaultPalette = ConciergeTheme.useDefaultPalette
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
 
             // When no theme is loaded and device is in dark mode, use default dark palette; otherwise use theme colors
             val useDefaultDarkModeStyling = useDefaultPalette && isDark
@@ -1056,30 +1137,53 @@ internal object ConciergeStyles {
             val cardSurface = if (useDefaultDarkModeStyling) DarkConciergeColors.surface else themeColors.surface
             val textColor = if (useDefaultDarkModeStyling) DarkConciergeColors.onSurface else themeColors.onSurface
 
+            // Resolve text alignment from theme (default: center to preserve existing behavior)
+            val alignValue = cssLayout?.welcomeTextAlign
+            val textAlign = when (alignValue) {
+                "left", "start" -> TextAlign.Start
+                "right", "end" -> TextAlign.End
+                else -> TextAlign.Center
+            }
+            val horizontalAlignment = when (alignValue) {
+                "left", "start" -> Alignment.Start
+                "right", "end" -> Alignment.End
+                else -> Alignment.CenterHorizontally
+            }
+
+            // Resolve title text style from theme font size
+            val titleTextStyle = cssLayout?.welcomeTitleFontSize?.let { size ->
+                MaterialTheme.typography.bodyLarge.copy(fontSize = size.sp)
+            } ?: MaterialTheme.typography.headlineSmall
+
             return WelcomeCardStyle(
                 backgroundColor = cardBackground,
                 shape = RoundedCornerShape(12.dp),
                 elevation = 0.dp,
-                contentPadding = 20.dp,
-                titleTextStyle = MaterialTheme.typography.headlineSmall,
+                contentPadding = cssLayout?.welcomeContentPadding?.dp ?: 20.dp,
+                titleTextStyle = titleTextStyle,
                 titleTextColor = textColor,
-                titleBottomSpacing = 8.dp,
+                titleBottomSpacing = cssLayout?.welcomeTitleBottomSpacing?.dp ?: 8.dp,
+                titleTextAlign = textAlign,
                 descriptionTextStyle = MaterialTheme.typography.bodyMedium,
                 descriptionTextColor = textColor.copy(alpha = 0.9f),
-                promptsTopSpacing = 8.dp,
+                descriptionTextAlign = textAlign,
+                horizontalAlignment = horizontalAlignment,
+                promptsTopSpacing = cssLayout?.welcomePromptsTopSpacing?.dp ?: 8.dp,
                 promptsHeaderTextStyle = MaterialTheme.typography.bodySmall,
                 promptsHeaderTextColor = textColor.copy(alpha = 0.8f),
                 promptsHeaderBottomSpacing = 12.dp,
-                promptsSpacing = 8.dp,
-                promptBackgroundColor = cardSurface,
-                promptShape = RoundedCornerShape(8.dp),
-                promptPadding = 0.dp,
-                promptImageSize = 75.dp,
+                promptsSpacing = cssLayout?.welcomePromptSpacing?.dp ?: 8.dp,
+                promptBackgroundColor = themeColors.welcomePromptBackground ?: cardSurface,
+                promptShape = RoundedCornerShape(cssLayout?.welcomePromptCornerRadius?.dp ?: 8.dp),
+                promptPadding = cssLayout?.welcomePromptPadding?.dp ?: 0.dp,
+                promptImageSize = cssLayout?.welcomePromptImageSize?.dp ?: 75.dp,
                 promptImageShape = RoundedCornerShape(4.dp),
                 promptImagePlaceholderColor = textColor.copy(alpha = 0.1f),
                 promptImageSpacing = 12.dp,
                 promptTextStyle = MaterialTheme.typography.bodyMedium,
-                promptTextColor = textColor
+                promptTextColor = themeColors.welcomePromptText ?: textColor,
+                promptFullWidth = ConciergeTheme.behavior?.welcomeCard?.promptFullWidth ?: true,
+                promptMaxLines = ConciergeTheme.behavior?.welcomeCard?.promptMaxLines ?: Int.MAX_VALUE
             )
         }
 }

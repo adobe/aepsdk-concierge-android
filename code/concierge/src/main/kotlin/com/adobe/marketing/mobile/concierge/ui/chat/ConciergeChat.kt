@@ -18,6 +18,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -48,23 +50,25 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
+import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 /**
@@ -157,6 +161,11 @@ fun ConciergeChat(
                     window.attributes.fitInsetsSides = 0
                 }
 
+                // Resize the dialog when the keyboard appears so the
+                // header stays fixed and the weight(1f) messages area shrinks.
+                @Suppress("DEPRECATION")
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+
                 ConciergeChat(
                     viewModel = viewModel,
                     onClose = { viewModel.closeConcierge() },
@@ -164,6 +173,14 @@ fun ConciergeChat(
                     handleLink = handleLink
                 )
             }
+
+            // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
+            val state by viewModel.state.collectAsStateWithLifecycle()
+            ModalFeedbackOverlay(
+                feedback = state.feedback,
+                onDismiss = { viewModel.processEvent(FeedbackEvent.DismissFeedbackDialog) },
+                onSubmit = { viewModel.processEvent(FeedbackEvent.SubmitFeedback(it)) }
+            )
         }
 
     }
@@ -266,6 +283,13 @@ fun ConciergeChat(
         )
     }
 
+    // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
+    ModalFeedbackOverlay(
+        feedback = state.feedback,
+        onDismiss = { resolvedEvent(FeedbackEvent.DismissFeedbackDialog) },
+        onSubmit = { resolvedEvent(FeedbackEvent.SubmitFeedback(it)) }
+    )
+
     // WebView overlay dialog used for handling link clicks that require a browser.
     webviewOverlay?.let { url ->
         WebviewOverlayDialog(
@@ -332,6 +356,7 @@ internal fun ConciergeChat(
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
+                    onCtaButtonClick = handleLink,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -347,16 +372,22 @@ internal fun ConciergeChat(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
+                    val welcomeAlignment = when (
+                        ConciergeTheme.behavior?.welcomeCard?.contentAlignment
+                    ) {
+                        "center" -> Alignment.Center
+                        else -> Alignment.TopCenter
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(style.backgroundColor),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = welcomeAlignment
                     ) {
                         WelcomeCard(
                             config = welcomeConfig,
                             isReturningUser = isReturningUser,
-                            onPromptClick = { prompt -> onTextChanged(prompt) },
+                            onPromptClick = { prompt -> onEvent(ChatEvent.SendMessage(prompt)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -388,19 +419,44 @@ internal fun ConciergeChat(
             )
         }
 
-        // Feedback dialog overlay
-        chatState.feedback?.let { feedback ->
+        // Feedback dialog overlay (modal mode; bottom sheet is rendered at outer composable level)
+        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION) {
+            chatState.feedback?.let { feedback ->
+                FeedbackDialog(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center),
+                    feedback = feedback,
+                    onDismiss = {
+                        onEvent(FeedbackEvent.DismissFeedbackDialog)
+                    },
+                    onSubmit = { submittedFeedback ->
+                        onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Renders the feedback bottom sheet outside the Dialog window when displayMode is "action".
+ * This must be called at a composable scope that is NOT inside a Dialog, so the
+ * ModalBottomSheet has full-screen access.
+ */
+@Composable
+private fun ModalFeedbackOverlay(
+    feedback: Feedback?,
+    onDismiss: () -> Unit,
+    onSubmit: (Feedback) -> Unit
+) {
+    val displayMode = ConciergeTheme.behavior?.feedback?.displayMode
+    if (displayMode == FeedbackDisplayMode.ACTION) {
+        feedback?.let {
             FeedbackDialog(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                feedback = feedback,
-                onDismiss = {
-                    onEvent(FeedbackEvent.DismissFeedbackDialog)
-                },
-                onSubmit = { submittedFeedback ->
-                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
-                }
+                feedback = it,
+                onDismiss = onDismiss,
+                onSubmit = onSubmit
             )
         }
     }

@@ -13,14 +13,20 @@
 package com.adobe.marketing.mobile.concierge.ui.components.footer
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -28,20 +34,63 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 /**
  * Feedback buttons component with a thumbs up and thumbs down button.
  *
+ * When [showHelpfulLabel] is true, the feedback helpful label is shown
+ * above the thumb icons (matching the design spec).
+ *
  * @param modifier Optional [Modifier] for this component.
  * @param interactionId Interaction ID for the feedback buttons.
  * @param onFeedback Callback invoked when a feedback button is pressed.
  * @param feedbackState Current state of feedback for this interaction.
+ * @param showHelpfulLabel Whether to show the feedback helpful label above the thumbs.
  */
 @Composable
 internal fun FeedbackButtons(
     modifier: Modifier = Modifier,
     interactionId: String,
     onFeedback: (FeedbackEvent) -> Unit,
-    feedbackState: FeedbackState = FeedbackState.None
+    feedbackState: FeedbackState = FeedbackState.None,
+    showHelpfulLabel: Boolean = false
 ) {
     val style = ConciergeStyles.feedbackButtonsStyle
 
+    if (showHelpfulLabel) {
+        // BELOW mode: label on top, thumbs row underneath
+        Column(modifier = modifier) {
+            if (style.helpfulLabelText.isNotEmpty()) {
+                Text(
+                    text = style.helpfulLabelText,
+                    style = style.helpfulLabelStyle,
+                    color = style.helpfulLabelColor
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            ThumbsRow(
+                interactionId = interactionId,
+                onFeedback = onFeedback,
+                feedbackState = feedbackState,
+                style = style
+            )
+        }
+    } else {
+        // INLINE mode: just the thumbs row
+        ThumbsRow(
+            modifier = modifier,
+            interactionId = interactionId,
+            onFeedback = onFeedback,
+            feedbackState = feedbackState,
+            style = style
+        )
+    }
+}
+
+@Composable
+private fun ThumbsRow(
+    modifier: Modifier = Modifier,
+    interactionId: String,
+    onFeedback: (FeedbackEvent) -> Unit,
+    feedbackState: FeedbackState,
+    style: ConciergeStyles.FeedbackButtonsStyle
+) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(style.spacing),
@@ -49,9 +98,9 @@ internal fun FeedbackButtons(
     ) {
         // Thumbs up button
         IconButton(
-            onClick = { 
+            onClick = {
                 if (feedbackState == FeedbackState.None) {
-                    onFeedback(FeedbackEvent.ThumbsUp(interactionId)) 
+                    onFeedback(FeedbackEvent.ThumbsUp(interactionId))
                 }
             },
             modifier = Modifier.size(style.buttonSize),
@@ -59,11 +108,11 @@ internal fun FeedbackButtons(
         ) {
             Icon(
                 painter = painterResource(
-                        if (feedbackState == FeedbackState.Positive) {
-                            R.drawable.thumbs_up_filled
-                        } else {
-                            R.drawable.thumbs_up
-                        }
+                    if (feedbackState == FeedbackState.Positive) {
+                        R.drawable.thumbs_up_filled
+                    } else {
+                        R.drawable.thumbs_up
+                    }
                 ),
                 contentDescription = "Thumbs up",
                 modifier = Modifier.size(style.iconSize),
@@ -73,9 +122,9 @@ internal fun FeedbackButtons(
 
         // Thumbs down button
         IconButton(
-            onClick = { 
+            onClick = {
                 if (feedbackState == FeedbackState.None) {
-                    onFeedback(FeedbackEvent.ThumbsDown(interactionId)) 
+                    onFeedback(FeedbackEvent.ThumbsDown(interactionId))
                 }
             },
             modifier = Modifier.size(style.buttonSize),

@@ -3,14 +3,22 @@
     "brandName": "Concierge Demo Theme",
     "version": "1.0.0",
     "language": "en-US",
-    "namespace": "concierge-demo-theme"
+    "namespace": "concierge-demo-theme",
+    "description": "Tan/gold showcase theme with every documented JSON key the SDK parses.",
+    "author": "Concierge test app",
+    "lastModified": "2025-03-26"
   },
   "behavior": {
     "multimodalCarousel": {
-      "cardClickAction": "openLink"
+      "cardClickAction": "openLink",
+      "carouselStyle": "scroll"
+    },
+    "productCard": {
+      "cardStyle": "productDetail"
     },
     "input": {
       "enableVoiceInput": true,
+      "sendButtonStyle": "arrow",
       "disableMultiline": true,
       "showAiChatIcon": null
     },
@@ -21,6 +29,19 @@
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "feedback": {
+      "displayMode": "action",
+      "thumbsPlacement": "below"
+    },
+    "citations": {
+      "showLinkIcon": true
+    },
+    "welcomeCard": {
+      "closeButtonAlignment": "start",
+      "promptFullWidth": false,
+      "promptMaxLines": 2,
+      "contentAlignment": "top"
     }
   },
   "disclaimer": {
@@ -33,6 +54,8 @@
     ]
   },
   "text": {
+    "header.title": "Concierge",
+    "header.subtitle": "Tan & gold demo",
     "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore and find exactly what you need. Let's get started!\n\nNot sure where to start? Explore the suggested ideas below.",
     "input.placeholder": "[DEMO] How can I help?",
@@ -46,6 +69,8 @@
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
     "loading.message": "Generating response from our knowledge base",
+    "sourcesLabel": "Sources & Feedback",
+    "feedbackHelpfulLabel": "Was this helpful?",
     "feedback.dialog.title.positive": "[DEMO THEME] Thanks for your feedback!",
     "feedback.dialog.title.negative": "[DEMO THEME] Help us improve",
     "feedback.dialog.question.positive": "[DEMO] Tell us what you liked:",
@@ -61,24 +86,19 @@
   "arrays": {
     "welcome.examples": [
       {
-        "text": "I'd like to explore templates to see what I can create.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_142fd6e4e46332d8f41f5aef982448361c0c8c65e.png",
-        "backgroundColor": "#75A7F8"
-      },
-      {
-        "text": "I want to touch up and enhance my photos.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1e188097a1bc580b26c8be07d894205c5c6ca5560.png",
-        "backgroundColor": "#75A7F8"
-      },
-      {
-        "text": "I'd like to edit PDFs and make them interactive.",
+        "text": "I'd like to explore new products.",
         "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
-        "backgroundColor": "#75A7F8"
+        "backgroundColor": "#D3D3D3"
       },
       {
-        "text": "I want to turn my clips into polished videos.",
-        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_16c2ca834ea8f2977296082ae6f55f305a96674ac.png",
-        "backgroundColor": "#75A7F8"
+        "text": "Help me shop for exercise gear.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
+        "backgroundColor": "#D3D3D3"
+      },
+      {
+        "text": "Where is the nearest store?",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
+        "backgroundColor": "#D3D3D3"
       }
     ],
     "feedback.positive.options": [
@@ -101,101 +121,147 @@
       "company": ""
     }
   },
+  "content": {
+    "text": {
+      "welcomeTitle": "[DEMO content] How can we help?",
+      "welcomeSubtitle": "[DEMO] Explore ideas below.",
+      "disclaimerText": null,
+      "errorTitle": "[DEMO] Something went wrong",
+      "errorRetry": "[DEMO] Try again",
+      "feedbackTitle": "[DEMO] Provide feedback",
+      "feedbackSubmit": "[DEMO] Submit",
+      "feedbackCancel": "[DEMO] Cancel",
+      "thinkingLabel": "[DEMO] Thinking",
+      "listeningLabel": "[DEMO] Listening"
+    },
+    "placeholders": {
+      "inputPlaceholder": "[DEMO] Type a message",
+      "listeningPlaceholder": "[DEMO] Listening…",
+      "emptyStateMessage": null
+    },
+    "accessibility": {
+      "sendButtonLabel": "[DEMO] Send message",
+      "micButtonLabel": "[DEMO] Voice input",
+      "closeButtonLabel": "[DEMO] Close",
+      "thumbsUpLabel": "[DEMO] Like this response",
+      "thumbsDownLabel": "[DEMO] Dislike this response"
+    }
+  },
   "theme": {
-    "--welcome-input-order": "3",
-    "--welcome-cards-order": "2",
-    "--font-family": "",
-    "--color-primary": "#1E3A8A",
-    "--color-text": "#FFFFFF",
-    "--line-height-body": "1.75",
-    "--main-container-background": "#1E3A8A",
-    "--main-container-bottom-background": "#2563EB",
-    "--message-blocker-background": "#1E40AF",
-    "--message-user-background": "#3B82F6",
-    "--message-user-text": "#FFFFFF",
-    "--message-border-radius": "10px",
-    "--message-padding": "8px 16px",
-    "--message-concierge-background": "#F0F9FF",
-    "--message-concierge-text": "#111111",
-    "--message-concierge-link-color": "#2563EB",
-    "--message-max-width": "100%",
-    "--chat-interface-max-width": "768px",
+    "--border-radius-card": "16px",
+    "--button-disabled-background": "#D4C9B8",
+    "--button-height-s": "30px",
+    "--button-primary-background": "#7A5C1E",
+    "--button-primary-hover": "#5F4715",
+    "--button-primary-text": "#FFFFFF",
+    "--button-secondary-border": "#9A8548",
+    "--button-secondary-hover": "#F5EDE0",
+    "--button-secondary-text": "#5C4A24",
+    "--chat-history-bottom-padding": "0",
     "--chat-history-padding": "16px",
     "--chat-history-padding-top-expanded": "0",
-    "--chat-history-bottom-padding": "0",
-    "--message-blocker-height": "105px",
-
-    "--input-height": "52px",
-    "--input-height-mobile": "52px",
-    "--input-border-radius": "12px",
-    "--input-border-radius-mobile": "12px",
-    "--button-primary-background": "#2563EB",
-    "--button-primary-text": "#FFFFFF",
-    "--button-primary-hover": "#1D4ED8",
-    "--button-secondary-border": "#60A5FA",
-    "--button-secondary-text": "#60A5FA",
-    "--button-secondary-hover": "#3B82F6",
-    "--color-button-secondary-hover-text": "#FFFFFF",
-    "--button-height-s": "30px",
-    "--button-disabled-background": "#9CA3AF",
-
-    "--submit-button-fill-color": "#2563EB",
-    "--submit-button-fill-color-disabled": "#9CA3AF",
-    "--color-button-submit": "#FFFFFF",
-    "--color-button-submit-hover": "#FFFFFF",
-
-    "--disclaimer-color": "#93C5FD",
+    "--chat-interface-max-width": "768px",
+    "--citations-background-color": "#D4C9B8",
+    "--citations-desktop-button-font-size": "14px",
+    "--citations-text-color": "#2C2419",
+    "--citations-text-font-weight": "700",
+    "--color-button-secondary-hover-text": "#5C4A24",
+    "--color-button-submit": "#7A5C1E",
+    "--color-button-submit-hover": "#5F4715",
+    "--color-primary": "#7A5C1E",
+    "--color-text": "#2C2419",
+    "--cta-button-background-color": "#EDE4D6",
+    "--cta-button-border-radius": "99px",
+    "--cta-button-font-size": "14px",
+    "--cta-button-font-weight": "400",
+    "--cta-button-horizontal-padding": "16px",
+    "--cta-button-icon-color": "#5C4A24",
+    "--cta-button-icon-size": "16px",
+    "--cta-button-text-color": "#2C2419",
+    "--cta-button-vertical-padding": "12px",
+    "--disclaimer-color": "#8A7D6B",
     "--disclaimer-font-size": "12px",
     "--disclaimer-font-weight": "400",
-
-    "--input-background": "#1E40AF",
-    "--input-outline-color": "#3B82F6",
-    "--input-outline-width": "2px",
-    "--input-box-shadow": "0 4px 16px 0 #00000029",
-    "--input-focus-outline-width": "2px",
-    "--input-text-color": "#E0F2FE",
-    "--input-focus-outline-color": "#60A5FA",
-    "--input-font-size": "16px",
+    "--feedback-container-gap": "4px",
+    "--feedback-icon-btn-background": "#FFFDF9",
+    "--feedback-icon-btn-hover-background": "#F5EDE0",
+    "--feedback-icon-btn-size-desktop": "32px",
+    "--font-family": "",
+    "--header-title-font-size": "18px",
+    "--input-background": "#FFFDF9",
+    "--input-border-radius-mobile": "12px",
+    "--input-box-shadow": "0 2px 8px 0 #00000014",
+    "--input-button-border-radius": "8px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
-    "--input-button-border-radius": "8px",
-
-    "--citations-text-font-weight": "700",
-    "--citations-desktop-button-font-size": "14px",
-    "--citations-background-color": "#1E3A8A",
-    "--citations-text-color": "#FFFFFF",
-
-    "--feedback-icon-btn-background": "#FFFFFF",
-    "--feedback-icon-btn-hover-background": "#DBEAFE",
-    "--feedback-icon-btn-size-desktop": "32px",
-    "--feedback-container-gap": "4px",
-
+    "--input-focus-outline-color": "#7A5C1E",
+    "--input-focus-outline-width": "2px",
+    "--input-font-size": "16px",
+    "--input-height-mobile": "52px",
+    "--input-mic-icon-color": "#7A5C1E",
+    "--input-mic-recording-icon-color": "#FFFFFF",
+    "--input-outline-color": "#D4C9B8",
+    "--input-outline-width": "2px",
+    "--input-send-arrow-background-color": "#7A5C1E",
+    "--input-send-arrow-icon-color": "#FFFFFF",
+    "--input-send-icon-color": "#7A5C1E",
+    "--input-text-color": "#2C2419",
+    "--line-height-body": "1.75",
+    "--main-container-background": "#FAF7F2",
+    "--main-container-bottom-background": "#F2ECE3",
+    "--message-blocker-background": "#00000066",
+    "--message-blocker-height": "105px",
+    "--message-border-radius": "10px",
+    "--message-concierge-background": "#F0E8DC",
+    "--message-concierge-link-color": "#8B6914",
+    "--message-concierge-text": "#2C2419",
+    "--message-max-width": "100%",
+    "--message-padding": "8px 16px",
+    "--message-user-background": "#E8DCC8",
+    "--message-user-text": "#2C2419",
     "--multimodal-card-box-shadow": "none",
-    "--border-radius-card": "16px",
-
-    "--message-alignment": "left",
-    "--message-width": "100%",
-
-    "--product-card-outline-color": "#E3E3E3",
-    "--product-card-width": "222",
-    "--product-card-height": "359",
-    "--product-card-title-font-weight": "700",
-    "--product-card-title-font-size": "14px",
-    "--product-card-subtitle-font-weight": "400",
-    "--product-card-subtitle-font-size": "12px",
-    "--product-card-price-font-weight": "400",
-    "--product-card-price-font-size": "14px",
+    "--product-card-background-color": "#FFFDF9",
+    "--product-card-badge-background-color": "#7A5C1E",
     "--product-card-badge-font-size": "12px",
     "--product-card-badge-font-weight": "700",
-    "--product-card-badge-text-color": "#FFFFFF",
-    "--product-card-badge-background-color": "#1E3A8A",
-    "--product-card-background-color": "#EBEEFF",
-    "--product-card-title-color": "#191F1C",
-    "--product-card-subtitle-color": "#4F4F4F",
-    "--product-card-price-color": "#191F1C",
-    "--product-card-was-price-color": "#6E6E6E",
+    "--product-card-badge-text-color": "#FFFDF9",
+    "--product-card-border-radius": "8px",
+    "--product-card-carousel-horizontal-padding": "16px",
+    "--product-card-carousel-spacing": "12px",
+    "--product-card-height": "359",
+    "--product-card-outline-color": "#E0D4C4",
+    "--product-card-price-color": "#2C2419",
+    "--product-card-price-font-size": "14px",
+    "--product-card-price-font-weight": "400",
+    "--product-card-subtitle-color": "#6B5D4A",
+    "--product-card-subtitle-font-size": "12px",
+    "--product-card-subtitle-font-weight": "400",
+    "--product-card-text-bottom-padding": "16px",
+    "--product-card-text-horizontal-padding": "16px",
+    "--product-card-text-spacing": "8px",
+    "--product-card-text-top-padding": "24px",
+    "--product-card-title-color": "#2C2419",
+    "--product-card-title-font-size": "14px",
+    "--product-card-title-font-weight": "700",
+    "--product-card-was-price-color": "#8A7D6B",
     "--product-card-was-price-font-size": "12px",
     "--product-card-was-price-font-weight": "400",
-    "--product-card-was-price-text-prefix": "was "
+    "--product-card-was-price-text-prefix": "was ",
+    "--product-card-width": "222",
+    "--submit-button-fill-color": "#FFFDF9",
+    "--submit-button-fill-color-disabled": "#D4C9B8",
+    "--welcome-cards-order": "2",
+    "--welcome-content-padding": "16px",
+    "--welcome-input-order": "3",
+    "--welcome-prompt-background-color": "#E5D9C8",
+    "--welcome-prompt-corner-radius": "20px",
+    "--welcome-prompt-image-size": "32px",
+    "--welcome-prompt-padding": "12px",
+    "--welcome-prompt-spacing": "8px",
+    "--welcome-prompt-text-color": "#2C2419",
+    "--welcome-prompts-top-spacing": "12px",
+    "--welcome-text-align": "left",
+    "--welcome-title-bottom-spacing": "6px",
+    "--welcome-title-font-size": "16px"
   }
 }

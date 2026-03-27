@@ -62,7 +62,7 @@ fun MainScreen() {
     // Theme options
     val themeOptions = listOf(
         ThemeOption("default", "Default Theme", "Standard theme"),
-        ThemeOption("demo", "Demo Theme", "Blue-themed demo"),
+        ThemeOption("demo", "Demo Theme", "Styling and behaviors demo"),
         ThemeOption("input field border", "Input Field Borders Test", "Configure input field borders"),
         ThemeOption("behaviors disabled", "Behavior Test", "No voice input")
     )

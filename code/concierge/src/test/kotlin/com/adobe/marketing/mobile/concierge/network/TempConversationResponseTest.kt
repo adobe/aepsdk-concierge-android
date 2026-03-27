@@ -65,7 +65,67 @@ class TempConversationResponseTest {
         assertEquals(null, message.interactionId)
         assertTrue(message.promptSuggestions.isEmpty())
         assertTrue(message.multimodalElements.isEmpty())
+        assertTrue(message.orderedElements.isEmpty())
         assertTrue(message.sources.isEmpty())
+    }
+
+    @Test
+    fun `CtaButton creates with label and url`() {
+        val cta = CtaButton(label = "Shop All", url = "https://example.com/shop")
+        assertEquals("Shop All", cta.label)
+        assertEquals("https://example.com/shop", cta.url)
+    }
+
+    @Test
+    fun `CtaButton equality works`() {
+        val cta1 = CtaButton(label = "Shop", url = "https://example.com")
+        val cta2 = CtaButton(label = "Shop", url = "https://example.com")
+        val cta3 = CtaButton(label = "Learn", url = "https://example.com")
+        assertEquals(cta1, cta2)
+        assertNotEquals(cta1, cta3)
+    }
+
+    @Test
+    fun `ParsedMultimodalItem Card wraps MultimodalElement`() {
+        val element = MultimodalElement(id = "card-1")
+        val item = ParsedMultimodalItem.Card(element)
+        assertEquals(element, item.element)
+        assertTrue(item is ParsedMultimodalItem)
+    }
+
+    @Test
+    fun `ParsedMultimodalItem Cta wraps CtaButton`() {
+        val cta = CtaButton(label = "Go", url = "https://example.com")
+        val item = ParsedMultimodalItem.Cta(cta)
+        assertEquals(cta, item.button)
+        assertTrue(item is ParsedMultimodalItem)
+    }
+
+    @Test
+    fun `ParsedConversationMessage orderedElements defaults to empty`() {
+        val message = ParsedConversationMessage(
+            messageContent = "Hello",
+            state = ConversationState.COMPLETED
+        )
+        assertTrue(message.orderedElements.isEmpty())
+    }
+
+    @Test
+    fun `ParsedConversationMessage creates with orderedElements`() {
+        val cta = CtaButton(label = "Learn More", url = "https://example.com")
+        val card = MultimodalElement(id = "card-1")
+        val elements = listOf(
+            ParsedMultimodalItem.Cta(cta),
+            ParsedMultimodalItem.Card(card)
+        )
+        val message = ParsedConversationMessage(
+            messageContent = "Here you go",
+            state = ConversationState.COMPLETED,
+            orderedElements = elements
+        )
+        assertEquals(2, message.orderedElements.size)
+        assertTrue(message.orderedElements[0] is ParsedMultimodalItem.Cta)
+        assertTrue(message.orderedElements[1] is ParsedMultimodalItem.Card)
     }
 
     @Test

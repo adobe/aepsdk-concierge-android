@@ -82,9 +82,19 @@ data class ConciergeLayout(
     val disclaimerFontSize: Double? = null,
     val disclaimerFontWeight: Int? = null,
     
-    // Welcome order
+    // Welcome layout
     val welcomeInputOrder: Int? = null,
     val welcomeCardsOrder: Int? = null,
+    val welcomeTitleFontSize: Double? = null,
+    val welcomeTextAlign: String? = null,
+    val welcomeContentPadding: Double? = null,
+    val welcomePromptImageSize: Double? = null,
+    val welcomePromptSpacing: Double? = null,
+    val welcomeTitleBottomSpacing: Double? = null,
+    val welcomePromptsTopSpacing: Double? = null,
+    val welcomePromptPadding: Double? = null,
+    val welcomePromptCornerRadius: Double? = null,
+    val headerTitleFontSize: Double? = null,
 
     // Extended product cards
     val productCardTitleFontWeight: Int? = null,
@@ -115,6 +125,14 @@ data class ConciergeLayout(
     val productCardTextHorizontalPadding: Double? = null,
     val productCardCarouselHorizontalPadding: Double? = null,
     val productCardCarouselSpacing: Double? = null,
+
+    // CTA button layout
+    val ctaButtonBorderRadius: Double? = null,
+    val ctaButtonHorizontalPadding: Double? = null,
+    val ctaButtonVerticalPadding: Double? = null,
+    val ctaButtonFontSize: Double? = null,
+    val ctaButtonFontWeight: Int? = null,
+    val ctaButtonIconSize: Double? = null,
 
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
@@ -156,12 +174,39 @@ data class ConciergeThemeBehavior(
     val showTimestamps: Boolean = false,
     val enableMarkdown: Boolean = true,
     val enableCitations: Boolean = true,
+    val welcomeCard: ConciergeWelcomeCardBehavior? = null,
     val enableVoiceInput: Boolean = true,
+    val disableMultiline: Boolean = true,
+    val sendButtonStyle: String = "default",
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
+    val feedback: ConciergeFeedbackBehavior? = null,
+    val citations: ConciergeCitationsBehavior? = null,
     val productCard: ConciergeProductCardBehavior? = null,
     val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null
 )
+
+/**
+ * Display mode for the feedback dialog from `behavior.feedback.displayMode` in theme JSON.
+ *
+ * - `"modal"` — centered card overlay ([Modal] in Compose).
+ * - `"action"` — [ModalBottomSheet].
+ */
+enum class FeedbackDisplayMode(val value: String) {
+    MODAL("modal"),
+    ACTION("action");
+
+    companion object {
+        fun fromString(value: String): FeedbackDisplayMode {
+            val normalized = value.trim().lowercase()
+            return when (normalized) {
+                MODAL.value -> MODAL
+                ACTION.value -> ACTION
+                else -> MODAL
+            }
+        }
+    }
+}
 
 /**
  * Product card behavior: ACTION_BUTTON = image overlay with action buttons,
@@ -191,12 +236,43 @@ enum class CarouselStyle(val value: String) {
     }
 }
 
+data class ConciergeFeedbackBehavior(
+    val displayMode: FeedbackDisplayMode = FeedbackDisplayMode.MODAL,
+    val thumbsPlacement: FeedbackThumbsPlacement = FeedbackThumbsPlacement.INLINE
+)
+
+/**
+ * Placement of the feedback thumbs relative to the sources accordion.
+ * INLINE renders thumbs on the same row as the sources label (default).
+ * BELOW renders thumbs on a separate row beneath the sources accordion with the feedback helpful label.
+ */
+enum class FeedbackThumbsPlacement(val value: String) {
+    INLINE("inline"),
+    BELOW("below");
+
+    companion object {
+        fun fromString(value: String): FeedbackThumbsPlacement =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: INLINE
+    }
+}
+
+data class ConciergeCitationsBehavior(
+    val showLinkIcon: Boolean = false
+)
+
 data class ConciergeProductCardBehavior(
     val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON
 )
 
 data class ConciergeMultimodalCarouselBehavior(
     val carouselStyle: CarouselStyle = CarouselStyle.PAGED
+)
+
+data class ConciergeWelcomeCardBehavior(
+    val closeButtonAlignment: String = "end",
+    val promptFullWidth: Boolean = true,
+    val promptMaxLines: Int = Int.MAX_VALUE,
+    val contentAlignment: String = "top"
 )
 
 /**
@@ -251,7 +327,6 @@ data class ConciergeTextContent(
     val feedbackTitle: String = "Provide feedback",
     val feedbackSubmit: String = "Submit",
     val feedbackCancel: String = "Cancel",
-    val sourcesLabel: String = "Sources",
     val thinkingLabel: String = "Thinking",
     val listeningLabel: String = "Listening"
 )

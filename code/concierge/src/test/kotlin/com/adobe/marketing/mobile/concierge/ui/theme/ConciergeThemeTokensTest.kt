@@ -232,6 +232,17 @@ class ConciergeThemeTokensTest {
         assertEquals("New Theme", updated.name)
     }
 
+    // ========== FeedbackDisplayMode ==========
+
+    @Test
+    fun `FeedbackDisplayMode fromString parses theme JSON values`() {
+        assertEquals(FeedbackDisplayMode.MODAL, FeedbackDisplayMode.fromString("modal"))
+        assertEquals(FeedbackDisplayMode.ACTION, FeedbackDisplayMode.fromString("action"))
+        assertEquals(FeedbackDisplayMode.MODAL, FeedbackDisplayMode.fromString("MODAL"))
+        assertEquals(FeedbackDisplayMode.ACTION, FeedbackDisplayMode.fromString("Action"))
+        assertEquals(FeedbackDisplayMode.MODAL, FeedbackDisplayMode.fromString("unknown"))
+    }
+
     // ========== ConciergeThemeBehavior Tests ==========
 
     @Test
@@ -247,6 +258,7 @@ class ConciergeThemeTokensTest {
         assertTrue(behavior.enableMarkdown)
         assertTrue(behavior.enableCitations)
         assertTrue(behavior.enableVoiceInput)
+        assertTrue(behavior.disableMultiline)
         assertEquals(2000, behavior.maxMessageLength)
         assertEquals(500, behavior.typingIndicatorDelay)
     }
@@ -370,7 +382,6 @@ class ConciergeThemeTokensTest {
         assertEquals("Provide feedback", text.feedbackTitle)
         assertEquals("Submit", text.feedbackSubmit)
         assertEquals("Cancel", text.feedbackCancel)
-        assertEquals("Sources", text.sourcesLabel)
         assertEquals("Thinking", text.thinkingLabel)
         assertEquals("Listening", text.listeningLabel)
     }
@@ -569,6 +580,110 @@ class ConciergeThemeTokensTest {
         assertEquals(52.0, tokens.cssLayout?.inputHeight)
         assertEquals("Arial", tokens.typography?.fontFamily)
         assertEquals(1, tokens.cssVariables.size)
+    }
+
+    // -----------------------------------------------------------------------
+    // ConciergeLayout - CTA button fields
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `ConciergeLayout cta button fields default to null`() {
+        val layout = ConciergeLayout()
+        assertNull(layout.ctaButtonBorderRadius)
+        assertNull(layout.ctaButtonHorizontalPadding)
+        assertNull(layout.ctaButtonVerticalPadding)
+        assertNull(layout.ctaButtonFontSize)
+        assertNull(layout.ctaButtonFontWeight)
+        assertNull(layout.ctaButtonIconSize)
+    }
+
+    @Test
+    fun `ConciergeLayout creates with cta button values`() {
+        val layout = ConciergeLayout(
+            ctaButtonBorderRadius = 99.0,
+            ctaButtonHorizontalPadding = 16.0,
+            ctaButtonVerticalPadding = 12.0,
+            ctaButtonFontSize = 14.0,
+            ctaButtonFontWeight = 400,
+            ctaButtonIconSize = 16.0
+        )
+        assertEquals(99.0, layout.ctaButtonBorderRadius)
+        assertEquals(16.0, layout.ctaButtonHorizontalPadding)
+        assertEquals(12.0, layout.ctaButtonVerticalPadding)
+        assertEquals(14.0, layout.ctaButtonFontSize)
+        assertEquals(400, layout.ctaButtonFontWeight)
+        assertEquals(16.0, layout.ctaButtonIconSize)
+    }
+
+    @Test
+    fun `ConciergeLayout copy preserves cta button fields`() {
+        val original = ConciergeLayout(ctaButtonBorderRadius = 99.0, ctaButtonFontSize = 14.0)
+        val updated = original.copy(ctaButtonHorizontalPadding = 20.0)
+        assertEquals(99.0, updated.ctaButtonBorderRadius)
+        assertEquals(14.0, updated.ctaButtonFontSize)
+        assertEquals(20.0, updated.ctaButtonHorizontalPadding)
+        assertNull(original.ctaButtonHorizontalPadding)
+    }
+
+    // -----------------------------------------------------------------------
+    // ConciergeCtaButtonColors
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `ConciergeCtaButtonColors creates with all nulls by default`() {
+        val colors = ConciergeCtaButtonColors()
+        assertNull(colors.backgroundColor)
+        assertNull(colors.textColor)
+        assertNull(colors.iconColor)
+    }
+
+    @Test
+    fun `ConciergeCtaButtonColors creates with custom values`() {
+        val colors = ConciergeCtaButtonColors(
+            backgroundColor = "#EDEDED",
+            textColor = "#191F1C",
+            iconColor = "#161313"
+        )
+        assertEquals("#EDEDED", colors.backgroundColor)
+        assertEquals("#191F1C", colors.textColor)
+        assertEquals("#161313", colors.iconColor)
+    }
+
+    @Test
+    fun `ConciergeCtaButtonColors supports partial construction`() {
+        val colors = ConciergeCtaButtonColors(backgroundColor = "#FFFFFF")
+        assertEquals("#FFFFFF", colors.backgroundColor)
+        assertNull(colors.textColor)
+        assertNull(colors.iconColor)
+    }
+
+    @Test
+    fun `ConciergeCtaButtonColors supports copy`() {
+        val original = ConciergeCtaButtonColors(backgroundColor = "#EDEDED")
+        val updated = original.copy(textColor = "#191F1C")
+        assertEquals("#EDEDED", updated.backgroundColor)
+        assertEquals("#191F1C", updated.textColor)
+        assertNull(updated.iconColor)
+        assertNull(original.textColor)
+    }
+
+    @Test
+    fun `ConciergeThemeColors accepts ctaButton field`() {
+        val ctaColors = ConciergeCtaButtonColors(
+            backgroundColor = "#EDEDED",
+            textColor = "#191F1C",
+            iconColor = "#161313"
+        )
+        val themeColors = ConciergeThemeColors(ctaButton = ctaColors)
+        assertEquals("#EDEDED", themeColors.ctaButton?.backgroundColor)
+        assertEquals("#191F1C", themeColors.ctaButton?.textColor)
+        assertEquals("#161313", themeColors.ctaButton?.iconColor)
+    }
+
+    @Test
+    fun `ConciergeThemeColors ctaButton defaults to null`() {
+        val themeColors = ConciergeThemeColors()
+        assertNull(themeColors.ctaButton)
     }
 
     @Test

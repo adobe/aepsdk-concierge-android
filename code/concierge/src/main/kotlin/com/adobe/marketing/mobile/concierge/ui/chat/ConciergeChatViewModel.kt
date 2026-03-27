@@ -24,6 +24,7 @@ import com.adobe.marketing.mobile.concierge.network.ConciergeConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -392,8 +393,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handlePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
-        // Set the suggestion text in the input field
-        _inputState.update { UserInputState.Editing(suggestion) }
+        // Auto-send the suggestion as a message
+        handleSendMessage(suggestion)
     }
 
     /**
@@ -611,9 +612,9 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
 
             ConversationState.COMPLETED -> {
-                // For COMPLETED state, if final message is blank, keep existing content and just transition to Idle.
-                // Otherwise, replace with the final message.
-                if (parsedMessage.messageContent.isNotBlank()) {
+                // For COMPLETED state, replace content if there is text or ordered elements.
+                // If both are absent, keep existing streamed content and just transition to Idle.
+                if (parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
                     setLastAssistantMessageSseComplete()
@@ -668,35 +669,100 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param parsedMessage The parsed message containing the final complete content
      */
     private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
-        // Create message content - conditionally include multimodal content
-        val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
-            MessageContent.Text(parsedMessage.messageContent)
+        if (parsedMessage.orderedElements.isNotEmpty()) {
+            if (parsedMessage.messageContent.isNotEmpty()) {
+                // Text + ordered elements: keep the text message, then append elements.
+                // Suppress interactionId (and thus feedback controls) when CTAs are present —
+                // service-intent responses are deterministic and don't warrant thumbs up/down.
+                val hasCtas = parsedMessage.orderedElements.any { it is ParsedMultimodalItem.Cta }
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Replacing with final Text message (${parsedMessage.messageContent.length} chars), then appending ${parsedMessage.orderedElements.size} ordered elements."
+                )
+                updateAssistantMessageContent(
+                    MessageContent.Text(parsedMessage.messageContent),
+                    parsedMessage.promptSuggestions,
+                    parsedMessage.sources,
+                    interactionId = if (hasCtas) null else parsedMessage.interactionId,
+                    sseComplete = true
+                )
+            } else {
+                // No text, ordered elements only: remove the streaming placeholder so feedback
+                // controls don't appear on an empty bubble.
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "No text content, removing placeholder and appending ${parsedMessage.orderedElements.size} ordered elements."
+                )
+                removeLastAssistantPlaceholder()
+            }
+            appendOrderedElementMessages(parsedMessage.orderedElements)
         } else {
-            MessageContent.Mixed(
-                text = parsedMessage.messageContent,
-                multimodalElements = parsedMessage.multimodalElements
+            // Legacy path: text-only or mixed message
+            val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
+                MessageContent.Text(parsedMessage.messageContent)
+            } else {
+                MessageContent.Mixed(
+                    text = parsedMessage.messageContent,
+                    multimodalElements = parsedMessage.multimodalElements
+                )
+            }
+
+            val logMessage = if (parsedMessage.multimodalElements.isEmpty()) {
+                "Replacing with final Text message with length (${parsedMessage.messageContent.length} chars)"
+            } else {
+                "Replacing with final Mixed message with text (${parsedMessage.messageContent.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
+            }
+
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, logMessage)
+
+            updateAssistantMessageContent(
+                messageContent,
+                parsedMessage.promptSuggestions,
+                parsedMessage.sources,
+                parsedMessage.interactionId,
+                sseComplete = true
             )
         }
+    }
 
-        val logMessage = if (parsedMessage.multimodalElements.isEmpty()) {
-            "Replacing with final Text message with length (${parsedMessage.messageContent.length} chars)"
-        } else {
-            "Replacing with final Mixed message with text (${parsedMessage.messageContent.length} chars) and ${parsedMessage.multimodalElements.size} multimodal elements."
+    /**
+     * Appends standalone messages for each ordered element.
+     * All cards are batched into one Mixed message at the position of the first Card element.
+     * Each CTA becomes its own CtaButton message.
+     */
+    private fun appendOrderedElementMessages(orderedElements: List<ParsedMultimodalItem>) {
+        val cardElements = orderedElements
+            .filterIsInstance<ParsedMultimodalItem.Card>()
+            .map { it.element }
+        var cardMessageAppended = false
+
+        for (element in orderedElements) {
+            when (element) {
+                is ParsedMultimodalItem.Cta -> {
+                    val ctaMessage = ChatMessage(
+                        content = MessageContent.CtaButton(element.button),
+                        isFromUser = false,
+                        timestamp = System.currentTimeMillis(),
+                        sseComplete = true
+                    )
+                    _messages.update { it + ctaMessage }
+                }
+                is ParsedMultimodalItem.Card -> {
+                    if (!cardMessageAppended) {
+                        cardMessageAppended = true
+                        val cardMessage = ChatMessage(
+                            content = MessageContent.Mixed(text = "", multimodalElements = cardElements),
+                            isFromUser = false,
+                            timestamp = System.currentTimeMillis(),
+                            sseComplete = true
+                        )
+                        _messages.update { it + cardMessage }
+                    }
+                }
+            }
         }
-
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            logMessage
-        )
-
-        updateAssistantMessageContent(
-            messageContent,
-            parsedMessage.promptSuggestions,
-            parsedMessage.sources,
-            parsedMessage.interactionId,
-            sseComplete = true
-        )
     }
 
     /**
@@ -731,10 +797,21 @@ class ConciergeChatViewModel : AndroidViewModel {
                     promptSuggestions = promptSuggestions,
                     citations = sources,
                     uniqueCitations = uniqueSources,
-                    interactionId = interactionId ?: lastAssistantMessage.interactionId,
+                    interactionId = interactionId,
                     sseComplete = sseComplete ?: lastAssistantMessage.sseComplete
                 )
                 updatedMessages
+            } else {
+                existingMessages
+            }
+        }
+    }
+
+    private fun removeLastAssistantPlaceholder() {
+        _messages.update { existingMessages ->
+            val lastIndex = existingMessages.lastIndex
+            if (lastIndex >= 0 && !existingMessages[lastIndex].isFromUser) {
+                existingMessages.dropLast(1)
             } else {
                 existingMessages
             }

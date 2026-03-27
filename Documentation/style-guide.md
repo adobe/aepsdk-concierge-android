@@ -19,6 +19,8 @@ This document provides a comprehensive reference for all styling properties supp
   - [Typography](#typography)
   - [Colors](#colors)
   - [Layout](#layout)
+  - [Colors - CTA Button](#colors---cta-button)
+  - [Layout - CTA Button](#layout---cta-button)
 - [Implementation Status](#implementation-status)
 
 ---
@@ -254,6 +256,7 @@ Feature toggles and interaction configuration.
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
 | `behavior.input.enableVoiceInput` | `Bool` | `false` | Enable voice input button |
+| `behavior.input.sendButtonStyle` | `String` | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | `Bool` | `true` | Disable multiline text input |
 | `behavior.input.showAiChatIcon` | `Object?` | `null` | AI chat icon configuration |
 
@@ -271,6 +274,30 @@ Feature toggles and interaction configuration.
 | `behavior.privacyNotice.title` | `String` | `"Privacy Notice"` | Privacy dialog title |
 | `behavior.privacyNotice.text` | `String` | `"Privacy notice text."` | Privacy notice content |
 
+### Feedback
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.feedback.displayMode` | `String` | `"modal"` | Feedback dialog display mode. `"modal"` renders inline as a Modal overlay; `"action"` renders as a ActionSheet. |
+| `behavior.feedback.thumbsPlacement` | `String` | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
+
+### Citations
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.citations.showLinkIcon` | `Bool` | `false` | Show an external link icon next to citation URLs. |
+
+### Welcome Card
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.welcomeCard.closeButtonAlignment` | `String` | `"end"` | Close button position: `"start"` (left of title) or `"end"` (right of title) |
+| `behavior.welcomeCard.promptFullWidth` | `Bool` | `true` | `true` = full-width rows with image thumbnails; `false` = compact pill chips with icon |
+| `behavior.welcomeCard.promptMaxLines` | `Int` | unlimited | Max lines for prompt text. Set to `1` for uniform pill heights with ellipsis |
+| `behavior.welcomeCard.contentAlignment` | `String` | `"top"` | Welcome card vertical position: `"top"` (anchored to top) or `"center"` (vertically centered) |
+
+> **Tip:** To hide the header subtitle, set `text["header.subtitle"]` to `""`. The subtitle is automatically hidden when its text is blank.
+
 ### Example
 
 ```json
@@ -285,6 +312,7 @@ Feature toggles and interaction configuration.
     },
     "input": {
       "enableVoiceInput": true,
+      "sendButtonStyle": "default",
       "disableMultiline": false,
       "showAiChatIcon": null
     },
@@ -295,6 +323,19 @@ Feature toggles and interaction configuration.
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "feedback": {
+      "displayMode": "action",
+      "thumbsPlacement": "below"
+    },
+    "citations": {
+      "showLinkIcon": true
+    },
+    "welcomeCard": {
+      "closeButtonAlignment": "start",
+      "promptFullWidth": false,
+      "promptMaxLines": 1,
+      "contentAlignment": "top"
     }
   }
 }
@@ -340,6 +381,13 @@ Localized UI strings using dot-notation keys.
 ### ✅ Content Recommendations
 
 While there are no strict requirements for character limits in many of these text fields, it is **_strongly_** recommended that the values be tested on target device(s) prior to deployment, ensuring the UI renders as desired.
+
+### Header
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["header.title"]` | `"Concierge"` | Header title text |
+| `text["header.subtitle"]` | `"Powered by Adobe"` | Header subtitle text |
 
 ### Welcome Screen
 
@@ -390,6 +438,13 @@ While there are no strict requirements for character limits in many of these tex
 | `text["feedback.thumbsUp.aria"]` | `"Thumbs up"` | Thumbs up accessibility |
 | `text["feedback.thumbsDown.aria"]` | `"Thumbs down"` | Thumbs down accessibility |
 
+### Sources & Feedback Footer
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["sourcesLabel"]` | `"Sources"` | Accordion label for the sources/feedback section |
+| `text["feedbackHelpfulLabel"]` | `"Was this helpful?"` | Label shown above feedback thumbs when `behavior.feedback.thumbsPlacement` is `"below"`. Set to `""` to hide. |
+
 ### Example
 
 ```json
@@ -398,7 +453,19 @@ While there are no strict requirements for character limits in many of these tex
     "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore.",
     "input.placeholder": "How can I help?",
-    "error.network": "I'm sorry, I'm having trouble connecting."
+    "error.network": "I'm sorry, I'm having trouble connecting.",
+    "loading.message": "Generating response from our knowledge base...",
+    "feedbackHelpfulLabel": "Was this helpful?",
+    "sourcesLabel": "Sources & Feedback",
+    "feedback.dialog.title.positive": "Your feedback is appreciated",
+    "feedback.dialog.title.negative": "Your feedback is appreciated",
+    "feedback.dialog.question.positive": "What went well? Select all that apply.",
+    "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
+    "feedback.dialog.notes": "Notes",
+    "feedback.dialog.submit": "Submit",
+    "feedback.dialog.cancel": "Cancel",
+    "feedback.dialog.notes.placeholder": "Additional notes (optional)",
+    "feedback.toast.success": "Thank you for the feedback."
   }
 }
 ```
@@ -544,6 +611,18 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-text-color` | `colors.input.text` | `String` | `"#000000"` | Input text color (hex) |
 | `--input-outline-color` | `colors.input.outline` | `String?` | `null` | Input border color (hex) |
 | `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
+| `--input-send-icon-color` | `colors.input.sendIconColor` | `String?` | `null` | Send button icon color (hex). Falls back to `onSurface` |
+| `--input-send-arrow-icon-color` | `colors.input.sendArrowIconColor` | `String?` | `null` | Arrow send button icon (arrow) color (hex). Falls back to `onPrimary`. Only used when `sendButtonStyle` is `"arrow"` |
+| `--input-send-arrow-background-color` | `colors.input.sendArrowBackgroundColor` | `String?` | `null` | Arrow send button circle background color (hex). Falls back to `sendIconColor` then `primary`. Only used when `sendButtonStyle` is `"arrow"` |
+| `--input-mic-icon-color` | `colors.input.micIconColor` | `String?` | `null` | Mic button icon color (hex). Falls back to `primary` |
+| `--input-mic-recording-icon-color` | `colors.input.micRecordingIconColor` | `String?` | `null` | Waveform animation color during voice recording (hex). Falls back to `onPrimary` |
+
+### Colors - Welcome Prompts
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--welcome-prompt-background-color` | `colors.welcomePrompt.backgroundColor` | `String?` | `null` (falls back to surface) | Prompt pill background color (hex). Only applied if a per-prompt `backgroundColor` is not defined in the prompt configuration. |
+| `--welcome-prompt-text-color` | `colors.welcomePrompt.textColor` | `String?` | `null` (falls back to `onSurface`) | Prompt pill text color (hex) |
 
 ### Colors - Circular Citations
 
@@ -564,6 +643,14 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
+
+### Colors - CTA Button
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--cta-button-background-color` | `colors.ctaButton.background` | `String` | `"systemGray6"` | CTA button background color (hex) |
+| `--cta-button-text-color` | `colors.ctaButton.text` | `String` | `"primary"` | CTA button label text color (hex) |
+| `--cta-button-icon-color` | `colors.ctaButton.iconColor` | `String` | `"primary"` | CTA button icon color (hex) |
 
 ### Colors - Extended Product Cards
 
@@ -643,7 +730,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--product-card-text-top-padding` | `cssLayout.productCardTextTopPadding` | `Double` | `24.0` | Top padding for card text content (dp) |
 | `--product-card-text-bottom-padding` | `cssLayout.productCardTextBottomPadding` | `Double` | `16.0` | Bottom padding for card text content (dp) |
 | `--product-card-text-spacing` | `cssLayout.productCardTextSpacing` | `Double` | `8.0` | Gap between title and subtitle (dp) |
-| `--product-card-carousel-horizontal-padding` | `cssLayout.productCardCarouselHorizontalPadding` | `Double` | `16.0` | Carousel horizontal padding (dp) |
+| `--product-card-carousel-horizontal-padding` | `cssLayout.productCardCarouselHorizontalPadding` | `Double` | `4.0` | Carousel horizontal padding (dp) |
 | `--product-card-carousel-spacing` | `cssLayout.productCardCarouselSpacing` | `Double` | `12.0` | Spacing between carousel cards (dp) |
 
 ### Layout - Buttons
@@ -651,6 +738,17 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--button-height-s` | `cssLayout.buttonHeightSmall` | `Double` | `30.0` | Small button height (dp) |
+
+### Layout - CTA Button
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--cta-button-border-radius` | `cssLayout.ctaButtonBorderRadius` | `Double` | `99.0` | CTA button corner radius (dp) |
+| `--cta-button-horizontal-padding` | `cssLayout.ctaButtonHorizontalPadding` | `Double` | `16.0` | CTA button horizontal padding (dp) |
+| `--cta-button-vertical-padding` | `cssLayout.ctaButtonVerticalPadding` | `Double` | `12.0` | CTA button vertical padding (dp) |
+| `--cta-button-font-size` | `cssLayout.ctaButtonFontSize` | `Double` | `14.0` | CTA button label font size (sp) |
+| `--cta-button-font-weight` | `cssLayout.ctaButtonFontWeight` | `Int` | `400` | CTA button label font weight |
+| `--cta-button-icon-size` | `cssLayout.ctaButtonIconSize` | `Double` | `16.0` | CTA button icon size (dp) |
 
 ### Layout - Feedback
 
@@ -673,12 +771,22 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--disclaimer-font-size` | `cssLayout.disclaimerFontSize` | `Double` | `12.0` | Disclaimer font size (sp) |
 | `--disclaimer-font-weight` | `cssLayout.disclaimerFontWeight` | `Int` | `400` | Disclaimer font weight |
 
-### Layout - Welcome Screen Order
+### Layout - Welcome Screen
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--welcome-input-order` | `cssLayout.welcomeInputOrder` | `Int` | `3` | Input field display order |
 | `--welcome-cards-order` | `cssLayout.welcomeCardsOrder` | `Int` | `2` | Example cards display order |
+| `--header-title-font-size` | `cssLayout.headerTitleFontSize` | `Double` | `null` (uses `headlineSmall`) | Header title font size (sp) |
+| `--welcome-title-font-size` | `cssLayout.welcomeTitleFontSize` | `Double` | `null` (uses `headlineSmall`) | Welcome card title font size (sp) |
+| `--welcome-text-align` | `cssLayout.welcomeTextAlign` | `String` | `"center"` | Welcome card text alignment (`"left"`, `"center"`, `"right"`) |
+| `--welcome-content-padding` | `cssLayout.welcomeContentPadding` | `Double` | `20.0` | Welcome card content padding (dp) |
+| `--welcome-prompt-image-size` | `cssLayout.welcomePromptImageSize` | `Double` | `75.0` | Prompt suggestion thumbnail size (dp) |
+| `--welcome-prompt-spacing` | `cssLayout.welcomePromptSpacing` | `Double` | `8.0` | Spacing between prompt items (dp) |
+| `--welcome-title-bottom-spacing` | `cssLayout.welcomeTitleBottomSpacing` | `Double` | `8.0` | Spacing below welcome title (dp) |
+| `--welcome-prompts-top-spacing` | `cssLayout.welcomePromptsTopSpacing` | `Double` | `8.0` | Spacing above prompt list (dp) |
+| `--welcome-prompt-padding` | `cssLayout.welcomePromptPadding` | `Double` | `0.0` | Inner padding for prompt pills (dp) |
+| `--welcome-prompt-corner-radius` | `cssLayout.welcomePromptCornerRadius` | `Double` | `8.0` | Prompt pill corner radius (dp) |
 
 ---
 
@@ -702,6 +810,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     },
     "input": {
       "enableVoiceInput": true,
+      "sendButtonStyle": "default",
       "disableMultiline": false,
       "showAiChatIcon": null
     },
@@ -712,6 +821,19 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Privacy notice text."
+    },
+    "feedback": {
+      "displayMode": "action",
+      "thumbsPlacement": "inline"
+    },
+    "citations": {
+      "showLinkIcon": false
+    },
+    "welcomeCard": {
+      "closeButtonAlignment": "start",
+      "promptFullWidth": false,
+      "promptMaxLines": 1,
+      "contentAlignment": "top"
     }
   },
   "disclaimer": {
@@ -724,6 +846,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     ]
   },
   "text": {
+    "header.title": "Concierge",
+    "header.subtitle": "Powered by Adobe",
     "welcome.heading": "Welcome to Brand Concierge!",
     "welcome.subheading": "I'm your personal guide to help you explore.",
     "input.placeholder": "How can I help?",
@@ -737,6 +861,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
     "loading.message": "Generating response from our knowledge base...",
+    "feedbackHelpfulLabel": "Was this helpful?",
+    "sourcesLabel": "Sources",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
     "feedback.dialog.title.negative": "Your feedback is appreciated",
     "feedback.dialog.question.positive": "What went well? Select all that apply.",
@@ -790,6 +916,18 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
   "theme": {
     "--welcome-input-order": "3",
     "--welcome-cards-order": "2",
+    "--header-title-font-size": "18px",
+    "--welcome-title-font-size": "16px",
+    "--welcome-text-align": "left",
+    "--welcome-content-padding": "16px",
+    "--welcome-prompt-image-size": "16px",
+    "--welcome-prompt-padding": "12px",
+    "--welcome-prompt-corner-radius": "20px",
+    "--welcome-prompt-background-color": "#F5F5F5",
+    "--welcome-prompt-text-color": "#000000",
+    "--welcome-prompt-spacing": "8px",
+    "--welcome-title-bottom-spacing": "6px",
+    "--welcome-prompts-top-spacing": "12px",
     "--font-family": "",
     "--color-primary": "#EB1000",
     "--color-text": "#131313",
@@ -816,9 +954,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--chat-history-bottom-padding": "0",
     "--message-blocker-height": "105px",
 
-    "--input-height": "52px",
     "--input-height-mobile": "52px",
-    "--input-border-radius": "12px",
     "--input-border-radius-mobile": "12px",
     "--button-primary-background": "#1976D2",
     "--button-primary-text": "#FFFFFF",
@@ -842,10 +978,17 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--input-focus-outline-width": "2px",
     "--input-text-color": "#000000",
     "--input-focus-outline-color": "#1976D2",
+    "--input-send-icon-color": "#000000",
+    "--input-send-arrow-icon-color": "#FFFFFF",
+    "--input-send-arrow-background-color": "#1976D2",
+    "--input-mic-icon-color": "#000000",
+    "--input-mic-recording-icon-color": "#FFFFFF",
     "--input-font-size": "16px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
     "--input-button-border-radius": "8px",
+    "--input-send-icon-color": "#1976D2",
+    "--input-mic-icon-color": "#1976D2",
 
     "--citations-text-font-weight": "700",
     "--citations-desktop-button-font-size": "12px",
@@ -860,8 +1003,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--border-radius-card": "16px",
 
     "--product-card-outline-color": "#E3E3E3",
-    "--product-card-width": "222",
-    "--product-card-height": "359",
+    "--product-card-width": "222px",
+    "--product-card-height": "359px",
     "--product-card-border-radius": "8px",
     "--product-card-title-font-weight": "700",
     "--product-card-title-font-size": "14px",
@@ -886,10 +1029,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--product-card-text-bottom-padding": "16px",
     "--product-card-text-spacing": "8px",
     "--product-card-carousel-horizontal-padding": "16px",
-    "--product-card-carousel-spacing": "12px",
-
-    "--message-alignment": "left",
-    "--message-width": "100%"
+    "--product-card-carousel-spacing": "12px"
   }
 }
 ```
@@ -942,12 +1082,17 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.carouselStyle` | ✅ | Switches between paged (prev/next/dots) and continuous scroll | `ProductCarousel` |
 | `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
-| `behavior.input.disableMultiline` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
+| `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
 | `behavior.privacyNotice.title` | ⚠️ | Parsed but not implemented | - |
 | `behavior.privacyNotice.text` | ⚠️ | Parsed but not implemented | - |
+| `behavior.welcomeCard.closeButtonAlignment` | ✅ | `"start"` or `"end"` close button position | `ChatHeader` |
+| `behavior.welcomeCard.promptFullWidth` | ✅ | Full-width cards vs compact pill chips | `SuggestedPromptItem` |
+| `behavior.welcomeCard.promptMaxLines` | ✅ | Max lines for prompt text (uniform pill height) | `SuggestedPromptItem` |
+| `behavior.welcomeCard.contentAlignment` | ✅ | `"top"` or `"center"` vertical position | `ConciergeChat` |
 
 ### Disclaimer
 
@@ -960,6 +1105,8 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
+| `text["header.title"]` | ✅ | Header title text | `ChatHeader` |
+| `text["header.subtitle"]` | ✅ | Header subtitle text | `ChatHeader` |
 | `text["welcome.heading"]` | ✅ | Welcome screen title | `WelcomeCard` |
 | `text["welcome.subheading"]` | ✅ | Welcome screen description | `WelcomeCard` |
 | `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
@@ -984,6 +1131,16 @@ This section documents which properties are fully implemented, partially impleme
 | `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented | - |
 | `text["feedback.thumbsUp.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["feedback.thumbsDown.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
+| `text["sourcesLabel"]` | ✅ | Accordion label for sources/feedback section | `ChatFooter` → `SourcesAccordionButton` |
+| `text["feedbackHelpfulLabel"]` | ✅ | Feedback helpful label shown in `below` thumbs placement mode | `FeedbackButtons` |
+
+### Behavior — Feedback & Citations
+
+| Property | Status | Notes | Used In |
+|----------|--------|-------|---------|
+| `behavior.feedback.displayMode` | ✅ | Modal (default) or ActionSheet feedback dialog | `FeedbackDialog` |
+| `behavior.feedback.thumbsPlacement` | ✅ | Inline (default) or below sources accordion | `ChatFooter` |
+| `behavior.citations.showLinkIcon` | ✅ | External link icon next to citation URLs | `ExpandedCitations` → `CitationItem` |
 
 ### Arrays
 
@@ -1020,12 +1177,12 @@ These colors are used internally by composables but cannot be customized in them
 |--------------|--------|-------|---------|
 | `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
 | `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
-| `--main-container-background` | ✅ | Main chat screen and welcome card background | `ChatScreen`, `WelcomeCard` |
+| `--main-container-background` | ✅ | Main chat screen, welcome card, and feedback dialog background | `ChatScreen`, `WelcomeCard`, `FeedbackDialog` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
-| `--message-concierge-background` | ✅ | AI message bubble background, also used for feedback dialog background | `ChatMessageItem`, `FeedbackDialog` |
+| `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
 | `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter`, `ProductCard` text, `ProductCarousel` switcher color |
 | `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs | `ExpandedCitations` (citation URLs); message body links when applied |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
@@ -1044,11 +1201,21 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-text-color` | ✅ | Input field text color | `ChatTextField`, `FeedbackDialog` |
 | `--input-outline-color` | ✅ | Input field border color | `ChatInputPanel` |
 | `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
+| `--input-send-icon-color` | ✅ | Send button icon color (default style tint) | `SendButton` |
+| `--input-send-arrow-icon-color` | ✅ | Arrow send button icon color (arrow style only) | `SendButton` |
+| `--input-send-arrow-background-color` | ✅ | Arrow send button circle background (arrow style only) | `SendButton` |
+| `--input-mic-icon-color` | ✅ | Mic button icon color | `MicButton` |
+| `--input-mic-recording-icon-color` | ✅ | Waveform animation color during recording | `MicButton`, `AnimatedAudioWave` |
+| `--welcome-prompt-background-color` | ✅ | Welcome prompt pill background | `SuggestedPromptItem` |
+| `--welcome-prompt-text-color` | ✅ | Welcome prompt pill text | `SuggestedPromptItem` |
 | `--citations-background-color` | ✅ | Citation pill background | `CircularCitation` |
 | `--citations-text-color` | ✅ | Citation pill (badge) text | `CircularCitation` |
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
 | `--feedback-icon-btn-hover-background` | ⚠️ | Parsed but no hover states on Android | - |
 | `--disclaimer-color` | ✅ | Disclaimer text color | `ConciergeDisclaimer` (DisclaimerStyle) |
+| `--cta-button-background-color` | ✅ | CTA button background color | `CtaButton` |
+| `--cta-button-text-color` | ✅ | CTA button label text color | `CtaButton` |
+| `--cta-button-icon-color` | ✅ | CTA button icon color | `CtaButton` |
 | `--product-card-outline-color` | ✅ | Extended product card border color | `ExtendedProductCard` |
 | `--product-card-background-color` | ✅ | Extended product card background | `ExtendedProductCard` |
 | `--product-card-title-color` | ✅ | Extended product card title color | `ExtendedProductCard` |
@@ -1065,7 +1232,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
 | `--input-height-mobile` | ⚠️ | Parsed but not used in composables | - |
-| `--input-border-radius-mobile` | ⚠️ | Parsed but not used in composables | - |
+| `--input-border-radius-mobile` | ✅ | Input field corner radius | `ChatInputPanel` |
 | `--input-outline-width` | ✅ | Input field border width | `ChatInputPanel` |
 | `--input-focus-outline-width` | ✅ | Input field focused border width | `ChatInputPanel` |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
@@ -1104,6 +1271,12 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--product-card-carousel-horizontal-padding` | ✅ | Carousel horizontal padding | `ProductCarousel` |
 | `--product-card-carousel-spacing` | ✅ | Spacing between carousel cards | `ProductCarousel` |
 | `--button-height-s` | ⚠️ | Parsed but not used in composables | - |
+| `--cta-button-border-radius` | ✅ | CTA button corner radius | `CtaButton` |
+| `--cta-button-horizontal-padding` | ✅ | CTA button horizontal padding | `CtaButton` |
+| `--cta-button-vertical-padding` | ✅ | CTA button vertical padding | `CtaButton` |
+| `--cta-button-font-size` | ✅ | CTA button label font size | `CtaButton` |
+| `--cta-button-font-weight` | ✅ | CTA button label font weight | `CtaButton` |
+| `--cta-button-icon-size` | ✅ | CTA button icon size | `CtaButton` |
 | `--feedback-container-gap` | ⚠️ | Parsed but not used in composables | - |
 | `--feedback-icon-btn-size-desktop` | ⚠️ | Parsed but not used in composables | - |
 | `--citations-text-font-weight` | ⚠️ | Parsed but not used in composables | - |
@@ -1112,6 +1285,16 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--disclaimer-font-weight` | ✅ | Disclaimer font weight | `ConciergeDisclaimer` (DisclaimerStyle) |
 | `--welcome-input-order` | ⚠️ | Parsed but welcome layout not customizable | - |
 | `--welcome-cards-order` | ⚠️ | Parsed but welcome layout not customizable | - |
+| `--header-title-font-size` | ✅ | Header title font size | `ChatHeader` |
+| `--welcome-title-font-size` | ✅ | Welcome card title font size | `WelcomeCard` |
+| `--welcome-text-align` | ✅ | Welcome card text alignment | `WelcomeCard` |
+| `--welcome-content-padding` | ✅ | Welcome card content padding | `WelcomeCard` |
+| `--welcome-prompt-image-size` | ✅ | Prompt thumbnail size | `SuggestedPromptItem` |
+| `--welcome-prompt-spacing` | ✅ | Spacing between prompt items | `WelcomeCard` |
+| `--welcome-title-bottom-spacing` | ✅ | Spacing below welcome title | `WelcomeCard` |
+| `--welcome-prompts-top-spacing` | ✅ | Spacing above prompt list | `WelcomeCard` |
+| `--welcome-prompt-padding` | ✅ | Inner padding for prompt pills | `SuggestedPromptItem` |
+| `--welcome-prompt-corner-radius` | ✅ | Prompt pill corner radius | `SuggestedPromptItem` |
 
 ### Unsupported CSS Variables
 
@@ -1154,7 +1337,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 - `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
 - `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
-- `--main-container-background` - Main screen background color (welcome card, chat area)
+- `--main-container-background` - Main screen background color (welcome card, chat area, feedback dialog)
 - `--main-container-bottom-background` - Bottom container background (input area)
 - `--message-user-background` / `--message-user-text` - User message styling
 - `--message-concierge-background` / `--message-concierge-text` - AI message styling, feedback dialog styling, feedback button icons, expanded citation text, chat footer (Sources label and icon)
@@ -1163,12 +1346,17 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--button-secondary-border` / `--button-secondary-text` - Secondary buttons
 - `--input-background` / `--input-text-color` - Input field colors
 - `--input-outline-color` / `--input-focus-outline-color` - Input borders
+- `--input-send-icon-color` / `--input-mic-icon-color` - Send and mic button icon colors
+- `--input-send-arrow-icon-color` / `--input-send-arrow-background-color` - Arrow send button colors (when `sendButtonStyle` is `"arrow"`)
+- `--input-mic-recording-icon-color` - Waveform animation color during voice recording
 - `--submit-button-fill-color` / `--color-button-submit` - Submit button
 - `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
 - `--feedback-icon-btn-background` - Feedback button styling
 
 **Essential Text/Copy:**
+- `text["header.title"]` - Header title
+- `text["header.subtitle"]` - Header subtitle
 - `text["welcome.heading"]` - Welcome screen title
 - `text["welcome.subheading"]` - Welcome screen description
 - `text["input.placeholder"]` - Input field hint
@@ -1177,12 +1365,19 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 **Essential Behavior:**
 - `behavior.input.enableVoiceInput` - Show/hide microphone button
+- `behavior.input.sendButtonStyle` - `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow)
 - `behavior.productCard.cardStyle` - Use `"productDetail"` for extended product cards (image, badge, name, subtitle, price)
 - `behavior.multimodalCarousel.carouselStyle` - Use `"paged"` for prev/next/dots or `"scroll"` for continuous scroll
+- `behavior.welcomeCard.closeButtonAlignment` - Close button position (`"start"` or `"end"`)
+- `behavior.welcomeCard.promptFullWidth` - Full-width cards vs compact pill chips
+- `behavior.welcomeCard.promptMaxLines` - Max prompt text lines (set `1` for uniform pills)
+- `behavior.welcomeCard.contentAlignment` - Welcome card vertical position (`"top"` or `"center"`)
 
 **Essential Layout:**
 - `--input-outline-width` / `--input-focus-outline-width` - Input border thickness
+- `--input-border-radius-mobile` - Input field corner radius
 - `--input-font-size` - Input text size
+- `--input-send-icon-color` / `--input-mic-icon-color` - Input button icon colors
 - `--disclaimer-font-size` - Disclaimer text size
 - `--citations-desktop-button-font-size` - Citation text size
 - `--line-height-body` - Text line spacing
