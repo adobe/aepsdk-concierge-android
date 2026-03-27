@@ -115,7 +115,12 @@ internal fun ChatInputField(
                 isFocused.value = false
                 focusManager.clearFocus() // Dismiss keyboard after sending
             },
-            onVoiceCancel = onVoiceCancel
+            onVoiceCancel = onVoiceCancel,
+            onClear = {
+                text.value = ""
+                onTextChange("")
+                isFocused.value = false
+            }
         )
     }
 }

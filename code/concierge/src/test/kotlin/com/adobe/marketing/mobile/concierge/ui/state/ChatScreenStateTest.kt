@@ -12,6 +12,7 @@
 package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
@@ -497,6 +498,38 @@ class ChatScreenStateTest {
 
         // Then
         assertEquals(unicodeText, actualText)
+    }
+
+    // ========== MessageContent.CtaButton Tests ==========
+
+    @Test
+    fun `MessageContent CtaButton creates with button`() {
+        val button = NetworkCtaButton(label = "Shop All", url = "https://example.com/shop")
+        val content = MessageContent.CtaButton(button)
+        assertEquals("Shop All", content.button.label)
+        assertEquals("https://example.com/shop", content.button.url)
+    }
+
+    @Test
+    fun `ChatMessage getText returns label from CtaButton content`() {
+        val button = NetworkCtaButton(label = "Learn More", url = "https://example.com/learn")
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(button),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        assertEquals("Learn More", message.text)
+    }
+
+    @Test
+    fun `MessageContent CtaButton is distinct from Text and Mixed`() {
+        val textContent = MessageContent.Text("Hello")
+        val mixedContent = MessageContent.Mixed(text = "Mixed")
+        val ctaContent = MessageContent.CtaButton(NetworkCtaButton(label = "Go", url = "https://example.com"))
+
+        assertTrue(textContent is MessageContent.Text)
+        assertTrue(mixedContent is MessageContent.Mixed)
+        assertTrue(ctaContent is MessageContent.CtaButton)
     }
 
     // ========== FeedbackType Tests ==========

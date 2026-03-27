@@ -31,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -89,26 +91,33 @@ internal fun MicButton(
             )
         }
 
+        val isRecording = userInputState is UserInputState.Recording
         IconButton(
             onClick = {
                 if (isEnabled) {
                     onClick()
                 }
             },
-            modifier = Modifier.size(style.size)
+            modifier = Modifier
+                .size(style.size)
+                .semantics { contentDescription = if (isRecording) "Stop recording" else "Start voice input" }
         ) {
             // Choose icon tint based on state and enabled flag
-            val baseIconColor = if (userInputState is UserInputState.Recording) style.recordingIconColor else style.iconColor
+            val baseIconColor = if (isRecording) style.recordingIconColor else style.iconColor
             val tintColor = if (isEnabled) baseIconColor else baseIconColor.copy(alpha = 0.38f)
 
-            Image(
-                painter = painterResource(R.drawable.microphone),
-                contentDescription = when (userInputState) {
-                    is UserInputState.Recording -> "Stop recording"
-                    else -> "Start voice input"
-                },
-                colorFilter = ColorFilter.tint(tintColor)
-            )
+            if (isRecording) {
+                AnimatedAudioWave(
+                    modifier = Modifier.size(style.size),
+                    color = tintColor
+                )
+            } else {
+                Image(
+                    painter = painterResource(R.drawable.microphone),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(tintColor)
+                )
+            }
         }
     }
 }

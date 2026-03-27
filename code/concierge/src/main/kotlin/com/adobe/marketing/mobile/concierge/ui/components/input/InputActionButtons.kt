@@ -25,10 +25,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
@@ -44,6 +48,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
  * @param onMicPressed Callback when microphone button is pressed (to start recording)
  * @param onVoiceCancel Callback when recording should be stopped
  * @param onSend Callback when send button is pressed
+ * @param onClear Callback when clear button is pressed to clear the input text
  */
 @Composable
 internal fun InputActionButtons(
@@ -53,7 +58,8 @@ internal fun InputActionButtons(
     isProcessing: Boolean,
     onMicPressed: () -> Unit,
     onVoiceCancel: () -> Unit,
-    onSend: (String) -> Unit
+    onSend: (String) -> Unit,
+    onClear: () -> Unit = {}
 ) {
     val micButtonStyle = ConciergeStyles.micButtonStyle
     val sendButtonStyle = ConciergeStyles.sendButtonStyle
@@ -70,20 +76,36 @@ internal fun InputActionButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         val micContainerSize = micButtonStyle.size * micButtonStyle.pulseScaleRange.second
+        val hasText = text.isNotBlank()
 
         if (enableVoiceInput) {
-            MicButton(
-                modifier = Modifier.size(micContainerSize),
-                userInputState = inputState,
-                isEnabled = true,
-                onClick = {
-                    if (inputState is UserInputState.Recording) {
-                        onVoiceCancel()
-                    } else {
-                        onMicPressed()
-                    }
+            // Show clear button OR mic button
+            if (hasText && inputState !is UserInputState.Recording) {
+                IconButton(
+                    onClick = onClear,
+                    modifier = Modifier.size(micContainerSize)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.close),
+                        contentDescription = "Clear input",
+                        modifier = Modifier.size(16.dp),
+                        tint = sendButtonStyle.enabledIconColor.copy(alpha = 0.5f)
+                    )
                 }
-            )
+            } else {
+                MicButton(
+                    modifier = Modifier.size(micContainerSize),
+                    userInputState = inputState,
+                    isEnabled = true,
+                    onClick = {
+                        if (inputState is UserInputState.Recording) {
+                            onVoiceCancel()
+                        } else {
+                            onMicPressed()
+                        }
+                    }
+                )
+            }
         }
 
         // Send button - only visible when not recording.

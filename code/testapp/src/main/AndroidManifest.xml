@@ -51,6 +51,12 @@
         </activity>
         
         <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.LinkHandlingTestActivity"
+            android:exported="false"
+            android:label="Link Handling Tests"
+            android:theme="@style/Theme.AEPSDKBrandConciergeAgent" />
+
+        <activity
             android:name="com.adobe.marketing.mobile.conciergetestapp.XmlChatActivity"
             android:exported="false"
             android:label="XML Integration Demo"
