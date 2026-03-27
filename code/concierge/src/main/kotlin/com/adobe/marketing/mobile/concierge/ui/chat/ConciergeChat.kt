@@ -174,7 +174,7 @@ fun ConciergeChat(
                 )
             }
 
-            // Modal feedback bottom sheet rendered outside the Dialog window
+            // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
             val state by viewModel.state.collectAsStateWithLifecycle()
             ModalFeedbackOverlay(
                 feedback = state.feedback,
@@ -283,7 +283,7 @@ fun ConciergeChat(
         )
     }
 
-    // Modal feedback bottom sheet rendered outside the Dialog window
+    // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
     ModalFeedbackOverlay(
         feedback = state.feedback,
         onDismiss = { resolvedEvent(FeedbackEvent.DismissFeedbackDialog) },
@@ -419,8 +419,8 @@ internal fun ConciergeChat(
             )
         }
 
-        // Feedback dialog overlay (Card mode only; modal mode is rendered at outer composable level)
-        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.BOTTOM_SHEET) {
+        // Feedback dialog overlay (modal mode; bottom sheet is rendered at outer composable level)
+        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION) {
             chatState.feedback?.let { feedback ->
                 FeedbackDialog(
                     modifier = Modifier
@@ -440,7 +440,7 @@ internal fun ConciergeChat(
 }
 
 /**
- * Renders the feedback bottom sheet outside the Dialog window when displayMode is "modal".
+ * Renders the feedback bottom sheet outside the Dialog window when displayMode is "action".
  * This must be called at a composable scope that is NOT inside a Dialog, so the
  * ModalBottomSheet has full-screen access.
  */
@@ -451,7 +451,7 @@ private fun ModalFeedbackOverlay(
     onSubmit: (Feedback) -> Unit
 ) {
     val displayMode = ConciergeTheme.behavior?.feedback?.displayMode
-    if (displayMode == FeedbackDisplayMode.BOTTOM_SHEET) {
+    if (displayMode == FeedbackDisplayMode.ACTION) {
         feedback?.let {
             FeedbackDialog(
                 feedback = it,

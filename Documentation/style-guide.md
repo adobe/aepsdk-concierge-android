@@ -278,7 +278,7 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.feedback.displayMode` | `String` | `"card"` | Feedback dialog display mode. `"card"` renders inline as a Card overlay; `"modal"` renders as a ModalBottomSheet. |
+| `behavior.feedback.displayMode` | `String` | `"modal"` | Feedback dialog display mode. `"modal"` renders inline as a Modal overlay; `"action"` renders as a ActionSheet. |
 | `behavior.feedback.thumbsPlacement` | `String` | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
 
 ### Citations
@@ -325,7 +325,7 @@ Feature toggles and interaction configuration.
       "text": "Privacy notice text."
     },
     "feedback": {
-      "displayMode": "modal",
+      "displayMode": "action",
       "thumbsPlacement": "below"
     },
     "citations": {
@@ -1138,7 +1138,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `behavior.feedback.displayMode` | ✅ | Card (default) or ModalBottomSheet feedback dialog | `FeedbackDialog` |
+| `behavior.feedback.displayMode` | ✅ | Modal (default) or ActionSheet feedback dialog | `FeedbackDialog` |
 | `behavior.feedback.thumbsPlacement` | ✅ | Inline (default) or below sources accordion | `ChatFooter` |
 | `behavior.citations.showLinkIcon` | ✅ | External link icon next to citation URLs | `ExpandedCitations` → `CitationItem` |
 

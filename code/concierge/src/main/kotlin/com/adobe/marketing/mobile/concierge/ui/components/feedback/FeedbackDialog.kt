@@ -84,7 +84,7 @@ private val NEGATIVE_CATEGORIES = listOf(
  * Feedback dialog component that captures user feedback with selectable categories
  * and optional notes.
  *
- * Renders as a Card overlay (default) or a ModalBottomSheet depending on
+ * Renders as a modal card overlay (`"modal"`) or a ModalBottomSheet (`"action"`) per
  * `behavior.feedback.displayMode` in the theme JSON.
  *
  * @param modifier Optional [Modifier] for this component.
@@ -99,16 +99,16 @@ internal fun FeedbackDialog(
     onDismiss: () -> Unit,
     onSubmit: (Feedback) -> Unit
 ) {
-    val displayMode = ConciergeTheme.behavior?.feedback?.displayMode ?: FeedbackDisplayMode.CARD
+    val displayMode = ConciergeTheme.behavior?.feedback?.displayMode ?: FeedbackDisplayMode.MODAL
 
     when (displayMode) {
-        FeedbackDisplayMode.CARD -> FeedbackDialogCard(
+        FeedbackDisplayMode.MODAL -> FeedbackDialogCard(
             modifier = modifier,
             feedback = feedback,
             onDismiss = onDismiss,
             onSubmit = onSubmit
         )
-        FeedbackDisplayMode.BOTTOM_SHEET -> FeedbackDialogBottomSheet(
+        FeedbackDisplayMode.ACTION -> FeedbackDialogBottomSheet(
             modifier = modifier,
             feedback = feedback,
             onDismiss = onDismiss,

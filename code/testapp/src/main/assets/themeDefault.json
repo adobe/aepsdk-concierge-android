@@ -27,7 +27,7 @@
       "cardStyle": "actionButton"
     },
     "feedback": {
-      "displayMode": "card",
+      "displayMode": "modal",
       "thumbsPlacement": "inline"
     },
     "citations": {

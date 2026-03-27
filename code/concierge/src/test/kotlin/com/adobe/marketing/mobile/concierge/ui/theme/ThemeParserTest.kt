@@ -673,6 +673,32 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `parseThemeTokens should parse behavior feedback displayMode`() {
+        val modalJson = """
+            {
+                "behavior": {
+                    "feedback": { "displayMode": "modal" }
+                }
+            }
+        """.trimIndent()
+        val actionJson = """
+            {
+                "behavior": {
+                    "feedback": { "displayMode": "action" }
+                }
+            }
+        """.trimIndent()
+        assertEquals(
+            FeedbackDisplayMode.MODAL,
+            ThemeParser.parseThemeTokens(modalJson)?.behavior?.feedback?.displayMode
+        )
+        assertEquals(
+            FeedbackDisplayMode.ACTION,
+            ThemeParser.parseThemeTokens(actionJson)?.behavior?.feedback?.displayMode
+        )
+    }
+
+    @Test
     fun `parseThemeTokens should parse assets section with all icons`() {
         val json = """
             {

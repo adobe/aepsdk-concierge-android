@@ -187,16 +187,24 @@ data class ConciergeThemeBehavior(
 )
 
 /**
- * Display mode for the feedback dialog.
- * CARD renders inline as a Card overlay; BOTTOM_SHEET renders as a ModalBottomSheet.
+ * Display mode for the feedback dialog from `behavior.feedback.displayMode` in theme JSON.
+ *
+ * - `"modal"` — centered card overlay ([Modal] in Compose).
+ * - `"action"` — [ModalBottomSheet].
  */
 enum class FeedbackDisplayMode(val value: String) {
-    CARD("card"),
-    BOTTOM_SHEET("modal");
+    MODAL("modal"),
+    ACTION("action");
 
     companion object {
-        fun fromString(value: String): FeedbackDisplayMode =
-            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CARD
+        fun fromString(value: String): FeedbackDisplayMode {
+            val normalized = value.trim().lowercase()
+            return when (normalized) {
+                MODAL.value -> MODAL
+                ACTION.value -> ACTION
+                else -> MODAL
+            }
+        }
     }
 }
 
@@ -229,7 +237,7 @@ enum class CarouselStyle(val value: String) {
 }
 
 data class ConciergeFeedbackBehavior(
-    val displayMode: FeedbackDisplayMode = FeedbackDisplayMode.CARD,
+    val displayMode: FeedbackDisplayMode = FeedbackDisplayMode.MODAL,
     val thumbsPlacement: FeedbackThumbsPlacement = FeedbackThumbsPlacement.INLINE
 )
 

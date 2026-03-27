@@ -403,7 +403,7 @@ internal object ThemeParser {
         val feedbackTyped = feedbackMap as? MutableMap<String?, Any?>
         val feedback = feedbackTyped?.let {
             ConciergeFeedbackBehavior(
-                displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "card")),
+                displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "modal")),
                 thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline"))
             )
         }

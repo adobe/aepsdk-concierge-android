@@ -232,6 +232,17 @@ class ConciergeThemeTokensTest {
         assertEquals("New Theme", updated.name)
     }
 
+    // ========== FeedbackDisplayMode ==========
+
+    @Test
+    fun `FeedbackDisplayMode fromString parses theme JSON values`() {
+        assertEquals(FeedbackDisplayMode.MODAL, FeedbackDisplayMode.fromString("modal"))
+        assertEquals(FeedbackDisplayMode.ACTION, FeedbackDisplayMode.fromString("action"))
+        assertEquals(FeedbackDisplayMode.MODAL, FeedbackDisplayMode.fromString("MODAL"))
+        assertEquals(FeedbackDisplayMode.ACTION, FeedbackDisplayMode.fromString("Action"))
+        assertEquals(FeedbackDisplayMode.MODAL, FeedbackDisplayMode.fromString("unknown"))
+    }
+
     // ========== ConciergeThemeBehavior Tests ==========
 
     @Test
