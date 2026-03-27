@@ -730,7 +730,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--product-card-text-top-padding` | `cssLayout.productCardTextTopPadding` | `Double` | `24.0` | Top padding for card text content (dp) |
 | `--product-card-text-bottom-padding` | `cssLayout.productCardTextBottomPadding` | `Double` | `16.0` | Bottom padding for card text content (dp) |
 | `--product-card-text-spacing` | `cssLayout.productCardTextSpacing` | `Double` | `8.0` | Gap between title and subtitle (dp) |
-| `--product-card-carousel-horizontal-padding` | `cssLayout.productCardCarouselHorizontalPadding` | `Double` | `16.0` | Carousel horizontal padding (dp) |
+| `--product-card-carousel-horizontal-padding` | `cssLayout.productCardCarouselHorizontalPadding` | `Double` | `4.0` | Carousel horizontal padding (dp) |
 | `--product-card-carousel-spacing` | `cssLayout.productCardCarouselSpacing` | `Double` | `12.0` | Spacing between carousel cards (dp) |
 
 ### Layout - Buttons
@@ -743,12 +743,12 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
-| `--cta-button-border-radius` | `layout.ctaButtonBorderRadius` | `Double` | `99.0` | CTA button corner radius (dp) |
-| `--cta-button-horizontal-padding` | `layout.ctaButtonHorizontalPadding` | `Double` | `16.0` | CTA button horizontal padding (dp) |
-| `--cta-button-vertical-padding` | `layout.ctaButtonVerticalPadding` | `Double` | `12.0` | CTA button vertical padding (dp) |
-| `--cta-button-font-size` | `layout.ctaButtonFontSize` | `Double` | `14.0` | CTA button label font size (sp) |
-| `--cta-button-font-weight` | `layout.ctaButtonFontWeight` | `Int` | `400` | CTA button label font weight |
-| `--cta-button-icon-size` | `layout.ctaButtonIconSize` | `Double` | `16.0` | CTA button icon size (dp) |
+| `--cta-button-border-radius` | `cssLayout.ctaButtonBorderRadius` | `Double` | `99.0` | CTA button corner radius (dp) |
+| `--cta-button-horizontal-padding` | `cssLayout.ctaButtonHorizontalPadding` | `Double` | `16.0` | CTA button horizontal padding (dp) |
+| `--cta-button-vertical-padding` | `cssLayout.ctaButtonVerticalPadding` | `Double` | `12.0` | CTA button vertical padding (dp) |
+| `--cta-button-font-size` | `cssLayout.ctaButtonFontSize` | `Double` | `14.0` | CTA button label font size (sp) |
+| `--cta-button-font-weight` | `cssLayout.ctaButtonFontWeight` | `Int` | `400` | CTA button label font weight |
+| `--cta-button-icon-size` | `cssLayout.ctaButtonIconSize` | `Double` | `16.0` | CTA button icon size (dp) |
 
 ### Layout - Feedback
 
@@ -954,9 +954,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--chat-history-bottom-padding": "0",
     "--message-blocker-height": "105px",
 
-    "--input-height": "52px",
     "--input-height-mobile": "52px",
-    "--input-border-radius": "12px",
     "--input-border-radius-mobile": "12px",
     "--button-primary-background": "#1976D2",
     "--button-primary-text": "#FFFFFF",
@@ -1005,8 +1003,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--border-radius-card": "16px",
 
     "--product-card-outline-color": "#E3E3E3",
-    "--product-card-width": "222",
-    "--product-card-height": "359",
+    "--product-card-width": "222px",
+    "--product-card-height": "359px",
     "--product-card-border-radius": "8px",
     "--product-card-title-font-weight": "700",
     "--product-card-title-font-size": "14px",
@@ -1031,10 +1029,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--product-card-text-bottom-padding": "16px",
     "--product-card-text-spacing": "8px",
     "--product-card-carousel-horizontal-padding": "16px",
-    "--product-card-carousel-spacing": "12px",
-
-    "--message-alignment": "left",
-    "--message-width": "100%"
+    "--product-card-carousel-spacing": "12px"
   }
 }
 ```
