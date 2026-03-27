@@ -20,8 +20,6 @@
       "enableVoiceInput": true,
       "sendButtonStyle": "arrow",
       "disableMultiline": true,
-      "silenceThreshold": 800,
-      "silenceDuration": 1500,
       "showAiChatIcon": null
     },
     "chat": {
@@ -40,7 +38,7 @@
       "showLinkIcon": true
     },
     "welcomeCard": {
-      "closeButtonAlignment": "end",
+      "closeButtonAlignment": "start",
       "promptFullWidth": false,
       "promptMaxLines": 2,
       "contentAlignment": "top"
@@ -88,18 +86,18 @@
   "arrays": {
     "welcome.examples": [
       {
-        "text": "I'd like to explore race training.",
-        "image": "https://s7d6.scene7.com/is/image/DSGAEMSites/10K-Training-Plans-for-Runners-at-Every-Level",
+        "text": "I'd like to explore new products.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
         "backgroundColor": "#D3D3D3"
       },
       {
-        "text": "Help me shop for running gear.",
-        "image": "https://www.dickssportinggoods.com/adobe/dynamicmedia/deliver/dm-aid--83b0ee14-7cbb-4abe-b455-1f3ce026ada8/DSG_HP_JanWk4_2026_4up_NGWIS.jpg",
+        "text": "Help me shop for exercise gear.",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
         "backgroundColor": "#D3D3D3"
       },
       {
         "text": "Where is the nearest store?",
-        "image": "https://dks.scene7.com/is/image/GolfGalaxy/DKSCAP04_White_MODDET?qlt=70&wid=1100&hei=1100&fmt=webp&op_sharpen=1&fit=constrain",
+        "image": "https://main--milo--adobecom.aem.page/drafts/methomas/assets/media_1f6fed23045bbbd57fc17dadc3aa06bcc362f84cb.png",
         "backgroundColor": "#D3D3D3"
       }
     ],
@@ -120,26 +118,7 @@
   },
   "assets": {
     "icons": {
-      "company": "",
-      "send": "",
-      "microphone": "",
-      "close": "",
-      "thumbsUp": "",
-      "thumbsDown": "",
-      "chevronDown": "",
-      "chevronRight": ""
-    },
-    "images": {
-      "welcomeBanner": "",
-      "errorPlaceholder": "",
-      "avatarBot": "",
-      "avatarUser": ""
-    },
-    "fonts": {
-      "regular": "",
-      "medium": "",
-      "bold": "",
-      "light": ""
+      "company": ""
     }
   },
   "content": {
@@ -166,33 +145,6 @@
       "closeButtonLabel": "[DEMO] Close",
       "thumbsUpLabel": "[DEMO] Like this response",
       "thumbsDownLabel": "[DEMO] Dislike this response"
-    }
-  },
-  "layout": {
-    "spacing": {
-      "xs": 4,
-      "sm": 8,
-      "md": 16,
-      "lg": 24,
-      "xl": 32,
-      "xxl": 48
-    },
-    "sizing": {
-      "iconSm": 16,
-      "iconMd": 24,
-      "iconLg": 32,
-      "avatarSm": 32,
-      "avatarMd": 40,
-      "avatarLg": 48,
-      "buttonHeightSm": 32,
-      "buttonHeightMd": 40,
-      "buttonHeightLg": 48
-    },
-    "positioning": {
-      "headerHeight": 56,
-      "footerHeight": 72,
-      "maxContentWidth": 800,
-      "minContentWidth": 280
     }
   },
   "theme": {
