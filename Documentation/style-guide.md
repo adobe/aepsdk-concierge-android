@@ -823,7 +823,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
       "text": "Privacy notice text."
     },
     "feedback": {
-      "displayMode": "card",
+      "displayMode": "action",
       "thumbsPlacement": "inline"
     },
     "citations": {
