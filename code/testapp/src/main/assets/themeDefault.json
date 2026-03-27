@@ -62,6 +62,7 @@
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
     "loading.message": "Generating response from our knowledge base",
+    "sourcesLabel": "Sources",
     "feedbackHelpfulLabel": "Was this helpful?",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
     "feedback.dialog.title.negative": "Your feedback is appreciated",

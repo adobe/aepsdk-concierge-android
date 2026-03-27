@@ -378,7 +378,7 @@ internal object ThemeParser {
             // Default to false if not specified
             false
         }
-        val disableMultiline = DataReader.optBoolean(inputTypedMap, "disableMultiline", false)
+        val disableMultiline = DataReader.optBoolean(inputTypedMap, "disableMultiline", true)
         
         val productCardMap = typedMap?.get("productCard") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
