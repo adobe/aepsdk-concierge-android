@@ -385,7 +385,7 @@ private fun FeedbackDialogBottomSheet(
 
 /**
  * Bottom sheet content: title with close button, question, categories, full-width SUBMIT button.
- * Enabled via `behavior.feedback.displayMode: "modal"` in theme JSON.
+ * Enabled via `behavior.feedback.displayMode: "action"` in theme JSON.
  */
 @Composable
 private fun FeedbackBottomSheetContent(
