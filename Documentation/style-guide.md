@@ -19,8 +19,6 @@ This document provides a comprehensive reference for all styling properties supp
   - [Typography](#typography)
   - [Colors](#colors)
   - [Layout](#layout)
-  - [Colors - CTA Button](#colors---cta-button)
-  - [Layout - CTA Button](#layout---cta-button)
 - [Implementation Status](#implementation-status)
 
 ---
@@ -214,10 +212,10 @@ Theme identification information.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `metadata.brandName` | `String` | `""` | Brand/company name |
-| `metadata.version` | `String` | `"0.0.0"` | Theme version |
-| `metadata.language` | `String` | `"en-US"` | Locale identifier |
-| `metadata.namespace` | `String` | `"brand-concierge"` | Theme namespace |
+| `metadata.brandName` | string | `""` | Brand/company name |
+| `metadata.version` | string | `"0.0.0"` | Theme version |
+| `metadata.language` | string | `"en-US"` | Locale identifier |
+| `metadata.namespace` | string | `"brand-concierge"` | Theme namespace |
 
 ### Example
 
@@ -242,59 +240,59 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.multimodalCarousel.cardClickAction` | `String` | `"openLink"` | Action when carousel card is tapped. Currently "openLink" is the only option available. |
-| `behavior.multimodalCarousel.carouselStyle` | `String` | `"paged"` | Carousel navigation style. `"paged"` = snap to item with prev/next buttons and page dots; `"scroll"` = continuous horizontal scroll with no paging controls. |
+| `behavior.multimodalCarousel.cardClickAction` | string | `"openLink"` | Action when carousel card is tapped. Currently "openLink" is the only option available. |
+| `behavior.multimodalCarousel.carouselStyle` | string | `"paged"` | Carousel navigation style. `"paged"` = snap to item with prev/next buttons and page dots; `"scroll"` = continuous horizontal scroll with no paging controls. |
 
 ### Product Card
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.productCard.cardStyle` | `String` | `"actionButton"` | Product card layout. `"actionButton"` = image overlay with primary/secondary action buttons; `"productDetail"` = extended card with image, badge, name, subtitle, and price. |
+| `behavior.productCard.cardStyle` | string | `"actionButton"` | Product card layout. `"actionButton"` = image overlay with primary/secondary action buttons; `"productDetail"` = extended card with image, badge, name, subtitle, and price. |
 
 ### Input
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.input.enableVoiceInput` | `Bool` | `false` | Enable voice input button |
-| `behavior.input.sendButtonStyle` | `String` | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
-| `behavior.input.disableMultiline` | `Bool` | `true` | Disable multiline text input |
-| `behavior.input.showAiChatIcon` | `Object?` | `null` | AI chat icon configuration |
+| `behavior.input.enableVoiceInput` | boolean | `false` | Enable voice input button |
+| `behavior.input.sendButtonStyle` | string | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
+| `behavior.input.disableMultiline` | boolean | `true` | Disable multiline text input |
+| `behavior.input.showAiChatIcon` | object | `null` | AI chat icon configuration (JSON object). Present in shared theme JSON for web/iOS; ignored by the Android SDK. |
 
 ### Chat
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.chat.messageAlignment` | `String` | `"left"` | Message alignment (`"left"`, `"center"`, `"right"`) |
-| `behavior.chat.messageWidth` | `String` | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
+| `behavior.chat.messageAlignment` | string | `"left"` | Message alignment (`"left"`, `"center"`, `"right"`) |
+| `behavior.chat.messageWidth` | string | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
 
 ### Privacy Notice
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.privacyNotice.title` | `String` | `"Privacy Notice"` | Privacy dialog title |
-| `behavior.privacyNotice.text` | `String` | `"Privacy notice text."` | Privacy notice content |
+| `behavior.privacyNotice.title` | string | `"Privacy Notice"` | Privacy dialog title |
+| `behavior.privacyNotice.text` | string | `"Privacy notice text."` | Privacy notice content |
 
 ### Feedback
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.feedback.displayMode` | `String` | `"modal"` | Feedback dialog display mode. `"modal"` renders inline as a Modal overlay; `"action"` renders as a ActionSheet. |
-| `behavior.feedback.thumbsPlacement` | `String` | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
+| `behavior.feedback.displayMode` | string | `"modal"` | Feedback dialog display mode. `"modal"` renders inline as a Modal overlay; `"action"` renders as an ActionSheet. |
+| `behavior.feedback.thumbsPlacement` | string | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
 
 ### Citations
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.citations.showLinkIcon` | `Bool` | `false` | Show an external link icon next to citation URLs. |
+| `behavior.citations.showLinkIcon` | boolean | `false` | Show an external link icon next to citation URLs. |
 
 ### Welcome Card
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.welcomeCard.closeButtonAlignment` | `String` | `"end"` | Close button position: `"start"` (left of title) or `"end"` (right of title) |
-| `behavior.welcomeCard.promptFullWidth` | `Bool` | `true` | `true` = full-width rows with image thumbnails; `false` = compact pill chips with icon |
-| `behavior.welcomeCard.promptMaxLines` | `Int` | unlimited | Max lines for prompt text. Set to `1` for uniform pill heights with ellipsis |
-| `behavior.welcomeCard.contentAlignment` | `String` | `"top"` | Welcome card vertical position: `"top"` (anchored to top) or `"center"` (vertically centered) |
+| `behavior.welcomeCard.closeButtonAlignment` | string | `"end"` | Close button position: `"start"` (left of title) or `"end"` (right of title) |
+| `behavior.welcomeCard.promptFullWidth` | boolean | `true` | `true` = full-width rows with image thumbnails; `false` = compact pill chips with icon |
+| `behavior.welcomeCard.promptMaxLines` | number | `—` | Max lines for prompt text. When omitted, the Android SDK applies no limit. Set to `1` for uniform pill heights with ellipsis. |
+| `behavior.welcomeCard.contentAlignment` | string | `"top"` | Welcome card vertical position: `"top"` (anchored to top) or `"center"` (vertically centered) |
 
 > **Tip:** To hide the header subtitle, set `text["header.subtitle"]` to `""`. The subtitle is automatically hidden when its text is blank.
 
@@ -349,10 +347,10 @@ Legal disclaimer text with embedded links.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `disclaimer.text` | `String` | `"AI responses may be inaccurate. Check answers and sources. {Terms}"` | Disclaimer text with `{placeholders}` for links |
-| `disclaimer.links` | `Array` | One default Terms link if empty | Array of link objects |
-| `disclaimer.links[].text` | `String` | `""` | Link display text (matches placeholder, e.g. `Terms` for `{Terms}`) |
-| `disclaimer.links[].url` | `String` | `""` | Link URL (opened when the user taps the link) |
+| `disclaimer.text` | string | `"AI responses may be inaccurate. Check answers and sources. {Terms}"` | Disclaimer text with `{placeholders}` for links |
+| `disclaimer.links` | array | One default Terms link if empty | Array of link objects; each item has string properties `text` and `url`. |
+| `disclaimer.links[].text` | string | `""` | Link display text (matches placeholder, e.g. `Terms` for `{Terms}`) |
+| `disclaimer.links[].url` | string | `""` | Link URL (opened when the user taps the link) |
 
 ### Example
 
@@ -484,10 +482,10 @@ List-based configuration for examples and feedback options.
 
 | JSON Key | Type | Description |
 |----------|------|-------------|
-| `arrays["welcome.examples"]` | `Array` | Welcome screen example cards |
-| `arrays["welcome.examples"][].text` | `String` | Card display text |
-| `arrays["welcome.examples"][].image` | `String?` | Card image URL |
-| `arrays["welcome.examples"][].backgroundColor` | `String?` | Card background color (hex) |
+| `arrays["welcome.examples"]` | array | Welcome screen example cards; each item is an object with `text`, optional `image`, and optional `backgroundColor` (hex string). |
+| `arrays["welcome.examples"][].text` | string | Card display text |
+| `arrays["welcome.examples"][].image` | string | Card image URL (optional; may be `null` or omitted). |
+| `arrays["welcome.examples"][].backgroundColor` | string | Card background color as hex string (optional; may be `null` or omitted). |
 
 ### Feedback Options
 
@@ -497,8 +495,8 @@ List-based configuration for examples and feedback options.
 
 | JSON Key | Type | Description |
 |----------|------|-------------|
-| `arrays["feedback.positive.options"]` | `Array<String>` | Positive feedback checkbox options |
-| `arrays["feedback.negative.options"]` | `Array<String>` | Negative feedback checkbox options |
+| `arrays["feedback.positive.options"]` | array | Positive feedback checkbox options; array of strings. |
+| `arrays["feedback.negative.options"]` | array | Negative feedback checkbox options; array of strings. |
 
 ### Example
 
@@ -534,7 +532,7 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | `String` | `""` | Company logo (SVG string or URL) |
+| `assets.icons.company` | string | `""` | Company logo (SVG string or URL) |
 
 ### Example
 
@@ -602,6 +600,9 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--color-button-submit` | `colors.button.submitText` | `String` | `"#1976D2"` | Submit button icon/text color (hex) |
 | `--color-button-submit-hover` | `colors.button.submitTextHover` | `String` | `"#1565C0"` | Submit button hover color (hex) |
 | `--button-disabled-background` | `colors.button.disabledBackground` | `String` | `"#E0E0E0"` | Disabled button background (hex) |
+| `--cta-button-background-color` | `colors.ctaButton.background` | `String` | `"systemGray6"` | CTA button background color (hex) |
+| `--cta-button-text-color` | `colors.ctaButton.text` | `String` | `"primary"` | CTA button label text color (hex) |
+| `--cta-button-icon-color` | `colors.ctaButton.iconColor` | `String` | `"primary"` | CTA button icon color (hex) |
 
 ### Colors - Input
 
@@ -643,14 +644,6 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
-
-### Colors - CTA Button
-
-| CSS Variable | Kotlin Property | Type | Default | Description |
-|--------------|-----------------|------|---------|-------------|
-| `--cta-button-background-color` | `colors.ctaButton.background` | `String` | `"systemGray6"` | CTA button background color (hex) |
-| `--cta-button-text-color` | `colors.ctaButton.text` | `String` | `"primary"` | CTA button label text color (hex) |
-| `--cta-button-icon-color` | `colors.ctaButton.iconColor` | `String` | `"primary"` | CTA button icon color (hex) |
 
 ### Colors - Extended Product Cards
 
@@ -738,11 +731,6 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--button-height-s` | `cssLayout.buttonHeightSmall` | `Double` | `30.0` | Small button height (dp) |
-
-### Layout - CTA Button
-
-| CSS Variable | Kotlin Property | Type | Default | Description |
-|--------------|-----------------|------|---------|-------------|
 | `--cta-button-border-radius` | `cssLayout.ctaButtonBorderRadius` | `Double` | `99.0` | CTA button corner radius (dp) |
 | `--cta-button-horizontal-padding` | `cssLayout.ctaButtonHorizontalPadding` | `Double` | `16.0` | CTA button horizontal padding (dp) |
 | `--cta-button-vertical-padding` | `cssLayout.ctaButtonVerticalPadding` | `Double` | `12.0` | CTA button vertical padding (dp) |
