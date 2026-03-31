@@ -62,6 +62,8 @@ internal fun ChatInputField(
     LaunchedEffect(inputState) {
         when (inputState) {
             is UserInputState.Recording -> {
+                isFocused.value = false
+                focusManager.clearFocus()
                 // Stream partial transcription results directly to text field
                 text.value = inputState.transcription
                 // No need to notify parent - they already know about this content
