@@ -291,6 +291,46 @@ class ConciergeThemeTokensTest {
         assertEquals(1000, updated.typingIndicatorDelay)
     }
 
+    // ========== ConciergeChatBehavior Tests ==========
+
+    @Test
+    fun `ConciergeChatBehavior creates with defaults`() {
+        val chat = ConciergeChatBehavior()
+
+        assertNull(chat.messageAlignment)
+        assertNull(chat.messageWidth)
+        assertNull(chat.userMessageBubbleStyle)
+    }
+
+    @Test
+    fun `ConciergeChatBehavior creates with custom values`() {
+        val chat = ConciergeChatBehavior(
+            messageAlignment = "left",
+            messageWidth = "100%",
+            userMessageBubbleStyle = "balloon"
+        )
+
+        assertEquals("left", chat.messageAlignment)
+        assertEquals("100%", chat.messageWidth)
+        assertEquals("balloon", chat.userMessageBubbleStyle)
+    }
+
+    @Test
+    fun `ConciergeThemeBehavior chat is null by default`() {
+        val behavior = ConciergeThemeBehavior()
+
+        assertNull(behavior.chat)
+    }
+
+    @Test
+    fun `ConciergeThemeBehavior supports chat configuration`() {
+        val behavior = ConciergeThemeBehavior(
+            chat = ConciergeChatBehavior(userMessageBubbleStyle = "balloon")
+        )
+
+        assertEquals("balloon", behavior.chat?.userMessageBubbleStyle)
+    }
+
     // ========== Asset Data Classes Tests ==========
 
     @Test

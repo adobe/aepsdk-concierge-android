@@ -183,7 +183,17 @@ data class ConciergeThemeBehavior(
     val feedback: ConciergeFeedbackBehavior? = null,
     val citations: ConciergeCitationsBehavior? = null,
     val productCard: ConciergeProductCardBehavior? = null,
-    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null
+    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null,
+    val chat: ConciergeChatBehavior? = null
+)
+
+/**
+ * Chat behavior configuration from `behavior.chat` in theme JSON.
+ */
+data class ConciergeChatBehavior(
+    val messageAlignment: String? = null,
+    val messageWidth: String? = null,
+    val userMessageBubbleStyle: String? = null
 )
 
 /**

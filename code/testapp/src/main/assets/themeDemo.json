@@ -24,7 +24,8 @@
     },
     "chat": {
       "messageAlignment": "left",
-      "messageWidth": "100%"
+      "messageWidth": "100%",
+      "userMessageBubbleStyle": "balloon"
     },
     "privacyNotice": {
       "title": "Privacy Notice",

@@ -699,6 +699,43 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `parseThemeTokens should parse behavior chat section`() {
+        val json = """
+            {
+                "behavior": {
+                    "chat": {
+                        "messageAlignment": "left",
+                        "messageWidth": "100%",
+                        "userMessageBubbleStyle": "balloon"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertNotNull(tokens?.behavior?.chat)
+        assertEquals("left", tokens?.behavior?.chat?.messageAlignment)
+        assertEquals("100%", tokens?.behavior?.chat?.messageWidth)
+        assertEquals("balloon", tokens?.behavior?.chat?.userMessageBubbleStyle)
+    }
+
+    @Test
+    fun `parseThemeTokens should return null chat when behavior chat is absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "enableDarkMode": true
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertNull(tokens?.behavior?.chat)
+    }
+
+    @Test
     fun `parseThemeTokens should parse assets section with all icons`() {
         val json = """
             {

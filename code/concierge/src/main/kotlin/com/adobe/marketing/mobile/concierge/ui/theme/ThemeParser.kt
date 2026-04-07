@@ -429,6 +429,17 @@ internal object ThemeParser {
             )
         }
 
+        val chatMap = typedMap?.get("chat") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val chatTyped = chatMap as? MutableMap<String?, Any?>
+        val chat = chatTyped?.let {
+            ConciergeChatBehavior(
+                messageAlignment = DataReader.optString(it, "messageAlignment", null),
+                messageWidth = DataReader.optString(it, "messageWidth", null),
+                userMessageBubbleStyle = DataReader.optString(it, "userMessageBubbleStyle", null)
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -447,7 +458,8 @@ internal object ThemeParser {
             citations = citations,
             productCard = productCard,
             multimodalCarousel = multimodalCarousel,
-            welcomeCard = welcomeCard
+            welcomeCard = welcomeCard,
+            chat = chat
         )
     }
 
