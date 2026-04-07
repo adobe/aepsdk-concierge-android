@@ -105,138 +105,153 @@ private fun RenderTextMessage(
     onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
-    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company else null
+    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+
+    if (companyIconName != null) {
+        RenderTextMessageWithIcon(
+            message = message,
+            companyIconName = companyIconName,
+            style = style,
+            onFeedback = onFeedback,
+            onSuggestionClick = onSuggestionClick,
+            handleLink = handleLink,
+            feedbackState = feedbackState,
+            onCtaButtonClick = onCtaButtonClick
+        )
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        if (companyIconName != null) {
-            // Icon + message row: icon sits to the left, card fills remaining width with
-            // start padding removed so text aligns flush with the 12dp gap.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) {
-                LocalAssetImage(
-                    source = companyIconName,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(top = style.padding)
-                        .size(39.dp)
-                        .clip(CircleShape)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (message.isFromUser) {
+                        Modifier.wrapContentWidth(Alignment.End)
+                    } else {
+                        Modifier
+                    }
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    TextMessageCard(
-                        message = message,
-                        style = style,
-                        hasIcon = true,
-                        onFeedback = onFeedback,
-                        handleLink = handleLink,
-                        feedbackState = feedbackState
-                    )
+                .padding(style.padding),
+            colors = CardDefaults.cardColors(
+                containerColor = if (message.isFromUser) {
+                    style.userMessageBackgroundColor
+                } else {
+                    style.botMessageBackgroundColor
+                }
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+            shape = style.shape
+        ) {
+            Box(
+                modifier = Modifier.padding(style.innerPadding)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    if (message.isFromUser) {
+                        Text(
+                            text = message.text,
+                            style = style.textStyle,
+                            color = style.userMessageTextColor
+                        )
+                    } else {
+                        AgentResponseContent(
+                            message = message,
+                            handleLink = handleLink,
+                            onFeedback = onFeedback,
+                            feedbackState = feedbackState
+                        )
+                    }
                 }
             }
-        } else {
-            // No icon: original layout, padding unchanged.
-            TextMessageCard(
+        }
+
+        if (!message.isFromUser) {
+            BotMessageSuffix(
                 message = message,
-                style = style,
-                hasIcon = false,
-                onFeedback = onFeedback,
-                handleLink = handleLink,
-                feedbackState = feedbackState
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
             )
-        }
-
-        // Show prompt suggestions for concierge responses
-        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-            PromptSuggestions(
-                suggestions = message.promptSuggestions,
-                onSuggestionClick = onSuggestionClick
-            )
-        }
-
-        // Show service intent CTA button if present
-        message.ctaButton?.let { cta ->
-            if (!message.isFromUser) {
-                CtaButton(
-                    cta = cta,
-                    onClick = onCtaButtonClick
-                )
-            }
         }
     }
 }
 
+/**
+ * Icon + message layout for agent text responses when a company icon is configured in the theme.
+ * The icon sits to the left of the card; start padding is removed from the card and its inner
+ * box so that text aligns flush with the 12dp gap between icon and content.
+ */
 @Composable
-private fun TextMessageCard(
+private fun RenderTextMessageWithIcon(
     message: ChatMessage,
+    companyIconName: String,
     style: ConciergeStyles.MessageBubbleStyle,
-    hasIcon: Boolean,
     onFeedback: (FeedbackEvent) -> Unit,
+    onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
-    feedbackState: FeedbackState
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (String) -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (message.isFromUser) Modifier.wrapContentWidth(Alignment.End) else Modifier
-            )
-            .then(
-                if (hasIcon) {
-                    Modifier.padding(top = style.padding, bottom = style.padding, end = style.padding)
-                } else {
-                    Modifier.padding(style.padding)
-                }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = if (message.isFromUser) {
-                style.userMessageBackgroundColor
-            } else {
-                style.botMessageBackgroundColor
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-        shape = style.shape
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = if (hasIcon) {
-                Modifier.padding(top = style.innerPadding, bottom = style.innerPadding, end = style.innerPadding)
-            } else {
-                Modifier.padding(style.innerPadding)
-            }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                if (message.isFromUser) {
-                    Text(
-                        text = message.text,
-                        style = style.textStyle,
-                        color = style.userMessageTextColor
-                    )
-                } else {
-                    ConciergeResponse(
-                        text = message.text,
-                        sources = message.citations ?: emptyList(),
-                        handleLink = handleLink,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
-                    ChatFooter(
-                        citations = message.citations,
-                        uniqueCitations = message.uniqueCitations,
-                        interactionId = message.interactionId,
-                        sseComplete = message.sseComplete,
-                        onFeedback = onFeedback,
-                        handleLink = handleLink,
-                        feedbackState = feedbackState
-                    )
+            LocalAssetImage(
+                source = companyIconName,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(top = style.padding)
+                    .size(39.dp)
+                    .clip(CircleShape)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = style.padding,
+                            bottom = style.padding,
+                            end = style.padding
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = style.botMessageBackgroundColor
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+                    shape = style.shape
+                ) {
+                    Box(
+                        modifier = Modifier.padding(
+                            top = style.innerPadding,
+                            bottom = style.innerPadding,
+                            end = style.innerPadding
+                        )
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            AgentResponseContent(
+                                message = message,
+                                handleLink = handleLink,
+                                onFeedback = onFeedback,
+                                feedbackState = feedbackState
+                            )
+                        }
+                    }
                 }
             }
         }
+
+        BotMessageSuffix(
+            message = message,
+            onSuggestionClick = onSuggestionClick,
+            onCtaButtonClick = onCtaButtonClick
+        )
     }
 }
 
@@ -271,7 +286,8 @@ private fun RenderMixedMessage(
                 modifier = Modifier.padding(style.innerPadding)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                 ) {
                     // Render text content if present
                     if (content.text.isNotEmpty()) {
@@ -315,22 +331,68 @@ private fun RenderMixedMessage(
             }
         }
 
-        // Show prompt suggestions for concierge responses
-        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-            PromptSuggestions(
-                suggestions = message.promptSuggestions,
-                onSuggestionClick = onSuggestionClick
+        if (!message.isFromUser) {
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
             )
         }
+    }
+}
 
-        // Show service intent CTA button if present
-        message.ctaButton?.let { cta ->
-            if (!message.isFromUser) {
-                CtaButton(
-                    cta = cta,
-                    onClick = onCtaButtonClick
-                )
-            }
-        }
+/**
+ * The markdown response text and citation footer for a bot message card body.
+ * Shared between [RenderTextMessage] and [RenderTextMessageWithIcon].
+ */
+@Composable
+private fun AgentResponseContent(
+    message: ChatMessage,
+    handleLink: (String) -> Unit,
+    onFeedback: (FeedbackEvent) -> Unit,
+    feedbackState: FeedbackState
+) {
+    ConciergeResponse(
+        text = message.text,
+        sources = message.citations ?: emptyList(),
+        handleLink = handleLink,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    if (message.citations != null || message.interactionId != null) {
+        ChatFooter(
+            citations = message.citations,
+            uniqueCitations = message.uniqueCitations,
+            interactionId = message.interactionId,
+            sseComplete = message.sseComplete,
+            onFeedback = onFeedback,
+            handleLink = handleLink,
+            feedbackState = feedbackState
+        )
+    }
+}
+
+/**
+ * Prompt suggestions and CTA button shown below the message card for bot responses.
+ * Shared across all bot message render functions.
+ */
+@Composable
+private fun BotMessageSuffix(
+    message: ChatMessage,
+    onSuggestionClick: (String) -> Unit,
+    onCtaButtonClick: (String) -> Unit
+) {
+    if (message.promptSuggestions.isNotEmpty()) {
+        PromptSuggestions(
+            suggestions = message.promptSuggestions,
+            onSuggestionClick = onSuggestionClick
+        )
+    }
+
+    message.ctaButton?.let { cta ->
+        CtaButton(
+            cta = cta,
+            onClick = onCtaButtonClick
+        )
     }
 }
