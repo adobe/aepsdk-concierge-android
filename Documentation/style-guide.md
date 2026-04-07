@@ -532,7 +532,7 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | string | `""` | Company logo (SVG string or URL) |
+| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. |
 
 ### Example
 
@@ -540,7 +540,19 @@ Icon and image asset configuration.
 {
   "assets": {
     "icons": {
-      "company": ""
+      "company": "https://example.com/brand-icon.png"
+    }
+  }
+}
+```
+
+To use a local asset instead, place the image file in your app's `assets/icons/` directory and set the value to the filename without its extension:
+
+```json
+{
+  "assets": {
+    "icons": {
+      "company": "company-logo"
     }
   }
 }
