@@ -82,6 +82,7 @@ internal object ThemeParser {
                     feedbackToastSuccess = DataReader.optString(it, "feedback.toast.success", null),
                     feedbackHelpfulLabel = DataReader.optString(it, "feedbackHelpfulLabel", null),
                     sourcesLabel = DataReader.optString(it, "sourcesLabel", null),
+                    suggestionsHeader = DataReader.optString(it, "suggestions.header", null),
                     errorNetwork = DataReader.optString(it, "error.network", null)
                 )
             }
@@ -333,6 +334,9 @@ internal object ThemeParser {
             // Prompt pill colors from CSS themes
             welcomePromptBackground = themeColors.welcomePrompt?.backgroundColor?.toComposeColor(),
             welcomePromptText = themeColors.welcomePrompt?.textColor?.toComposeColor(),
+            // Prompt suggestion colors from CSS themes
+            suggestionBackground = themeColors.promptSuggestion?.backgroundColor?.toComposeColor(),
+            suggestionText = themeColors.promptSuggestion?.textColor?.toComposeColor(),
             // Citation/Disclaimer colors from CSS themes
             citationBackground = themeColors.citation?.backgroundColor?.toComposeColor(),
             citationText = themeColors.citation?.textColor?.toComposeColor(),
@@ -429,6 +433,17 @@ internal object ThemeParser {
             )
         }
 
+        val promptSuggestionsMap = typedMap?.get("promptSuggestions") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val promptSuggestionsTyped = promptSuggestionsMap as? MutableMap<String?, Any?>
+        val promptSuggestions = promptSuggestionsTyped?.let {
+            ConciergePromptSuggestionsBehavior(
+                itemMaxLines = DataReader.optInt(it, "itemMaxLines", 1),
+                showHeader = DataReader.optBoolean(it, "showHeader", false),
+                alignToMessage = DataReader.optBoolean(it, "alignToMessage", false)
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -447,7 +462,8 @@ internal object ThemeParser {
             citations = citations,
             productCard = productCard,
             multimodalCarousel = multimodalCarousel,
-            welcomeCard = welcomeCard
+            welcomeCard = welcomeCard,
+            promptSuggestions = promptSuggestions
         )
     }
 

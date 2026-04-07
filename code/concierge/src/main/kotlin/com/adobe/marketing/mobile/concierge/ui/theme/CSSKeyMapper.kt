@@ -168,6 +168,38 @@ internal object CSSKeyMapper {
     }
     
     /**
+     * Helper to update welcome prompt colors
+     */
+    private fun updateWelcomePromptColors(
+        cssValue: String,
+        theme: ConciergeThemeTokens,
+        updater: (ConciergeWelcomePromptColors?, String) -> ConciergeWelcomePromptColors
+    ): ConciergeThemeTokens {
+        val color = CSSValueConverter.parseColor(cssValue)
+        return updateColors(theme) { colors ->
+            val promptColors = updater(colors?.welcomePrompt, color.toHexString())
+            colors?.copy(welcomePrompt = promptColors)
+                ?: ConciergeThemeColors(welcomePrompt = promptColors)
+        }
+    }
+
+    /**
+     * Helper to update prompt suggestion colors
+     */
+    private fun updateSuggestionColors(
+        cssValue: String,
+        theme: ConciergeThemeTokens,
+        updater: (ConciergeWelcomePromptColors?, String) -> ConciergeWelcomePromptColors
+    ): ConciergeThemeTokens {
+        val color = CSSValueConverter.parseColor(cssValue)
+        return updateColors(theme) { colors ->
+            val suggestionColors = updater(colors?.promptSuggestion, color.toHexString())
+            colors?.copy(promptSuggestion = suggestionColors)
+                ?: ConciergeThemeColors(promptSuggestion = suggestionColors)
+        }
+    }
+
+    /**
      * Helper to update layout properties
      */
     private fun updateLayout(
@@ -208,7 +240,14 @@ internal object CSSKeyMapper {
                 existing?.copy(text = color) ?: ConciergePrimaryColors(text = color)
             }
         },
-        
+        "color-container" to { cssValue, theme ->
+            val color = CSSValueConverter.parseColor(cssValue)
+            updateColors(theme) { colors ->
+                colors?.copy(container = color.toHexString())
+                    ?: ConciergeThemeColors(container = color.toHexString())
+            }
+        },
+
         // Colors - Surface (using helper)
         "main-container-background" to { cssValue, theme ->
             updateSurfaceColors(cssValue, theme) { existing, color ->
@@ -404,21 +443,25 @@ internal object CSSKeyMapper {
 
         // Colors - Prompt Pill
         "welcome-prompt-background-color" to { cssValue, theme ->
-            val color = CSSValueConverter.parseColor(cssValue)
-            updateColors(theme) { colors ->
-                val promptColors = colors?.welcomePrompt?.copy(backgroundColor = color.toHexString())
-                    ?: ConciergeWelcomePromptColors(backgroundColor = color.toHexString())
-                colors?.copy(welcomePrompt = promptColors)
-                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            updateWelcomePromptColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color)
             }
         },
         "welcome-prompt-text-color" to { cssValue, theme ->
-            val color = CSSValueConverter.parseColor(cssValue)
-            updateColors(theme) { colors ->
-                val promptColors = colors?.welcomePrompt?.copy(textColor = color.toHexString())
-                    ?: ConciergeWelcomePromptColors(textColor = color.toHexString())
-                colors?.copy(welcomePrompt = promptColors)
-                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            updateWelcomePromptColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color)
+            }
+        },
+
+        // Colors - Prompt Suggestions
+        "suggestion-background-color" to { cssValue, theme ->
+            updateSuggestionColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color)
+            }
+        },
+        "suggestion-text-color" to { cssValue, theme ->
+            updateSuggestionColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color)
             }
         },
 
@@ -655,6 +698,13 @@ internal object CSSKeyMapper {
                 layout?.copy(welcomePromptCornerRadius = radius) ?: ConciergeLayout(welcomePromptCornerRadius = radius)
             }
         },
+        "suggestion-item-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 10.0
+                layout?.copy(suggestionItemBorderRadius = radius) ?: ConciergeLayout(suggestionItemBorderRadius = radius)
+            }
+        },
+
         "header-title-font-size" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val size = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
