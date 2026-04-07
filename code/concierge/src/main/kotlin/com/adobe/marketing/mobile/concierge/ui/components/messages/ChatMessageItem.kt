@@ -14,28 +14,36 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
 import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Component that displays a single chat message.
@@ -97,68 +105,48 @@ private fun RenderTextMessage(
     onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company else null
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (message.isFromUser) {
-                        Modifier.wrapContentWidth(Alignment.End)
-                    } else {
-                        Modifier
-                    }
-                )
-                .padding(style.padding),
-            colors = CardDefaults.cardColors(
-                containerColor = if (message.isFromUser) {
-                    style.userMessageBackgroundColor
-                } else {
-                    style.botMessageBackgroundColor
-                }
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-            shape = style.shape
-        ) {
-            Box(
-                modifier = Modifier.padding(style.innerPadding)
+        if (companyIconName != null) {
+            // Icon + message row: icon sits to the left, card fills remaining width with
+            // start padding removed so text aligns flush with the 12dp gap.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
             ) {
-                Column(
+                LocalAssetImage(
+                    source = companyIconName,
+                    contentDescription = null,
                     modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    // Use ConciergeResponse composable for response messages to support markdown formatting
-                    if (message.isFromUser) {
-                        Text(
-                            text = message.text,
-                            style = style.textStyle,
-                            color = style.userMessageTextColor
-                        )
-                    } else {
-                        ConciergeResponse(
-                            text = message.text,
-                            sources = message.citations ?: emptyList(),
-                            handleLink = handleLink,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Show footer if we have citations or have an interaction id for providing feedback
-                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
-                        ChatFooter(
-                            citations = message.citations,
-                            uniqueCitations = message.uniqueCitations,
-                            interactionId = message.interactionId,
-                            sseComplete = message.sseComplete,
-                            onFeedback = onFeedback,
-                            handleLink = handleLink,
-                            feedbackState = feedbackState
-                        )
-                    }
+                        .padding(top = style.padding)
+                        .size(39.dp)
+                        .clip(CircleShape)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    TextMessageCard(
+                        message = message,
+                        style = style,
+                        hasIcon = true,
+                        onFeedback = onFeedback,
+                        handleLink = handleLink,
+                        feedbackState = feedbackState
+                    )
                 }
             }
+        } else {
+            // No icon: original layout, padding unchanged.
+            TextMessageCard(
+                message = message,
+                style = style,
+                hasIcon = false,
+                onFeedback = onFeedback,
+                handleLink = handleLink,
+                feedbackState = feedbackState
+            )
         }
 
         // Show prompt suggestions for concierge responses
@@ -176,6 +164,77 @@ private fun RenderTextMessage(
                     cta = cta,
                     onClick = onCtaButtonClick
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextMessageCard(
+    message: ChatMessage,
+    style: ConciergeStyles.MessageBubbleStyle,
+    hasIcon: Boolean,
+    onFeedback: (FeedbackEvent) -> Unit,
+    handleLink: (String) -> Unit,
+    feedbackState: FeedbackState
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (message.isFromUser) Modifier.wrapContentWidth(Alignment.End) else Modifier
+            )
+            .then(
+                if (hasIcon) {
+                    Modifier.padding(top = style.padding, bottom = style.padding, end = style.padding)
+                } else {
+                    Modifier.padding(style.padding)
+                }
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (message.isFromUser) {
+                style.userMessageBackgroundColor
+            } else {
+                style.botMessageBackgroundColor
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+        shape = style.shape
+    ) {
+        Box(
+            modifier = if (hasIcon) {
+                Modifier.padding(top = style.innerPadding, bottom = style.innerPadding, end = style.innerPadding)
+            } else {
+                Modifier.padding(style.innerPadding)
+            }
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (message.isFromUser) {
+                    Text(
+                        text = message.text,
+                        style = style.textStyle,
+                        color = style.userMessageTextColor
+                    )
+                } else {
+                    ConciergeResponse(
+                        text = message.text,
+                        sources = message.citations ?: emptyList(),
+                        handleLink = handleLink,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
+                    ChatFooter(
+                        citations = message.citations,
+                        uniqueCitations = message.uniqueCitations,
+                        interactionId = message.interactionId,
+                        sseComplete = message.sseComplete,
+                        onFeedback = onFeedback,
+                        handleLink = handleLink,
+                        feedbackState = feedbackState
+                    )
+                }
             }
         }
     }
@@ -212,8 +271,7 @@ private fun RenderMixedMessage(
                 modifier = Modifier.padding(style.innerPadding)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     // Render text content if present
                     if (content.text.isNotEmpty()) {
