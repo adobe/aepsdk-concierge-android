@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -97,18 +98,19 @@ private fun RenderTextMessage(
     onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
+    val isThinking = message.isThinking
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
                 .then(
-                    if (message.isFromUser) {
-                        Modifier.wrapContentWidth(Alignment.End)
-                    } else {
-                        Modifier
+                    when {
+                        message.isFromUser -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+                        isThinking -> Modifier
+                        else -> Modifier.fillMaxWidth()
                     }
                 )
                 .padding(style.padding),
@@ -120,14 +122,15 @@ private fun RenderTextMessage(
                 }
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-            shape = style.shape
+            shape = if (isThinking) thinkingStyle.bubbleShape else style.shape
         ) {
             Box(
-                modifier = Modifier.padding(style.innerPadding)
+                modifier = Modifier.padding(
+                    if (isThinking) thinkingStyle.bubblePadding else PaddingValues(style.innerPadding)
+                )
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = if (isThinking) Modifier else Modifier.fillMaxWidth()
                 ) {
                     // Use ConciergeResponse composable for response messages to support markdown formatting
                     if (message.isFromUser) {
@@ -136,6 +139,8 @@ private fun RenderTextMessage(
                             style = style.textStyle,
                             color = style.userMessageTextColor
                         )
+                    } else if (isThinking) {
+                        ConciergeThinking()
                     } else {
                         ConciergeResponse(
                             text = message.text,
@@ -146,7 +151,7 @@ private fun RenderTextMessage(
                     }
 
                     // Show footer if we have citations or have an interaction id for providing feedback
-                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
+                    if (message.hasFooterContent && !isThinking) {
                         ChatFooter(
                             citations = message.citations,
                             uniqueCitations = message.uniqueCitations,
@@ -242,7 +247,7 @@ private fun RenderMixedMessage(
                     }
 
                     // Show footer if we have citations or have an interaction id for providing feedback
-                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
+                    if (message.hasFooterContent) {
                         ChatFooter(
                             citations = message.citations,
                             uniqueCitations = message.uniqueCitations,

@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -266,24 +267,42 @@ internal object ConciergeStyles {
         val textStyle: TextStyle,
         val textColor: Color,
         val dotColor: Color,
-        val thinkingText: String
+        val thinkingText: String,
+        val bubbleShape: Shape,
+        val bubblePadding: PaddingValues,
+        val dotVerticalAlignment: Alignment.Vertical
     )
 
     val thinkingAnimationStyle: ThinkingAnimationStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val themeText = ConciergeTheme.text
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            val bubbleBorderRadius = cssLayout?.thinkingBubbleBorderRadius?.dp ?: 8.dp
+            val bubblePaddingH = cssLayout?.thinkingBubblePaddingHorizontal?.dp ?: 16.dp
+            val bubblePaddingV = cssLayout?.thinkingBubblePaddingVertical?.dp ?: 8.dp
+            // Maps --thinking-dot-vertical-alignment: "top" → Top, "bottom" → Bottom,
+            // null or any other value → CenterVertically (the safe default).
+            val dotVerticalAlignment = when (cssLayout?.thinkingDotVerticalAlignment?.lowercase()) {
+                "top" -> Alignment.Top
+                "bottom" -> Alignment.Bottom
+                else -> Alignment.CenterVertically
+            }
             return ThinkingAnimationStyle(
-                dotSize = 8.dp,
-                dotSpacing = 8.dp,
+                dotSize = cssLayout?.thinkingDotSize?.dp ?: 8.dp,
+                dotSpacing = cssLayout?.thinkingDotSpacing?.dp ?: 8.dp,
                 textDotSpacing = 8.dp,
                 dotColorAlpha = 0.7f,
                 dotAnimationDuration = 600,
                 dotAnimationDelay = 200,
                 textStyle = MaterialTheme.typography.bodyLarge,
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
-                dotColor = themeColors.primary.copy(alpha = 0.7f),
-                thinkingText = themeText?.loadingMessage ?: "Thinking"
+                dotColor = themeColors.thinkingDotColor
+                    ?: themeColors.primary.copy(alpha = 0.7f),
+                thinkingText = themeText?.loadingMessage ?: "Thinking",
+                bubbleShape = RoundedCornerShape(bubbleBorderRadius),
+                bubblePadding = PaddingValues(horizontal = bubblePaddingH, vertical = bubblePaddingV),
+                dotVerticalAlignment = dotVerticalAlignment
             )
         }
 

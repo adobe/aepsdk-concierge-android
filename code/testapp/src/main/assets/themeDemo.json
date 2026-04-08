@@ -73,7 +73,7 @@
     "carousel.next.aria": "Next cards",
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
-    "loading.message": "Generating response from our knowledge base",
+    "loading.message": "",
     "sourcesLabel": "Sources & Feedback",
     "feedbackHelpfulLabel": "Was this helpful?",
     "feedback.dialog.title.positive": "[DEMO THEME] Thanks for your feedback!",
@@ -272,6 +272,13 @@
     "--welcome-prompts-top-spacing": "12px",
     "--welcome-text-align": "left",
     "--welcome-title-bottom-spacing": "6px",
-    "--welcome-title-font-size": "16px"
+    "--welcome-title-font-size": "16px",
+    "--thinking-dot-size": "6px",
+    "--thinking-dot-spacing": "5px",
+    "--thinking-bubble-border-radius": "16px",
+    "--thinking-bubble-padding-horizontal": "14px",
+    "--thinking-bubble-padding-vertical": "12px",
+    "--thinking-dot-vertical-alignment": "center",
+    "--thinking-dot-color": "#666666"
   }
 }

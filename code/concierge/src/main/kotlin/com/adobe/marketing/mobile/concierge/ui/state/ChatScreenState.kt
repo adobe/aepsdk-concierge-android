@@ -172,4 +172,10 @@ internal data class ChatMessage(
             is MessageContent.Mixed -> content.text
             is MessageContent.CtaButton -> content.button.label
         }
+
+    val isThinking: Boolean
+        get() = !isFromUser && content is MessageContent.Text && text.isEmpty()
+
+    val hasFooterContent: Boolean
+        get() = !isFromUser && (citations != null || interactionId != null)
 }

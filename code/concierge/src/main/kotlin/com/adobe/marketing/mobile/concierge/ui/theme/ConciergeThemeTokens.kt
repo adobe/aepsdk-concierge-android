@@ -135,6 +135,14 @@ data class ConciergeLayout(
     val ctaButtonFontWeight: Int? = null,
     val ctaButtonIconSize: Double? = null,
 
+    // Thinking animation layout
+    val thinkingDotSize: Double? = null,
+    val thinkingDotSpacing: Double? = null,
+    val thinkingBubbleBorderRadius: Double? = null,
+    val thinkingBubblePaddingHorizontal: Double? = null,
+    val thinkingBubblePaddingVertical: Double? = null,
+    val thinkingDotVerticalAlignment: String? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,

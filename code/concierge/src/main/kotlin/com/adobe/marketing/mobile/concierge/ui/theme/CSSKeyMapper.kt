@@ -184,6 +184,22 @@ internal object CSSKeyMapper {
     }
 
     /**
+     * Helper to update thinking animation colors
+     */
+    private fun updateThinkingColors(
+        cssValue: String,
+        theme: ConciergeThemeTokens,
+        updater: (ConciergeThinkingColors?, String) -> ConciergeThinkingColors
+    ): ConciergeThemeTokens {
+        val color = CSSValueConverter.parseColor(cssValue)
+        return updateColors(theme) { colors ->
+            val thinkingColors = updater(colors?.thinking, color.toHexString())
+            colors?.copy(thinking = thinkingColors)
+                ?: ConciergeThemeColors(thinking = thinkingColors)
+        }
+    }
+
+    /**
      * Helper to update prompt suggestion colors
      */
     private fun updateSuggestionColors(
@@ -702,6 +718,50 @@ internal object CSSKeyMapper {
             updateLayout(theme) { layout ->
                 val radius = CSSValueConverter.parsePxValue(cssValue) ?: 10.0
                 layout?.copy(suggestionItemBorderRadius = radius) ?: ConciergeLayout(suggestionItemBorderRadius = radius)
+            }
+        },
+
+        // Colors - Thinking Animation
+        "thinking-dot-color" to { cssValue, theme ->
+            updateThinkingColors(cssValue, theme) { existing, color ->
+                existing?.copy(dotColor = color) ?: ConciergeThinkingColors(dotColor = color)
+            }
+        },
+
+        // Layout - Thinking Animation
+        "thinking-dot-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(thinkingDotSize = size) ?: ConciergeLayout(thinkingDotSize = size)
+            }
+        },
+        "thinking-dot-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(thinkingDotSpacing = spacing) ?: ConciergeLayout(thinkingDotSpacing = spacing)
+            }
+        },
+        "thinking-bubble-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(thinkingBubbleBorderRadius = radius) ?: ConciergeLayout(thinkingBubbleBorderRadius = radius)
+            }
+        },
+        "thinking-bubble-padding-horizontal" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 16.0
+                layout?.copy(thinkingBubblePaddingHorizontal = padding) ?: ConciergeLayout(thinkingBubblePaddingHorizontal = padding)
+            }
+        },
+        "thinking-bubble-padding-vertical" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(thinkingBubblePaddingVertical = padding) ?: ConciergeLayout(thinkingBubblePaddingVertical = padding)
+            }
+        },
+        "thinking-dot-vertical-alignment" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                layout?.copy(thinkingDotVerticalAlignment = cssValue.trim()) ?: ConciergeLayout(thinkingDotVerticalAlignment = cssValue.trim())
             }
         },
 
