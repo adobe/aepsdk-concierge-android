@@ -87,6 +87,12 @@ class CSSKeyMapperTest {
         assertEquals("#2C2C2C", result.colors?.primaryColors?.text)
     }
 
+    @Test
+    fun `apply maps color-container`() {
+        val result = CSSKeyMapper.apply("--color-container", "#F0F0F0", emptyTheme)
+        assertEquals("#F0F0F0", result.colors?.container)
+    }
+
     // -----------------------------------------------------------------------
     // Surface colors
     // -----------------------------------------------------------------------
@@ -869,6 +875,12 @@ class CSSKeyMapperTest {
         assertEquals(20.0, result.cssLayout?.welcomePromptCornerRadius)
     }
 
+    @Test
+    fun `apply maps suggestion-item-border-radius`() {
+        val result = CSSKeyMapper.apply("--suggestion-item-border-radius", "24px", emptyTheme)
+        assertEquals(24.0, result.cssLayout?.suggestionItemBorderRadius)
+    }
+
     // -----------------------------------------------------------------------
     // Input Icon Colors
     // -----------------------------------------------------------------------
@@ -899,5 +911,17 @@ class CSSKeyMapperTest {
     fun `apply maps welcome-prompt-text-color`() {
         val result = CSSKeyMapper.apply("--welcome-prompt-text-color", "#000000", emptyTheme)
         assertNotNull(result.colors?.welcomePrompt?.textColor)
+    }
+
+    @Test
+    fun `apply maps suggestion-background-color`() {
+        val result = CSSKeyMapper.apply("--suggestion-background-color", "#E8E8E8", emptyTheme)
+        assertEquals("#E8E8E8", result.colors?.promptSuggestion?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps suggestion-text-color`() {
+        val result = CSSKeyMapper.apply("--suggestion-text-color", "#333333", emptyTheme)
+        assertEquals("#333333", result.colors?.promptSuggestion?.textColor)
     }
 }

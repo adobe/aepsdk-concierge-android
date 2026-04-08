@@ -22,6 +22,15 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 /**
  * A custom View that wraps ConciergeChat for easy integration into XML-based applications.
  *
+ * **Note:** The activity hosting this view must have `android:windowSoftInputMode="adjustResize"` added
+ * in the app's `AndroidManifest.xml` to ensure the chat input field is properly visible when the keyboard
+ * is shown:
+ * ```xml
+ * <activity
+ *     android:name=".YourActivity"
+ *     android:windowSoftInputMode="adjustResize" />
+ * ```
+ *
  * This view supports two integration modes:
  *
  * ## Mode 1: Direct Chat View (Full-screen chat)

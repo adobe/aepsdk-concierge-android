@@ -95,6 +95,7 @@ data class ConciergeLayout(
     val welcomePromptPadding: Double? = null,
     val welcomePromptCornerRadius: Double? = null,
     val headerTitleFontSize: Double? = null,
+    val suggestionItemBorderRadius: Double? = null,
 
     // Extended product cards
     val productCardTitleFontWeight: Int? = null,
@@ -184,7 +185,14 @@ data class ConciergeThemeBehavior(
     val citations: ConciergeCitationsBehavior? = null,
     val productCard: ConciergeProductCardBehavior? = null,
     val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null,
-    val chat: ConciergeChatBehavior? = null
+    val chat: ConciergeChatBehavior? = null,
+    val promptSuggestions: ConciergePromptSuggestionsBehavior? = null
+)
+
+data class ConciergePromptSuggestionsBehavior(
+    val itemMaxLines: Int = 1,
+    val showHeader: Boolean = false,
+    val alignToMessage: Boolean = false
 )
 
 /**

@@ -43,6 +43,11 @@
       "promptFullWidth": false,
       "promptMaxLines": 2,
       "contentAlignment": "top"
+    },
+    "promptSuggestions": {
+      "itemMaxLines": 1,
+      "showHeader": true,
+      "alignToMessage": true
     }
   },
   "disclaimer": {
@@ -82,7 +87,8 @@
     "feedback.dialog.notes.placeholder": "[DEMO] Share your thoughts here...",
     "feedback.toast.success": "[DEMO] Feedback received! Thank you.",
     "feedback.thumbsUp.aria": "Thumbs up",
-    "feedback.thumbsDown.aria": "Thumbs down"
+    "feedback.thumbsDown.aria": "Thumbs down",
+    "suggestions.header": "Try asking"
   },
   "arrays": {
     "welcome.examples": [
@@ -169,6 +175,7 @@
     "--color-button-secondary-hover-text": "#5C4A24",
     "--color-button-submit": "#7A5C1E",
     "--color-button-submit-hover": "#5F4715",
+    "--color-container": "#EDE4D6",
     "--color-primary": "#7A5C1E",
     "--color-text": "#2C2419",
     "--cta-button-background-color": "#EDE4D6",
@@ -249,6 +256,9 @@
     "--product-card-was-price-font-weight": "400",
     "--product-card-was-price-text-prefix": "was ",
     "--product-card-width": "222",
+    "--suggestion-background-color": "#EDE4D6",
+    "--suggestion-item-border-radius": "20px",
+    "--suggestion-text-color": "#2C2419",
     "--submit-button-fill-color": "#FFFDF9",
     "--submit-button-fill-color-disabled": "#D4C9B8",
     "--welcome-cards-order": "2",
