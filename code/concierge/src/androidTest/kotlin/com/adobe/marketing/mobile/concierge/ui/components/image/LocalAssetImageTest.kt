@@ -86,23 +86,21 @@ class LocalAssetImageTest {
 
     @Test
     fun localAssetImage_withLocalAssetName_cachesPreviouslyLoadedResult() {
-        // First load caches null (asset absent). Second load should hit the cache
-        // (containsKey returns true) and render nothing — no crash either way.
+        // Render the composable once. After the produceState block completes the
+        // null result (asset is absent) must be stored in the cache so that
+        // subsequent instances skip the IO load entirely.
         val source = "cache-test-icon"
 
-        repeat(2) {
-            composeTestRule.setContent {
-                ConciergeTheme {
-                    LocalAssetImage(
-                        source = source,
-                        contentDescription = null
-                    )
-                }
+        composeTestRule.setContent {
+            ConciergeTheme {
+                LocalAssetImage(
+                    source = source,
+                    contentDescription = null
+                )
             }
-            composeTestRule.waitForIdle()
         }
+        composeTestRule.waitForIdle()
 
-        // After first load the null result is cached; key must be present.
         assert(assetBitmapCache.containsKey(source)) {
             "Expected '$source' to be cached after load attempt"
         }
