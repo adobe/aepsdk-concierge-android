@@ -216,12 +216,13 @@ internal object ConciergeStyles {
     val messageBubbleStyle: MessageBubbleStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            val defaultShape = RoundedCornerShape(12.dp)
-            val userMessageShape = when (ConciergeTheme.behavior?.chat?.userMessageBubbleStyle?.lowercase()) {
-                "balloon" -> RoundedCornerShape(
-                    topStart = 12.dp,
-                    topEnd = 12.dp,
-                    bottomStart = 12.dp,
+            val cornerRadius = (ConciergeTheme.tokens?.cssLayout?.messageBorderRadius?.dp ?: 12.dp)
+            val defaultShape = RoundedCornerShape(cornerRadius)
+            val userMessageShape = when (ConciergeTheme.behavior?.chat?.userMessageBubbleStyle) {
+                UserMessageBubbleStyle.BALLOON -> RoundedCornerShape(
+                    topStart = cornerRadius,
+                    topEnd = cornerRadius,
+                    bottomStart = cornerRadius,
                     bottomEnd = 0.dp
                 )
                 else -> defaultShape

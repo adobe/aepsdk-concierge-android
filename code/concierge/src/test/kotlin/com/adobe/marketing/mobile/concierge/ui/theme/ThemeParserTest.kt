@@ -717,7 +717,7 @@ class ThemeParserTest {
         assertNotNull(tokens?.behavior?.chat)
         assertEquals("left", tokens?.behavior?.chat?.messageAlignment)
         assertEquals("100%", tokens?.behavior?.chat?.messageWidth)
-        assertEquals("balloon", tokens?.behavior?.chat?.userMessageBubbleStyle)
+        assertEquals(UserMessageBubbleStyle.BALLOON, tokens?.behavior?.chat?.userMessageBubbleStyle)
     }
 
     @Test

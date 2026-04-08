@@ -93,7 +93,7 @@ class ConciergeStylesTest {
             config = ConciergeThemeConfig(),
             tokens = ConciergeThemeTokens(
                 behavior = ConciergeThemeBehavior(
-                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "balloon")
+                    chat = ConciergeChatBehavior(userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON)
                 )
             )
         )
@@ -113,82 +113,38 @@ class ConciergeStylesTest {
             bottomEnd = 0.dp
         )
         assertEquals(expected, style!!.userMessageShape)
-        assertEquals(RoundedCornerShape(12.dp), style!!.shape)
-    }
-
-    @Test
-    fun messageBubbleStyle_balloonStyleCaseInsensitive_squaresBottomRightCorner() {
-        var style: ConciergeStyles.MessageBubbleStyle? = null
-        val themeData = ConciergeThemeData(
-            config = ConciergeThemeConfig(),
-            tokens = ConciergeThemeTokens(
-                behavior = ConciergeThemeBehavior(
-                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "BALLOON")
-                )
-            )
-        )
-
-        composeTestRule.setContent {
-            ConciergeTheme(theme = themeData) {
-                style = ConciergeStyles.messageBubbleStyle
-            }
-        }
-
-        composeTestRule.waitForIdle()
-        assertNotNull(style)
-        val expected = RoundedCornerShape(
-            topStart = 12.dp,
-            topEnd = 12.dp,
-            bottomStart = 12.dp,
-            bottomEnd = 0.dp
-        )
-        assertEquals(expected, style!!.userMessageShape)
-    }
-
-    @Test
-    fun messageBubbleStyle_unknownStyle_fallsBackToDefault() {
-        var style: ConciergeStyles.MessageBubbleStyle? = null
-        val themeData = ConciergeThemeData(
-            config = ConciergeThemeConfig(),
-            tokens = ConciergeThemeTokens(
-                behavior = ConciergeThemeBehavior(
-                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "unknown_value")
-                )
-            )
-        )
-
-        composeTestRule.setContent {
-            ConciergeTheme(theme = themeData) {
-                style = ConciergeStyles.messageBubbleStyle
-            }
-        }
-
-        composeTestRule.waitForIdle()
-        assertNotNull(style)
-        assertEquals(RoundedCornerShape(12.dp), style!!.userMessageShape)
-    }
-
-    @Test
-    fun messageBubbleStyle_botMessageUsesDefaultShape() {
-        var style: ConciergeStyles.MessageBubbleStyle? = null
-        val themeData = ConciergeThemeData(
-            config = ConciergeThemeConfig(),
-            tokens = ConciergeThemeTokens(
-                behavior = ConciergeThemeBehavior(
-                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "balloon")
-                )
-            )
-        )
-
-        composeTestRule.setContent {
-            ConciergeTheme(theme = themeData) {
-                style = ConciergeStyles.messageBubbleStyle
-            }
-        }
-
-        composeTestRule.waitForIdle()
-        assertNotNull(style)
         // Bot message shape is always fully rounded regardless of userMessageBubbleStyle
         assertEquals(RoundedCornerShape(12.dp), style!!.shape)
+    }
+
+    @Test
+    fun messageBubbleStyle_customBorderRadius_appliedToBothShapes() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(
+                    chat = ConciergeChatBehavior(userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON)
+                ),
+                cssLayout = ConciergeLayout(messageBorderRadius = 20.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(RoundedCornerShape(20.dp), style!!.shape)
+        val expectedUserShape = RoundedCornerShape(
+            topStart = 20.dp,
+            topEnd = 20.dp,
+            bottomStart = 20.dp,
+            bottomEnd = 0.dp
+        )
+        assertEquals(expectedUserShape, style!!.userMessageShape)
     }
 }

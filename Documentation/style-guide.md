@@ -264,7 +264,7 @@ Feature toggles and interaction configuration.
 |----------|------|---------|-------------|
 | `behavior.chat.messageAlignment` | string | `"left"` | Message alignment (`"left"`, `"center"`, `"right"`) |
 | `behavior.chat.messageWidth` | string | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
-| `behavior.chat.userMessageBubbleStyle` | string | `"default"` | User message bubble shape. `"default"` = all corners rounded; `"balloon"` = rounded except bottom-right corner is square (speech balloon style). |
+| `behavior.chat.userMessageBubbleStyle` | string | `"default"` | User message bubble shape. `"default"` = all corners rounded; `"balloon"` = rounded except bottom-right corner is square (speech balloon style). Corner radius is controlled by `--message-border-radius` (default `12dp`). |
 
 ### Privacy Notice
 
@@ -1232,7 +1232,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
-| `--message-border-radius` | ⚠️ | Parsed but not used in composables | - |
+| `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and bot bubbles | `ChatMessageItem` |
 | `--message-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |

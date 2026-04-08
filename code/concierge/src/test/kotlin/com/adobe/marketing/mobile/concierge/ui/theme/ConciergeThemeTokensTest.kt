@@ -291,6 +291,29 @@ class ConciergeThemeTokensTest {
         assertEquals(1000, updated.typingIndicatorDelay)
     }
 
+    // ========== UserMessageBubbleStyle Tests ==========
+
+    @Test
+    fun `UserMessageBubbleStyle fromString returns DEFAULT for default`() {
+        assertEquals(UserMessageBubbleStyle.DEFAULT, UserMessageBubbleStyle.fromString("default"))
+    }
+
+    @Test
+    fun `UserMessageBubbleStyle fromString returns BALLOON for balloon`() {
+        assertEquals(UserMessageBubbleStyle.BALLOON, UserMessageBubbleStyle.fromString("balloon"))
+    }
+
+    @Test
+    fun `UserMessageBubbleStyle fromString is case insensitive`() {
+        assertEquals(UserMessageBubbleStyle.BALLOON, UserMessageBubbleStyle.fromString("BALLOON"))
+        assertEquals(UserMessageBubbleStyle.BALLOON, UserMessageBubbleStyle.fromString("Balloon"))
+    }
+
+    @Test
+    fun `UserMessageBubbleStyle fromString returns DEFAULT for unknown value`() {
+        assertEquals(UserMessageBubbleStyle.DEFAULT, UserMessageBubbleStyle.fromString("unknown"))
+    }
+
     // ========== ConciergeChatBehavior Tests ==========
 
     @Test
@@ -299,7 +322,7 @@ class ConciergeThemeTokensTest {
 
         assertNull(chat.messageAlignment)
         assertNull(chat.messageWidth)
-        assertNull(chat.userMessageBubbleStyle)
+        assertEquals(UserMessageBubbleStyle.DEFAULT, chat.userMessageBubbleStyle)
     }
 
     @Test
@@ -307,12 +330,12 @@ class ConciergeThemeTokensTest {
         val chat = ConciergeChatBehavior(
             messageAlignment = "left",
             messageWidth = "100%",
-            userMessageBubbleStyle = "balloon"
+            userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON
         )
 
         assertEquals("left", chat.messageAlignment)
         assertEquals("100%", chat.messageWidth)
-        assertEquals("balloon", chat.userMessageBubbleStyle)
+        assertEquals(UserMessageBubbleStyle.BALLOON, chat.userMessageBubbleStyle)
     }
 
     @Test
@@ -325,10 +348,10 @@ class ConciergeThemeTokensTest {
     @Test
     fun `ConciergeThemeBehavior supports chat configuration`() {
         val behavior = ConciergeThemeBehavior(
-            chat = ConciergeChatBehavior(userMessageBubbleStyle = "balloon")
+            chat = ConciergeChatBehavior(userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON)
         )
 
-        assertEquals("balloon", behavior.chat?.userMessageBubbleStyle)
+        assertEquals(UserMessageBubbleStyle.BALLOON, behavior.chat?.userMessageBubbleStyle)
     }
 
     // ========== Asset Data Classes Tests ==========

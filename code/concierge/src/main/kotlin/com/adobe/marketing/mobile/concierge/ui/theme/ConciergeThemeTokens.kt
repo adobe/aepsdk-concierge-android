@@ -193,8 +193,24 @@ data class ConciergeThemeBehavior(
 data class ConciergeChatBehavior(
     val messageAlignment: String? = null,
     val messageWidth: String? = null,
-    val userMessageBubbleStyle: String? = null
+    val userMessageBubbleStyle: UserMessageBubbleStyle = UserMessageBubbleStyle.DEFAULT
 )
+
+/**
+ * User message bubble shape from `behavior.chat.userMessageBubbleStyle` in theme JSON.
+ *
+ * - `"default"` — all corners rounded.
+ * - `"balloon"` — rounded except bottom-right corner is square (speech balloon style).
+ */
+enum class UserMessageBubbleStyle(val value: String) {
+    DEFAULT("default"),
+    BALLOON("balloon");
+
+    companion object {
+        fun fromString(value: String): UserMessageBubbleStyle =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: DEFAULT
+    }
+}
 
 /**
  * Display mode for the feedback dialog from `behavior.feedback.displayMode` in theme JSON.

@@ -436,7 +436,7 @@ internal object ThemeParser {
             ConciergeChatBehavior(
                 messageAlignment = DataReader.optString(it, "messageAlignment", null),
                 messageWidth = DataReader.optString(it, "messageWidth", null),
-                userMessageBubbleStyle = DataReader.optString(it, "userMessageBubbleStyle", null)
+                userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default") ?: "default")
             )
         }
 
