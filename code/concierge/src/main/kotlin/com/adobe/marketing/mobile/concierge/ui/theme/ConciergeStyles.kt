@@ -607,28 +607,43 @@ internal object ConciergeStyles {
         val iconSpacing: Dp,
         val textStyle: TextStyle,
         val textColor: Color,
-        val textMaxLines: Int
+        val textMaxLines: Int,
+        val showHeader: Boolean,
+        val headerText: String,
+        val headerStyle: TextStyle,
+        val headerColor: Color,
+        val headerBottomPadding: Dp
     )
 
     val promptSuggestionsStyle: PromptSuggestionsStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val contentColor = themeColors.conciergeMessageText ?: themeColors.onSurface
+            val textColor = themeColors.suggestionText ?: contentColor
+            val behavior = ConciergeTheme.behavior?.promptSuggestions
+            val bubbleStyle = messageBubbleStyle
+            val alignToMessage = behavior?.alignToMessage ?: false
+            val alignedPadding = bubbleStyle.padding + bubbleStyle.innerPadding
             return PromptSuggestionsStyle(
                 containerTopPadding = 6.dp,
-                containerStartPadding = 12.dp,
-                containerEndPadding = 48.dp,
+                containerStartPadding = if (alignToMessage) alignedPadding else 12.dp,
+                containerEndPadding = if (alignToMessage) alignedPadding else 48.dp,
                 itemSpacing = 8.dp,
-                itemShape = RoundedCornerShape(10.dp),
-                itemBackgroundColor = themeColors.container,
+                itemShape = RoundedCornerShape(ConciergeTheme.tokens?.cssLayout?.suggestionItemBorderRadius?.dp ?: 10.dp),
+                itemBackgroundColor = themeColors.suggestionBackground ?: themeColors.container,
                 itemHorizontalPadding = 16.dp,
                 itemVerticalPadding = 12.dp,
                 iconSize = 10.dp,
-                iconColor = contentColor,
+                iconColor = textColor,
                 iconSpacing = 12.dp,
                 textStyle = MaterialTheme.typography.bodyMedium,
-                textColor = contentColor,
-                textMaxLines = 2
+                textColor = textColor,
+                textMaxLines = behavior?.itemMaxLines ?: 1,
+                showHeader = behavior?.showHeader ?: false,
+                headerText = ConciergeTheme.text?.suggestionsHeader ?: "Suggestions",
+                headerStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                headerColor = contentColor,
+                headerBottomPadding = 4.dp
             )
         }
 

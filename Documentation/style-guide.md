@@ -294,6 +294,14 @@ Feature toggles and interaction configuration.
 | `behavior.welcomeCard.promptMaxLines` | number | `—` | Max lines for prompt text. When omitted, the Android SDK applies no limit. Set to `1` for uniform pill heights with ellipsis. |
 | `behavior.welcomeCard.contentAlignment` | string | `"top"` | Welcome card vertical position: `"top"` (anchored to top) or `"center"` (vertically centered) |
 
+### Prompt Suggestions
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.promptSuggestions.itemMaxLines` | number | `1` | Max lines for suggestion chip text before ellipsis. |
+| `behavior.promptSuggestions.showHeader` | boolean | `false` | Show a "Suggestions" header label above the chips. Label text is configurable via `text["suggestions.header"]`. |
+| `behavior.promptSuggestions.alignToMessage` | boolean | `false` | Align the suggestion chips to the message bubble edges. When `false`, uses the default offset. |
+
 > **Tip:** To hide the header subtitle, set `text["header.subtitle"]` to `""`. The subtitle is automatically hidden when its text is blank.
 
 ### Example
@@ -334,6 +342,11 @@ Feature toggles and interaction configuration.
       "promptFullWidth": false,
       "promptMaxLines": 1,
       "contentAlignment": "top"
+    },
+    "promptSuggestions": {
+      "itemMaxLines": 1,
+      "showHeader": true,
+      "alignToMessage": true
     }
   }
 }
@@ -443,6 +456,12 @@ While there are no strict requirements for character limits in many of these tex
 | `text["sourcesLabel"]` | `"Sources"` | Accordion label for the sources/feedback section |
 | `text["feedbackHelpfulLabel"]` | `"Was this helpful?"` | Label shown above feedback thumbs when `behavior.feedback.thumbsPlacement` is `"below"`. Set to `""` to hide. |
 
+### Prompt Suggestions
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["suggestions.header"]` | `"Suggestions"` | Header label shown above prompt suggestion chips when `behavior.promptSuggestions.showHeader` is `true`. |
+
 ### Example
 
 ```json
@@ -455,6 +474,7 @@ While there are no strict requirements for character limits in many of these tex
     "loading.message": "Generating response from our knowledge base...",
     "feedbackHelpfulLabel": "Was this helpful?",
     "sourcesLabel": "Sources & Feedback",
+    "suggestions.header": "Suggestions",
     "feedback.dialog.title.positive": "Your feedback is appreciated",
     "feedback.dialog.title.negative": "Your feedback is appreciated",
     "feedback.dialog.question.positive": "What went well? Select all that apply.",
@@ -577,6 +597,7 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 |--------------|-----------------|------|---------|-------------|
 | `--color-primary` | `colors.primaryColors.primary` | `String` | `"#1976D2"` | Primary brand color (hex) |
 | `--color-text` | `colors.primaryColors.text` | `String` | `"#000000"` | Primary text color (hex) |
+| `--color-container` | `colors.container` | `String?` | `null` (falls back to hardcoded light/dark value) | Background for cards and container elements — prompt suggestion chips, product cards, message bubble fallback (hex) |
 
 ### Colors - Surface
 
@@ -636,6 +657,13 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 |--------------|-----------------|------|---------|-------------|
 | `--welcome-prompt-background-color` | `colors.welcomePrompt.backgroundColor` | `String?` | `null` (falls back to surface) | Prompt pill background color (hex). Only applied if a per-prompt `backgroundColor` is not defined in the prompt configuration. |
 | `--welcome-prompt-text-color` | `colors.welcomePrompt.textColor` | `String?` | `null` (falls back to `onSurface`) | Prompt pill text color (hex) |
+
+### Colors - Prompt Suggestions
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--suggestion-background-color` | `colors.promptSuggestion.backgroundColor` | `String?` | `null` (falls back to `--color-container` then hardcoded light/dark value) | Prompt suggestion chip background color (hex) |
+| `--suggestion-text-color` | `colors.promptSuggestion.textColor` | `String?` | `null` (falls back to `--message-concierge-text` then `onSurface`) | Prompt suggestion chip text and icon color (hex) |
 
 ### Colors - Circular Citations
 
@@ -789,6 +817,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--welcome-prompts-top-spacing` | `cssLayout.welcomePromptsTopSpacing` | `Double` | `8.0` | Spacing above prompt list (dp) |
 | `--welcome-prompt-padding` | `cssLayout.welcomePromptPadding` | `Double` | `0.0` | Inner padding for prompt pills (dp) |
 | `--welcome-prompt-corner-radius` | `cssLayout.welcomePromptCornerRadius` | `Double` | `8.0` | Prompt pill corner radius (dp) |
+| `--suggestion-item-border-radius` | `cssLayout.suggestionItemBorderRadius` | `Double` | `10.0` | Prompt suggestion chip corner radius (dp) |
 
 ---
 
@@ -928,11 +957,15 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--welcome-prompt-background-color": "#F5F5F5",
     "--welcome-prompt-text-color": "#000000",
     "--welcome-prompt-spacing": "8px",
+    "--suggestion-background-color": "#F0F0F0",
+    "--suggestion-text-color": "#131313",
+    "--suggestion-item-border-radius": "10px",
     "--welcome-title-bottom-spacing": "6px",
     "--welcome-prompts-top-spacing": "12px",
     "--font-family": "",
     "--color-primary": "#EB1000",
     "--color-text": "#131313",
+    "--color-container": "#F0F0F0",
     "--line-height-body": "1.75",
     "--main-container-background": "#FFFFFF",
     "--main-container-bottom-background": "#FFFFFF",
@@ -1173,21 +1206,24 @@ This section documents which properties are fully implemented, partially impleme
 ### Theme Tokens - Colors
 
 **Note**: The following base colors are **not configurable via JSON themes**. They are hardcoded in `LightConciergeColors` / `DarkConciergeColors` and serve as fallback colors throughout the UI:
-- `secondary`, `onSurfaceVariant`, `container`, `outline`, `error`, `onError`
+- `secondary`, `onSurfaceVariant`, `outline`, `error`, `onError`
 
 These colors are used internally by composables but cannot be customized in theme JSON files. See "Fallback Colors" section at the end.
+
+> **Note**: `container` (card/chip background) is now configurable via `--color-container`.
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
 | `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
 | `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
+| `--color-container` | ✅ | Background for cards and container elements; fallback for prompt suggestion chips when `--suggestion-background-color` is not set | `ProductCard`, `PromptSuggestions`, `ChatInputPanel` (fallback) |
 | `--main-container-background` | ✅ | Main chat screen, welcome card, and feedback dialog background | `ChatScreen`, `WelcomeCard`, `FeedbackDialog` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
 | `--message-blocker-background` | ⚠️ | Parsed but not used in UI | - |
 | `--message-user-background` | ✅ | User message bubble background | `ChatMessageItem` |
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
 | `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
-| `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestions text, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter`, `ProductCard` text, `ProductCarousel` switcher color |
+| `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestion chip text/icon fallback, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter`, `ProductCard` text, `ProductCarousel` switcher color |
 | `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs | `ExpandedCitations` (citation URLs); message body links when applied |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
@@ -1212,6 +1248,8 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-mic-recording-icon-color` | ✅ | Waveform animation color during recording | `MicButton`, `AnimatedAudioWave` |
 | `--welcome-prompt-background-color` | ✅ | Welcome prompt pill background | `SuggestedPromptItem` |
 | `--welcome-prompt-text-color` | ✅ | Welcome prompt pill text | `SuggestedPromptItem` |
+| `--suggestion-background-color` | ✅ | Prompt suggestion chip background | `PromptSuggestions` |
+| `--suggestion-text-color` | ✅ | Prompt suggestion chip text and icon color | `PromptSuggestions` |
 | `--citations-background-color` | ✅ | Citation pill background | `CircularCitation` |
 | `--citations-text-color` | ✅ | Citation pill (badge) text | `CircularCitation` |
 | `--feedback-icon-btn-background` | ✅ | Thumbs up/down button background | `FeedbackComponents` |
@@ -1301,6 +1339,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--welcome-prompts-top-spacing` | ✅ | Spacing above prompt list | `WelcomeCard` |
 | `--welcome-prompt-padding` | ✅ | Inner padding for prompt pills | `SuggestedPromptItem` |
 | `--welcome-prompt-corner-radius` | ✅ | Prompt pill corner radius | `SuggestedPromptItem` |
+| `--suggestion-item-border-radius` | ✅ | Prompt suggestion chip corner radius | `PromptSuggestions` |
 
 ### Unsupported CSS Variables
 
@@ -1323,7 +1362,7 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 |-------|---------|---------------------|
 | `secondary` | Secondary accent color (currently unused) | - |
 | `onSurfaceVariant` | Muted text and icons for secondary UI elements | `ChatFooter`, `FeedbackDialog` (unchecked checkboxes) |
-| `container` | Background for cards and container elements | `ProductCard`, `PromptSuggestions`, message bubbles (fallback), `ChatInputPanel` (fallback) |
+| `container` | Background for cards and container elements — configurable via `--color-container` | `ProductCard`, `PromptSuggestions` (fallback when `--suggestion-background-color` not set), `ChatInputPanel` (fallback) |
 | `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
 | `error` | Error state background | `ErrorOverlay` background |
 | `onError` | Error state text | `ErrorOverlay` message text |

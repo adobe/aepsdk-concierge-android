@@ -84,6 +84,10 @@ data class ConciergeColors(
     val welcomePromptBackground: Color? = null,
     val welcomePromptText: Color? = null,
 
+    // Prompt suggestion colors (from CSS themes)
+    val suggestionBackground: Color? = null,
+    val suggestionText: Color? = null,
+
     // Citation/Disclaimer colors (from CSS themes)
     val citationBackground: Color? = null,
     val citationText: Color? = null,

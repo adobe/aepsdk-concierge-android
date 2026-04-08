@@ -104,6 +104,7 @@ data class ConciergeTextStrings(
     val feedbackToastSuccess: String? = null,
     val feedbackHelpfulLabel: String? = null,
     val sourcesLabel: String? = null,
+    val suggestionsHeader: String? = null,
 
     // Error
     val errorNetwork: String? = null
@@ -150,7 +151,8 @@ data class ConciergeThemeColors(
     val feedback: ConciergeFeedbackColors? = null,
     val citation: ConciergeCitationColors? = null,
     val welcomePrompt: ConciergeWelcomePromptColors? = null,
-    val ctaButton: ConciergeCtaButtonColors? = null
+    val ctaButton: ConciergeCtaButtonColors? = null,
+    val promptSuggestion: ConciergeWelcomePromptColors? = null
 )
 
 /**

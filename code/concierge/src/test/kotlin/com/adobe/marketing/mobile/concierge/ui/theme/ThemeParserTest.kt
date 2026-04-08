@@ -1600,5 +1600,179 @@ class ThemeParserTest {
         assertNotNull(colors.welcomePromptBackground)
         assertNotNull(colors.welcomePromptText)
     }
+
+    // -----------------------------------------------------------------------
+    // Prompt suggestions behavior
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeTokens should parse behavior promptSuggestions itemMaxLines`() {
+        val json = """
+            {
+                "behavior": {
+                    "promptSuggestions": {
+                        "itemMaxLines": 3
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertEquals(3, tokens?.behavior?.promptSuggestions?.itemMaxLines)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse behavior promptSuggestions showHeader`() {
+        val json = """
+            {
+                "behavior": {
+                    "promptSuggestions": {
+                        "showHeader": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertEquals(true, tokens?.behavior?.promptSuggestions?.showHeader)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse behavior promptSuggestions alignToMessage`() {
+        val json = """
+            {
+                "behavior": {
+                    "promptSuggestions": {
+                        "alignToMessage": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertEquals(true, tokens?.behavior?.promptSuggestions?.alignToMessage)
+    }
+
+    @Test
+    fun `parseThemeTokens should use default promptSuggestions values when block is empty`() {
+        val json = """
+            {
+                "behavior": {
+                    "promptSuggestions": {}
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertEquals(1, tokens?.behavior?.promptSuggestions?.itemMaxLines)
+        assertEquals(false, tokens?.behavior?.promptSuggestions?.showHeader)
+        assertEquals(false, tokens?.behavior?.promptSuggestions?.alignToMessage)
+    }
+
+    @Test
+    fun `parseThemeTokens should return null promptSuggestions when not provided`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "enableVoiceInput": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertNull(tokens?.behavior?.promptSuggestions)
+    }
+
+    @Test
+    fun `parseThemeJson should parse suggestions header text`() {
+        val json = """
+            {
+                "text": {
+                    "suggestions.header": "Try asking"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+        assertEquals("Try asking", config?.text?.suggestionsHeader)
+    }
+
+    @Test
+    fun `parseThemeJson should return null suggestionsHeader when not provided`() {
+        val json = """
+            {
+                "text": {
+                    "input.placeholder": "Ask me anything"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+        assertNull(config?.text?.suggestionsHeader)
+    }
+
+    // -----------------------------------------------------------------------
+    // Prompt suggestion chip colors
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeTokens should parse suggestion chip colors`() {
+        val json = """
+            {
+                "theme": {
+                    "--suggestion-background-color": "#E8F0FE",
+                    "--suggestion-text-color": "#1A1A1A"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertNotNull(tokens?.colors?.promptSuggestion?.backgroundColor)
+        assertNotNull(tokens?.colors?.promptSuggestion?.textColor)
+    }
+
+    @Test
+    fun `createColorsFromJson should map suggestion chip background color`() {
+        val themeColors = ConciergeThemeColors(
+            promptSuggestion = ConciergeWelcomePromptColors(
+                backgroundColor = "#E8F0FE",
+                textColor = null
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertEquals(Color(0xFFE8F0FE), colors.suggestionBackground)
+    }
+
+    @Test
+    fun `createColorsFromJson should map suggestion chip text color`() {
+        val themeColors = ConciergeThemeColors(
+            promptSuggestion = ConciergeWelcomePromptColors(
+                backgroundColor = null,
+                textColor = "#1A1A1A"
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertEquals(Color(0xFF1A1A1A), colors.suggestionText)
+    }
+
+    @Test
+    fun `createColorsFromJson should return null suggestion colors when not provided`() {
+        val themeColors = ConciergeThemeColors(primary = "#FF0000")
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertNull(colors.suggestionBackground)
+        assertNull(colors.suggestionText)
+    }
 }
 
