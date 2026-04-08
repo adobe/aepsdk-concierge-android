@@ -916,12 +916,12 @@ class CSSKeyMapperTest {
     @Test
     fun `apply maps suggestion-background-color`() {
         val result = CSSKeyMapper.apply("--suggestion-background-color", "#E8E8E8", emptyTheme)
-        assertNotNull(result.colors?.promptSuggestion?.backgroundColor)
+        assertEquals("#E8E8E8", result.colors?.promptSuggestion?.backgroundColor)
     }
 
     @Test
     fun `apply maps suggestion-text-color`() {
         val result = CSSKeyMapper.apply("--suggestion-text-color", "#333333", emptyTheme)
-        assertNotNull(result.colors?.promptSuggestion?.textColor)
+        assertEquals("#333333", result.colors?.promptSuggestion?.textColor)
     }
 }

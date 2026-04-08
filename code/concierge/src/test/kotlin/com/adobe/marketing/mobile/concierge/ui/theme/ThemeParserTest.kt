@@ -1725,7 +1725,7 @@ class ThemeParserTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `parseThemeJson should parse suggestion chip colors`() {
+    fun `parseThemeTokens should parse suggestion chip colors`() {
         val json = """
             {
                 "theme": {
