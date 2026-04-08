@@ -264,6 +264,7 @@ Feature toggles and interaction configuration.
 |----------|------|---------|-------------|
 | `behavior.chat.messageAlignment` | string | `"left"` | Message alignment (`"left"`, `"center"`, `"right"`) |
 | `behavior.chat.messageWidth` | string | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
+| `behavior.chat.userMessageBubbleStyle` | string | `"default"` | User message bubble shape. `"default"` = all corners rounded; `"balloon"` = rounded except bottom-right corner is square (speech balloon style). Corner radius is controlled by `--message-border-radius` (default `12dp`). |
 
 ### Privacy Notice
 
@@ -324,7 +325,8 @@ Feature toggles and interaction configuration.
     },
     "chat": {
       "messageAlignment": "left",
-      "messageWidth": "100%"
+      "messageWidth": "100%",
+      "userMessageBubbleStyle": "balloon"
     },
     "privacyNotice": {
       "title": "Privacy Notice",
@@ -833,7 +835,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     },
     "chat": {
       "messageAlignment": "left",
-      "messageWidth": "100%"
+      "messageWidth": "100%",
+      "userMessageBubbleStyle": "balloon"
     },
     "privacyNotice": {
       "title": "Privacy Notice",
@@ -1108,6 +1111,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
+| `behavior.chat.userMessageBubbleStyle` | ✅ | `"default"` (all corners rounded) or `"balloon"` (square bottom-right corner) | `ChatMessageItem` |
 | `behavior.privacyNotice.title` | ⚠️ | Parsed but not implemented | - |
 | `behavior.privacyNotice.text` | ⚠️ | Parsed but not implemented | - |
 | `behavior.welcomeCard.closeButtonAlignment` | ✅ | `"start"` or `"end"` close button position | `ChatHeader` |
@@ -1266,7 +1270,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
-| `--message-border-radius` | ⚠️ | Parsed but not used in composables | - |
+| `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
 | `--message-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |

@@ -120,7 +120,7 @@ private fun RenderTextMessage(
                 }
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-            shape = style.shape
+            shape = if (message.isFromUser) style.userMessageShape else style.shape
         ) {
             Box(
                 modifier = Modifier.padding(style.innerPadding)
