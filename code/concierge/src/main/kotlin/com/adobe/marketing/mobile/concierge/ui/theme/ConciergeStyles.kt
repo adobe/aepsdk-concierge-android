@@ -210,8 +210,8 @@ internal object ConciergeStyles {
         val textStyle: TextStyle,
         val contentSpacing: Dp,
         val segmentSpacing: Dp,
-        val companyIconSize: Dp,
-        val companyIconSpacing: Dp
+        val agentIconSize: Dp,
+        val agentIconSpacing: Dp
     )
 
     val messageBubbleStyle: MessageBubbleStyle
@@ -230,8 +230,8 @@ internal object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp,
-                companyIconSize = cssLayout?.companyIconSize?.dp ?: 39.dp,
-                companyIconSpacing = cssLayout?.companyIconSpacing?.dp ?: 12.dp
+                agentIconSize = cssLayout?.agentIconSize?.dp ?: 39.dp,
+                agentIconSpacing = cssLayout?.agentIconSpacing?.dp ?: 12.dp
             )
         }
 

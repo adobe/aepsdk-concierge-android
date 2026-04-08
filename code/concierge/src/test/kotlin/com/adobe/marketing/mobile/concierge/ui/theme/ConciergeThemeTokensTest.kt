@@ -125,15 +125,15 @@ class ConciergeThemeTokensTest {
             messageBorderRadius = 10.0,
             messagePadding = listOf(10.0, 20.0, 10.0, 20.0),
             messageMaxWidth = 0.8,
-            companyIconSize = 44.0,
-            companyIconSpacing = 8.0
+            agentIconSize = 44.0,
+            agentIconSpacing = 8.0
         )
 
         assertEquals(10.0, layout.messageBorderRadius)
         assertEquals(4, layout.messagePadding?.size)
         assertEquals(0.8, layout.messageMaxWidth)
-        assertEquals(44.0, layout.companyIconSize)
-        assertEquals(8.0, layout.companyIconSpacing)
+        assertEquals(44.0, layout.agentIconSize)
+        assertEquals(8.0, layout.agentIconSpacing)
     }
 
     @Test

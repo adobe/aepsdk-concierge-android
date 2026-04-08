@@ -206,7 +206,7 @@ private fun RenderTextMessageWithIcon(
             Box(
                 modifier = Modifier
                     .padding(top = style.padding)
-                    .size(style.companyIconSize)
+                    .size(style.agentIconSize)
             ) {
                 LocalAssetImage(
                     source = companyIconName,
@@ -216,7 +216,7 @@ private fun RenderTextMessageWithIcon(
                         .clip(CircleShape)
                 )
             }
-            Spacer(modifier = Modifier.width(style.companyIconSpacing))
+            Spacer(modifier = Modifier.width(style.agentIconSpacing))
             Column(modifier = Modifier.weight(1f)) {
                 Card(
                     modifier = Modifier

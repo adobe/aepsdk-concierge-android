@@ -540,16 +540,16 @@ internal object CSSKeyMapper {
                 layout?.copy(messageMaxWidth = width) ?: ConciergeLayout(messageMaxWidth = width)
             }
         },
-        "company-icon-size" to { cssValue, theme ->
+        "agent-icon-size" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val size = CSSValueConverter.parsePxValue(cssValue)
-                layout?.copy(companyIconSize = size) ?: ConciergeLayout(companyIconSize = size)
+                layout?.copy(agentIconSize = size) ?: ConciergeLayout(agentIconSize = size)
             }
         },
-        "company-icon-spacing" to { cssValue, theme ->
+        "agent-icon-spacing" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val spacing = CSSValueConverter.parsePxValue(cssValue)
-                layout?.copy(companyIconSpacing = spacing) ?: ConciergeLayout(companyIconSpacing = spacing)
+                layout?.copy(agentIconSpacing = spacing) ?: ConciergeLayout(agentIconSpacing = spacing)
             }
         },
 
