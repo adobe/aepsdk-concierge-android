@@ -1270,7 +1270,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
-| `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and bot bubbles | `ChatMessageItem` |
+| `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
 | `--message-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |

@@ -113,7 +113,7 @@ class ConciergeStylesTest {
             bottomEnd = 0.dp
         )
         assertEquals(expected, style!!.userMessageShape)
-        // Bot message shape is always fully rounded regardless of userMessageBubbleStyle
+        // Agent message shape is always fully rounded regardless of userMessageBubbleStyle
         assertEquals(RoundedCornerShape(12.dp), style!!.shape)
     }
 
