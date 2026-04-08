@@ -122,7 +122,11 @@ private fun RenderTextMessage(
                 }
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-            shape = if (isThinking) thinkingStyle.bubbleShape else style.shape
+            shape = when {
+                isThinking -> thinkingStyle.bubbleShape
+                message.isFromUser -> style.userMessageShape
+                else -> style.shape
+            }
         ) {
             Box(
                 modifier = Modifier.padding(

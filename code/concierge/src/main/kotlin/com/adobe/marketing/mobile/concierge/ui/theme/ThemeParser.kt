@@ -435,6 +435,16 @@ internal object ThemeParser {
             )
         }
 
+        val chatMap = typedMap?.get("chat") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val chatTyped = chatMap as? MutableMap<String?, Any?>
+        val chat = chatTyped?.let {
+            ConciergeChatBehavior(
+                messageAlignment = DataReader.optString(it, "messageAlignment", null),
+                messageWidth = DataReader.optString(it, "messageWidth", null),
+                userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default") ?: "default")
+            )
+        }
         val promptSuggestionsMap = typedMap?.get("promptSuggestions") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
         val promptSuggestionsTyped = promptSuggestionsMap as? MutableMap<String?, Any?>
@@ -465,6 +475,7 @@ internal object ThemeParser {
             productCard = productCard,
             multimodalCarousel = multimodalCarousel,
             welcomeCard = welcomeCard,
+            chat = chat,
             promptSuggestions = promptSuggestions
         )
     }
