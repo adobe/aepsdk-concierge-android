@@ -17,6 +17,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 
@@ -29,6 +30,11 @@ class LocalAssetImageTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @After
+    fun clearBitmapCache() {
+        assetBitmapCache.clear()
+    }
 
     @Test
     fun localAssetImage_withHttpsUrl_rendersWithoutCrashing() {
@@ -76,6 +82,30 @@ class LocalAssetImageTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun localAssetImage_withLocalAssetName_cachesPreviouslyLoadedResult() {
+        // First load caches null (asset absent). Second load should hit the cache
+        // (containsKey returns true) and render nothing — no crash either way.
+        val source = "cache-test-icon"
+
+        repeat(2) {
+            composeTestRule.setContent {
+                ConciergeTheme {
+                    LocalAssetImage(
+                        source = source,
+                        contentDescription = null
+                    )
+                }
+            }
+            composeTestRule.waitForIdle()
+        }
+
+        // After first load the null result is cached; key must be present.
+        assert(assetBitmapCache.containsKey(source)) {
+            "Expected '$source' to be cached after load attempt"
+        }
     }
 
     @Test

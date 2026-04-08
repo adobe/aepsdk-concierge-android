@@ -381,6 +381,18 @@ class CSSKeyMapperTest {
         assertNotNull(result.cssLayout?.messageMaxWidth)
     }
 
+    @Test
+    fun `apply maps company-icon-size`() {
+        val result = CSSKeyMapper.apply("--company-icon-size", "39px", emptyTheme)
+        assertEquals(39.0, result.cssLayout?.companyIconSize)
+    }
+
+    @Test
+    fun `apply maps company-icon-spacing`() {
+        val result = CSSKeyMapper.apply("--company-icon-spacing", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.companyIconSpacing)
+    }
+
     // -----------------------------------------------------------------------
     // Layout - Chat
     // -----------------------------------------------------------------------

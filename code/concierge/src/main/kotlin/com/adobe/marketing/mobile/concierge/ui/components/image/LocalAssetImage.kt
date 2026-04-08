@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.components.image
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
@@ -28,7 +29,9 @@ import kotlinx.coroutines.withContext
 
 private const val ASSET_ICONS_FOLDER = "icons"
 private val SUPPORTED_EXTENSIONS = listOf(".png", ".webp", ".jpg", ".jpeg")
-private val assetBitmapCache = HashMap<String, ImageBitmap?>()
+
+@VisibleForTesting
+internal val assetBitmapCache = HashMap<String, ImageBitmap?>()
 
 /**
  * Composable that loads and displays a company icon from either a remote URL or the app's
