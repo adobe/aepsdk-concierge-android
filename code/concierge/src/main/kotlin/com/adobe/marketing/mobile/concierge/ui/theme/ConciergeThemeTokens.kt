@@ -56,6 +56,8 @@ data class ConciergeLayout(
     val messageBorderRadius: Double? = null,
     val messagePadding: List<Double>? = null,
     val messageMaxWidth: Double? = null,
+    val companyIconSize: Double? = null,
+    val companyIconSpacing: Double? = null,
     
     // Chat layout
     val chatInterfaceMaxWidth: Double? = null,

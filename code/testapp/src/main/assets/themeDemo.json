@@ -262,6 +262,8 @@
     "--welcome-prompts-top-spacing": "12px",
     "--welcome-text-align": "left",
     "--welcome-title-bottom-spacing": "6px",
-    "--welcome-title-font-size": "16px"
+    "--welcome-title-font-size": "16px",
+    "--company-icon-size": "39px",
+    "--company-icon-spacing": "12px"
   }
 }

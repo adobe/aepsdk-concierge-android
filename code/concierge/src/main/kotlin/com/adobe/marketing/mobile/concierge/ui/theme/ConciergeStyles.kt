@@ -209,12 +209,15 @@ internal object ConciergeStyles {
         val botMessageTextColor: Color,
         val textStyle: TextStyle,
         val contentSpacing: Dp,
-        val segmentSpacing: Dp
+        val segmentSpacing: Dp,
+        val companyIconSize: Dp,
+        val companyIconSpacing: Dp
     )
 
     val messageBubbleStyle: MessageBubbleStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
             return MessageBubbleStyle(
                 padding = 8.dp,
                 innerPadding = 16.dp,
@@ -226,7 +229,9 @@ internal object ConciergeStyles {
                 botMessageTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
                 contentSpacing = 12.dp,
-                segmentSpacing = 4.dp
+                segmentSpacing = 4.dp,
+                companyIconSize = cssLayout?.companyIconSize?.dp ?: 39.dp,
+                companyIconSpacing = cssLayout?.companyIconSpacing?.dp ?: 12.dp
             )
         }
 

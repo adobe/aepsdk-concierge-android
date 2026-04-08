@@ -203,15 +203,20 @@ private fun RenderTextMessageWithIcon(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            LocalAssetImage(
-                source = companyIconName,
-                contentDescription = null,
+            Box(
                 modifier = Modifier
                     .padding(top = style.padding)
-                    .size(39.dp)
-                    .clip(CircleShape)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+                    .size(style.companyIconSize)
+            ) {
+                LocalAssetImage(
+                    source = companyIconName,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape)
+                )
+            }
+            Spacer(modifier = Modifier.width(style.companyIconSpacing))
             Column(modifier = Modifier.weight(1f)) {
                 Card(
                     modifier = Modifier

@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 
 private const val ASSET_ICONS_FOLDER = "icons"
 private val SUPPORTED_EXTENSIONS = listOf(".png", ".webp", ".jpg", ".jpeg")
+private val assetBitmapCache = HashMap<String, ImageBitmap?>()
 
 /**
  * Composable that loads and displays a company icon from either a remote URL or the app's
@@ -71,9 +72,13 @@ private fun LocalFileImage(
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val context = LocalContext.current
-    val bitmap = produceState<ImageBitmap?>(initialValue = null, key1 = assetName) {
-        value = withContext(Dispatchers.IO) {
-            loadAssetBitmap(context, assetName)?.asImageBitmap()
+    val bitmap = produceState<ImageBitmap?>(initialValue = assetBitmapCache[assetName], key1 = assetName) {
+        if (!assetBitmapCache.containsKey(assetName)) {
+            val loaded = withContext(Dispatchers.IO) {
+                loadAssetBitmap(context, assetName)?.asImageBitmap()
+            }
+            assetBitmapCache[assetName] = loaded
+            value = loaded
         }
     }.value
 

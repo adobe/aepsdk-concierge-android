@@ -497,7 +497,19 @@ internal object CSSKeyMapper {
                 layout?.copy(messageMaxWidth = width) ?: ConciergeLayout(messageMaxWidth = width)
             }
         },
-        
+        "company-icon-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue)
+                layout?.copy(companyIconSize = size) ?: ConciergeLayout(companyIconSize = size)
+            }
+        },
+        "company-icon-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue)
+                layout?.copy(companyIconSpacing = spacing) ?: ConciergeLayout(companyIconSpacing = spacing)
+            }
+        },
+
         // Layout - Chat
         "chat-interface-max-width" to { cssValue, theme ->
             updateLayout(theme) { layout ->

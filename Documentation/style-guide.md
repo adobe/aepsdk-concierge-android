@@ -693,6 +693,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--message-border-radius` | `cssLayout.messageBorderRadius` | `Double` | `10.0` | Message bubble corner radius (dp) |
 | `--message-padding` | `cssLayout.messagePadding` | `List<Double>` | `[8, 16]` | Message content padding (dp) |
 | `--message-max-width` | `cssLayout.messageMaxWidth` | `Double?` | `null` | Max message width (dp or %) |
+| `--company-icon-size` | `cssLayout.companyIconSize` | `Double?` | `39.0` | Size (dp) of the company icon shown to the left of agent text messages |
+| `--company-icon-spacing` | `cssLayout.companyIconSpacing` | `Double?` | `12.0` | Horizontal gap (dp) between the company icon and the message card |
 
 ### Layout - Chat
 
@@ -947,6 +949,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--message-max-width": "100%",
     "--message-border-radius": "10px",
     "--message-padding": "8px 16px",
+    "--company-icon-size": "39px",
+    "--company-icon-spacing": "12px",
 
     "--chat-interface-max-width": "768px",
     "--chat-history-padding": "16px",
@@ -1154,7 +1158,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `assets.icons.company` | ⚠️ | Parsed but not rendered in any composable | - |
+| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
 
 ### Theme Tokens - Typography
 
@@ -1243,6 +1247,8 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--message-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--message-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
+| `--company-icon-size` | ✅ | Size of company icon next to agent messages | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
+| `--company-icon-spacing` | ✅ | Gap between company icon and message card | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
 | `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-history-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables | - |
