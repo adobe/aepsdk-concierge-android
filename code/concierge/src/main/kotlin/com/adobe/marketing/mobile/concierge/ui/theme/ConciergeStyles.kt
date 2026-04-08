@@ -216,31 +216,29 @@ internal object ConciergeStyles {
     val messageBubbleStyle: MessageBubbleStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            val bubbleStyleConfig = ConciergeTheme.config?.styles?.messageBubble
-            val cornerRadius = (bubbleStyleConfig?.cornerRadius?.dp ?: 12.dp)
-            val defaultShape = RoundedCornerShape(cornerRadius)
+            val defaultShape = RoundedCornerShape(12.dp)
             val userMessageShape = when (ConciergeTheme.behavior?.chat?.userMessageBubbleStyle?.lowercase()) {
                 "balloon" -> RoundedCornerShape(
-                    topStart = cornerRadius,
-                    topEnd = cornerRadius,
-                    bottomStart = cornerRadius,
+                    topStart = 12.dp,
+                    topEnd = 12.dp,
+                    bottomStart = 12.dp,
                     bottomEnd = 0.dp
                 )
                 else -> defaultShape
             }
             return MessageBubbleStyle(
-                padding = bubbleStyleConfig?.padding?.dp ?: 8.dp,
-                innerPadding = bubbleStyleConfig?.innerPadding?.dp ?: 16.dp,
+                padding = 8.dp,
+                innerPadding = 16.dp,
                 shape = defaultShape,
                 userMessageShape = userMessageShape,
-                elevation = bubbleStyleConfig?.elevation?.dp ?: 0.dp,
+                elevation = 0.dp,
                 userMessageBackgroundColor = themeColors.userMessageBackground ?: themeColors.primary,
                 botMessageBackgroundColor = themeColors.conciergeMessageBackground ?: themeColors.container,
                 userMessageTextColor = themeColors.userMessageText ?: themeColors.onPrimary,
                 botMessageTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
-                contentSpacing = bubbleStyleConfig?.contentSpacing?.dp ?: 12.dp,
-                segmentSpacing = bubbleStyleConfig?.segmentSpacing?.dp ?: 4.dp
+                contentSpacing = 12.dp,
+                segmentSpacing = 4.dp
             )
         }
 

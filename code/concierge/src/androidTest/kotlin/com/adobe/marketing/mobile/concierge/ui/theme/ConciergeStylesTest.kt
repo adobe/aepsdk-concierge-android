@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -67,5 +68,127 @@ class ConciergeStylesTest {
         assertNotNull(style)
         assertEquals(14.0, style!!.textStyle.fontSize.value.toDouble(), 0.1)
         assertEquals(700, style!!.textStyle.fontWeight?.weight ?: 0)
+    }
+
+    @Test
+    fun messageBubbleStyle_defaultStyle_allCornersRounded() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(style!!.shape, style!!.userMessageShape)
+        assertEquals(RoundedCornerShape(12.dp), style!!.userMessageShape)
+    }
+
+    @Test
+    fun messageBubbleStyle_balloonStyle_squaresBottomRightCorner() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(
+                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "balloon")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        val expected = RoundedCornerShape(
+            topStart = 12.dp,
+            topEnd = 12.dp,
+            bottomStart = 12.dp,
+            bottomEnd = 0.dp
+        )
+        assertEquals(expected, style!!.userMessageShape)
+        assertEquals(RoundedCornerShape(12.dp), style!!.shape)
+    }
+
+    @Test
+    fun messageBubbleStyle_balloonStyleCaseInsensitive_squaresBottomRightCorner() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(
+                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "BALLOON")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        val expected = RoundedCornerShape(
+            topStart = 12.dp,
+            topEnd = 12.dp,
+            bottomStart = 12.dp,
+            bottomEnd = 0.dp
+        )
+        assertEquals(expected, style!!.userMessageShape)
+    }
+
+    @Test
+    fun messageBubbleStyle_unknownStyle_fallsBackToDefault() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(
+                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "unknown_value")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(RoundedCornerShape(12.dp), style!!.userMessageShape)
+    }
+
+    @Test
+    fun messageBubbleStyle_botMessageUsesDefaultShape() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(
+                    chat = ConciergeChatBehavior(userMessageBubbleStyle = "balloon")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Bot message shape is always fully rounded regardless of userMessageBubbleStyle
+        assertEquals(RoundedCornerShape(12.dp), style!!.shape)
     }
 }
