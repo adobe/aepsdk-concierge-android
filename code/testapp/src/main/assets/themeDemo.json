@@ -125,7 +125,7 @@
   },
   "assets": {
     "icons": {
-      "company": ""
+      "company": "logo"
     }
   },
   "content": {
@@ -273,6 +273,8 @@
     "--welcome-prompts-top-spacing": "12px",
     "--welcome-text-align": "left",
     "--welcome-title-bottom-spacing": "6px",
-    "--welcome-title-font-size": "16px"
+    "--welcome-title-font-size": "16px",
+    "--agent-icon-size": "39px",
+    "--agent-icon-spacing": "12px"
   }
 }

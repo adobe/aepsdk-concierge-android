@@ -14,28 +14,36 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
 import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Component that displays a single chat message.
@@ -97,6 +105,21 @@ private fun RenderTextMessage(
     onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+
+    if (companyIconName != null) {
+        RenderTextMessageWithIcon(
+            message = message,
+            companyIconName = companyIconName,
+            style = style,
+            onFeedback = onFeedback,
+            onSuggestionClick = onSuggestionClick,
+            handleLink = handleLink,
+            feedbackState = feedbackState,
+            onCtaButtonClick = onCtaButtonClick
+        )
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -129,7 +152,6 @@ private fun RenderTextMessage(
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
-                    // Use ConciergeResponse composable for response messages to support markdown formatting
                     if (message.isFromUser) {
                         Text(
                             text = message.text,
@@ -137,23 +159,10 @@ private fun RenderTextMessage(
                             color = style.userMessageTextColor
                         )
                     } else {
-                        ConciergeResponse(
-                            text = message.text,
-                            sources = message.citations ?: emptyList(),
+                        AgentResponseContent(
+                            message = message,
                             handleLink = handleLink,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Show footer if we have citations or have an interaction id for providing feedback
-                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
-                        ChatFooter(
-                            citations = message.citations,
-                            uniqueCitations = message.uniqueCitations,
-                            interactionId = message.interactionId,
-                            sseComplete = message.sseComplete,
                             onFeedback = onFeedback,
-                            handleLink = handleLink,
                             feedbackState = feedbackState
                         )
                     }
@@ -161,23 +170,93 @@ private fun RenderTextMessage(
             }
         }
 
-        // Show prompt suggestions for concierge responses
-        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-            PromptSuggestions(
-                suggestions = message.promptSuggestions,
-                onSuggestionClick = onSuggestionClick
+        if (!message.isFromUser) {
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
             )
         }
+    }
+}
 
-        // Show service intent CTA button if present
-        message.ctaButton?.let { cta ->
-            if (!message.isFromUser) {
-                CtaButton(
-                    cta = cta,
-                    onClick = onCtaButtonClick
+/**
+ * Icon + message layout for agent text responses when a company icon is configured in the theme.
+ * The icon sits to the left of the card; start padding is removed from the card and its inner
+ * box so that text aligns flush with the 12dp gap between icon and content.
+ */
+@Composable
+private fun RenderTextMessageWithIcon(
+    message: ChatMessage,
+    companyIconName: String,
+    style: ConciergeStyles.MessageBubbleStyle,
+    onFeedback: (FeedbackEvent) -> Unit,
+    onSuggestionClick: (String) -> Unit,
+    handleLink: (String) -> Unit,
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = style.padding)
+                    .size(style.agentIconSize)
+            ) {
+                LocalAssetImage(
+                    source = companyIconName,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape)
                 )
             }
+            Spacer(modifier = Modifier.width(style.agentIconSpacing))
+            Column(modifier = Modifier.weight(1f)) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            top = style.padding,
+                            bottom = style.padding,
+                            end = style.padding
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = style.botMessageBackgroundColor
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+                    shape = style.shape
+                ) {
+                    Box(
+                        modifier = Modifier.padding(
+                            top = style.innerPadding,
+                            bottom = style.innerPadding,
+                            end = style.innerPadding
+                        )
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            AgentResponseContent(
+                                message = message,
+                                handleLink = handleLink,
+                                onFeedback = onFeedback,
+                                feedbackState = feedbackState
+                            )
+                        }
+                    }
+                }
+            }
         }
+
+        BotMessageSuffix(
+            message = message,
+            onSuggestionClick = onSuggestionClick,
+            onCtaButtonClick = onCtaButtonClick
+        )
     }
 }
 
@@ -257,22 +336,68 @@ private fun RenderMixedMessage(
             }
         }
 
-        // Show prompt suggestions for concierge responses
-        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-            PromptSuggestions(
-                suggestions = message.promptSuggestions,
-                onSuggestionClick = onSuggestionClick
+        if (!message.isFromUser) {
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
             )
         }
+    }
+}
 
-        // Show service intent CTA button if present
-        message.ctaButton?.let { cta ->
-            if (!message.isFromUser) {
-                CtaButton(
-                    cta = cta,
-                    onClick = onCtaButtonClick
-                )
-            }
-        }
+/**
+ * The markdown response text and citation footer for a bot message card body.
+ * Shared between [RenderTextMessage] and [RenderTextMessageWithIcon].
+ */
+@Composable
+private fun AgentResponseContent(
+    message: ChatMessage,
+    handleLink: (String) -> Unit,
+    onFeedback: (FeedbackEvent) -> Unit,
+    feedbackState: FeedbackState
+) {
+    ConciergeResponse(
+        text = message.text,
+        sources = message.citations ?: emptyList(),
+        handleLink = handleLink,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    if (message.citations != null || message.interactionId != null) {
+        ChatFooter(
+            citations = message.citations,
+            uniqueCitations = message.uniqueCitations,
+            interactionId = message.interactionId,
+            sseComplete = message.sseComplete,
+            onFeedback = onFeedback,
+            handleLink = handleLink,
+            feedbackState = feedbackState
+        )
+    }
+}
+
+/**
+ * Prompt suggestions and CTA button shown below the message card for bot responses.
+ * Shared across all bot message render functions.
+ */
+@Composable
+private fun BotMessageSuffix(
+    message: ChatMessage,
+    onSuggestionClick: (String) -> Unit,
+    onCtaButtonClick: (String) -> Unit
+) {
+    if (message.promptSuggestions.isNotEmpty()) {
+        PromptSuggestions(
+            suggestions = message.promptSuggestions,
+            onSuggestionClick = onSuggestionClick
+        )
+    }
+
+    message.ctaButton?.let { cta ->
+        CtaButton(
+            cta = cta,
+            onClick = onCtaButtonClick
+        )
     }
 }

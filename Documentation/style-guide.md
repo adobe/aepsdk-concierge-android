@@ -554,7 +554,7 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | string | `""` | Company logo (SVG string or URL) |
+| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. |
 
 ### Example
 
@@ -562,7 +562,19 @@ Icon and image asset configuration.
 {
   "assets": {
     "icons": {
-      "company": ""
+      "company": "https://example.com/brand-icon.png"
+    }
+  }
+}
+```
+
+To use a local asset instead, place the image file in your app's `assets/icons/` directory and set the value to the filename without its extension:
+
+```json
+{
+  "assets": {
+    "icons": {
+      "company": "company-logo"
     }
   }
 }
@@ -711,6 +723,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--message-border-radius` | `cssLayout.messageBorderRadius` | `Double` | `10.0` | Message bubble corner radius (dp) |
 | `--message-padding` | `cssLayout.messagePadding` | `List<Double>` | `[8, 16]` | Message content padding (dp) |
 | `--message-max-width` | `cssLayout.messageMaxWidth` | `Double?` | `null` | Max message width (dp or %) |
+| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent text messages |
+| `--agent-icon-spacing` | `cssLayout.agentIconSpacing` | `Double?` | `12.0` | Horizontal gap (dp) between the agent icon and the message card |
 
 ### Layout - Chat
 
@@ -971,6 +985,8 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--message-max-width": "100%",
     "--message-border-radius": "10px",
     "--message-padding": "8px 16px",
+    "--agent-icon-size": "39px",
+    "--agent-icon-spacing": "12px",
 
     "--chat-interface-max-width": "768px",
     "--chat-history-padding": "16px",
@@ -1179,7 +1195,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `assets.icons.company` | ⚠️ | Parsed but not rendered in any composable | - |
+| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
 
 ### Theme Tokens - Typography
 
@@ -1273,6 +1289,8 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
 | `--message-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
+| `--agent-icon-size` | ✅ | Size of agent icon next to agent messages | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
+| `--agent-icon-spacing` | ✅ | Gap between agent icon and message card | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
 | `--chat-interface-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-history-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables | - |
