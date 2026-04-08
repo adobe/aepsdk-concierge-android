@@ -202,6 +202,7 @@ internal object ConciergeStyles {
         val padding: Dp,
         val innerPadding: Dp,
         val shape: Shape,
+        val userMessageShape: Shape,
         val elevation: Dp,
         val userMessageBackgroundColor: Color,
         val botMessageBackgroundColor: Color,
@@ -218,10 +219,23 @@ internal object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val cssLayout = ConciergeTheme.tokens?.cssLayout
+            val cornerRadius = (ConciergeTheme.tokens?.cssLayout?.messageBorderRadius?.dp ?: 12.dp)
+            val defaultShape = RoundedCornerShape(cornerRadius)
+            val userMessageShape = when (ConciergeTheme.behavior?.chat?.userMessageBubbleStyle) {
+                UserMessageBubbleStyle.BALLOON -> RoundedCornerShape(
+                    topStart = cornerRadius,
+                    topEnd = cornerRadius,
+                    bottomStart = cornerRadius,
+                    bottomEnd = 0.dp
+                )
+                else -> defaultShape
+            }
+            
             return MessageBubbleStyle(
                 padding = 8.dp,
                 innerPadding = 16.dp,
-                shape = RoundedCornerShape(12.dp),
+                shape = defaultShape,
+                userMessageShape = userMessageShape,
                 elevation = 0.dp,
                 userMessageBackgroundColor = themeColors.userMessageBackground ?: themeColors.primary,
                 botMessageBackgroundColor = themeColors.conciergeMessageBackground ?: themeColors.container,
