@@ -137,6 +137,14 @@ data class ConciergeLayout(
     val ctaButtonFontWeight: Int? = null,
     val ctaButtonIconSize: Double? = null,
 
+    // Thinking animation layout
+    val thinkingDotSize: Double? = null,
+    val thinkingDotSpacing: Double? = null,
+    val thinkingBubbleBorderRadius: Double? = null,
+    val thinkingBubblePaddingHorizontal: Double? = null,
+    val thinkingBubblePaddingVertical: Double? = null,
+    val thinkingDotVerticalAlignment: String? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,
@@ -241,6 +249,24 @@ enum class FeedbackDisplayMode(val value: String) {
                 else -> MODAL
             }
         }
+    }
+}
+
+/**
+ * Dot vertical alignment within the thinking bubble from `--thinking-dot-vertical-alignment` CSS variable.
+ *
+ * - `"top"` — dots aligned to the top.
+ * - `"center"` — dots centered vertically (default).
+ * - `"bottom"` — dots aligned to the bottom.
+ */
+enum class ThinkingDotVerticalAlignment(val value: String) {
+    TOP("top"),
+    CENTER("center"),
+    BOTTOM("bottom");
+
+    companion object {
+        fun fromString(value: String): ThinkingDotVerticalAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
     }
 }
 

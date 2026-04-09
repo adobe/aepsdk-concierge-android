@@ -27,6 +27,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeIconAssets
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeAssets
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
@@ -407,5 +408,100 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithText("Learn More")
             .assertIsDisplayed()
+    }
+
+    // -----------------------------------------------------------------------
+    // Thinking state
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun chatMessageItem_thinkingState_rendersThinkingAnimation() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        // Default thinkingLabel "Thinking" should be visible
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_thinkingState_withInteractionId_doesNotCrash() {
+        // Verifies the !isThinking guard prevents ChatFooter from rendering
+        // when the message is in thinking state but already has an interactionId
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            interactionId = "test-interaction-id"
+        )
+
+        var renderSuccessful = false
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+            renderSuccessful = true
+        }
+
+        composeTestRule.waitForIdle()
+        assert(renderSuccessful)
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sources", substring = true)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun chatMessageItem_thinkingState_withCustomLoadingMessage_displaysCustomLabel() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(text = ConciergeTextStrings(loadingMessage = "Loading...")),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Loading...", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_userEmptyMessage_isNotThinkingState() {
+        // An empty message FROM the user should not render as thinking animation
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        var renderSuccessful = false
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+            renderSuccessful = true
+        }
+
+        composeTestRule.waitForIdle()
+        assert(renderSuccessful)
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertDoesNotExist()
     }
 }
