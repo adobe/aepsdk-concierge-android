@@ -19,6 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -56,7 +57,8 @@ internal fun RecommendationCards(
         exit = fadeOut(animationSpec = tween(durationMillis = 180))
     ) {
         Column(
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
             val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
