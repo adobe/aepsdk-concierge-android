@@ -125,7 +125,7 @@
   },
   "assets": {
     "icons": {
-      "company": ""
+      "company": "logo"
     }
   },
   "content": {
@@ -280,6 +280,8 @@
     "--thinking-bubble-padding-horizontal": "14px",
     "--thinking-bubble-padding-vertical": "12px",
     "--thinking-dot-vertical-alignment": "center",
-    "--thinking-dot-color": "#666666"
+    "--thinking-dot-color": "#666666",
+    "--agent-icon-size": "39px",
+    "--agent-icon-spacing": "12px"
   }
 }

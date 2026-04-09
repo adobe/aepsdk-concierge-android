@@ -18,16 +18,20 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeIconAssets
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeAssets
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import org.junit.Rule
@@ -260,6 +264,149 @@ class ChatMessageItemTest {
         }
 
         composeTestRule.onNodeWithText("Helpful response")
+            .assertIsDisplayed()
+    }
+
+    // --- Brand icon routing ---
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCompanyIconUrl_displaysMessageContent() {
+        // When assets.icons.company is a non-empty URL the icon layout path is used.
+        // The message text must still be visible.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Here is your answer."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here is your answer.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_botTextMessage_withEmptyCompanyIcon_displaysMessageContent() {
+        // When assets.icons.company is an empty string the no-icon (upstream) layout is used.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Here is your answer."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here is your answer.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_userMessage_withCompanyIconConfigured_displaysMessageContent() {
+        // User messages never use the icon layout regardless of theme configuration.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Hello from user."),
+            isFromUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Hello from user.")
+            .assertIsDisplayed()
+    }
+
+    // --- BotMessageSuffix ---
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCtaButton_displaysCtaButton() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Check this out."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "Shop Now", url = "https://example.com/shop")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Shop Now")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCtaButtonAndIcon_displaysCtaButton() {
+        // CTA button must render in BotMessageSuffix regardless of whether the icon path is used.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Check this out."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "Learn More", url = "https://example.com/learn")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Learn More")
             .assertIsDisplayed()
     }
 
