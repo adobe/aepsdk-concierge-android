@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -31,7 +32,7 @@ private const val ASSET_ICONS_FOLDER = "icons"
 private val SUPPORTED_EXTENSIONS = listOf(".png", ".webp", ".jpg", ".jpeg")
 
 @VisibleForTesting
-internal val assetBitmapCache = HashMap<String, ImageBitmap?>()
+internal val assetBitmapCache = ConcurrentHashMap<String, ImageBitmap?>()
 
 /**
  * Composable that loads and displays a company icon from either a remote URL or the app's

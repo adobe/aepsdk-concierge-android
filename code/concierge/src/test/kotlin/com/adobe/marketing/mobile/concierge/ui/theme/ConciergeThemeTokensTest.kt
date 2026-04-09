@@ -318,13 +318,41 @@ class ConciergeThemeTokensTest {
         assertEquals(UserMessageBubbleStyle.DEFAULT, UserMessageBubbleStyle.fromString("unknown"))
     }
 
+    // ========== ChatMessageAlignment Tests ==========
+
+    @Test
+    fun `ChatMessageAlignment fromString returns START for start`() {
+        assertEquals(ChatMessageAlignment.START, ChatMessageAlignment.fromString("start"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString returns CENTER for center`() {
+        assertEquals(ChatMessageAlignment.CENTER, ChatMessageAlignment.fromString("center"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString returns END for end`() {
+        assertEquals(ChatMessageAlignment.END, ChatMessageAlignment.fromString("end"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString is case insensitive`() {
+        assertEquals(ChatMessageAlignment.CENTER, ChatMessageAlignment.fromString("CENTER"))
+        assertEquals(ChatMessageAlignment.END, ChatMessageAlignment.fromString("End"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString returns START for unknown value`() {
+        assertEquals(ChatMessageAlignment.START, ChatMessageAlignment.fromString("unknown"))
+    }
+
     // ========== ConciergeChatBehavior Tests ==========
 
     @Test
     fun `ConciergeChatBehavior creates with defaults`() {
         val chat = ConciergeChatBehavior()
 
-        assertNull(chat.messageAlignment)
+        assertEquals(ChatMessageAlignment.START, chat.messageAlignment)
         assertNull(chat.messageWidth)
         assertEquals(UserMessageBubbleStyle.DEFAULT, chat.userMessageBubbleStyle)
     }
@@ -332,12 +360,12 @@ class ConciergeThemeTokensTest {
     @Test
     fun `ConciergeChatBehavior creates with custom values`() {
         val chat = ConciergeChatBehavior(
-            messageAlignment = "left",
+            messageAlignment = ChatMessageAlignment.CENTER,
             messageWidth = "100%",
             userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON
         )
 
-        assertEquals("left", chat.messageAlignment)
+        assertEquals(ChatMessageAlignment.CENTER, chat.messageAlignment)
         assertEquals("100%", chat.messageWidth)
         assertEquals(UserMessageBubbleStyle.BALLOON, chat.userMessageBubbleStyle)
     }

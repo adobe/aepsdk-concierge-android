@@ -704,7 +704,7 @@ class ThemeParserTest {
             {
                 "behavior": {
                     "chat": {
-                        "messageAlignment": "left",
+                        "messageAlignment": "center",
                         "messageWidth": "100%",
                         "userMessageBubbleStyle": "balloon"
                     }
@@ -715,7 +715,7 @@ class ThemeParserTest {
         val tokens = ThemeParser.parseThemeTokens(json)
 
         assertNotNull(tokens?.behavior?.chat)
-        assertEquals("left", tokens?.behavior?.chat?.messageAlignment)
+        assertEquals(ChatMessageAlignment.CENTER, tokens?.behavior?.chat?.messageAlignment)
         assertEquals("100%", tokens?.behavior?.chat?.messageWidth)
         assertEquals(UserMessageBubbleStyle.BALLOON, tokens?.behavior?.chat?.userMessageBubbleStyle)
     }
