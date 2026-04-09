@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextDecoration
@@ -293,5 +294,74 @@ class ConciergeStylesTest {
 
         composeTestRule.waitForIdle()
         assertEquals(Alignment.Top, style!!.dotVerticalAlignment)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultBubbleShape_is8dpRoundedCorner() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(RoundedCornerShape(8.dp), style!!.bubbleShape)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_withCssLayout_appliesBubbleBorderRadius() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingBubbleBorderRadius = 16.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(RoundedCornerShape(16.dp), style!!.bubbleShape)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultBubblePadding_is16dpHorizontal8dpVertical() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(PaddingValues(horizontal = 16.dp, vertical = 8.dp), style!!.bubblePadding)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_withCssLayout_appliesBubblePadding() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    thinkingBubblePaddingHorizontal = 20.0,
+                    thinkingBubblePaddingVertical = 12.0
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(PaddingValues(horizontal = 20.dp, vertical = 12.dp), style!!.bubblePadding)
     }
 }

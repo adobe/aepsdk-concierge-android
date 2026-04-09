@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.sp
  */
 internal object ConciergeStyles {
 
+    private const val VERTICAL_ALIGN_TOP = "top"
+    private const val VERTICAL_ALIGN_BOTTOM = "bottom"
+
     /**
      * Helper function to apply theme typography (font family and line height) to a TextStyle
      */
@@ -303,8 +306,8 @@ internal object ConciergeStyles {
             // Maps --thinking-dot-vertical-alignment: "top" → Top, "bottom" → Bottom,
             // null or any other value → CenterVertically (the safe default).
             val dotVerticalAlignment = when (cssLayout?.thinkingDotVerticalAlignment?.lowercase()) {
-                "top" -> Alignment.Top
-                "bottom" -> Alignment.Bottom
+                VERTICAL_ALIGN_TOP -> Alignment.Top
+                VERTICAL_ALIGN_BOTTOM -> Alignment.Bottom
                 else -> Alignment.CenterVertically
             }
             return ThinkingAnimationStyle(

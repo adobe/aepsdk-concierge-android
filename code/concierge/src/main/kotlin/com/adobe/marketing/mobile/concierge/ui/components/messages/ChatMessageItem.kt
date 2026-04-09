@@ -171,17 +171,6 @@ private fun RenderTextMessage(
                         AgentResponseContent(
                             message = message,
                             handleLink = handleLink,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Show footer if we have citations or have an interaction id for providing feedback
-                    if (message.hasFooterContent && !isThinking) {
-                        ChatFooter(
-                            citations = message.citations,
-                            uniqueCitations = message.uniqueCitations,
-                            interactionId = message.interactionId,
-                            sseComplete = message.sseComplete,
                             onFeedback = onFeedback,
                             feedbackState = feedbackState
                         )
