@@ -39,9 +39,6 @@ import androidx.compose.ui.unit.sp
  */
 internal object ConciergeStyles {
 
-    private const val VERTICAL_ALIGN_TOP = "top"
-    private const val VERTICAL_ALIGN_BOTTOM = "bottom"
-
     /**
      * Helper function to apply theme typography (font family and line height) to a TextStyle
      */
@@ -283,7 +280,6 @@ internal object ConciergeStyles {
         val dotSize: Dp,
         val dotSpacing: Dp,
         val textDotSpacing: Dp,
-        val dotColorAlpha: Float,
         val dotAnimationDuration: Int,
         val dotAnimationDelay: Int,
         val textStyle: TextStyle,
@@ -303,18 +299,17 @@ internal object ConciergeStyles {
             val bubbleBorderRadius = cssLayout?.thinkingBubbleBorderRadius?.dp ?: 8.dp
             val bubblePaddingH = cssLayout?.thinkingBubblePaddingHorizontal?.dp ?: 16.dp
             val bubblePaddingV = cssLayout?.thinkingBubblePaddingVertical?.dp ?: 8.dp
-            // Maps --thinking-dot-vertical-alignment: "top" → Top, "bottom" → Bottom,
-            // null or any other value → CenterVertically (the safe default).
-            val dotVerticalAlignment = when (cssLayout?.thinkingDotVerticalAlignment?.lowercase()) {
-                VERTICAL_ALIGN_TOP -> Alignment.Top
-                VERTICAL_ALIGN_BOTTOM -> Alignment.Bottom
+            val dotVerticalAlignment = when (
+                cssLayout?.thinkingDotVerticalAlignment?.let { ThinkingDotVerticalAlignment.fromString(it) }
+            ) {
+                ThinkingDotVerticalAlignment.TOP -> Alignment.Top
+                ThinkingDotVerticalAlignment.BOTTOM -> Alignment.Bottom
                 else -> Alignment.CenterVertically
             }
             return ThinkingAnimationStyle(
                 dotSize = cssLayout?.thinkingDotSize?.dp ?: 8.dp,
                 dotSpacing = cssLayout?.thinkingDotSpacing?.dp ?: 8.dp,
                 textDotSpacing = 8.dp,
-                dotColorAlpha = 0.7f,
                 dotAnimationDuration = 600,
                 dotAnimationDelay = 200,
                 textStyle = MaterialTheme.typography.bodyLarge,

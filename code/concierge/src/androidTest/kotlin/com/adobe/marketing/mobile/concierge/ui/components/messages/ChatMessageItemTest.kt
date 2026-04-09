@@ -456,6 +456,8 @@ class ChatMessageItemTest {
         assert(renderSuccessful)
         composeTestRule.onNodeWithText("Thinking", substring = true)
             .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sources", substring = true)
+            .assertDoesNotExist()
     }
 
     @Test
@@ -499,5 +501,7 @@ class ChatMessageItemTest {
 
         composeTestRule.waitForIdle()
         assert(renderSuccessful)
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertDoesNotExist()
     }
 }

@@ -253,6 +253,24 @@ enum class FeedbackDisplayMode(val value: String) {
 }
 
 /**
+ * Dot vertical alignment within the thinking bubble from `--thinking-dot-vertical-alignment` CSS variable.
+ *
+ * - `"top"` — dots aligned to the top.
+ * - `"center"` — dots centered vertically (default).
+ * - `"bottom"` — dots aligned to the bottom.
+ */
+enum class ThinkingDotVerticalAlignment(val value: String) {
+    TOP("top"),
+    CENTER("center"),
+    BOTTOM("bottom");
+
+    companion object {
+        fun fromString(value: String): ThinkingDotVerticalAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
+    }
+}
+
+/**
  * Product card behavior: ACTION_BUTTON = image overlay with action buttons,
  * PRODUCT_DETAIL = structured layout (image, badge, title, subtitle, price).
  */

@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.theme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -363,5 +364,42 @@ class ConciergeStylesTest {
 
         composeTestRule.waitForIdle()
         assertEquals(PaddingValues(horizontal = 20.dp, vertical = 12.dp), style!!.bubblePadding)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultDotColor_fallsBackToPrimaryWithAlpha() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val expected = LightConciergeColors.primary.copy(alpha = 0.7f)
+        assertEquals(expected, style!!.dotColor)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_customDotColor_takesOverDefault() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    thinking = ConciergeThinkingColors(dotColor = "#FF0000")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Color(0xFFFF0000), style!!.dotColor)
     }
 }
