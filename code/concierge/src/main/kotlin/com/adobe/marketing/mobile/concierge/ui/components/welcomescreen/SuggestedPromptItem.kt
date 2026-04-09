@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
@@ -99,22 +100,14 @@ internal fun SuggestedPromptItem(
                 PromptImage(prompt = prompt, style = style)
                 Spacer(modifier = Modifier.width(style.promptImageSpacing))
             } else {
+                // TODO: Add style controls for the compact chip layout (icon size, spacing, etc.) if needed in the future
                 // Compact chip layout: small icon only
-                if (prompt.imageVector != null) {
-                    Icon(
-                        imageVector = prompt.imageVector,
-                        contentDescription = null,
-                        tint = style.promptTextColor.copy(alpha = 0.6f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.sparkle),
-                        contentDescription = null,
-                        tint = style.promptTextColor.copy(alpha = 0.6f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Icon(
+                    painter = promptIconPainter(prompt.imageVector),
+                    contentDescription = null,
+                    tint = style.promptTextColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
+                )
                 Spacer(modifier = Modifier.width(style.promptImageSpacing))
             }
 
@@ -129,6 +122,10 @@ internal fun SuggestedPromptItem(
         }
     }
 }
+
+@Composable
+private fun promptIconPainter(imageVector: ImageVector?): Painter =
+    imageVector?.let { rememberVectorPainter(it) } ?: painterResource(R.drawable.sparkle)
 
 @Composable
 private fun PromptImage(
@@ -157,14 +154,8 @@ private fun PromptImage(
                 modifier = Modifier.size(style.promptImageSize),
                 contentScale = ContentScale.Crop
             )
-            prompt.imageVector != null -> Icon(
-                imageVector = prompt.imageVector,
-                contentDescription = null,
-                tint = style.promptTextColor.copy(alpha = 0.6f),
-                modifier = Modifier.size(style.promptImageSize * 0.6f)
-            )
             else -> Icon(
-                painter = painterResource(R.drawable.sparkle),
+                painter = promptIconPainter(prompt.imageVector),
                 contentDescription = null,
                 tint = style.promptTextColor.copy(alpha = 0.6f),
                 modifier = Modifier.size(style.promptImageSize * 0.6f)
