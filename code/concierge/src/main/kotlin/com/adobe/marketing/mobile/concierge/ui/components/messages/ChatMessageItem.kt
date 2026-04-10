@@ -42,6 +42,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSugg
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.theme.ChatMessageAlignment
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
@@ -106,6 +107,7 @@ private fun RenderTextMessage(
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
 
     if (companyIconName != null) {
         RenderTextMessageWithIcon(
@@ -131,7 +133,11 @@ private fun RenderTextMessage(
                     if (message.isFromUser) {
                         Modifier.wrapContentWidth(Alignment.End)
                     } else {
-                        Modifier
+                        when (messageAlignment) {
+                            ChatMessageAlignment.CENTER -> Modifier.wrapContentWidth(Alignment.CenterHorizontally)
+                            ChatMessageAlignment.END -> Modifier.wrapContentWidth(Alignment.End)
+                            ChatMessageAlignment.START -> Modifier
+                        }
                     }
                 )
                 .padding(style.padding),
@@ -273,6 +279,7 @@ private fun RenderMixedMessage(
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
 
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -280,6 +287,13 @@ private fun RenderMixedMessage(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .then(
+                    when (messageAlignment) {
+                        ChatMessageAlignment.CENTER -> Modifier.wrapContentWidth(Alignment.CenterHorizontally)
+                        ChatMessageAlignment.END -> Modifier.wrapContentWidth(Alignment.End)
+                        ChatMessageAlignment.START -> Modifier
+                    }
+                )
                 .padding(style.padding),
             colors = CardDefaults.cardColors(
                 containerColor = style.botMessageBackgroundColor

@@ -262,7 +262,7 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.chat.messageAlignment` | string | `"left"` | Message alignment (`"left"`, `"center"`, `"right"`) |
+| `behavior.chat.messageAlignment` | string | `"start"` | Agent message alignment (`"start"`, `"center"`, `"end"`). Note: theme JSONs using legacy `"left"` values are treated as `"start"`. |
 | `behavior.chat.messageWidth` | string | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
 | `behavior.chat.userMessageBubbleStyle` | string | `"default"` | User message bubble shape. `"default"` = all corners rounded; `"balloon"` = rounded except bottom-right corner is square (speech balloon style). Corner radius is controlled by `--message-border-radius` (default `12dp`). |
 
@@ -1125,7 +1125,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
-| `behavior.chat.messageAlignment` | ⚠️ | Parsed but not implemented | - |
+| `behavior.chat.messageAlignment` | ✅ | `"start"` (default, full-width), `"center"`, or `"end"` alignment for agent message bubbles | `ChatMessageItem` |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.userMessageBubbleStyle` | ✅ | `"default"` (all corners rounded) or `"balloon"` (square bottom-right corner) | `ChatMessageItem` |
 | `behavior.privacyNotice.title` | ⚠️ | Parsed but not implemented | - |
