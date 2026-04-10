@@ -682,7 +682,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 )
                 updateAssistantMessageContent(
                     MessageContent.Text(parsedMessage.messageContent),
-                    parsedMessage.promptSuggestions,
+                    emptyList(),
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
                     sseComplete = true
@@ -697,7 +697,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 )
                 removeLastAssistantPlaceholder()
             }
-            appendOrderedElementMessages(parsedMessage.orderedElements)
+            appendOrderedElementMessages(parsedMessage.orderedElements, parsedMessage.promptSuggestions)
         } else {
             // Legacy path: text-only or mixed message
             val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
@@ -732,7 +732,10 @@ class ConciergeChatViewModel : AndroidViewModel {
      * All cards are batched into one Mixed message at the position of the first Card element.
      * Each CTA becomes its own CtaButton message.
      */
-    private fun appendOrderedElementMessages(orderedElements: List<ParsedMultimodalItem>) {
+    private fun appendOrderedElementMessages(
+        orderedElements: List<ParsedMultimodalItem>,
+        promptSuggestions: List<String> = emptyList()
+    ) {
         val cardElements = orderedElements
             .filterIsInstance<ParsedMultimodalItem.Card>()
             .map { it.element }
@@ -756,7 +759,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                             content = MessageContent.Mixed(text = "", multimodalElements = cardElements),
                             isFromUser = false,
                             timestamp = System.currentTimeMillis(),
-                            sseComplete = true
+                            sseComplete = true,
+                            promptSuggestions = promptSuggestions
                         )
                         _messages.update { it + cardMessage }
                     }

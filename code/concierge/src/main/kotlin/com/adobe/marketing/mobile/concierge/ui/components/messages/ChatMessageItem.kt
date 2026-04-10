@@ -252,11 +252,14 @@ private fun RenderTextMessageWithIcon(
             }
         }
 
-        BotMessageSuffix(
-            message = message,
-            onSuggestionClick = onSuggestionClick,
-            onCtaButtonClick = onCtaButtonClick
-        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(modifier = Modifier.width(style.agentIconSize + style.agentIconSpacing))
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
+            )
+        }
     }
 }
 
@@ -273,14 +276,25 @@ private fun RenderMixedMessage(
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
+    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
 
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (companyIconName != null) Modifier.padding(start = style.agentIconSize + style.agentIconSpacing)
+                else Modifier
+            )
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(style.padding),
+                .padding(
+                    top = if (companyIconName != null) 0.dp else style.padding,
+                    bottom = style.padding,
+                    end = style.padding,
+                    start = if (companyIconName != null) 0.dp else style.padding
+                ),
             colors = CardDefaults.cardColors(
                 containerColor = style.botMessageBackgroundColor
             ),
@@ -288,12 +302,16 @@ private fun RenderMixedMessage(
             shape = style.shape
         ) {
             Box(
-                modifier = Modifier.padding(style.innerPadding)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        top = if (companyIconName != null) 0.dp else style.innerPadding,
+                        bottom = style.innerPadding,
+                        end = style.innerPadding,
+                        start = if (companyIconName != null) 0.dp else style.innerPadding
+                    )
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     // Render text content if present
                     if (content.text.isNotEmpty()) {
                         ConciergeResponse(

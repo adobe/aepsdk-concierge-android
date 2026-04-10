@@ -193,8 +193,7 @@ data class ConciergeThemeBehavior(
 
 data class ConciergePromptSuggestionsBehavior(
     val itemMaxLines: Int = 1,
-    val showHeader: Boolean = false,
-    val alignToMessage: Boolean = false
+    val showHeader: Boolean = false
 )
 
 /**
@@ -296,8 +295,27 @@ data class ConciergeCitationsBehavior(
     val showLinkIcon: Boolean = false
 )
 
+/**
+ * Horizontal alignment of product cards within their display area.
+ *
+ * - `"start"` — left-aligned.
+ * - `"center"` — centered (default).
+ * - `"end"` — right-aligned.
+ */
+enum class CardsAlignment(val value: String) {
+    START("start"),
+    CENTER("center"),
+    END("end");
+
+    companion object {
+        fun fromString(value: String): CardsAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
+    }
+}
+
 data class ConciergeProductCardBehavior(
-    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON
+    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON,
+    val cardsAlignment: CardsAlignment = CardsAlignment.CENTER
 )
 
 data class ConciergeMultimodalCarouselBehavior(

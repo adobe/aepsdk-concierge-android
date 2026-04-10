@@ -147,4 +147,42 @@ class ConciergeStylesTest {
         )
         assertEquals(expectedUserShape, style!!.userMessageShape)
     }
+
+    @Test
+    fun messageBubbleStyle_defaultAgentIconDimensions_usedWhenTokensAbsent() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(39.dp, style!!.agentIconSize)
+        assertEquals(12.dp, style!!.agentIconSpacing)
+    }
+
+    @Test
+    fun messageBubbleStyle_agentIconDimensions_readFromCssLayoutTokens() {
+        var style: ConciergeStyles.MessageBubbleStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(agentIconSize = 48.0, agentIconSpacing = 16.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.messageBubbleStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(48.dp, style!!.agentIconSize)
+        assertEquals(16.dp, style!!.agentIconSpacing)
+    }
 }

@@ -248,6 +248,7 @@ Feature toggles and interaction configuration.
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
 | `behavior.productCard.cardStyle` | string | `"actionButton"` | Product card layout. `"actionButton"` = image overlay with primary/secondary action buttons; `"productDetail"` = extended card with image, badge, name, subtitle, and price. |
+| `behavior.productCard.cardsAlignment` | string | `"center"` | Horizontal alignment of product cards within their display area. `"start"` = left-aligned; `"center"` = centered; `"end"` = right-aligned. |
 
 ### Input
 
@@ -301,7 +302,6 @@ Feature toggles and interaction configuration.
 |----------|------|---------|-------------|
 | `behavior.promptSuggestions.itemMaxLines` | number | `1` | Max lines for suggestion chip text before ellipsis. |
 | `behavior.promptSuggestions.showHeader` | boolean | `false` | Show a "Suggestions" header label above the chips. Label text is configurable via `text["suggestions.header"]`. |
-| `behavior.promptSuggestions.alignToMessage` | boolean | `false` | Align the suggestion chips to the message bubble edges. When `false`, uses the default offset. |
 
 > **Tip:** To hide the header subtitle, set `text["header.subtitle"]` to `""`. The subtitle is automatically hidden when its text is blank.
 
@@ -315,7 +315,8 @@ Feature toggles and interaction configuration.
       "carouselStyle": "scroll"
     },
     "productCard": {
-      "cardStyle": "productDetail"
+      "cardStyle": "productDetail",
+      "cardsAlignment": "center"
     },
     "input": {
       "enableVoiceInput": true,
@@ -347,8 +348,7 @@ Feature toggles and interaction configuration.
     },
     "promptSuggestions": {
       "itemMaxLines": 1,
-      "showHeader": true,
-      "alignToMessage": true
+      "showHeader": true
     }
   }
 }
@@ -554,7 +554,7 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. |
+| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, ALL agent response elements — message text, product cards, and prompt suggestion chips — are automatically aligned to the icon column (flush with the right edge of the icon). Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. |
 
 ### Example
 
@@ -723,8 +723,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--message-border-radius` | `cssLayout.messageBorderRadius` | `Double` | `10.0` | Message bubble corner radius (dp) |
 | `--message-padding` | `cssLayout.messagePadding` | `List<Double>` | `[8, 16]` | Message content padding (dp) |
 | `--message-max-width` | `cssLayout.messageMaxWidth` | `Double?` | `null` | Max message width (dp or %) |
-| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent text messages |
-| `--agent-icon-spacing` | `cssLayout.agentIconSpacing` | `Double?` | `12.0` | Horizontal gap (dp) between the agent icon and the message card |
+| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent messages. Also determines the start offset applied to product cards and prompt suggestion chips so they align with the message text column. |
+| `--agent-icon-spacing` | `cssLayout.agentIconSpacing` | `Double?` | `12.0` | Horizontal gap (dp) between the agent icon and the message card. Also contributes to the start offset of product cards and prompt suggestion chips. |
 
 ### Layout - Chat
 
@@ -1121,6 +1121,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.cardClickAction` | ⚠️ | Parsed but not implemented in carousel composables | - |
 | `behavior.multimodalCarousel.carouselStyle` | ✅ | Switches between paged (prev/next/dots) and continuous scroll | `ProductCarousel` |
 | `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
+| `behavior.productCard.cardsAlignment` | ✅ | Controls horizontal alignment of product cards (`"start"`, `"center"`, `"end"`) | `RecommendationCards` |
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
@@ -1195,7 +1196,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
+| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles. When set, product cards and prompt suggestion chips are automatically offset to align with the agent text column. | `ChatMessageItem` (`RenderTextMessageWithIcon`, `RenderMixedMessage`) |
 
 ### Theme Tokens - Typography
 
@@ -1416,6 +1417,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `behavior.input.enableVoiceInput` - Show/hide microphone button
 - `behavior.input.sendButtonStyle` - `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow)
 - `behavior.productCard.cardStyle` - Use `"productDetail"` for extended product cards (image, badge, name, subtitle, price)
+- `behavior.productCard.cardsAlignment` - Horizontal alignment of product cards: `"start"` (left), `"center"` (default), or `"end"` (right)
 - `behavior.multimodalCarousel.carouselStyle` - Use `"paged"` for prev/next/dots or `"scroll"` for continuous scroll
 - `behavior.welcomeCard.closeButtonAlignment` - Close button position (`"start"` or `"end"`)
 - `behavior.welcomeCard.promptFullWidth` - Full-width cards vs compact pill chips

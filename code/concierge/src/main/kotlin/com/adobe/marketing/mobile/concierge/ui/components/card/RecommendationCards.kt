@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.CardsAlignment
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ProductCardStyle
 import com.adobe.marketing.mobile.services.Log
@@ -56,9 +57,14 @@ internal fun RecommendationCards(
         enter = fadeIn(animationSpec = tween(durationMillis = 220)),
         exit = fadeOut(animationSpec = tween(durationMillis = 180))
     ) {
+        val horizontalAlignment = when (ConciergeTheme.behavior?.productCard?.cardsAlignment) {
+            CardsAlignment.CENTER -> Alignment.CenterHorizontally
+            CardsAlignment.END -> Alignment.End
+            else -> Alignment.Start
+        }
         Column(
             modifier = modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = horizontalAlignment
         ) {
             val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
             val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL

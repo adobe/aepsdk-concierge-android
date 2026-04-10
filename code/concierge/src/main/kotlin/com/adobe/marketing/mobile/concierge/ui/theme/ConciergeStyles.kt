@@ -635,13 +635,10 @@ internal object ConciergeStyles {
             val contentColor = themeColors.conciergeMessageText ?: themeColors.onSurface
             val textColor = themeColors.suggestionText ?: contentColor
             val behavior = ConciergeTheme.behavior?.promptSuggestions
-            val bubbleStyle = messageBubbleStyle
-            val alignToMessage = behavior?.alignToMessage ?: false
-            val alignedPadding = bubbleStyle.padding + bubbleStyle.innerPadding
             return PromptSuggestionsStyle(
                 containerTopPadding = 6.dp,
-                containerStartPadding = if (alignToMessage) alignedPadding else 12.dp,
-                containerEndPadding = if (alignToMessage) alignedPadding else 48.dp,
+                containerStartPadding = 12.dp,
+                containerEndPadding = 48.dp,
                 itemSpacing = 8.dp,
                 itemShape = RoundedCornerShape(ConciergeTheme.tokens?.cssLayout?.suggestionItemBorderRadius?.dp ?: 10.dp),
                 itemBackgroundColor = themeColors.suggestionBackground ?: themeColors.container,

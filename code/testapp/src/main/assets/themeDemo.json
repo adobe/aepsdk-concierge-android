@@ -14,7 +14,8 @@
       "carouselStyle": "scroll"
     },
     "productCard": {
-      "cardStyle": "productDetail"
+      "cardStyle": "productDetail",
+      "cardsAlignment": "start"
     },
     "input": {
       "enableVoiceInput": true,
@@ -46,8 +47,7 @@
     },
     "promptSuggestions": {
       "itemMaxLines": 1,
-      "showHeader": true,
-      "alignToMessage": true
+      "showHeader": true
     }
   },
   "disclaimer": {
