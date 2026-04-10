@@ -440,7 +440,7 @@ internal object ThemeParser {
         val chatTyped = chatMap as? MutableMap<String?, Any?>
         val chat = chatTyped?.let {
             ConciergeChatBehavior(
-                messageAlignment = DataReader.optString(it, "messageAlignment", null),
+                messageAlignment = ChatMessageAlignment.fromString(DataReader.optString(it, "messageAlignment", "start") ?: "start"),
                 messageWidth = DataReader.optString(it, "messageWidth", null),
                 userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default") ?: "default")
             )

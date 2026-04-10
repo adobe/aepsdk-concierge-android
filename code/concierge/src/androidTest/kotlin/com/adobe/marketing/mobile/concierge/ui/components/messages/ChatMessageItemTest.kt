@@ -410,6 +410,58 @@ class ChatMessageItemTest {
             .assertIsDisplayed()
     }
 
+    // --- RenderMixedMessage + BotMessageSuffix ---
+
+    @Test
+    fun chatMessageItem_botMixedMessage_withCtaButton_displaysBothTextAndCta() {
+        // RenderMixedMessage was refactored to use BotMessageSuffix for prompt suggestions
+        // and CTA button. Verify the CTA is rendered via BotMessageSuffix in the mixed path.
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "Here are some options.",
+                multimodalElements = listOf(
+                    MultimodalElement(id = "p1", title = "Product One", url = "https://example.com/1.jpg")
+                )
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "View All", url = "https://example.com/all")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here are some options.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("View All").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_botMixedMessage_withPromptSuggestions_displaysSuggestions() {
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "Try one of these.",
+                multimodalElements = emptyList()
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            promptSuggestions = listOf("Tell me more", "Show deals")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Tell me more").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Show deals").assertIsDisplayed()
+    }
+
     // -----------------------------------------------------------------------
     // Thinking state
     // -----------------------------------------------------------------------

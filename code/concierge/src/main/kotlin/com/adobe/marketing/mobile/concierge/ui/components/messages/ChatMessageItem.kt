@@ -43,8 +43,21 @@ import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSugg
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.theme.ChatMessageAlignment
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+
+/**
+ * Maps a [ChatMessageAlignment] to the Compose [Modifier] that produces the correct
+ * horizontal alignment for a bot message card. The pattern is consistent across all
+ * render functions: [fillMaxWidth] reserves the full layout slot so the list is stable,
+ * and [wrapContentWidth] then shrinks the card to its content and anchors it.
+ */
+private fun ChatMessageAlignment.toModifier(): Modifier = when (this) {
+    ChatMessageAlignment.CENTER -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+    ChatMessageAlignment.END -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+    ChatMessageAlignment.START -> Modifier.fillMaxWidth()
+}
 
 /**
  * Component that displays a single chat message.
@@ -109,12 +122,15 @@ private fun RenderTextMessage(
     val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
     val isThinking = message.isThinking
     val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
 
     if (companyIconName != null) {
         RenderTextMessageWithIcon(
             message = message,
             companyIconName = companyIconName,
+            isThinking = isThinking,
             style = style,
+            thinkingStyle = thinkingStyle,
             onFeedback = onFeedback,
             onSuggestionClick = onSuggestionClick,
             handleLink = handleLink,
@@ -132,8 +148,8 @@ private fun RenderTextMessage(
                 .then(
                     when {
                         message.isFromUser -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
-                        isThinking -> Modifier
-                        else -> Modifier.fillMaxWidth()
+                        isThinking -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.Start)
+                        else -> messageAlignment.toModifier()
                     }
                 )
                 .padding(style.padding),
@@ -198,7 +214,9 @@ private fun RenderTextMessage(
 private fun RenderTextMessageWithIcon(
     message: ChatMessage,
     companyIconName: String,
+    isThinking: Boolean,
     style: ConciergeStyles.MessageBubbleStyle,
+    thinkingStyle: ConciergeStyles.ThinkingAnimationStyle,
     onFeedback: (FeedbackEvent) -> Unit,
     onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
@@ -230,6 +248,9 @@ private fun RenderTextMessageWithIcon(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (isThinking) Modifier.wrapContentWidth(Alignment.Start) else Modifier
+                        )
                         .padding(
                             top = style.padding,
                             bottom = style.padding,
@@ -239,22 +260,28 @@ private fun RenderTextMessageWithIcon(
                         containerColor = style.botMessageBackgroundColor
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-                    shape = style.shape
+                    shape = if (isThinking) thinkingStyle.bubbleShape else style.shape
                 ) {
                     Box(
                         modifier = Modifier.padding(
-                            top = style.innerPadding,
-                            bottom = style.innerPadding,
-                            end = style.innerPadding
+                            if (isThinking) thinkingStyle.bubblePadding else PaddingValues(
+                                top = style.innerPadding,
+                                bottom = style.innerPadding,
+                                end = style.innerPadding
+                            )
                         )
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            AgentResponseContent(
-                                message = message,
-                                handleLink = handleLink,
-                                onFeedback = onFeedback,
-                                feedbackState = feedbackState
-                            )
+                        if (isThinking) {
+                            ConciergeThinking()
+                        } else {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                AgentResponseContent(
+                                    message = message,
+                                    handleLink = handleLink,
+                                    onFeedback = onFeedback,
+                                    feedbackState = feedbackState
+                                )
+                            }
                         }
                     }
                 }
@@ -282,13 +309,14 @@ private fun RenderMixedMessage(
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
+                .then(messageAlignment.toModifier())
                 .padding(style.padding),
             colors = CardDefaults.cardColors(
                 containerColor = style.botMessageBackgroundColor

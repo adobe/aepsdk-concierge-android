@@ -46,7 +46,6 @@ internal fun ConciergeThinking(
     ) {
         if (style.thinkingText.isNotEmpty()) {
             Text(
-                modifier = Modifier.weight(1f),
                 text = style.thinkingText,
                 style = style.textStyle,
                 color = style.textColor
