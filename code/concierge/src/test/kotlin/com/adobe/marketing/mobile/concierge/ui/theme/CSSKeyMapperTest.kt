@@ -936,4 +936,115 @@ class CSSKeyMapperTest {
         val result = CSSKeyMapper.apply("--suggestion-text-color", "#333333", emptyTheme)
         assertEquals("#333333", result.colors?.promptSuggestion?.textColor)
     }
+
+    // -----------------------------------------------------------------------
+    // Colors - Thinking Animation
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps thinking-dot-color`() {
+        val result = CSSKeyMapper.apply("--thinking-dot-color", "#FF0000", emptyTheme)
+        assertNotNull(result.colors?.thinking?.dotColor)
+        assertEquals("#FF0000", result.colors?.thinking?.dotColor)
+    }
+
+    @Test
+    fun `apply preserves existing colors when setting thinking-dot-color`() {
+        val withPrimary = CSSKeyMapper.apply("--color-primary", "#EB1000", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--thinking-dot-color", "#888888", withPrimary)
+        assertEquals("#EB1000", withBoth.colors?.primaryColors?.primary)
+        assertEquals("#888888", withBoth.colors?.thinking?.dotColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains thinking-dot-color`() {
+        assertTrue(CSSKeyMapper.supportedCSSKeys.contains("thinking-dot-color"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Layout - Thinking Animation
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps thinking-dot-size`() {
+        val result = CSSKeyMapper.apply("--thinking-dot-size", "8px", emptyTheme)
+        assertEquals(8.0, result.cssLayout?.thinkingDotSize)
+    }
+
+    @Test
+    fun `apply maps thinking-dot-spacing`() {
+        val result = CSSKeyMapper.apply("--thinking-dot-spacing", "6px", emptyTheme)
+        assertEquals(6.0, result.cssLayout?.thinkingDotSpacing)
+    }
+
+    @Test
+    fun `apply maps thinking-bubble-border-radius`() {
+        val result = CSSKeyMapper.apply("--thinking-bubble-border-radius", "16px", emptyTheme)
+        assertEquals(16.0, result.cssLayout?.thinkingBubbleBorderRadius)
+    }
+
+    @Test
+    fun `apply maps thinking-bubble-padding-horizontal`() {
+        val result = CSSKeyMapper.apply("--thinking-bubble-padding-horizontal", "14px", emptyTheme)
+        assertEquals(14.0, result.cssLayout?.thinkingBubblePaddingHorizontal)
+    }
+
+    @Test
+    fun `apply maps thinking-bubble-padding-vertical`() {
+        val result = CSSKeyMapper.apply("--thinking-bubble-padding-vertical", "10px", emptyTheme)
+        assertEquals(10.0, result.cssLayout?.thinkingBubblePaddingVertical)
+    }
+
+    @Test
+    fun `apply maps thinking-dot-vertical-alignment`() {
+        val result = CSSKeyMapper.apply("--thinking-dot-vertical-alignment", "center", emptyTheme)
+        assertEquals("center", result.cssLayout?.thinkingDotVerticalAlignment)
+    }
+
+    @Test
+    fun `apply maps thinking-dot-vertical-alignment top`() {
+        val result = CSSKeyMapper.apply("--thinking-dot-vertical-alignment", "top", emptyTheme)
+        assertEquals("top", result.cssLayout?.thinkingDotVerticalAlignment)
+    }
+
+    @Test
+    fun `apply maps thinking-dot-vertical-alignment bottom`() {
+        val result = CSSKeyMapper.apply("--thinking-dot-vertical-alignment", "bottom", emptyTheme)
+        assertEquals("bottom", result.cssLayout?.thinkingDotVerticalAlignment)
+    }
+
+    @Test
+    fun `apply maps all thinking animation layout properties independently`() {
+        var theme = CSSKeyMapper.apply("--thinking-dot-size", "8px", emptyTheme)
+        theme = CSSKeyMapper.apply("--thinking-dot-spacing", "6px", theme)
+        theme = CSSKeyMapper.apply("--thinking-bubble-border-radius", "16px", theme)
+        theme = CSSKeyMapper.apply("--thinking-bubble-padding-horizontal", "14px", theme)
+        theme = CSSKeyMapper.apply("--thinking-bubble-padding-vertical", "10px", theme)
+        theme = CSSKeyMapper.apply("--thinking-dot-vertical-alignment", "center", theme)
+        assertEquals(8.0, theme.cssLayout?.thinkingDotSize)
+        assertEquals(6.0, theme.cssLayout?.thinkingDotSpacing)
+        assertEquals(16.0, theme.cssLayout?.thinkingBubbleBorderRadius)
+        assertEquals(14.0, theme.cssLayout?.thinkingBubblePaddingHorizontal)
+        assertEquals(10.0, theme.cssLayout?.thinkingBubblePaddingVertical)
+        assertEquals("center", theme.cssLayout?.thinkingDotVerticalAlignment)
+    }
+
+    @Test
+    fun `apply preserves existing layout when adding thinking animation layout`() {
+        val withInput = CSSKeyMapper.apply("--input-height-mobile", "52px", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--thinking-dot-size", "8px", withInput)
+        assertEquals(52.0, withBoth.cssLayout?.inputHeight)
+        assertEquals(8.0, withBoth.cssLayout?.thinkingDotSize)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains thinking animation layout keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("thinking-dot-size"))
+        assertTrue(keys.contains("thinking-dot-spacing"))
+        assertTrue(keys.contains("thinking-bubble-border-radius"))
+        assertTrue(keys.contains("thinking-bubble-padding-horizontal"))
+        assertTrue(keys.contains("thinking-bubble-padding-vertical"))
+        assertTrue(keys.contains("thinking-dot-vertical-alignment"))
+    }
 }

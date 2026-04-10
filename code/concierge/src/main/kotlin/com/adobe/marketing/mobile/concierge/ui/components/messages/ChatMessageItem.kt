@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -106,6 +107,8 @@ private fun RenderTextMessage(
     onCtaButtonClick: (String) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
+    val isThinking = message.isThinking
     val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
 
@@ -128,15 +131,14 @@ private fun RenderTextMessage(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
                 .then(
-                    if (message.isFromUser) {
-                        Modifier.wrapContentWidth(Alignment.End)
-                    } else {
-                        when (messageAlignment) {
-                            ChatMessageAlignment.CENTER -> Modifier.wrapContentWidth(Alignment.CenterHorizontally)
-                            ChatMessageAlignment.END -> Modifier.wrapContentWidth(Alignment.End)
-                            ChatMessageAlignment.START -> Modifier
+                    when {
+                        message.isFromUser -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+                        isThinking -> Modifier
+                        else -> when (messageAlignment) {
+                            ChatMessageAlignment.CENTER -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+                            ChatMessageAlignment.END -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+                            ChatMessageAlignment.START -> Modifier.fillMaxWidth()
                         }
                     }
                 )
@@ -149,14 +151,19 @@ private fun RenderTextMessage(
                 }
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-            shape = if (message.isFromUser) style.userMessageShape else style.shape
+            shape = when {
+                isThinking -> thinkingStyle.bubbleShape
+                message.isFromUser -> style.userMessageShape
+                else -> style.shape
+            }
         ) {
             Box(
-                modifier = Modifier.padding(style.innerPadding)
+                modifier = Modifier.padding(
+                    if (isThinking) thinkingStyle.bubblePadding else PaddingValues(style.innerPadding)
+                )
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = if (isThinking) Modifier else Modifier.fillMaxWidth()
                 ) {
                     if (message.isFromUser) {
                         Text(
@@ -164,6 +171,8 @@ private fun RenderTextMessage(
                             style = style.textStyle,
                             color = style.userMessageTextColor
                         )
+                    } else if (isThinking) {
+                        ConciergeThinking()
                     } else {
                         AgentResponseContent(
                             message = message,
@@ -335,7 +344,7 @@ private fun RenderMixedMessage(
                     }
 
                     // Show footer if we have citations or have an interaction id for providing feedback
-                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
+                    if (message.hasFooterContent) {
                         ChatFooter(
                             citations = message.citations,
                             uniqueCitations = message.uniqueCitations,

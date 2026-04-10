@@ -687,6 +687,12 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 |--------------|-----------------|------|---------|-------------|
 | `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
 
+### Colors - Thinking Animation
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--thinking-dot-color` | `colors.thinking.dotColor` | `String?` | `null` (falls back to `--color-primary` at 70% opacity) | Color of the thinking indicator dots (hex) |
+
 ### Colors - Extended Product Cards
 
 Used when `behavior.productCard.cardStyle` is `"productDetail"`.
@@ -701,6 +707,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--product-card-badge-text-color` | `cssLayout.productCardBadgeTextColor` | `String` | `"#FFFFFF"` | Badge text color (hex) |
 | `--product-card-badge-background-color` | `cssLayout.productCardBadgeBackgroundColor` | `String` | primary color | Badge background (hex) |
 | `--product-card-was-price-color` | `cssLayout.productCardWasPriceColor` | `String` | `"#6E6E6E"` | "Was" price text color (hex) |
+
+> **Layout value format:** All layout measurements are specified as CSS strings in the JSON theme object (e.g. `"8px"`, `"16px"`) and integer quantities as numeric strings (e.g. `"700"`, `"400"`). The SDK parses these into their internal Kotlin types (`Double` for dp values, `Int` for weights and orders). The **Type** and **Default** columns below reflect the internal representation.
 
 ### Layout - Input
 
@@ -820,6 +828,17 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--welcome-prompt-padding` | `cssLayout.welcomePromptPadding` | `Double` | `0.0` | Inner padding for prompt pills (dp) |
 | `--welcome-prompt-corner-radius` | `cssLayout.welcomePromptCornerRadius` | `Double` | `8.0` | Prompt pill corner radius (dp) |
 | `--suggestion-item-border-radius` | `cssLayout.suggestionItemBorderRadius` | `Double` | `10.0` | Prompt suggestion chip corner radius (dp) |
+
+### Layout - Thinking Animation
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--thinking-dot-size` | `cssLayout.thinkingDotSize` | `Double` | `8.0` | Diameter of each thinking indicator dot (dp) |
+| `--thinking-dot-spacing` | `cssLayout.thinkingDotSpacing` | `Double` | `8.0` | Space between thinking indicator dots (dp) |
+| `--thinking-bubble-border-radius` | `cssLayout.thinkingBubbleBorderRadius` | `Double` | `8.0` | Corner radius of the thinking bubble (dp) |
+| `--thinking-bubble-padding-horizontal` | `cssLayout.thinkingBubblePaddingHorizontal` | `Double` | `16.0` | Horizontal inner padding of the thinking bubble (dp) |
+| `--thinking-bubble-padding-vertical` | `cssLayout.thinkingBubblePaddingVertical` | `Double` | `8.0` | Vertical inner padding of the thinking bubble (dp) |
+| `--thinking-dot-vertical-alignment` | `cssLayout.thinkingDotVerticalAlignment` | `String` | `"center"` | Vertical alignment of the thinking dots row: `"top"`, `"center"`, or `"bottom"` |
 
 ---
 
@@ -963,6 +982,13 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
     "--suggestion-background-color": "#F0F0F0",
     "--suggestion-text-color": "#131313",
     "--suggestion-item-border-radius": "10px",
+    "--thinking-dot-color": "#1B6B58",
+    "--thinking-dot-size": "8px",
+    "--thinking-dot-spacing": "8px",
+    "--thinking-bubble-border-radius": "8px",
+    "--thinking-bubble-padding-horizontal": "16px",
+    "--thinking-bubble-padding-vertical": "8px",
+    "--thinking-dot-vertical-alignment": "center",
     "--welcome-title-bottom-spacing": "6px",
     "--welcome-prompts-top-spacing": "12px",
     "--font-family": "",
@@ -1218,7 +1244,14 @@ These colors are used internally by composables but cannot be customized in them
 
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
-| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation |
+| `--thinking-dot-color` | ✅ | Thinking indicator dot color | `ConciergeThinking` |
+| `--thinking-dot-size` | ✅ | Thinking indicator dot size | `ConciergeThinking` |
+| `--thinking-dot-spacing` | ✅ | Spacing between thinking dots | `ConciergeThinking` |
+| `--thinking-bubble-border-radius` | ✅ | Thinking bubble corner radius | `ChatMessageItem` |
+| `--thinking-bubble-padding-horizontal` | ✅ | Thinking bubble horizontal padding | `ChatMessageItem` |
+| `--thinking-bubble-padding-vertical` | ✅ | Thinking bubble vertical padding | `ChatMessageItem` |
+| `--thinking-dot-vertical-alignment` | ✅ | Vertical alignment of the thinking dots row | `ConciergeThinking` |
+| `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation (fallback when `--thinking-dot-color` not set) |
 | `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
 | `--color-container` | ✅ | Background for cards and container elements; fallback for prompt suggestion chips when `--suggestion-background-color` is not set | `ProductCard`, `PromptSuggestions`, `ChatInputPanel` (fallback) |
 | `--main-container-background` | ✅ | Main chat screen, welcome card, and feedback dialog background | `ChatScreen`, `WelcomeCard`, `FeedbackDialog` |
@@ -1370,7 +1403,7 @@ The following colors from `LightConciergeColors` / `DarkConciergeColors` are har
 | `outline` | Borders, separators, and outline elements | `ChatFooter` separator, `ProductActionButtons` (secondary button fallback), `FeedbackDialog` text field border, `ProductCarousel` nav buttons |
 | `error` | Error state background | `ErrorOverlay` background |
 | `onError` | Error state text | `ErrorOverlay` message text |
-| `onSurface` | Primary text on surface backgrounds | `VoiceRecordingPanel`, `FeedbackDialog`, fallback for feedback buttons and thinking animation |
+| `onSurface` | Primary text on surface backgrounds | `VoiceRecordingPanel`, `FeedbackDialog`, fallback for feedback buttons |
 
 **Note**: While these colors provide consistent fallback styling, they cannot be overridden in theme JSON files. If you need custom colors for these UI elements, use the theme-specific CSS variables that map to these elements (e.g., use `--input-outline-color` instead of relying on the `outline` fallback).
 
@@ -1384,7 +1417,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 
 **Essential Colors (Highest Impact):**
 
-- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation)
+- `--color-primary` - Primary brand color (used for buttons, feedback checkbox checked state, mic button icon, thinking animation fallback)
 - `--color-text` - Primary text color for main background (header, welcome card when theme loaded, prompt suggestions). 
 - `--main-container-background` - Main screen background color (welcome card, chat area, feedback dialog)
 - `--main-container-bottom-background` - Bottom container background (input area)

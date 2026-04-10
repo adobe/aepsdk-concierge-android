@@ -344,7 +344,9 @@ internal object ThemeParser {
             // CTA button colors from CSS themes
             ctaButtonBackground = themeColors.ctaButton?.backgroundColor?.toComposeColor(),
             ctaButtonText = themeColors.ctaButton?.textColor?.toComposeColor(),
-            ctaButtonIcon = themeColors.ctaButton?.iconColor?.toComposeColor()
+            ctaButtonIcon = themeColors.ctaButton?.iconColor?.toComposeColor(),
+            // Thinking animation colors from CSS themes
+            thinkingDotColor = themeColors.thinking?.dotColor?.toComposeColor()
         )
         
         return result
