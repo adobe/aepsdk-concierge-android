@@ -12,7 +12,10 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -69,6 +72,10 @@ class ConciergeStylesTest {
         assertEquals(14.0, style!!.textStyle.fontSize.value.toDouble(), 0.1)
         assertEquals(700, style!!.textStyle.fontWeight?.weight ?: 0)
     }
+
+    // -----------------------------------------------------------------------
+    // messageBubbleStyle
+    // -----------------------------------------------------------------------
 
     @Test
     fun messageBubbleStyle_defaultStyle_allCornersRounded() {
@@ -184,5 +191,253 @@ class ConciergeStylesTest {
         assertNotNull(style)
         assertEquals(48.dp, style!!.agentIconSize)
         assertEquals(16.dp, style!!.agentIconSpacing)
+    }
+
+    // -----------------------------------------------------------------------
+    // thinkingAnimationStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun thinkingAnimationStyle_returnsDefaultDotSizeAndSpacing() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(8.dp, style!!.dotSize)
+        assertEquals(8.dp, style!!.dotSpacing)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultVerticalAlignment_isCenterVertically() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Alignment.CenterVertically, style!!.dotVerticalAlignment)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_withCssLayout_appliesDotSize() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingDotSize = 12.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(12.dp, style!!.dotSize)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_withCssLayout_appliesDotSpacing() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingDotSpacing = 10.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(10.dp, style!!.dotSpacing)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_verticalAlignment_topString_mapsToAlignmentTop() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingDotVerticalAlignment = "top"))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Alignment.Top, style!!.dotVerticalAlignment)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_verticalAlignment_bottomString_mapsToAlignmentBottom() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingDotVerticalAlignment = "bottom"))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Alignment.Bottom, style!!.dotVerticalAlignment)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_verticalAlignment_unknownString_fallsBackToCenterVertically() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingDotVerticalAlignment = "invalid"))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Alignment.CenterVertically, style!!.dotVerticalAlignment)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_verticalAlignment_upperCaseString_isCaseInsensitive() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingDotVerticalAlignment = "TOP"))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Alignment.Top, style!!.dotVerticalAlignment)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultBubbleShape_is8dpRoundedCorner() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(RoundedCornerShape(8.dp), style!!.bubbleShape)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_withCssLayout_appliesBubbleBorderRadius() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(thinkingBubbleBorderRadius = 16.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(RoundedCornerShape(16.dp), style!!.bubbleShape)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultBubblePadding_is16dpHorizontal8dpVertical() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(PaddingValues(horizontal = 16.dp, vertical = 8.dp), style!!.bubblePadding)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_withCssLayout_appliesBubblePadding() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    thinkingBubblePaddingHorizontal = 20.0,
+                    thinkingBubblePaddingVertical = 12.0
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(PaddingValues(horizontal = 20.dp, vertical = 12.dp), style!!.bubblePadding)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_defaultDotColor_fallsBackToPrimaryWithAlpha() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val expected = LightConciergeColors.primary.copy(alpha = 0.7f)
+        assertEquals(expected, style!!.dotColor)
+    }
+
+    @Test
+    fun thinkingAnimationStyle_customDotColor_takesOverDefault() {
+        var style: ConciergeStyles.ThinkingAnimationStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    thinking = ConciergeThinkingColors(dotColor = "#FF0000")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.thinkingAnimationStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(Color(0xFFFF0000), style!!.dotColor)
     }
 }

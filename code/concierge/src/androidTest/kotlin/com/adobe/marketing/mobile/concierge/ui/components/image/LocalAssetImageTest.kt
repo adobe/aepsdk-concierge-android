@@ -12,8 +12,12 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.image
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.graphics.asImageBitmap
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
@@ -104,6 +108,26 @@ class LocalAssetImageTest {
         assert(assetBitmapCache.containsKey(source)) {
             "Expected '$source' to be cached after load attempt"
         }
+    }
+
+    @Test
+    fun localAssetImage_withCachedBitmap_rendersImage() {
+        // Pre-seed the cache with a valid bitmap to exercise the render branch
+        // (bitmap?.let { Image(...) }) without requiring a real asset file on disk.
+        val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImageBitmap()
+        assetBitmapCache["cached-icon"] = bitmap
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                LocalAssetImage(
+                    source = "cached-icon",
+                    contentDescription = "Cached icon"
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Cached icon").assertIsDisplayed()
     }
 
     @Test

@@ -344,7 +344,9 @@ internal object ThemeParser {
             // CTA button colors from CSS themes
             ctaButtonBackground = themeColors.ctaButton?.backgroundColor?.toComposeColor(),
             ctaButtonText = themeColors.ctaButton?.textColor?.toComposeColor(),
-            ctaButtonIcon = themeColors.ctaButton?.iconColor?.toComposeColor()
+            ctaButtonIcon = themeColors.ctaButton?.iconColor?.toComposeColor(),
+            // Thinking animation colors from CSS themes
+            thinkingDotColor = themeColors.thinking?.dotColor?.toComposeColor()
         )
         
         return result
@@ -439,7 +441,7 @@ internal object ThemeParser {
         val chatTyped = chatMap as? MutableMap<String?, Any?>
         val chat = chatTyped?.let {
             ConciergeChatBehavior(
-                messageAlignment = DataReader.optString(it, "messageAlignment", null),
+                messageAlignment = ChatMessageAlignment.fromString(DataReader.optString(it, "messageAlignment", "start") ?: "start"),
                 messageWidth = DataReader.optString(it, "messageWidth", null),
                 userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default"))
             )

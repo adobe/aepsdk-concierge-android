@@ -704,7 +704,7 @@ class ThemeParserTest {
             {
                 "behavior": {
                     "chat": {
-                        "messageAlignment": "left",
+                        "messageAlignment": "center",
                         "messageWidth": "100%",
                         "userMessageBubbleStyle": "balloon"
                     }
@@ -715,7 +715,7 @@ class ThemeParserTest {
         val tokens = ThemeParser.parseThemeTokens(json)
 
         assertNotNull(tokens?.behavior?.chat)
-        assertEquals("left", tokens?.behavior?.chat?.messageAlignment)
+        assertEquals(ChatMessageAlignment.CENTER, tokens?.behavior?.chat?.messageAlignment)
         assertEquals("100%", tokens?.behavior?.chat?.messageWidth)
         assertEquals(UserMessageBubbleStyle.BALLOON, tokens?.behavior?.chat?.userMessageBubbleStyle)
     }
@@ -1842,6 +1842,22 @@ class ThemeParserTest {
         val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
         assertNull(colors.suggestionBackground)
         assertNull(colors.suggestionText)
+    }
+
+    @Test
+    fun `createColorsFromJson should map thinking dot color`() {
+        val themeColors = ConciergeThemeColors(
+            thinking = ConciergeThinkingColors(dotColor = "#FF0000")
+        )
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertEquals(Color(0xFFFF0000), colors.thinkingDotColor)
+    }
+
+    @Test
+    fun `createColorsFromJson should return null thinking dot color when not provided`() {
+        val themeColors = ConciergeThemeColors(primary = "#FF0000")
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertNull(colors.thinkingDotColor)
     }
 }
 

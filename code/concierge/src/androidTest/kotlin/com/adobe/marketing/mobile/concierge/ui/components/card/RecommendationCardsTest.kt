@@ -18,7 +18,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
+import com.adobe.marketing.mobile.concierge.ui.theme.ProductCardStyle
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import org.junit.Rule
@@ -85,6 +91,38 @@ class RecommendationCardsTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun recommendationCards_singleExtendedProductCard_rendersWithCenterAlignment() {
+        // Verifies that a single extended product card renders correctly when
+        // horizontalAlignment = CenterHorizontally is applied to the outer Column.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(
+                    productCard = ConciergeProductCardBehavior(cardStyle = ProductCardStyle.PRODUCT_DETAIL)
+                )
+            )
+        )
+        val elements = listOf(
+            MultimodalElement(
+                id = "ext-1",
+                title = "Extended Product",
+                url = "https://example.com/img.jpg"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    RecommendationCards(elements = elements)
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Extended Product").assertIsDisplayed()
     }
 
     @Test

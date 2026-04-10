@@ -137,6 +137,14 @@ data class ConciergeLayout(
     val ctaButtonFontWeight: Int? = null,
     val ctaButtonIconSize: Double? = null,
 
+    // Thinking animation layout
+    val thinkingDotSize: Double? = null,
+    val thinkingDotSpacing: Double? = null,
+    val thinkingBubbleBorderRadius: Double? = null,
+    val thinkingBubblePaddingHorizontal: Double? = null,
+    val thinkingBubblePaddingVertical: Double? = null,
+    val thinkingDotVerticalAlignment: String? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,
@@ -200,10 +208,28 @@ data class ConciergePromptSuggestionsBehavior(
  * Chat behavior configuration from `behavior.chat` in theme JSON.
  */
 data class ConciergeChatBehavior(
-    val messageAlignment: String? = null,
+    val messageAlignment: ChatMessageAlignment = ChatMessageAlignment.START,
     val messageWidth: String? = null,
     val userMessageBubbleStyle: UserMessageBubbleStyle = UserMessageBubbleStyle.DEFAULT
 )
+
+/**
+ * Horizontal alignment for chat messages from `behavior.chat.messageAlignment` in theme JSON.
+ *
+ * - `"start"` — messages align to the leading edge (default).
+ * - `"center"` — messages are horizontally centered.
+ * - `"end"` — messages align to the trailing edge.
+ */
+enum class ChatMessageAlignment(val value: String) {
+    START("start"),
+    CENTER("center"),
+    END("end");
+
+    companion object {
+        fun fromString(value: String): ChatMessageAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: START
+    }
+}
 
 /**
  * User message bubble shape from `behavior.chat.userMessageBubbleStyle` in theme JSON.
@@ -240,6 +266,24 @@ enum class FeedbackDisplayMode(val value: String) {
                 else -> MODAL
             }
         }
+    }
+}
+
+/**
+ * Dot vertical alignment within the thinking bubble from `--thinking-dot-vertical-alignment` CSS variable.
+ *
+ * - `"top"` — dots aligned to the top.
+ * - `"center"` — dots centered vertically (default).
+ * - `"bottom"` — dots aligned to the bottom.
+ */
+enum class ThinkingDotVerticalAlignment(val value: String) {
+    TOP("top"),
+    CENTER("center"),
+    BOTTOM("bottom");
+
+    companion object {
+        fun fromString(value: String): ThinkingDotVerticalAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
     }
 }
 
