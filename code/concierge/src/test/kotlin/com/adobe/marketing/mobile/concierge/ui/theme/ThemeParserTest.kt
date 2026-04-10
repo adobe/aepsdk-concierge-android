@@ -1811,5 +1811,21 @@ class ThemeParserTest {
         assertNull(colors.suggestionBackground)
         assertNull(colors.suggestionText)
     }
+
+    @Test
+    fun `createColorsFromJson should map thinking dot color`() {
+        val themeColors = ConciergeThemeColors(
+            thinking = ConciergeThinkingColors(dotColor = "#FF0000")
+        )
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertEquals(Color(0xFFFF0000), colors.thinkingDotColor)
+    }
+
+    @Test
+    fun `createColorsFromJson should return null thinking dot color when not provided`() {
+        val themeColors = ConciergeThemeColors(primary = "#FF0000")
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertNull(colors.thinkingDotColor)
+    }
 }
 
