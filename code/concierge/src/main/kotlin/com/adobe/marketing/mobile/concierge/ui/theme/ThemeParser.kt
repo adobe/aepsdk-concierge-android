@@ -391,7 +391,8 @@ internal object ThemeParser {
         val productCardTyped = productCardMap as? MutableMap<String?, Any?>
         val productCard = productCardTyped?.let {
             ConciergeProductCardBehavior(
-                cardStyle = ProductCardStyle.fromString(DataReader.optString(it, "cardStyle", "actionButton"))
+                cardStyle = ProductCardStyle.fromString(DataReader.optString(it, "cardStyle", "actionButton")),
+                cardsAlignment = CardsAlignment.fromString(DataReader.optString(it, "cardsAlignment", "center"))
             )
         }
 
@@ -442,7 +443,7 @@ internal object ThemeParser {
             ConciergeChatBehavior(
                 messageAlignment = ChatMessageAlignment.fromString(DataReader.optString(it, "messageAlignment", "start") ?: "start"),
                 messageWidth = DataReader.optString(it, "messageWidth", null),
-                userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default") ?: "default")
+                userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default"))
             )
         }
         val promptSuggestionsMap = typedMap?.get("promptSuggestions") as? Map<*, *>
@@ -451,8 +452,7 @@ internal object ThemeParser {
         val promptSuggestions = promptSuggestionsTyped?.let {
             ConciergePromptSuggestionsBehavior(
                 itemMaxLines = DataReader.optInt(it, "itemMaxLines", 1),
-                showHeader = DataReader.optBoolean(it, "showHeader", false),
-                alignToMessage = DataReader.optBoolean(it, "alignToMessage", false)
+                showHeader = DataReader.optBoolean(it, "showHeader", false)
             )
         }
 

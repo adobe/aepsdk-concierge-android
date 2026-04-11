@@ -721,6 +721,21 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `parseThemeTokens should default userMessageBubbleStyle to DEFAULT when key is absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "chat": {}
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertEquals(UserMessageBubbleStyle.DEFAULT, tokens?.behavior?.chat?.userMessageBubbleStyle)
+    }
+
+    @Test
     fun `parseThemeTokens should return null chat when behavior chat is absent`() {
         val json = """
             {
@@ -733,6 +748,41 @@ class ThemeParserTest {
         val tokens = ThemeParser.parseThemeTokens(json)
 
         assertNull(tokens?.behavior?.chat)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse behavior productCard cardsAlignment`() {
+        val json = """
+            {
+                "behavior": {
+                    "productCard": {
+                        "cardStyle": "productDetail",
+                        "cardsAlignment": "end"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertEquals(CardsAlignment.END, tokens?.behavior?.productCard?.cardsAlignment)
+    }
+
+    @Test
+    fun `parseThemeTokens should default cardsAlignment to CENTER when key is absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "productCard": {
+                        "cardStyle": "productDetail"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertEquals(CardsAlignment.CENTER, tokens?.behavior?.productCard?.cardsAlignment)
     }
 
     @Test
@@ -1677,23 +1727,6 @@ class ThemeParserTest {
     }
 
     @Test
-    fun `parseThemeTokens should parse behavior promptSuggestions alignToMessage`() {
-        val json = """
-            {
-                "behavior": {
-                    "promptSuggestions": {
-                        "alignToMessage": true
-                    }
-                }
-            }
-        """.trimIndent()
-
-        val tokens = ThemeParser.parseThemeTokens(json)
-        assertNotNull(tokens)
-        assertEquals(true, tokens?.behavior?.promptSuggestions?.alignToMessage)
-    }
-
-    @Test
     fun `parseThemeTokens should use default promptSuggestions values when block is empty`() {
         val json = """
             {
@@ -1707,7 +1740,6 @@ class ThemeParserTest {
         assertNotNull(tokens)
         assertEquals(1, tokens?.behavior?.promptSuggestions?.itemMaxLines)
         assertEquals(false, tokens?.behavior?.promptSuggestions?.showHeader)
-        assertEquals(false, tokens?.behavior?.promptSuggestions?.alignToMessage)
     }
 
     @Test

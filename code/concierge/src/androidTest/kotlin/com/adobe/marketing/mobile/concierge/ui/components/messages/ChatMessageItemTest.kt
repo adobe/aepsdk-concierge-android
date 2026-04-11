@@ -112,6 +112,46 @@ class ChatMessageItemTest {
     }
 
     @Test
+    fun chatMessageItem_mixedContentMessage_withCompanyIcon_displaysTextContent() {
+        // RenderMixedMessage applies an icon-column start offset when assets.icons.company is set.
+        // The text content must still be visible.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val multimodalElement = MultimodalElement(
+            id = "element-1",
+            alttext = "Product Image",
+            url = "https://example.com/image.jpg"
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "Here are your results:",
+                multimodalElements = listOf(multimodalElement)
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here are your results:")
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun chatMessageItem_displaysCitationsWhenPresent() {
         val citations = listOf(
             Citation(
