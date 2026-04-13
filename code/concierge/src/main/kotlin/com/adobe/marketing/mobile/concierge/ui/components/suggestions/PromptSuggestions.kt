@@ -60,15 +60,25 @@ internal fun PromptSuggestions(
                 top = style.containerTopPadding,
                 start = style.containerStartPadding,
                 end = style.containerEndPadding
-            ),
-        verticalArrangement = Arrangement.spacedBy(style.itemSpacing)
-    ) {
-        suggestions.forEach { suggestion ->
-            PromptSuggestionItem(
-                text = suggestion,
-                onClick = { onSuggestionClick(suggestion) },
-                modifier = Modifier.fillMaxWidth()
             )
+    ) {
+        if (style.showHeader) {
+            Text(
+                text = style.headerText,
+                style = style.headerStyle,
+                color = style.headerColor,
+                modifier = Modifier.padding(bottom = style.headerBottomPadding)
+            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(style.itemSpacing)) {
+            suggestions.forEach { suggestion ->
+                PromptSuggestionItem(
+                    text = suggestion,
+                    onClick = { onSuggestionClick(suggestion) },
+                    style = style,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
@@ -80,10 +90,9 @@ internal fun PromptSuggestions(
 private fun PromptSuggestionItem(
     text: String,
     onClick: () -> Unit,
+    style: ConciergeStyles.PromptSuggestionsStyle,
     modifier: Modifier = Modifier
 ) {
-    val style = ConciergeStyles.promptSuggestionsStyle
-
     Card(
         modifier = modifier
             .clickable { onClick() },

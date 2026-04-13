@@ -18,13 +18,20 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeIconAssets
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeAssets
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import org.junit.Rule
@@ -101,6 +108,46 @@ class ChatMessageItemTest {
         }
 
         composeTestRule.onNodeWithText("Here are some recommendations:")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_mixedContentMessage_withCompanyIcon_displaysTextContent() {
+        // RenderMixedMessage applies an icon-column start offset when assets.icons.company is set.
+        // The text content must still be visible.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val multimodalElement = MultimodalElement(
+            id = "element-1",
+            alttext = "Product Image",
+            url = "https://example.com/image.jpg"
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "Here are your results:",
+                multimodalElements = listOf(multimodalElement)
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here are your results:")
             .assertIsDisplayed()
     }
 
@@ -258,5 +305,295 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithText("Helpful response")
             .assertIsDisplayed()
+    }
+
+    // --- Brand icon routing ---
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCompanyIconUrl_displaysMessageContent() {
+        // When assets.icons.company is a non-empty URL the icon layout path is used.
+        // The message text must still be visible.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Here is your answer."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here is your answer.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_botTextMessage_withEmptyCompanyIcon_displaysMessageContent() {
+        // When assets.icons.company is an empty string the no-icon (upstream) layout is used.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Here is your answer."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here is your answer.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_userMessage_withCompanyIconConfigured_displaysMessageContent() {
+        // User messages never use the icon layout regardless of theme configuration.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Hello from user."),
+            isFromUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Hello from user.")
+            .assertIsDisplayed()
+    }
+
+    // --- BotMessageSuffix ---
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCtaButton_displaysCtaButton() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Check this out."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "Shop Now", url = "https://example.com/shop")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Shop Now")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCtaButtonAndIcon_displaysCtaButton() {
+        // CTA button must render in BotMessageSuffix regardless of whether the icon path is used.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Check this out."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "Learn More", url = "https://example.com/learn")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Learn More")
+            .assertIsDisplayed()
+    }
+
+    // --- RenderMixedMessage + BotMessageSuffix ---
+
+    @Test
+    fun chatMessageItem_botMixedMessage_withCtaButton_displaysBothTextAndCta() {
+        // RenderMixedMessage was refactored to use BotMessageSuffix for prompt suggestions
+        // and CTA button. Verify the CTA is rendered via BotMessageSuffix in the mixed path.
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "Here are some options.",
+                multimodalElements = listOf(
+                    MultimodalElement(id = "p1", title = "Product One", url = "https://example.com/1.jpg")
+                )
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "View All", url = "https://example.com/all")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here are some options.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("View All").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_botMixedMessage_withPromptSuggestions_displaysSuggestions() {
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "Try one of these.",
+                multimodalElements = emptyList()
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            promptSuggestions = listOf("Tell me more", "Show deals")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Tell me more").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Show deals").assertIsDisplayed()
+    }
+
+    // -----------------------------------------------------------------------
+    // Thinking state
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun chatMessageItem_thinkingState_rendersThinkingAnimation() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        // Default thinkingLabel "Thinking" should be visible
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_thinkingState_withInteractionId_doesNotCrash() {
+        // Verifies the !isThinking guard prevents ChatFooter from rendering
+        // when the message is in thinking state but already has an interactionId
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            interactionId = "test-interaction-id"
+        )
+
+        var renderSuccessful = false
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+            renderSuccessful = true
+        }
+
+        composeTestRule.waitForIdle()
+        assert(renderSuccessful)
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sources", substring = true)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun chatMessageItem_thinkingState_withCustomLoadingMessage_displaysCustomLabel() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(text = ConciergeTextStrings(loadingMessage = "Loading...")),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Loading...", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_userEmptyMessage_isNotThinkingState() {
+        // An empty message FROM the user should not render as thinking animation
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+
+        var renderSuccessful = false
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message)
+            }
+            renderSuccessful = true
+        }
+
+        composeTestRule.waitForIdle()
+        assert(renderSuccessful)
+        composeTestRule.onNodeWithText("Thinking", substring = true)
+            .assertDoesNotExist()
     }
 }

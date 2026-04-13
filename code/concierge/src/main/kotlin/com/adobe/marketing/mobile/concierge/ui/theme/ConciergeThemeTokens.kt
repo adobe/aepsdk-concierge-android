@@ -56,6 +56,8 @@ data class ConciergeLayout(
     val messageBorderRadius: Double? = null,
     val messagePadding: List<Double>? = null,
     val messageMaxWidth: Double? = null,
+    val agentIconSize: Double? = null,
+    val agentIconSpacing: Double? = null,
     
     // Chat layout
     val chatInterfaceMaxWidth: Double? = null,
@@ -95,6 +97,7 @@ data class ConciergeLayout(
     val welcomePromptPadding: Double? = null,
     val welcomePromptCornerRadius: Double? = null,
     val headerTitleFontSize: Double? = null,
+    val suggestionItemBorderRadius: Double? = null,
 
     // Extended product cards
     val productCardTitleFontWeight: Int? = null,
@@ -133,6 +136,14 @@ data class ConciergeLayout(
     val ctaButtonFontSize: Double? = null,
     val ctaButtonFontWeight: Int? = null,
     val ctaButtonIconSize: Double? = null,
+
+    // Thinking animation layout
+    val thinkingDotSize: Double? = null,
+    val thinkingDotSpacing: Double? = null,
+    val thinkingBubbleBorderRadius: Double? = null,
+    val thinkingBubblePaddingHorizontal: Double? = null,
+    val thinkingBubblePaddingVertical: Double? = null,
+    val thinkingDotVerticalAlignment: String? = null,
 
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
@@ -183,8 +194,58 @@ data class ConciergeThemeBehavior(
     val feedback: ConciergeFeedbackBehavior? = null,
     val citations: ConciergeCitationsBehavior? = null,
     val productCard: ConciergeProductCardBehavior? = null,
-    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null
+    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null,
+    val chat: ConciergeChatBehavior? = null,
+    val promptSuggestions: ConciergePromptSuggestionsBehavior? = null
 )
+
+data class ConciergePromptSuggestionsBehavior(
+    val itemMaxLines: Int = 1,
+    val showHeader: Boolean = false
+)
+
+/**
+ * Chat behavior configuration from `behavior.chat` in theme JSON.
+ */
+data class ConciergeChatBehavior(
+    val messageAlignment: ChatMessageAlignment = ChatMessageAlignment.START,
+    val messageWidth: String? = null,
+    val userMessageBubbleStyle: UserMessageBubbleStyle = UserMessageBubbleStyle.DEFAULT
+)
+
+/**
+ * Horizontal alignment for chat messages from `behavior.chat.messageAlignment` in theme JSON.
+ *
+ * - `"start"` — messages align to the leading edge (default).
+ * - `"center"` — messages are horizontally centered.
+ * - `"end"` — messages align to the trailing edge.
+ */
+enum class ChatMessageAlignment(val value: String) {
+    START("start"),
+    CENTER("center"),
+    END("end");
+
+    companion object {
+        fun fromString(value: String): ChatMessageAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: START
+    }
+}
+
+/**
+ * User message bubble shape from `behavior.chat.userMessageBubbleStyle` in theme JSON.
+ *
+ * - `"default"` — all corners rounded.
+ * - `"balloon"` — rounded except bottom-right corner is square (speech balloon style).
+ */
+enum class UserMessageBubbleStyle(val value: String) {
+    DEFAULT("default"),
+    BALLOON("balloon");
+
+    companion object {
+        fun fromString(value: String): UserMessageBubbleStyle =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: DEFAULT
+    }
+}
 
 /**
  * Display mode for the feedback dialog from `behavior.feedback.displayMode` in theme JSON.
@@ -205,6 +266,24 @@ enum class FeedbackDisplayMode(val value: String) {
                 else -> MODAL
             }
         }
+    }
+}
+
+/**
+ * Dot vertical alignment within the thinking bubble from `--thinking-dot-vertical-alignment` CSS variable.
+ *
+ * - `"top"` — dots aligned to the top.
+ * - `"center"` — dots centered vertically (default).
+ * - `"bottom"` — dots aligned to the bottom.
+ */
+enum class ThinkingDotVerticalAlignment(val value: String) {
+    TOP("top"),
+    CENTER("center"),
+    BOTTOM("bottom");
+
+    companion object {
+        fun fromString(value: String): ThinkingDotVerticalAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
     }
 }
 
@@ -260,8 +339,27 @@ data class ConciergeCitationsBehavior(
     val showLinkIcon: Boolean = false
 )
 
+/**
+ * Horizontal alignment of product cards within their display area.
+ *
+ * - `"start"` — left-aligned.
+ * - `"center"` — centered (default).
+ * - `"end"` — right-aligned.
+ */
+enum class CardsAlignment(val value: String) {
+    START("start"),
+    CENTER("center"),
+    END("end");
+
+    companion object {
+        fun fromString(value: String): CardsAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
+    }
+}
+
 data class ConciergeProductCardBehavior(
-    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON
+    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON,
+    val cardsAlignment: CardsAlignment = CardsAlignment.CENTER
 )
 
 data class ConciergeMultimodalCarouselBehavior(

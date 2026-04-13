@@ -24,9 +24,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.adobe.marketing.mobile.concierge.R
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,7 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
@@ -98,12 +100,13 @@ internal fun SuggestedPromptItem(
                 PromptImage(prompt = prompt, style = style)
                 Spacer(modifier = Modifier.width(style.promptImageSpacing))
             } else {
+                // TODO: Add style controls for the compact chip layout (icon size, spacing, etc.) if needed in the future
                 // Compact chip layout: small icon only
                 Icon(
-                    imageVector = prompt.imageVector ?: Icons.Default.AutoAwesome,
+                    painter = promptIconPainter(prompt.imageVector),
                     contentDescription = null,
                     tint = style.promptTextColor.copy(alpha = 0.6f),
-                    modifier = Modifier.size(style.promptImageSize)
+                    modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(style.promptImageSpacing))
             }
@@ -119,6 +122,10 @@ internal fun SuggestedPromptItem(
         }
     }
 }
+
+@Composable
+private fun promptIconPainter(imageVector: ImageVector?): Painter =
+    imageVector?.let { rememberVectorPainter(it) } ?: painterResource(R.drawable.sparkle)
 
 @Composable
 private fun PromptImage(
@@ -148,7 +155,7 @@ private fun PromptImage(
                 contentScale = ContentScale.Crop
             )
             else -> Icon(
-                imageVector = prompt.imageVector ?: Icons.Default.AutoAwesome,
+                painter = promptIconPainter(prompt.imageVector),
                 contentDescription = null,
                 tint = style.promptTextColor.copy(alpha = 0.6f),
                 modifier = Modifier.size(style.promptImageSize * 0.6f)

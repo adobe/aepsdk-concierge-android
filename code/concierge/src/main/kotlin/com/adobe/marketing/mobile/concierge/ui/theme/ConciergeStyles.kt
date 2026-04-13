@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -202,6 +203,7 @@ internal object ConciergeStyles {
         val padding: Dp,
         val innerPadding: Dp,
         val shape: Shape,
+        val userMessageShape: Shape,
         val elevation: Dp,
         val userMessageBackgroundColor: Color,
         val botMessageBackgroundColor: Color,
@@ -209,16 +211,32 @@ internal object ConciergeStyles {
         val botMessageTextColor: Color,
         val textStyle: TextStyle,
         val contentSpacing: Dp,
-        val segmentSpacing: Dp
+        val segmentSpacing: Dp,
+        val agentIconSize: Dp,
+        val agentIconSpacing: Dp
     )
 
     val messageBubbleStyle: MessageBubbleStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            val cornerRadius = cssLayout?.messageBorderRadius?.dp ?: 12.dp
+            val defaultShape = RoundedCornerShape(cornerRadius)
+            val userMessageShape = when (ConciergeTheme.behavior?.chat?.userMessageBubbleStyle) {
+                UserMessageBubbleStyle.BALLOON -> RoundedCornerShape(
+                    topStart = cornerRadius,
+                    topEnd = cornerRadius,
+                    bottomStart = cornerRadius,
+                    bottomEnd = 0.dp
+                )
+                else -> defaultShape
+            }
+            
             return MessageBubbleStyle(
                 padding = 8.dp,
                 innerPadding = 16.dp,
-                shape = RoundedCornerShape(12.dp),
+                shape = defaultShape,
+                userMessageShape = userMessageShape,
                 elevation = 0.dp,
                 userMessageBackgroundColor = themeColors.userMessageBackground ?: themeColors.primary,
                 botMessageBackgroundColor = themeColors.conciergeMessageBackground ?: themeColors.container,
@@ -226,7 +244,9 @@ internal object ConciergeStyles {
                 botMessageTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
                 contentSpacing = 12.dp,
-                segmentSpacing = 4.dp
+                segmentSpacing = 4.dp,
+                agentIconSize = cssLayout?.agentIconSize?.dp ?: 39.dp,
+                agentIconSpacing = cssLayout?.agentIconSpacing?.dp ?: 12.dp
             )
         }
 
@@ -260,30 +280,46 @@ internal object ConciergeStyles {
         val dotSize: Dp,
         val dotSpacing: Dp,
         val textDotSpacing: Dp,
-        val dotColorAlpha: Float,
         val dotAnimationDuration: Int,
         val dotAnimationDelay: Int,
         val textStyle: TextStyle,
         val textColor: Color,
         val dotColor: Color,
-        val thinkingText: String
+        val thinkingText: String,
+        val bubbleShape: Shape,
+        val bubblePadding: PaddingValues,
+        val dotVerticalAlignment: Alignment.Vertical
     )
 
     val thinkingAnimationStyle: ThinkingAnimationStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val themeText = ConciergeTheme.text
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            val bubbleBorderRadius = cssLayout?.thinkingBubbleBorderRadius?.dp ?: 8.dp
+            val bubblePaddingH = cssLayout?.thinkingBubblePaddingHorizontal?.dp ?: 16.dp
+            val bubblePaddingV = cssLayout?.thinkingBubblePaddingVertical?.dp ?: 8.dp
+            val dotVerticalAlignment = when (
+                cssLayout?.thinkingDotVerticalAlignment?.let { ThinkingDotVerticalAlignment.fromString(it) }
+            ) {
+                ThinkingDotVerticalAlignment.TOP -> Alignment.Top
+                ThinkingDotVerticalAlignment.BOTTOM -> Alignment.Bottom
+                else -> Alignment.CenterVertically
+            }
             return ThinkingAnimationStyle(
-                dotSize = 8.dp,
-                dotSpacing = 8.dp,
+                dotSize = cssLayout?.thinkingDotSize?.dp ?: 8.dp,
+                dotSpacing = cssLayout?.thinkingDotSpacing?.dp ?: 8.dp,
                 textDotSpacing = 8.dp,
-                dotColorAlpha = 0.7f,
                 dotAnimationDuration = 600,
                 dotAnimationDelay = 200,
                 textStyle = MaterialTheme.typography.bodyLarge,
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
-                dotColor = themeColors.primary.copy(alpha = 0.7f),
-                thinkingText = themeText?.loadingMessage ?: "Thinking"
+                dotColor = themeColors.thinkingDotColor
+                    ?: themeColors.primary.copy(alpha = 0.7f),
+                thinkingText = themeText?.loadingMessage ?: "Thinking",
+                bubbleShape = RoundedCornerShape(bubbleBorderRadius),
+                bubblePadding = PaddingValues(horizontal = bubblePaddingH, vertical = bubblePaddingV),
+                dotVerticalAlignment = dotVerticalAlignment
             )
         }
 
@@ -602,28 +638,40 @@ internal object ConciergeStyles {
         val iconSpacing: Dp,
         val textStyle: TextStyle,
         val textColor: Color,
-        val textMaxLines: Int
+        val textMaxLines: Int,
+        val showHeader: Boolean,
+        val headerText: String,
+        val headerStyle: TextStyle,
+        val headerColor: Color,
+        val headerBottomPadding: Dp
     )
 
     val promptSuggestionsStyle: PromptSuggestionsStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val contentColor = themeColors.conciergeMessageText ?: themeColors.onSurface
+            val textColor = themeColors.suggestionText ?: contentColor
+            val behavior = ConciergeTheme.behavior?.promptSuggestions
             return PromptSuggestionsStyle(
                 containerTopPadding = 6.dp,
                 containerStartPadding = 12.dp,
                 containerEndPadding = 48.dp,
                 itemSpacing = 8.dp,
-                itemShape = RoundedCornerShape(10.dp),
-                itemBackgroundColor = themeColors.container,
+                itemShape = RoundedCornerShape(ConciergeTheme.tokens?.cssLayout?.suggestionItemBorderRadius?.dp ?: 10.dp),
+                itemBackgroundColor = themeColors.suggestionBackground ?: themeColors.container,
                 itemHorizontalPadding = 16.dp,
                 itemVerticalPadding = 12.dp,
                 iconSize = 10.dp,
-                iconColor = contentColor,
+                iconColor = textColor,
                 iconSpacing = 12.dp,
                 textStyle = MaterialTheme.typography.bodyMedium,
-                textColor = contentColor,
-                textMaxLines = 2
+                textColor = textColor,
+                textMaxLines = behavior?.itemMaxLines ?: 1,
+                showHeader = behavior?.showHeader ?: false,
+                headerText = ConciergeTheme.text?.suggestionsHeader ?: "Suggestions",
+                headerStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                headerColor = contentColor,
+                headerBottomPadding = 4.dp
             )
         }
 

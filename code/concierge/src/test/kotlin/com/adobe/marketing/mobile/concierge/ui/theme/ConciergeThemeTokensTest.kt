@@ -124,12 +124,16 @@ class ConciergeThemeTokensTest {
         val layout = ConciergeLayout(
             messageBorderRadius = 10.0,
             messagePadding = listOf(10.0, 20.0, 10.0, 20.0),
-            messageMaxWidth = 0.8
+            messageMaxWidth = 0.8,
+            agentIconSize = 44.0,
+            agentIconSpacing = 8.0
         )
-        
+
         assertEquals(10.0, layout.messageBorderRadius)
         assertEquals(4, layout.messagePadding?.size)
         assertEquals(0.8, layout.messageMaxWidth)
+        assertEquals(44.0, layout.agentIconSize)
+        assertEquals(8.0, layout.agentIconSpacing)
     }
 
     @Test
@@ -289,6 +293,97 @@ class ConciergeThemeTokensTest {
         assertEquals(2000, original.maxMessageLength)
         assertEquals(5000, updated.maxMessageLength)
         assertEquals(1000, updated.typingIndicatorDelay)
+    }
+
+    // ========== UserMessageBubbleStyle Tests ==========
+
+    @Test
+    fun `UserMessageBubbleStyle fromString returns DEFAULT for default`() {
+        assertEquals(UserMessageBubbleStyle.DEFAULT, UserMessageBubbleStyle.fromString("default"))
+    }
+
+    @Test
+    fun `UserMessageBubbleStyle fromString returns BALLOON for balloon`() {
+        assertEquals(UserMessageBubbleStyle.BALLOON, UserMessageBubbleStyle.fromString("balloon"))
+    }
+
+    @Test
+    fun `UserMessageBubbleStyle fromString is case insensitive`() {
+        assertEquals(UserMessageBubbleStyle.BALLOON, UserMessageBubbleStyle.fromString("BALLOON"))
+        assertEquals(UserMessageBubbleStyle.BALLOON, UserMessageBubbleStyle.fromString("Balloon"))
+    }
+
+    @Test
+    fun `UserMessageBubbleStyle fromString returns DEFAULT for unknown value`() {
+        assertEquals(UserMessageBubbleStyle.DEFAULT, UserMessageBubbleStyle.fromString("unknown"))
+    }
+
+    // ========== ChatMessageAlignment Tests ==========
+
+    @Test
+    fun `ChatMessageAlignment fromString returns START for start`() {
+        assertEquals(ChatMessageAlignment.START, ChatMessageAlignment.fromString("start"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString returns CENTER for center`() {
+        assertEquals(ChatMessageAlignment.CENTER, ChatMessageAlignment.fromString("center"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString returns END for end`() {
+        assertEquals(ChatMessageAlignment.END, ChatMessageAlignment.fromString("end"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString is case insensitive`() {
+        assertEquals(ChatMessageAlignment.CENTER, ChatMessageAlignment.fromString("CENTER"))
+        assertEquals(ChatMessageAlignment.END, ChatMessageAlignment.fromString("End"))
+    }
+
+    @Test
+    fun `ChatMessageAlignment fromString returns START for unknown value`() {
+        assertEquals(ChatMessageAlignment.START, ChatMessageAlignment.fromString("unknown"))
+    }
+
+    // ========== ConciergeChatBehavior Tests ==========
+
+    @Test
+    fun `ConciergeChatBehavior creates with defaults`() {
+        val chat = ConciergeChatBehavior()
+
+        assertEquals(ChatMessageAlignment.START, chat.messageAlignment)
+        assertNull(chat.messageWidth)
+        assertEquals(UserMessageBubbleStyle.DEFAULT, chat.userMessageBubbleStyle)
+    }
+
+    @Test
+    fun `ConciergeChatBehavior creates with custom values`() {
+        val chat = ConciergeChatBehavior(
+            messageAlignment = ChatMessageAlignment.CENTER,
+            messageWidth = "100%",
+            userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON
+        )
+
+        assertEquals(ChatMessageAlignment.CENTER, chat.messageAlignment)
+        assertEquals("100%", chat.messageWidth)
+        assertEquals(UserMessageBubbleStyle.BALLOON, chat.userMessageBubbleStyle)
+    }
+
+    @Test
+    fun `ConciergeThemeBehavior chat is null by default`() {
+        val behavior = ConciergeThemeBehavior()
+
+        assertNull(behavior.chat)
+    }
+
+    @Test
+    fun `ConciergeThemeBehavior supports chat configuration`() {
+        val behavior = ConciergeThemeBehavior(
+            chat = ConciergeChatBehavior(userMessageBubbleStyle = UserMessageBubbleStyle.BALLOON)
+        )
+
+        assertEquals(UserMessageBubbleStyle.BALLOON, behavior.chat?.userMessageBubbleStyle)
     }
 
     // ========== Asset Data Classes Tests ==========

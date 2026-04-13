@@ -28,9 +28,9 @@ internal object CSSKeyMapper {
     private const val LOG_TAG = "ConciergeTheme"
     
     // Helper functions to reduce boilerplate
-    
+
     /**
-     * Helper to update nested color structures
+     * Helper to update nested color structures.
      */
     private fun updateColors(
         theme: ConciergeThemeTokens,
@@ -38,135 +38,58 @@ internal object CSSKeyMapper {
     ): ConciergeThemeTokens {
         return theme.copy(colors = updater(theme.colors))
     }
-    
+
     /**
-     * Helper to update primary colors
+     * Generic helper that parses [cssValue] as a color, extracts the current nested color object
+     * via [getter], applies [updater] to produce an updated value, and writes it back via [merger].
+     * All per-type color helpers delegate to this function.
      */
-    private fun updatePrimaryColors(
+    private fun <T> updateNestedColors(
         cssValue: String,
         theme: ConciergeThemeTokens,
-        updater: (ConciergePrimaryColors?, String) -> ConciergePrimaryColors
+        getter: (ConciergeThemeColors?) -> T?,
+        merger: (ConciergeThemeColors?, T) -> ConciergeThemeColors,
+        updater: (T?, String) -> T
     ): ConciergeThemeTokens {
         val color = CSSValueConverter.parseColor(cssValue)
         return updateColors(theme) { colors ->
-            val primaryColors = updater(colors?.primaryColors, color.toHexString())
-            colors?.copy(primaryColors = primaryColors) 
-                ?: ConciergeThemeColors(primaryColors = primaryColors)
-        }
-    }
-    
-    /**
-     * Helper to update surface colors
-     */
-    private fun updateSurfaceColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeSurfaceColors?, String) -> ConciergeSurfaceColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val surfaceColors = updater(colors?.surfaceColors, color.toHexString())
-            colors?.copy(surfaceColors = surfaceColors)
-                ?: ConciergeThemeColors(surfaceColors = surfaceColors)
-        }
-    }
-    
-    /**
-     * Helper to update message colors
-     */
-    private fun updateMessageColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeMessageColors?, String) -> ConciergeMessageColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val messageColors = updater(colors?.message, color.toHexString())
-            colors?.copy(message = messageColors)
-                ?: ConciergeThemeColors(message = messageColors)
-        }
-    }
-    
-    /**
-     * Helper to update button colors
-     */
-    private fun updateButtonColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeButtonColors?, String) -> ConciergeButtonColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val buttonColors = updater(colors?.button, color.toHexString())
-            colors?.copy(button = buttonColors)
-                ?: ConciergeThemeColors(button = buttonColors)
-        }
-    }
-    
-    /**
-     * Helper to update input colors
-     */
-    private fun updateInputColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeInputColors?, String) -> ConciergeInputColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val inputColors = updater(colors?.input, color.toHexString())
-            colors?.copy(input = inputColors)
-                ?: ConciergeThemeColors(input = inputColors)
-        }
-    }
-    
-    /**
-     * Helper to update feedback colors
-     */
-    private fun updateFeedbackColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeFeedbackColors?, String) -> ConciergeFeedbackColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val feedbackColors = updater(colors?.feedback, color.toHexString())
-            colors?.copy(feedback = feedbackColors)
-                ?: ConciergeThemeColors(feedback = feedbackColors)
-        }
-    }
-    
-    /**
-     * Helper to update CTA button colors
-     */
-    private fun updateCtaButtonColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeCtaButtonColors?, String) -> ConciergeCtaButtonColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val ctaButtonColors = updater(colors?.ctaButton, color.toHexString())
-            colors?.copy(ctaButton = ctaButtonColors)
-                ?: ConciergeThemeColors(ctaButton = ctaButtonColors)
+            merger(colors, updater(getter(colors), color.toHexString()))
         }
     }
 
-    /**
-     * Helper to update citation colors
-     */
-    private fun updateCitationColors(
-        cssValue: String,
-        theme: ConciergeThemeTokens,
-        updater: (ConciergeCitationColors?, String) -> ConciergeCitationColors
-    ): ConciergeThemeTokens {
-        val color = CSSValueConverter.parseColor(cssValue)
-        return updateColors(theme) { colors ->
-            val citationColors = updater(colors?.citation, color.toHexString())
-            colors?.copy(citation = citationColors)
-                ?: ConciergeThemeColors(citation = citationColors)
-        }
-    }
-    
+    private fun updatePrimaryColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergePrimaryColors?, String) -> ConciergePrimaryColors) =
+        updateNestedColors(cssValue, theme, { it?.primaryColors }, { c, v -> c?.copy(primaryColors = v) ?: ConciergeThemeColors(primaryColors = v) }, updater)
+
+    private fun updateSurfaceColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeSurfaceColors?, String) -> ConciergeSurfaceColors) =
+        updateNestedColors(cssValue, theme, { it?.surfaceColors }, { c, v -> c?.copy(surfaceColors = v) ?: ConciergeThemeColors(surfaceColors = v) }, updater)
+
+    private fun updateMessageColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeMessageColors?, String) -> ConciergeMessageColors) =
+        updateNestedColors(cssValue, theme, { it?.message }, { c, v -> c?.copy(message = v) ?: ConciergeThemeColors(message = v) }, updater)
+
+    private fun updateButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeButtonColors?, String) -> ConciergeButtonColors) =
+        updateNestedColors(cssValue, theme, { it?.button }, { c, v -> c?.copy(button = v) ?: ConciergeThemeColors(button = v) }, updater)
+
+    private fun updateInputColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeInputColors?, String) -> ConciergeInputColors) =
+        updateNestedColors(cssValue, theme, { it?.input }, { c, v -> c?.copy(input = v) ?: ConciergeThemeColors(input = v) }, updater)
+
+    private fun updateFeedbackColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeFeedbackColors?, String) -> ConciergeFeedbackColors) =
+        updateNestedColors(cssValue, theme, { it?.feedback }, { c, v -> c?.copy(feedback = v) ?: ConciergeThemeColors(feedback = v) }, updater)
+
+    private fun updateCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCtaButtonColors?, String) -> ConciergeCtaButtonColors) =
+        updateNestedColors(cssValue, theme, { it?.ctaButton }, { c, v -> c?.copy(ctaButton = v) ?: ConciergeThemeColors(ctaButton = v) }, updater)
+
+    private fun updateCitationColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCitationColors?, String) -> ConciergeCitationColors) =
+        updateNestedColors(cssValue, theme, { it?.citation }, { c, v -> c?.copy(citation = v) ?: ConciergeThemeColors(citation = v) }, updater)
+
+    private fun updateWelcomePromptColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeWelcomePromptColors?, String) -> ConciergeWelcomePromptColors) =
+        updateNestedColors(cssValue, theme, { it?.welcomePrompt }, { c, v -> c?.copy(welcomePrompt = v) ?: ConciergeThemeColors(welcomePrompt = v) }, updater)
+
+    private fun updateThinkingColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeThinkingColors?, String) -> ConciergeThinkingColors) =
+        updateNestedColors(cssValue, theme, { it?.thinking }, { c, v -> c?.copy(thinking = v) ?: ConciergeThemeColors(thinking = v) }, updater)
+
+    private fun updateSuggestionColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeWelcomePromptColors?, String) -> ConciergeWelcomePromptColors) =
+        updateNestedColors(cssValue, theme, { it?.promptSuggestion }, { c, v -> c?.copy(promptSuggestion = v) ?: ConciergeThemeColors(promptSuggestion = v) }, updater)
+
     /**
      * Helper to update layout properties
      */
@@ -208,7 +131,14 @@ internal object CSSKeyMapper {
                 existing?.copy(text = color) ?: ConciergePrimaryColors(text = color)
             }
         },
-        
+        "color-container" to { cssValue, theme ->
+            val color = CSSValueConverter.parseColor(cssValue)
+            updateColors(theme) { colors ->
+                colors?.copy(container = color.toHexString())
+                    ?: ConciergeThemeColors(container = color.toHexString())
+            }
+        },
+
         // Colors - Surface (using helper)
         "main-container-background" to { cssValue, theme ->
             updateSurfaceColors(cssValue, theme) { existing, color ->
@@ -404,21 +334,25 @@ internal object CSSKeyMapper {
 
         // Colors - Prompt Pill
         "welcome-prompt-background-color" to { cssValue, theme ->
-            val color = CSSValueConverter.parseColor(cssValue)
-            updateColors(theme) { colors ->
-                val promptColors = colors?.welcomePrompt?.copy(backgroundColor = color.toHexString())
-                    ?: ConciergeWelcomePromptColors(backgroundColor = color.toHexString())
-                colors?.copy(welcomePrompt = promptColors)
-                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            updateWelcomePromptColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color)
             }
         },
         "welcome-prompt-text-color" to { cssValue, theme ->
-            val color = CSSValueConverter.parseColor(cssValue)
-            updateColors(theme) { colors ->
-                val promptColors = colors?.welcomePrompt?.copy(textColor = color.toHexString())
-                    ?: ConciergeWelcomePromptColors(textColor = color.toHexString())
-                colors?.copy(welcomePrompt = promptColors)
-                    ?: ConciergeThemeColors(welcomePrompt = promptColors)
+            updateWelcomePromptColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color)
+            }
+        },
+
+        // Colors - Prompt Suggestions
+        "suggestion-background-color" to { cssValue, theme ->
+            updateSuggestionColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color)
+            }
+        },
+        "suggestion-text-color" to { cssValue, theme ->
+            updateSuggestionColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color)
             }
         },
 
@@ -497,7 +431,19 @@ internal object CSSKeyMapper {
                 layout?.copy(messageMaxWidth = width) ?: ConciergeLayout(messageMaxWidth = width)
             }
         },
-        
+        "agent-icon-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue)
+                layout?.copy(agentIconSize = size) ?: ConciergeLayout(agentIconSize = size)
+            }
+        },
+        "agent-icon-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue)
+                layout?.copy(agentIconSpacing = spacing) ?: ConciergeLayout(agentIconSpacing = spacing)
+            }
+        },
+
         // Layout - Chat
         "chat-interface-max-width" to { cssValue, theme ->
             updateLayout(theme) { layout ->
@@ -655,6 +601,57 @@ internal object CSSKeyMapper {
                 layout?.copy(welcomePromptCornerRadius = radius) ?: ConciergeLayout(welcomePromptCornerRadius = radius)
             }
         },
+        "suggestion-item-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 10.0
+                layout?.copy(suggestionItemBorderRadius = radius) ?: ConciergeLayout(suggestionItemBorderRadius = radius)
+            }
+        },
+
+        // Colors - Thinking Animation
+        "thinking-dot-color" to { cssValue, theme ->
+            updateThinkingColors(cssValue, theme) { existing, color ->
+                existing?.copy(dotColor = color) ?: ConciergeThinkingColors(dotColor = color)
+            }
+        },
+
+        // Layout - Thinking Animation
+        "thinking-dot-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = (CSSValueConverter.parsePxValue(cssValue) ?: 8.0).coerceAtLeast(0.0)
+                layout?.copy(thinkingDotSize = size) ?: ConciergeLayout(thinkingDotSize = size)
+            }
+        },
+        "thinking-dot-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = (CSSValueConverter.parsePxValue(cssValue) ?: 8.0).coerceAtLeast(0.0)
+                layout?.copy(thinkingDotSpacing = spacing) ?: ConciergeLayout(thinkingDotSpacing = spacing)
+            }
+        },
+        "thinking-bubble-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = (CSSValueConverter.parsePxValue(cssValue) ?: 8.0).coerceAtLeast(0.0)
+                layout?.copy(thinkingBubbleBorderRadius = radius) ?: ConciergeLayout(thinkingBubbleBorderRadius = radius)
+            }
+        },
+        "thinking-bubble-padding-horizontal" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = (CSSValueConverter.parsePxValue(cssValue) ?: 16.0).coerceAtLeast(0.0)
+                layout?.copy(thinkingBubblePaddingHorizontal = padding) ?: ConciergeLayout(thinkingBubblePaddingHorizontal = padding)
+            }
+        },
+        "thinking-bubble-padding-vertical" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val padding = (CSSValueConverter.parsePxValue(cssValue) ?: 8.0).coerceAtLeast(0.0)
+                layout?.copy(thinkingBubblePaddingVertical = padding) ?: ConciergeLayout(thinkingBubblePaddingVertical = padding)
+            }
+        },
+        "thinking-dot-vertical-alignment" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                layout?.copy(thinkingDotVerticalAlignment = cssValue.trim()) ?: ConciergeLayout(thinkingDotVerticalAlignment = cssValue.trim())
+            }
+        },
+
         "header-title-font-size" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val size = CSSValueConverter.parsePxValue(cssValue) ?: 24.0

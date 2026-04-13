@@ -14,7 +14,8 @@
       "carouselStyle": "scroll"
     },
     "productCard": {
-      "cardStyle": "productDetail"
+      "cardStyle": "productDetail",
+      "cardsAlignment": "start"
     },
     "input": {
       "enableVoiceInput": true,
@@ -24,7 +25,8 @@
     },
     "chat": {
       "messageAlignment": "left",
-      "messageWidth": "100%"
+      "messageWidth": "100%",
+      "userMessageBubbleStyle": "balloon"
     },
     "privacyNotice": {
       "title": "Privacy Notice",
@@ -42,6 +44,10 @@
       "promptFullWidth": false,
       "promptMaxLines": 2,
       "contentAlignment": "top"
+    },
+    "promptSuggestions": {
+      "itemMaxLines": 1,
+      "showHeader": true
     }
   },
   "disclaimer": {
@@ -68,7 +74,7 @@
     "carousel.next.aria": "Next cards",
     "scroll.bottom.aria": "Scroll to bottom",
     "error.network": "I'm sorry, I'm having trouble connecting to our services right now.",
-    "loading.message": "Generating response from our knowledge base",
+    "loading.message": "",
     "sourcesLabel": "Sources & Feedback",
     "feedbackHelpfulLabel": "Was this helpful?",
     "feedback.dialog.title.positive": "[DEMO THEME] Thanks for your feedback!",
@@ -81,7 +87,8 @@
     "feedback.dialog.notes.placeholder": "[DEMO] Share your thoughts here...",
     "feedback.toast.success": "[DEMO] Feedback received! Thank you.",
     "feedback.thumbsUp.aria": "Thumbs up",
-    "feedback.thumbsDown.aria": "Thumbs down"
+    "feedback.thumbsDown.aria": "Thumbs down",
+    "suggestions.header": "Try asking"
   },
   "arrays": {
     "welcome.examples": [
@@ -118,7 +125,7 @@
   },
   "assets": {
     "icons": {
-      "company": ""
+      "company": "logo"
     }
   },
   "content": {
@@ -168,6 +175,7 @@
     "--color-button-secondary-hover-text": "#5C4A24",
     "--color-button-submit": "#7A5C1E",
     "--color-button-submit-hover": "#5F4715",
+    "--color-container": "#EDE4D6",
     "--color-primary": "#7A5C1E",
     "--color-text": "#2C2419",
     "--cta-button-background-color": "#EDE4D6",
@@ -211,7 +219,7 @@
     "--main-container-bottom-background": "#F2ECE3",
     "--message-blocker-background": "#00000066",
     "--message-blocker-height": "105px",
-    "--message-border-radius": "10px",
+    "--message-border-radius": "15px",
     "--message-concierge-background": "#F0E8DC",
     "--message-concierge-link-color": "#8B6914",
     "--message-concierge-text": "#2C2419",
@@ -248,20 +256,31 @@
     "--product-card-was-price-font-weight": "400",
     "--product-card-was-price-text-prefix": "was ",
     "--product-card-width": "222",
+    "--suggestion-background-color": "#EDE4D6",
+    "--suggestion-item-border-radius": "20px",
+    "--suggestion-text-color": "#2C2419",
     "--submit-button-fill-color": "#FFFDF9",
     "--submit-button-fill-color-disabled": "#D4C9B8",
     "--welcome-cards-order": "2",
     "--welcome-content-padding": "16px",
     "--welcome-input-order": "3",
-    "--welcome-prompt-background-color": "#E5D9C8",
-    "--welcome-prompt-corner-radius": "20px",
-    "--welcome-prompt-image-size": "32px",
+    "--welcome-prompt-image-size": "16px",
     "--welcome-prompt-padding": "12px",
+    "--welcome-prompt-corner-radius": "40px",
+    "--welcome-prompt-background-color": "#D3D3D3",
+    "--welcome-prompt-text-color": "#000000",
     "--welcome-prompt-spacing": "8px",
-    "--welcome-prompt-text-color": "#2C2419",
-    "--welcome-prompts-top-spacing": "12px",
     "--welcome-text-align": "left",
     "--welcome-title-bottom-spacing": "6px",
-    "--welcome-title-font-size": "16px"
+    "--welcome-title-font-size": "16px",
+    "--thinking-dot-size": "6px",
+    "--thinking-dot-spacing": "5px",
+    "--thinking-bubble-border-radius": "16px",
+    "--thinking-bubble-padding-horizontal": "14px",
+    "--thinking-bubble-padding-vertical": "12px",
+    "--thinking-dot-vertical-alignment": "center",
+    "--thinking-dot-color": "#666666",
+    "--agent-icon-size": "39px",
+    "--agent-icon-spacing": "12px"
   }
 }
