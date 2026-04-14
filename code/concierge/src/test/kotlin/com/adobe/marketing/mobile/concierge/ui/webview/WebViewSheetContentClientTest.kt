@@ -64,14 +64,13 @@ class WebViewSheetContentClientTest {
     // ---- shouldOverrideUrlLoading (String overload) ----
 
     @Test
-    fun `null URL returns true and takes no action`() {
+    fun `URL with no scheme calls tryOpenWithSystemHandler`() {
         val client = SecureSheetWebViewClient(context)
         @Suppress("DEPRECATION")
-        val result = client.shouldOverrideUrlLoading(view, null as String?)
+        val result = client.shouldOverrideUrlLoading(view, "example.com/page")
 
         assertTrue(result)
-        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
-        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        verify { tryOpenWithSystemHandler(context, "example.com/page") }
     }
 
     @Test
@@ -176,12 +175,12 @@ class WebViewSheetContentClientTest {
 
     @Test
     fun `WebResourceRequest with tel URL calls tryOpenWithSystemHandler`() {
-        val request = mockk<WebResourceRequest>()
-        every { request.url } returns Uri.parse("tel:+15555550100")
-        // Override so parse returns a proper Uri mock for the request URL
-        every { Uri.parse("tel:+15555550100") } returns mockk {
-            every { scheme } returns "tel"
-            every { toString() } returns "tel:+15555550100"
+        // Uri.parse returns a mock from setUp's any() stub (scheme = "tel" already set).
+        // Stub toString() separately to avoid MockK's internal use of toString() during mock construction.
+        val telUri = Uri.parse("tel:+15555550100")
+        every { telUri.toString() } returns "tel:+15555550100"
+        val request = mockk<WebResourceRequest> {
+            every { url } returns telUri
         }
 
         val client = SecureSheetWebViewClient(context)
