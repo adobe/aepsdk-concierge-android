@@ -44,11 +44,12 @@ import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.toWelcomeConfig
-import com.adobe.marketing.mobile.concierge.ui.webview.WebViewSheetContentSchemes
 import com.adobe.marketing.mobile.concierge.utils.WelcomeResponseParser
 import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
+import com.adobe.marketing.mobile.concierge.utils.isAllowedUrlScheme
+import com.adobe.marketing.mobile.concierge.utils.isBlockedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
@@ -214,8 +215,11 @@ class ConciergeChatViewModel : AndroidViewModel {
             tryOpenAsAppLink(getApplication(), url) -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened as App Link")
             }
-            !WebViewSheetContentSchemes.isAllowedScheme(url) && !WebViewSheetContentSchemes.isBlockedScheme(url) -> {
-                // Non-http/https, non-blocked scheme (e.g. tel:, geo:, mailto:) — forward to system.
+            isBlockedUrlScheme(url) -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: blocked scheme, ignoring")
+            }
+            !isAllowedUrlScheme(url) -> {
+                // Non-http/https scheme (e.g. tel:, geo:, mailto:) — forward to system.
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: forwarding system scheme to device")
                 tryOpenWithSystemHandler(getApplication(), url)
             }

@@ -23,6 +23,26 @@ import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.services.Log
 
+private val ALLOWED_URL_SCHEMES = setOf("https", "http")
+private val BLOCKED_URL_SCHEMES = setOf("javascript", "file", "content", "intent", "data")
+
+/**
+ * Returns true if the URL has an http or https scheme.
+ */
+internal fun isAllowedUrlScheme(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    return Uri.parse(url).scheme?.lowercase() in ALLOWED_URL_SCHEMES
+}
+
+/**
+ * Returns true if the URL has a scheme that must never be opened or loaded
+ * (javascript, file, content, intent, data).
+ */
+internal fun isBlockedUrlScheme(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    return Uri.parse(url).scheme?.lowercase() in BLOCKED_URL_SCHEMES
+}
+
 /**
  * Opens a URL using the system handler via [Intent.ACTION_VIEW].
  * Intended for non-http/https schemes such as tel:, mailto:, geo:, sms:, and custom deep links.

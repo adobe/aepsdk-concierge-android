@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.utils
 
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -21,11 +22,12 @@ import android.content.pm.verify.domain.DomainVerificationManager
 import android.content.pm.verify.domain.DomainVerificationUserState
 import android.os.Build
 import com.adobe.marketing.mobile.services.Log
+import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.Runs
+import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
@@ -61,10 +63,17 @@ class AppLinkUtilsTest {
     // ---- tryOpenWithSystemHandler ----
 
     @Test
-    fun `tryOpenWithSystemHandler calls startActivity for the given URL`() {
+    fun `tryOpenWithSystemHandler calls startActivity with FLAG_ACTIVITY_NEW_TASK`() {
+        val intentSlot = slot<Intent>()
+        every { context.startActivity(capture(intentSlot)) } just Runs
+
         tryOpenWithSystemHandler(context, "tel:+15555550100")
 
         verify { context.startActivity(any()) }
+        assertTrue(
+            "Expected FLAG_ACTIVITY_NEW_TASK to be set",
+            intentSlot.captured.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0
+        )
     }
 
     @Test

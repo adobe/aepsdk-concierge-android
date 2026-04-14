@@ -16,7 +16,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
-import android.net.Uri
 import android.os.Build
 import android.view.MotionEvent
 import android.view.ViewGroup
@@ -30,34 +29,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.adobe.marketing.mobile.concierge.utils.isAllowedUrlScheme
+import com.adobe.marketing.mobile.concierge.utils.isBlockedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import java.nio.charset.StandardCharsets
-
-/**
- * URL scheme validation for the WebView sheet content.
- * Only http and https are allowed to load inside the WebView; if the host app is a verified
- * App Link handler for the domain, the URL is forwarded to the app instead.
- * All other schemes are forwarded to the system unless explicitly blocked.
- * Blocked schemes: javascript, file, content, intent, data.
- * Internal for unit testing.
- */
-internal object WebViewSheetContentSchemes {
-    private val allowedSchemes = setOf("https", "http")
-    internal val blockedSchemes = setOf("javascript", "file", "content", "intent", "data")
-
-    private fun scheme(url: String) = Uri.parse(url).scheme?.lowercase() ?: ""
-
-    fun isAllowedScheme(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        return scheme(url) in allowedSchemes
-    }
-
-    fun isBlockedScheme(url: String?): Boolean {
-        if (url.isNullOrBlank()) return false
-        return scheme(url) in blockedSchemes
-    }
-}
 
 /**
  * WebView sheet content shown inside [WebviewOverlayDialog].
@@ -99,7 +75,7 @@ internal fun WebViewSheetContent(
             },
             update = { webView ->
                 webView.setBackgroundColor(AndroidColor.TRANSPARENT)
-                if (webView.url != url && WebViewSheetContentSchemes.isAllowedScheme(url)) {
+                if (webView.url != url && isAllowedUrlScheme(url)) {
                     webView.loadUrl(url)
                 }
             },
@@ -160,8 +136,8 @@ internal class SecureSheetWebViewClient(private val context: Context) : WebViewC
 
     private fun handleUrl(url: String?): Boolean {
         if (url == null) return true
-        if (WebViewSheetContentSchemes.isBlockedScheme(url)) return true
-        if (WebViewSheetContentSchemes.isAllowedScheme(url)) {
+        if (isBlockedUrlScheme(url)) return true
+        if (isAllowedUrlScheme(url)) {
             // http/https: forward to host app if it is a verified App Link handler,
             // otherwise let the WebView load the page.
             return tryOpenAsAppLink(context, url)

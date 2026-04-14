@@ -65,6 +65,10 @@ class WebViewSheetContentClientTest {
 
     @Test
     fun `URL with no scheme calls tryOpenWithSystemHandler`() {
+        // Note: the Uri.parse mock in setUp extracts the scheme via substringBefore(':', "").
+        // When no colon is present (no scheme delimiter), substringBefore returns the
+        // missingDelimiterValue "" which then becomes null via ifEmpty — correctly matching
+        // real Android where Uri.parse("example.com/page").scheme == null.
         val client = SecureSheetWebViewClient(context)
         @Suppress("DEPRECATION")
         val result = client.shouldOverrideUrlLoading(view, "example.com/page")
