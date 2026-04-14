@@ -14,7 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.Manifest
 import android.app.Application
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -48,6 +50,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.utils.WelcomeResponseParser
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
+import com.adobe.marketing.mobile.concierge.ui.webview.WebViewSheetContentSchemes
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
@@ -211,6 +214,17 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
             tryOpenAsAppLink(getApplication(), url) -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened as App Link")
+            }
+            !WebViewSheetContentSchemes.isAllowedScheme(url) && !WebViewSheetContentSchemes.isBlockedScheme(url) -> {
+                // Non-http/https, non-blocked scheme (e.g. tel:, geo:, mailto:) — forward to system.
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: forwarding system scheme to device")
+                try {
+                    getApplication<Application>().startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    )
+                } catch (_: Exception) { }
             }
             else -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opening in WebView overlay")
