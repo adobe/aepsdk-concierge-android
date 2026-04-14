@@ -14,7 +14,6 @@ package com.adobe.marketing.mobile.concierge.ui.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.net.Uri
@@ -32,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import java.nio.charset.StandardCharsets
 
 /**
@@ -139,7 +139,7 @@ private fun applySecureSettings(settings: WebSettings) {
  * Non-web schemes are forwarded to the system unless explicitly blocked.
  * Dangerous schemes (javascript, file, content, intent, data) are blocked.
  */
-private class SecureSheetWebViewClient(private val context: Context) : WebViewClient() {
+internal class SecureSheetWebViewClient(private val context: Context) : WebViewClient() {
     override fun shouldOverrideUrlLoading(
         view: WebView,
         request: WebResourceRequest
@@ -167,11 +167,7 @@ private class SecureSheetWebViewClient(private val context: Context) : WebViewCl
             return tryOpenAsAppLink(context, url)
         }
         // All other schemes (e.g. mailto:, tel:, myapp://): forward to the system.
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
-        } catch (_: Exception) { }
+        tryOpenWithSystemHandler(context, url)
         return true
     }
 }

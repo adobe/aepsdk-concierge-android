@@ -24,6 +24,21 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.services.Log
 
 /**
+ * Opens a URL using the system handler via [Intent.ACTION_VIEW].
+ * Intended for non-http/https schemes such as tel:, mailto:, geo:, sms:, and custom deep links.
+ * Requires [Intent.FLAG_ACTIVITY_NEW_TASK] since the caller may not be an Activity context.
+ */
+internal fun tryOpenWithSystemHandler(context: Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+    } catch (e: Exception) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, "AppLinkUtils", "tryOpenWithSystemHandler failed: ${e.message}")
+    }
+}
+
+/**
  * Attempts to open a URL as an App Link if the host app is the verified handler
  * (e.g., listed in the domain's assetlinks.json). Returns true if the link was opened;
  * false if the host app does not handle it (caller should fall back to WebView).

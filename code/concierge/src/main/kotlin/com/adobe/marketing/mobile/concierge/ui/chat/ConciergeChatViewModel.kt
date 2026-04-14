@@ -14,9 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.Manifest
 import android.app.Application
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,8 +28,10 @@ import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
-import com.adobe.marketing.mobile.concierge.ui.theme.toWelcomeConfig
+import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
+import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -41,17 +41,16 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
-import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
-import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
-import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
-import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
-import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.toWelcomeConfig
+import com.adobe.marketing.mobile.concierge.ui.webview.WebViewSheetContentSchemes
 import com.adobe.marketing.mobile.concierge.utils.WelcomeResponseParser
+import com.adobe.marketing.mobile.concierge.utils.citation.CitationUtils
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
-import com.adobe.marketing.mobile.concierge.ui.webview.WebViewSheetContentSchemes
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -218,13 +217,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             !WebViewSheetContentSchemes.isAllowedScheme(url) && !WebViewSheetContentSchemes.isBlockedScheme(url) -> {
                 // Non-http/https, non-blocked scheme (e.g. tel:, geo:, mailto:) — forward to system.
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: forwarding system scheme to device")
-                try {
-                    getApplication<Application>().startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                    )
-                } catch (_: Exception) { }
+                tryOpenWithSystemHandler(getApplication(), url)
             }
             else -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opening in WebView overlay")
