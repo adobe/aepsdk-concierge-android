@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.app.Application
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
@@ -36,9 +37,13 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.services.ServiceProvider
+import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.Runs
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.slot
@@ -76,19 +81,34 @@ class ConciergeChatViewModelTest {
         // Default: grant audio permission
         mockkStatic(ContextCompat::class)
         every { ContextCompat.checkSelfPermission(any(), any()) } returns PackageManager.PERMISSION_GRANTED
-        
+
         // Mock ServiceProvider and UriService
         mockkStatic(ServiceProvider::class)
         mockServiceProvider = mockk<ServiceProvider>(relaxed = true)
         every { ServiceProvider.getInstance() } returns mockServiceProvider
         every { mockServiceProvider.uriService } returns mockk(relaxed = true)
         every { mockServiceProvider.uriService.openUri(any()) } returns true
+
+        // Scheme mocks for handleLinkClick tests
+        mockkStatic(Uri::class)
+        mockkStatic(::tryOpenAsAppLink)
+        mockkStatic(::tryOpenWithSystemHandler)
+        every { Uri.parse(any()) } answers {
+            val url = firstArg<String>()
+            val scheme = url.substringBefore(':', "").lowercase().ifEmpty { null }
+            mockk { every { this@mockk.scheme } returns scheme }
+        }
+        every { tryOpenAsAppLink(any(), any()) } returns false
+        every { tryOpenWithSystemHandler(any(), any()) } just Runs
     }
 
     @After
     fun tearDown() {
         unmockkStatic(ContextCompat::class)
         unmockkStatic(ServiceProvider::class)
+        unmockkStatic(Uri::class)
+        unmockkStatic(::tryOpenAsAppLink)
+        unmockkStatic(::tryOpenWithSystemHandler)
         Dispatchers.resetMain()
     }
 
@@ -1249,15 +1269,102 @@ class ConciergeChatViewModelTest {
     fun `updateWelcomeConfigFromTheme with null does not change config`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
-        
+
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
-        
+
         val originalConfig = vm.welcomeConfig.value
-        
+
         vm.updateWelcomeConfigFromTheme(null)
-        
+
         // Config should remain unchanged
         assertEquals(originalConfig, vm.welcomeConfig.value)
+    }
+
+    // ========== handleLinkClick Tests ==========
+
+    @Test
+    fun `handleLinkClick with blank URL does nothing`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("   ", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick host callback returning true prevents any further handling`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", handleLink = { true })
+
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with tel scheme calls tryOpenWithSystemHandler and does not open overlay`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", null)
+
+        verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with geo scheme calls tryOpenWithSystemHandler`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("geo:0,0?q=1+Apple+Park+Way", null)
+
+        verify { tryOpenWithSystemHandler(app, "geo:0,0?q=1+Apple+Park+Way") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with mailto scheme calls tryOpenWithSystemHandler`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("mailto:user@example.com", null)
+
+        verify { tryOpenWithSystemHandler(app, "mailto:user@example.com") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with https URL opens overlay when not an App Link`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertEquals("https://example.com", vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with https URL handled as App Link does not open overlay`() = runTest {
+        every { tryOpenAsAppLink(any(), any()) } returns true
+
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with blocked scheme is silently dropped`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("javascript:alert(1)", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick host callback returning false falls through to normal routing`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", handleLink = { false })
+
+        verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
+        assertNull(vm.webviewOverlay.value)
     }
 }
 
