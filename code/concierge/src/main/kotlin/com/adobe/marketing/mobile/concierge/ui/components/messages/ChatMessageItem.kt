@@ -43,20 +43,15 @@ import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSugg
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
-import com.adobe.marketing.mobile.concierge.ui.theme.ChatMessageAlignment
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextAlignment
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
-/**
- * Maps a [ChatMessageAlignment] to the Compose [Modifier] that produces the correct
- * horizontal alignment for a bot message card. The pattern is consistent across all
- * render functions: [fillMaxWidth] reserves the full layout slot so the list is stable,
- * and [wrapContentWidth] then shrinks the card to its content and anchors it.
- */
-private fun ChatMessageAlignment.toModifier(): Modifier = when (this) {
-    ChatMessageAlignment.CENTER -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
-    ChatMessageAlignment.END -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
-    ChatMessageAlignment.START -> Modifier.fillMaxWidth()
+/** Maps [ConciergeTextAlignment] to the [Modifier] that horizontally aligns a bot message card. */
+private fun ConciergeTextAlignment.toModifier(): Modifier = when (this) {
+    ConciergeTextAlignment.CENTER -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+    ConciergeTextAlignment.END -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+    ConciergeTextAlignment.START -> Modifier.fillMaxWidth()
 }
 
 /**
@@ -122,7 +117,7 @@ private fun RenderTextMessage(
     val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
     val isThinking = message.isThinking
     val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
-    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     if (companyIconName != null) {
         RenderTextMessageWithIcon(
@@ -313,7 +308,7 @@ private fun RenderMixedMessage(
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
     val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
-    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ChatMessageAlignment.START
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     Column(
         modifier = Modifier

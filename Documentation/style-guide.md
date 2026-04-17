@@ -263,7 +263,7 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.chat.messageAlignment` | string | `"start"` | Agent message alignment (`"start"`, `"center"`, `"end"`). Note: theme JSONs using legacy `"left"` values are treated as `"start"`. |
+| `behavior.chat.messageAlignment` | `ConciergeTextAlignment` | `"start"` | Agent message alignment. Accepts `"start"` / `"leading"` / `"left"`, `"center"` / `"justify"`, or `"end"` / `"trailing"` / `"right"`. Case-insensitive; unknown values fall back to `"start"`. |
 | `behavior.chat.messageWidth` | string | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
 | `behavior.chat.userMessageBubbleStyle` | string | `"default"` | User message bubble shape. `"default"` = all corners rounded; `"balloon"` = rounded except bottom-right corner is square (speech balloon style). Corner radius is controlled by `--message-border-radius` (default `12dp`). |
 
@@ -278,8 +278,11 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.feedback.displayMode` | string | `"modal"` | Feedback dialog display mode. `"modal"` renders inline as a Modal overlay; `"action"` renders as an ActionSheet. |
+| `behavior.feedback.displayMode` | string | `"modal"` | Feedback dialog display mode. `"modal"` renders a centered modal card; `"action"` renders a ModalBottomSheet. |
 | `behavior.feedback.thumbsPlacement` | string | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
+| `behavior.feedback.showCloseButton` | boolean \| null | `null` | X close button visibility. `null` = shown for `"action"`, hidden for `"modal"`. |
+| `behavior.feedback.showCancelButton` | boolean \| null | `null` | Cancel button visibility. `null` = shown for `"modal"`, hidden for `"action"`. Both set to `false` is honored: Submit and (in action mode) drag-down still dismiss. |
+| `behavior.feedback.showNotes` | boolean \| null | `null` | Notes field visibility override for modal mode. `null` falls back to per-sentiment `positiveNotesEnabled` / `negativeNotesEnabled`. Not rendered in action mode. |
 
 ### Citations
 
@@ -335,7 +338,10 @@ Feature toggles and interaction configuration.
     },
     "feedback": {
       "displayMode": "action",
-      "thumbsPlacement": "below"
+      "thumbsPlacement": "below",
+      "showCloseButton": true,
+      "showCancelButton": false,
+      "showNotes": null
     },
     "citations": {
       "showLinkIcon": true
@@ -681,6 +687,27 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--feedback-icon-btn-background` | `colors.feedback.iconButtonBackground` | `String` | `"#FFFFFF"` | Feedback button background (hex) |
 | `--feedback-icon-btn-hover-background` | `colors.feedback.iconButtonHoverBackground` | `String` | `"#F5F5F5"` | Feedback button hover background (hex) |
 
+#### Feedback Dialog Colors
+
+These tokens style the feedback dialog (modal card and action bottom sheet).
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--feedback-sheet-background-color` | `colors.feedback.sheetBackground` | `String?` | falls back to `colors.background` | Dialog background fill; also applied to the notes editor. |
+| `--feedback-title-text-color` | `colors.feedback.titleText` | `String?` | falls back to `colors.onBackground` / `colors.primary.text` | Dialog title color. |
+| `--feedback-question-text-color` | `colors.feedback.questionText` | `String?` | falls back to the title color | Dialog question color. |
+| `--feedback-options-text-color` | `colors.feedback.optionsText` | `String?` | falls back to the title color | Checkbox option label color. |
+| `--feedback-checkbox-border-color` | `colors.feedback.checkboxBorder` | `String?` | `"#7F7F7F"` (light) / `"#B0B0B0"` (dark) | Checkbox unchecked outline color. Also used for the notes editor outline. |
+| `--feedback-notes-text-color` | `colors.feedback.notesText` | `String?` | falls back to the title color | Notes label, entered text, and placeholder color. |
+| `--feedback-drag-handle-color` | `colors.feedback.dragHandle` | `String?` | `"#CCCCCC"` | Drag handle color. Only visible in action mode. |
+| `--feedback-submit-button-fill-color` | `colors.feedback.submitButtonFill` | `String?` | falls back to `colors.button.primaryBackground` | Submit button fill color. |
+| `--feedback-submit-button-text-color` | `colors.feedback.submitButtonText` | `String?` | falls back to `colors.button.primaryText` | Submit button text color. |
+| `--feedback-cancel-button-fill-color` | `colors.feedback.cancelButtonFill` | `String?` | `null` (transparent; outline style) | Cancel button fill. `null` = transparent (outline style). Also tints the X close icon. |
+| `--feedback-cancel-button-text-color` | `colors.feedback.cancelButtonText` | `String?` | falls back to `colors.button.secondaryText` | Cancel button label color. |
+| `--feedback-cancel-button-border-color` | `colors.feedback.cancelButtonBorder` | `String?` | falls back to `colors.button.secondaryBorder` | Cancel button outline color. |
+
+> **Contrast note:** When `--feedback-sheet-background-color` is pinned, also set `--feedback-title-text-color`, `--feedback-question-text-color`, `--feedback-options-text-color`, and `--feedback-notes-text-color` to maintain text contrast. System defaults track the device palette, not the themed surface.
+
 ### Colors - Disclaimer
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
@@ -796,6 +823,31 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 |--------------|-----------------|------|---------|-------------|
 | `--feedback-container-gap` | `cssLayout.feedbackContainerGap` | `Double` | `4.0` | Gap between feedback buttons (dp) |
 | `--feedback-icon-btn-size-desktop` | `components.feedback.iconButtonSizeDesktop` | `Double` | `32.0` | Feedback button hit target size (dp) |
+
+#### Feedback Dialog Layout
+
+These tokens style the feedback dialog layout (modal card and action bottom sheet).
+
+| CSS Variable | Kotlin Property | Type | Default | Description |
+|--------------|-----------------|------|---------|-------------|
+| `--feedback-submit-button-border-radius` | `cssLayout.feedbackSubmitButtonBorderRadius` | `Double?` | `10.0` | Submit button corner radius (dp). |
+| `--feedback-cancel-button-border-radius` | `cssLayout.feedbackCancelButtonBorderRadius` | `Double?` | `10.0` | Cancel button corner radius (dp). |
+| `--feedback-cancel-button-border-width` | `cssLayout.feedbackCancelButtonBorderWidth` | `Double?` | `1.0` | Cancel button outline width (dp). |
+| `--feedback-submit-button-font-weight` | `cssLayout.feedbackSubmitButtonFontWeight` | `Int?` | `600` | Submit button label font weight. |
+| `--feedback-cancel-button-font-weight` | `cssLayout.feedbackCancelButtonFontWeight` | `Int?` | `600` | Cancel button label font weight. |
+| `--feedback-checkbox-border-radius` | `cssLayout.feedbackCheckboxBorderRadius` | `Double?` | `6.0` | Checkbox corner radius (dp). Also used for the notes editor corner radius. |
+| `--feedback-title-text-align` | `cssLayout.feedbackTitleTextAlign` | `ConciergeTextAlignment?` | `null` (`START`) | Feedback dialog title alignment. Accepts `"start"` / `"leading"` / `"left"`, `"center"` / `"justify"`, or `"end"` / `"trailing"` / `"right"`. Case-insensitive; unknown values fall back to `START`. |
+| `--feedback-title-font-size` | `cssLayout.feedbackTitleFontSize` | `Double?` | `22.0` | Title font size (sp). |
+
+### Components - Feedback
+
+Non-CSS `components.feedback` overrides for the feedback dialog.
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `components.feedback.iconButtonSizeDesktop` | number | `32` | Feedback icon button hit target size (dp). Mirrors `--feedback-icon-btn-size-desktop`. |
+| `components.feedback.positiveNotesEnabled` | boolean | `true` | Notes field visibility for positive-sentiment modal. Overridden by `behavior.feedback.showNotes`. Not applied in action mode. |
+| `components.feedback.negativeNotesEnabled` | boolean | `true` | Notes field visibility for negative-sentiment modal. Overridden by `behavior.feedback.showNotes`. Not applied in action mode. |
 
 ### Layout - Citations
 

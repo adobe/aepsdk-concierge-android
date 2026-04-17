@@ -310,7 +310,67 @@ internal object CSSKeyMapper {
                 existing?.copy(iconButtonHoverBackground = color) ?: ConciergeFeedbackColors(iconButtonHoverBackground = color)
             }
         },
-        
+        "feedback-sheet-background-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(sheetBackground = color) ?: ConciergeFeedbackColors(sheetBackground = color)
+            }
+        },
+        "feedback-title-text-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(titleText = color) ?: ConciergeFeedbackColors(titleText = color)
+            }
+        },
+        "feedback-question-text-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(questionText = color) ?: ConciergeFeedbackColors(questionText = color)
+            }
+        },
+        "feedback-options-text-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(optionsText = color) ?: ConciergeFeedbackColors(optionsText = color)
+            }
+        },
+        "feedback-checkbox-border-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(checkboxBorder = color) ?: ConciergeFeedbackColors(checkboxBorder = color)
+            }
+        },
+        "feedback-notes-text-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(notesText = color) ?: ConciergeFeedbackColors(notesText = color)
+            }
+        },
+        "feedback-drag-handle-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(dragHandle = color) ?: ConciergeFeedbackColors(dragHandle = color)
+            }
+        },
+        "feedback-submit-button-fill-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(submitButtonFill = color) ?: ConciergeFeedbackColors(submitButtonFill = color)
+            }
+        },
+        "feedback-submit-button-text-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(submitButtonText = color) ?: ConciergeFeedbackColors(submitButtonText = color)
+            }
+        },
+        "feedback-cancel-button-fill-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(cancelButtonFill = color) ?: ConciergeFeedbackColors(cancelButtonFill = color)
+            }
+        },
+        "feedback-cancel-button-text-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(cancelButtonText = color) ?: ConciergeFeedbackColors(cancelButtonText = color)
+            }
+        },
+        "feedback-cancel-button-border-color" to { cssValue, theme ->
+            updateFeedbackColors(cssValue, theme) { existing, color ->
+                existing?.copy(cancelButtonBorder = color) ?: ConciergeFeedbackColors(cancelButtonBorder = color)
+            }
+        },
+
         // Colors - Disclaimer
         "disclaimer-color" to { cssValue, theme ->
             val color = CSSValueConverter.parseColor(cssValue)
@@ -505,7 +565,63 @@ internal object CSSKeyMapper {
                 layout?.copy(feedbackContainerGap = gap) ?: ConciergeLayout(feedbackContainerGap = gap)
             }
         },
-        
+        "feedback-submit-button-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 10.0
+                layout?.copy(feedbackSubmitButtonBorderRadius = radius)
+                    ?: ConciergeLayout(feedbackSubmitButtonBorderRadius = radius)
+            }
+        },
+        "feedback-submit-button-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(feedbackSubmitButtonFontWeight = weight)
+                    ?: ConciergeLayout(feedbackSubmitButtonFontWeight = weight)
+            }
+        },
+        "feedback-cancel-button-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 10.0
+                layout?.copy(feedbackCancelButtonBorderRadius = radius)
+                    ?: ConciergeLayout(feedbackCancelButtonBorderRadius = radius)
+            }
+        },
+        "feedback-cancel-button-border-width" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val width = CSSValueConverter.parsePxValue(cssValue) ?: 1.0
+                layout?.copy(feedbackCancelButtonBorderWidth = width)
+                    ?: ConciergeLayout(feedbackCancelButtonBorderWidth = width)
+            }
+        },
+        "feedback-cancel-button-font-weight" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val weight = CSSValueConverter.parseFontWeight(cssValue)
+                layout?.copy(feedbackCancelButtonFontWeight = weight)
+                    ?: ConciergeLayout(feedbackCancelButtonFontWeight = weight)
+            }
+        },
+        "feedback-checkbox-border-radius" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val radius = CSSValueConverter.parsePxValue(cssValue) ?: 6.0
+                layout?.copy(feedbackCheckboxBorderRadius = radius)
+                    ?: ConciergeLayout(feedbackCheckboxBorderRadius = radius)
+            }
+        },
+        "feedback-title-text-align" to { cssValue, theme ->
+            val alignment = ConciergeTextAlignment.fromString(cssValue)
+            updateLayout(theme) { layout ->
+                layout?.copy(feedbackTitleTextAlign = alignment)
+                    ?: ConciergeLayout(feedbackTitleTextAlign = alignment)
+            }
+        },
+        "feedback-title-font-size" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val size = CSSValueConverter.parsePxValue(cssValue)
+                layout?.copy(feedbackTitleFontSize = size)
+                    ?: ConciergeLayout(feedbackTitleFontSize = size)
+            }
+        },
+
         // Layout - Citations
         "citations-text-font-weight" to { cssValue, theme ->
             updateLayout(theme) { layout ->

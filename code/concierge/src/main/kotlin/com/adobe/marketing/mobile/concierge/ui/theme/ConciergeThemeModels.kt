@@ -207,7 +207,31 @@ data class ConciergeInputColors(
 
 data class ConciergeFeedbackColors(
     val iconButtonBackground: String? = null,
-    val iconButtonHoverBackground: String? = null
+    val iconButtonHoverBackground: String? = null,
+    /** Dialog sheet/modal background fill. Also applied to the notes editor. */
+    val sheetBackground: String? = null,
+    /** Dialog title text color. */
+    val titleText: String? = null,
+    /** Dialog question text color. */
+    val questionText: String? = null,
+    /** Checkbox option label color. */
+    val optionsText: String? = null,
+    /** Checkbox unchecked outline color; also reused for the notes editor outline. */
+    val checkboxBorder: String? = null,
+    /** Notes label and placeholder color. */
+    val notesText: String? = null,
+    /** Action sheet drag handle color. */
+    val dragHandle: String? = null,
+    /** Submit button fill color. */
+    val submitButtonFill: String? = null,
+    /** Submit button text color. */
+    val submitButtonText: String? = null,
+    /** Cancel button fill color. `null` renders with a transparent fill (outline style). Also tints the X close icon. */
+    val cancelButtonFill: String? = null,
+    /** Cancel button text color. */
+    val cancelButtonText: String? = null,
+    /** Cancel button border color. */
+    val cancelButtonBorder: String? = null
 )
 
 data class ConciergeCitationColors(

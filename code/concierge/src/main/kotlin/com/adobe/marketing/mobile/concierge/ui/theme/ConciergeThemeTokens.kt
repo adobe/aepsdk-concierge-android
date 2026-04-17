@@ -75,7 +75,17 @@ data class ConciergeLayout(
     
     // Feedback layout
     val feedbackContainerGap: Double? = null,
-    
+    val feedbackSubmitButtonBorderRadius: Double? = null,
+    val feedbackCancelButtonBorderRadius: Double? = null,
+    val feedbackCancelButtonBorderWidth: Double? = null,
+    val feedbackSubmitButtonFontWeight: Int? = null,
+    val feedbackCancelButtonFontWeight: Int? = null,
+    val feedbackCheckboxBorderRadius: Double? = null,
+    /** Title text alignment. `null` falls back to `START` (leading). */
+    val feedbackTitleTextAlign: ConciergeTextAlignment? = null,
+    /** Dialog title font size in points. `null` falls back to Material `titleMedium`. */
+    val feedbackTitleFontSize: Double? = null,
+
     // Citations layout
     val citationsTextFontWeight: Int? = null,
     val citationsDesktopButtonFontSize: Double? = null,
@@ -159,7 +169,11 @@ data class ConciergeComponentsConfig(
 )
 
 data class ConciergeFeedbackComponent(
-    val iconButtonSizeDesktop: Double? = null
+    val iconButtonSizeDesktop: Double? = null,
+    /** Whether the notes field is shown for positive feedback. Default `true`. */
+    val positiveNotesEnabled: Boolean = true,
+    /** Whether the notes field is shown for negative feedback. Default `true`. */
+    val negativeNotesEnabled: Boolean = true
 )
 
 /**
@@ -208,26 +222,30 @@ data class ConciergePromptSuggestionsBehavior(
  * Chat behavior configuration from `behavior.chat` in theme JSON.
  */
 data class ConciergeChatBehavior(
-    val messageAlignment: ChatMessageAlignment = ChatMessageAlignment.START,
+    val messageAlignment: ConciergeTextAlignment = ConciergeTextAlignment.START,
     val messageWidth: String? = null,
     val userMessageBubbleStyle: UserMessageBubbleStyle = UserMessageBubbleStyle.DEFAULT
 )
 
 /**
- * Horizontal alignment for chat messages from `behavior.chat.messageAlignment` in theme JSON.
- *
- * - `"start"` — messages align to the leading edge (default).
- * - `"center"` — messages are horizontally centered.
- * - `"end"` — messages align to the trailing edge.
+ * Horizontal text/content alignment with Compose-idiomatic case names (Start/End vs Leading/Trailing).
+ * Accepts (case-insensitive): `"left"` / `"leading"` / `"start"` -> START,
+ * `"center"` / `"justify"` -> CENTER, `"right"` / `"trailing"` / `"end"` -> END.
+ * Unknown or `null` falls back to `START`.
  */
-enum class ChatMessageAlignment(val value: String) {
+enum class ConciergeTextAlignment(val value: String) {
     START("start"),
     CENTER("center"),
     END("end");
 
     companion object {
-        fun fromString(value: String): ChatMessageAlignment =
-            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: START
+        fun fromString(value: String?): ConciergeTextAlignment =
+            when (value?.trim()?.lowercase()) {
+                "left", "leading", "start" -> START
+                "right", "trailing", "end" -> END
+                "center", "justify" -> CENTER
+                else -> START
+            }
     }
 }
 
@@ -317,8 +335,23 @@ enum class CarouselStyle(val value: String) {
 
 data class ConciergeFeedbackBehavior(
     val displayMode: FeedbackDisplayMode = FeedbackDisplayMode.MODAL,
-    val thumbsPlacement: FeedbackThumbsPlacement = FeedbackThumbsPlacement.INLINE
-)
+    val thumbsPlacement: FeedbackThumbsPlacement = FeedbackThumbsPlacement.INLINE,
+    /** Overrides the close (X) button visibility. `null` defaults to `true` for `"action"`, `false` for `"modal"`. */
+    val showCloseButton: Boolean? = null,
+    /** Overrides the Cancel button visibility. `null` defaults to `true` for `"modal"`, `false` for `"action"`. */
+    val showCancelButton: Boolean? = null,
+    /** Overrides notes field visibility. `null` falls back to per-sentiment `positiveNotesEnabled` / `negativeNotesEnabled`. */
+    val showNotes: Boolean? = null
+) {
+    /** Effective close button visibility: `showCloseButton` when set, otherwise `displayMode == ACTION`. */
+    fun resolvedShowCloseButton(): Boolean = showCloseButton ?: (displayMode == FeedbackDisplayMode.ACTION)
+
+    /** Effective Cancel button visibility: `showCancelButton` when set, otherwise `displayMode == MODAL`. */
+    fun resolvedShowCancelButton(): Boolean = showCancelButton ?: (displayMode == FeedbackDisplayMode.MODAL)
+
+    /** Notes field visibility: `showNotes` when set, otherwise the provided per-sentiment fallback. */
+    fun resolvedShowNotes(fallback: Boolean): Boolean = showNotes ?: fallback
+}
 
 /**
  * Placement of the feedback thumbs relative to the sources accordion.

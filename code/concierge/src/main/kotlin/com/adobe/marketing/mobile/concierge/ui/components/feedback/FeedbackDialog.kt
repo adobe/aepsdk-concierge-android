@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.feedback
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,10 +40,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,13 +54,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeFeedbackBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
@@ -149,6 +149,35 @@ private fun resolveQuestion(feedbackType: FeedbackType): String {
     }
 }
 
+/** Notes field visibility: `showNotes` when set, otherwise per-sentiment `positive/negativeNotesEnabled`. */
+@Composable
+private fun resolveNotesEnabled(feedbackType: FeedbackType): Boolean {
+    val componentsFeedback = ConciergeTheme.tokens?.components?.feedback
+    val sentimentFallback = if (feedbackType == FeedbackType.POSITIVE) {
+        componentsFeedback?.positiveNotesEnabled ?: true
+    } else {
+        componentsFeedback?.negativeNotesEnabled ?: true
+    }
+    val behavior: ConciergeFeedbackBehavior? = ConciergeTheme.behavior?.feedback
+    return behavior?.resolvedShowNotes(sentimentFallback) ?: sentimentFallback
+}
+
+/** Close (X) button visibility: `true` for `"action"`, `false` for `"modal"` by default. */
+@Composable
+private fun resolveShowCloseButton(): Boolean {
+    val behavior = ConciergeTheme.behavior?.feedback
+    return behavior?.resolvedShowCloseButton()
+        ?: (ConciergeTheme.behavior?.feedback?.displayMode == FeedbackDisplayMode.ACTION)
+}
+
+/** Cancel button visibility: `true` for `"modal"`, `false` for `"action"` by default. */
+@Composable
+private fun resolveShowCancelButton(): Boolean {
+    val behavior = ConciergeTheme.behavior?.feedback
+    return behavior?.resolvedShowCancelButton()
+        ?: (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION)
+}
+
 // --- Shared UI components ---
 
 /**
@@ -161,30 +190,150 @@ private fun CategoryCheckboxList(
     onToggle: (String) -> Unit,
     style: ConciergeStyles.FeedbackDialogStyle
 ) {
-    categories.forEach { category ->
-        Row(
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(style.categorySpacing)
+    ) {
+        categories.forEach { category ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(category) },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = category in selectedCategories,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = style.checkboxCheckedColor,
+                        checkmarkColor = style.checkboxCheckmarkColor,
+                        uncheckedColor = style.checkboxUncheckedColor
+                    )
+                )
+                Spacer(modifier = Modifier.width(style.checkboxSpacing))
+                Text(
+                    text = category,
+                    style = style.categoryTextStyle,
+                    color = style.categoryTextColor,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Dialog title row with an optional trailing X close button. Shared by card and sheet.
+ */
+@Composable
+private fun FeedbackTitleRow(
+    titleText: String,
+    showCloseButton: Boolean,
+    onDismiss: () -> Unit,
+    style: ConciergeStyles.FeedbackDialogStyle
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        val titlePadding = if (showCloseButton) Modifier.padding(end = 40.dp) else Modifier
+        Text(
+            text = titleText,
+            style = style.titleStyle,
+            color = style.titleColor,
+            textAlign = style.titleTextAlign,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onToggle(category) },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = category in selectedCategories,
-                onCheckedChange = null,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = style.checkboxCheckedColor,
-                    checkmarkColor = style.checkboxCheckmarkColor,
-                    uncheckedColor = style.checkboxUncheckedColor
+                .then(titlePadding)
+        )
+        if (showCloseButton) {
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(32.dp)
+                    .align(Alignment.CenterEnd)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.close),
+                    contentDescription = "Close",
+                    tint = style.closeIconTint,
+                    modifier = Modifier.size(18.dp)
                 )
+            }
+        }
+    }
+}
+
+/** Cancel + Submit button row, honoring `showCancelButton` and the resolved button styles. */
+@Composable
+private fun FeedbackActionButtons(
+    showCancelButton: Boolean,
+    onCancel: () -> Unit,
+    onSubmit: () -> Unit,
+    style: ConciergeStyles.FeedbackDialogStyle
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(style.buttonSpacing),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val themeText = ConciergeTheme.text
+        if (showCancelButton) {
+            OutlinedButton(
+                onClick = onCancel,
+                shape = style.cancelButtonShape,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = style.cancelButtonFill,
+                    contentColor = style.cancelButtonColor
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = style.cancelButtonBorderWidth,
+                    color = style.cancelButtonBorderColor
+                )
+            ) {
+                Text(
+                    text = themeText?.feedbackDialogCancel ?: "Cancel",
+                    style = style.buttonTextStyle.copy(fontWeight = style.cancelButtonFontWeight)
+                )
+            }
+        }
+
+        Button(
+            onClick = onSubmit,
+            shape = style.submitButtonShape,
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = style.submitButtonColor,
+                contentColor = style.submitButtonTextColor
             )
-            Spacer(modifier = Modifier.width(style.checkboxSpacing))
+        ) {
             Text(
-                text = category,
-                style = style.categoryTextStyle,
-                color = style.categoryTextColor,
-                modifier = Modifier.weight(1f)
+                text = themeText?.feedbackDialogSubmit ?: "Submit",
+                style = style.buttonTextStyle.copy(fontWeight = style.submitButtonFontWeight),
+                color = style.submitButtonTextColor
             )
         }
+    }
+}
+
+/**
+ * Themable drag-handle capsule used in action (bottom sheet) mode.
+ */
+@Composable
+private fun FeedbackDragHandle(style: ConciergeStyles.FeedbackDialogStyle) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 36.dp, height = 4.dp)
+                .background(color = style.dragHandleColor, shape = RoundedCornerShape(2.dp))
+        )
     }
 }
 
@@ -220,7 +369,8 @@ private fun FeedbackDialogCard(
 }
 
 /**
- * Card content: title, question, categories, notes field, Cancel/Submit buttons.
+ * Card content: title, optional close X, question, categories, optional notes field,
+ * and the Cancel/Submit action row. Visibility toggles honor `behavior.feedback.show*`.
  */
 @Composable
 private fun FeedbackCardContent(
@@ -235,23 +385,23 @@ private fun FeedbackCardContent(
     val titleText = resolveTitle(feedback.feedbackType)
     val questionText = resolveQuestion(feedback.feedbackType)
     val categories = resolveCategories(feedback.feedbackType)
+    val showNotes = resolveNotesEnabled(feedback.feedbackType)
+    val showCloseButton = resolveShowCloseButton()
+    val showCancelButton = resolveShowCancelButton()
 
     var selectedCategories by remember { mutableStateOf(setOf<String>()) }
     var notesText by remember { mutableStateOf("") }
 
     Column(modifier = modifier) {
-        // Title
-        Text(
-            text = titleText,
-            style = style.titleStyle,
-            color = style.titleColor,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
+        FeedbackTitleRow(
+            titleText = titleText,
+            showCloseButton = showCloseButton,
+            onDismiss = onDismiss,
+            style = style
         )
 
         Spacer(modifier = Modifier.height(style.titleSpacing))
 
-        // Question
         Text(
             text = questionText,
             style = style.questionStyle,
@@ -261,7 +411,6 @@ private fun FeedbackCardContent(
 
         Spacer(modifier = Modifier.height(style.questionSpacing))
 
-        // Categories
         CategoryCheckboxList(
             categories = categories,
             selectedCategories = selectedCategories,
@@ -275,79 +424,61 @@ private fun FeedbackCardContent(
             style = style
         )
 
-        Spacer(modifier = Modifier.height(style.categoriesNotesSpacing))
+        if (showNotes) {
+            Spacer(modifier = Modifier.height(style.categoriesNotesSpacing))
 
-        // Notes section
-        Text(
-            text = themeText?.feedbackDialogNotes ?: "Notes",
-            style = style.notesLabelStyle,
-            color = style.notesLabelColor,
-            modifier = Modifier.fillMaxWidth()
-        )
+            Text(
+                text = themeText?.feedbackDialogNotes ?: "Notes",
+                style = style.notesLabelStyle,
+                color = style.notesLabelColor,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Spacer(modifier = Modifier.height(style.notesLabelSpacing))
+            Spacer(modifier = Modifier.height(style.notesLabelSpacing))
 
-        OutlinedTextField(
-            value = notesText,
-            onValueChange = { notesText = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = {
-                Text(
-                    text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
-                    style = style.notesPlaceholderStyle,
-                    color = style.notesPlaceholderColor
-                )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = style.textFieldBorderColor,
-                unfocusedBorderColor = style.textFieldBorderColor.copy(alpha = 0.5f),
-                focusedTextColor = style.textFieldTextColor,
-                unfocusedTextColor = style.textFieldTextColor
-            ),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-            maxLines = 3
-        )
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = { notesText = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
+                        style = style.notesPlaceholderStyle,
+                        color = style.notesPlaceholderColor
+                    )
+                },
+                shape = style.checkboxShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    // Notes fill matches the sheet/card surface.
+                    focusedContainerColor = style.backgroundColor,
+                    unfocusedContainerColor = style.backgroundColor,
+                    // Notes outline matches the checkbox outline when themed.
+                    focusedBorderColor = style.textFieldBorderColor,
+                    unfocusedBorderColor = style.textFieldBorderColor,
+                    focusedTextColor = style.textFieldTextColor,
+                    unfocusedTextColor = style.textFieldTextColor
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                maxLines = 3
+            )
+        }
 
         Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
 
-        // Action buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = style.cancelButtonColor)
-            ) {
-                Text(
-                    text = themeText?.feedbackDialogCancel ?: "Cancel",
-                    style = style.buttonTextStyle
-                )
-            }
-
-            Spacer(modifier = Modifier.width(style.buttonSpacing))
-
-            Button(
-                onClick = {
-                    onSubmit(
-                        feedback.copy(
-                            selectedCategories = selectedCategories.toList(),
-                            notes = notesText.trim()
-                        )
+        FeedbackActionButtons(
+            showCancelButton = showCancelButton,
+            onCancel = onDismiss,
+            onSubmit = {
+                onSubmit(
+                    feedback.copy(
+                        selectedCategories = selectedCategories.toList(),
+                        notes = if (showNotes) notesText.trim() else ""
                     )
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = style.submitButtonColor),
-                enabled = selectedCategories.isNotEmpty() || notesText.isNotBlank()
-            ) {
-                Text(
-                    text = themeText?.feedbackDialogSubmit ?: "Submit",
-                    style = style.buttonTextStyle,
-                    color = style.submitButtonTextColor
                 )
-            }
-        }
+            },
+            style = style
+        )
     }
 }
 
@@ -369,7 +500,8 @@ private fun FeedbackDialogBottomSheet(
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
         containerColor = style.backgroundColor,
-        dragHandle = null,
+        // Themable capsule handle replaces Material3's default.
+        dragHandle = { FeedbackDragHandle(style) },
         modifier = modifier
     ) {
         FeedbackBottomSheetContent(
@@ -384,8 +516,8 @@ private fun FeedbackDialogBottomSheet(
 }
 
 /**
- * Bottom sheet content: title with close button, question, categories, full-width SUBMIT button.
- * Enabled via `behavior.feedback.displayMode: "action"` in theme JSON.
+ * Bottom sheet content: title (with optional X close), question, categories, and action buttons.
+ * The notes field is intentionally not rendered in action mode; submitted `notes` is always `""`.
  */
 @Composable
 private fun FeedbackBottomSheetContent(
@@ -395,45 +527,24 @@ private fun FeedbackBottomSheetContent(
     onSubmit: (Feedback) -> Unit
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
-    val themeText = ConciergeTheme.text
     val titleText = resolveTitle(feedback.feedbackType)
     val questionText = resolveQuestion(feedback.feedbackType)
     val categories = resolveCategories(feedback.feedbackType)
+    val showCloseButton = resolveShowCloseButton()
+    val showCancelButton = resolveShowCancelButton()
 
     var selectedCategories by remember { mutableStateOf(setOf<String>()) }
 
     Column(modifier = modifier.padding(horizontal = style.contentPadding)) {
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Header: title + close button
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = titleText,
-                style = style.titleStyle,
-                color = style.titleColor,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 40.dp),
-                textAlign = TextAlign.Center
-            )
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .size(32.dp)
-                    .align(Alignment.CenterEnd)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.close),
-                    contentDescription = "Close",
-                    tint = style.titleColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
+        FeedbackTitleRow(
+            titleText = titleText,
+            showCloseButton = showCloseButton,
+            onDismiss = onDismiss,
+            style = style
+        )
 
         Spacer(modifier = Modifier.height(style.titleSpacing))
 
-        // Question
         Text(
             text = questionText,
             style = style.questionStyle,
@@ -443,7 +554,6 @@ private fun FeedbackBottomSheetContent(
 
         Spacer(modifier = Modifier.height(style.questionSpacing))
 
-        // Categories
         CategoryCheckboxList(
             categories = categories,
             selectedCategories = selectedCategories,
@@ -457,11 +567,12 @@ private fun FeedbackBottomSheetContent(
             style = style
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
 
-        // Full-width SUBMIT button
-        Button(
-            onClick = {
+        FeedbackActionButtons(
+            showCancelButton = showCancelButton,
+            onCancel = onDismiss,
+            onSubmit = {
                 onSubmit(
                     feedback.copy(
                         selectedCategories = selectedCategories.toList(),
@@ -469,19 +580,8 @@ private fun FeedbackBottomSheetContent(
                     )
                 )
             },
-            colors = ButtonDefaults.buttonColors(containerColor = style.submitButtonColor),
-            enabled = selectedCategories.isNotEmpty(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = (themeText?.feedbackDialogSubmit ?: "Submit").uppercase(),
-                style = style.buttonTextStyle.copy(fontWeight = FontWeight.Bold),
-                color = style.submitButtonTextColor
-            )
-        }
+            style = style
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
     }
