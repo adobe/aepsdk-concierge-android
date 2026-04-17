@@ -673,6 +673,162 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `parseThemeTokens parses feedback behavior showCloseButton showCancelButton showNotes`() {
+        val json = """
+            {
+                "behavior": {
+                    "feedback": {
+                        "displayMode": "action",
+                        "showCloseButton": false,
+                        "showCancelButton": true,
+                        "showNotes": false
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val feedback = tokens?.behavior?.feedback
+
+        assertNotNull(feedback)
+        assertEquals(FeedbackDisplayMode.ACTION, feedback?.displayMode)
+        assertEquals(false, feedback?.showCloseButton)
+        assertEquals(true, feedback?.showCancelButton)
+        assertEquals(false, feedback?.showNotes)
+    }
+
+    @Test
+    fun `parseThemeTokens leaves feedback behavior overrides null when keys are missing`() {
+        val json = """
+            {
+                "behavior": {
+                    "feedback": {
+                        "displayMode": "modal"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val feedback = tokens?.behavior?.feedback
+
+        assertNotNull(feedback)
+        assertNull(feedback?.showCloseButton)
+        assertNull(feedback?.showCancelButton)
+        assertNull(feedback?.showNotes)
+    }
+
+    @Test
+    fun `parseThemeTokens parses components feedback positiveNotesEnabled and negativeNotesEnabled`() {
+        val json = """
+            {
+                "components": {
+                    "feedback": {
+                        "iconButtonSizeDesktop": 36,
+                        "positiveNotesEnabled": false,
+                        "negativeNotesEnabled": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val component = tokens?.components?.feedback
+
+        assertNotNull(component)
+        assertEquals(36.0, component?.iconButtonSizeDesktop)
+        assertEquals(false, component?.positiveNotesEnabled)
+        assertEquals(true, component?.negativeNotesEnabled)
+    }
+
+    @Test
+    fun `parseThemeTokens defaults components feedback notesEnabled flags to true when missing`() {
+        val json = """
+            {
+                "components": {
+                    "feedback": {}
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val component = tokens?.components?.feedback
+
+        assertNotNull(component)
+        assertEquals(true, component?.positiveNotesEnabled)
+        assertEquals(true, component?.negativeNotesEnabled)
+    }
+
+    @Test
+    fun `parseThemeTokens wires new feedback colors from theme CSS vars`() {
+        val json = """
+            {
+                "theme": {
+                    "--feedback-sheet-background-color": "#FFFFFF",
+                    "--feedback-title-text-color": "#131313",
+                    "--feedback-question-text-color": "#424242",
+                    "--feedback-options-text-color": "#222222",
+                    "--feedback-checkbox-border-color": "#131313",
+                    "--feedback-notes-text-color": "#131313",
+                    "--feedback-drag-handle-color": "#CCCCCC",
+                    "--feedback-submit-button-fill-color": "#3B63FB",
+                    "--feedback-submit-button-text-color": "#FFFFFF",
+                    "--feedback-cancel-button-fill-color": "#FFFFFF",
+                    "--feedback-cancel-button-text-color": "#2C2C2C",
+                    "--feedback-cancel-button-border-color": "#2C2C2C"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val feedback = tokens?.colors?.feedback
+
+        assertNotNull(feedback)
+        assertEquals("#FFFFFF", feedback?.sheetBackground)
+        assertEquals("#131313", feedback?.titleText)
+        assertEquals("#424242", feedback?.questionText)
+        assertEquals("#222222", feedback?.optionsText)
+        assertEquals("#131313", feedback?.checkboxBorder)
+        assertEquals("#131313", feedback?.notesText)
+        assertEquals("#CCCCCC", feedback?.dragHandle)
+        assertEquals("#3B63FB", feedback?.submitButtonFill)
+        assertEquals("#FFFFFF", feedback?.submitButtonText)
+        assertEquals("#FFFFFF", feedback?.cancelButtonFill)
+        assertEquals("#2C2C2C", feedback?.cancelButtonText)
+        assertEquals("#2C2C2C", feedback?.cancelButtonBorder)
+    }
+
+    @Test
+    fun `parseThemeTokens parses new feedback layout CSS vars`() {
+        val json = """
+            {
+                "theme": {
+                    "--feedback-submit-button-border-radius": "10px",
+                    "--feedback-cancel-button-border-radius": "10px",
+                    "--feedback-cancel-button-border-width": "1px",
+                    "--feedback-submit-button-font-weight": "600",
+                    "--feedback-cancel-button-font-weight": "500",
+                    "--feedback-checkbox-border-radius": "6px",
+                    "--feedback-title-text-align": "leading",
+                    "--feedback-title-font-size": "22px"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val layout = tokens?.cssLayout
+
+        assertEquals(10.0, layout?.feedbackSubmitButtonBorderRadius)
+        assertEquals(10.0, layout?.feedbackCancelButtonBorderRadius)
+        assertEquals(1.0, layout?.feedbackCancelButtonBorderWidth)
+        assertEquals(600, layout?.feedbackSubmitButtonFontWeight)
+        assertEquals(500, layout?.feedbackCancelButtonFontWeight)
+        assertEquals(6.0, layout?.feedbackCheckboxBorderRadius)
+        assertEquals(ConciergeTextAlignment.START, layout?.feedbackTitleTextAlign)
+        assertEquals(22.0, layout?.feedbackTitleFontSize)
+    }
+
+    @Test
     fun `parseThemeTokens should parse behavior feedback displayMode`() {
         val modalJson = """
             {
@@ -715,7 +871,7 @@ class ThemeParserTest {
         val tokens = ThemeParser.parseThemeTokens(json)
 
         assertNotNull(tokens?.behavior?.chat)
-        assertEquals(ChatMessageAlignment.CENTER, tokens?.behavior?.chat?.messageAlignment)
+        assertEquals(ConciergeTextAlignment.CENTER, tokens?.behavior?.chat?.messageAlignment)
         assertEquals("100%", tokens?.behavior?.chat?.messageWidth)
         assertEquals(UserMessageBubbleStyle.BALLOON, tokens?.behavior?.chat?.userMessageBubbleStyle)
     }

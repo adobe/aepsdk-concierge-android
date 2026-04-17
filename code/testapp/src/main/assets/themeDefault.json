@@ -28,13 +28,22 @@
     },
     "feedback": {
       "displayMode": "modal",
-      "thumbsPlacement": "inline"
+      "thumbsPlacement": "inline",
+      "showCloseButton": null,
+      "showCancelButton": null,
+      "showNotes": null
     },
     "citations": {
       "showLinkIcon": false
     },
     "welcomeCard": {
       "contentAlignment": "center"
+    }
+  },
+  "components": {
+    "feedback": {
+      "positiveNotesEnabled": true,
+      "negativeNotesEnabled": true
     }
   },
   "disclaimer": {
@@ -69,7 +78,7 @@
     "feedback.dialog.question.positive": "What went well? Select all that apply.",
     "feedback.dialog.question.negative": "What went wrong? Select all that apply.",
     "feedback.dialog.notes": "Notes",
-    "feedback.dialog.submit": "Submit",
+    "feedback.dialog.submit": "SUBMIT",
     "feedback.dialog.cancel": "Cancel",
     "feedback.dialog.notes.placeholder": "Additional notes (optional)",
     "feedback.toast.success": "Thank you for the feedback.",
@@ -172,6 +181,26 @@
     "--feedback-icon-btn-hover-background": "#FFFFFF",
     "--feedback-icon-btn-size-desktop": "32px",
     "--feedback-container-gap": "4px",
+    "--feedback-sheet-background-color": "#FFFFFF",
+    "--feedback-title-text-color": "#131313",
+    "--feedback-question-text-color": "#424242",
+    "--feedback-options-text-color": "#131313",
+    "--feedback-checkbox-border-color": "#131313",
+    "--feedback-notes-text-color": "#131313",
+    "--feedback-drag-handle-color": "#CCCCCC",
+    "--feedback-submit-button-fill-color": "#C55C19",
+    "--feedback-submit-button-text-color": "#FFFFFF",
+    "--feedback-submit-button-border-radius": "4px",
+    "--feedback-submit-button-font-weight": "700",
+    "--feedback-cancel-button-fill-color": "#FFFFFF",
+    "--feedback-cancel-button-text-color": "#2C2C2C",
+    "--feedback-cancel-button-border-color": "#2C2C2C",
+    "--feedback-cancel-button-border-width": "1px",
+    "--feedback-cancel-button-border-radius": "10px",
+    "--feedback-cancel-button-font-weight": "600",
+    "--feedback-checkbox-border-radius": "0px",
+    "--feedback-title-text-align": "center",
+    "--feedback-title-font-size": "18px",
     "--multimodal-card-box-shadow": "none",
     "--border-radius-card": "16px",
     "--button-height-s": "30px",

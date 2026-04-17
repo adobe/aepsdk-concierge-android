@@ -74,11 +74,25 @@ data class ConciergeColors(
     val feedbackIconButtonBackground: Color? = null,
     val feedbackIconButtonHoverBackground: Color? = null,
 
-    // Feedback dialog (rom CSS themes)
+    // Feedback dialog (from CSS themes)
     val feedbackDialogCheckboxCheckedColor: Color? = null,
     val feedbackDialogCancelButtonColor: Color? = null,
     val feedbackDialogSubmitButtonColor: Color? = null,
     val feedbackDialogSubmitButtonTextColor: Color? = null,
+
+    // Feedback dialog - extended styling (from CSS themes)
+    val feedbackSheetBackground: Color? = null,
+    val feedbackTitleText: Color? = null,
+    val feedbackQuestionText: Color? = null,
+    val feedbackOptionsText: Color? = null,
+    val feedbackCheckboxBorder: Color? = null,
+    val feedbackNotesText: Color? = null,
+    val feedbackDragHandle: Color? = null,
+    val feedbackSubmitButtonFill: Color? = null,
+    val feedbackSubmitButtonText: Color? = null,
+    val feedbackCancelButtonFill: Color? = null,
+    val feedbackCancelButtonText: Color? = null,
+    val feedbackCancelButtonBorder: Color? = null,
 
     // Prompt pill colors (from CSS themes)
     val welcomePromptBackground: Color? = null,
