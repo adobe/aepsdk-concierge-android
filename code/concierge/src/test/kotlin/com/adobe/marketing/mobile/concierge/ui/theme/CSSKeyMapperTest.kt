@@ -55,6 +55,44 @@ class CSSKeyMapperTest {
         assertTrue(keys.contains("feedback-icon-btn-size-desktop"))
     }
 
+    @Test
+    fun `supportedCSSKeys registers all 12 feedback dialog color keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        val feedbackColorKeys = setOf(
+            "feedback-sheet-background-color",
+            "feedback-title-text-color",
+            "feedback-question-text-color",
+            "feedback-options-text-color",
+            "feedback-checkbox-border-color",
+            "feedback-notes-text-color",
+            "feedback-drag-handle-color",
+            "feedback-submit-button-fill-color",
+            "feedback-submit-button-text-color",
+            "feedback-cancel-button-fill-color",
+            "feedback-cancel-button-text-color",
+            "feedback-cancel-button-border-color"
+        )
+        val missing = feedbackColorKeys - keys
+        assertTrue("CSSKeyMapper is missing feedback color keys: ${missing.sorted().joinToString()}", missing.isEmpty())
+    }
+
+    @Test
+    fun `supportedCSSKeys registers all 8 feedback dialog layout keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        val feedbackLayoutKeys = setOf(
+            "feedback-submit-button-border-radius",
+            "feedback-cancel-button-border-radius",
+            "feedback-cancel-button-border-width",
+            "feedback-submit-button-font-weight",
+            "feedback-cancel-button-font-weight",
+            "feedback-checkbox-border-radius",
+            "feedback-title-text-align",
+            "feedback-title-font-size"
+        )
+        val missing = feedbackLayoutKeys - keys
+        assertTrue("CSSKeyMapper is missing feedback layout keys: ${missing.sorted().joinToString()}", missing.isEmpty())
+    }
+
     // -----------------------------------------------------------------------
     // Typography
     // -----------------------------------------------------------------------
@@ -1046,5 +1084,193 @@ class CSSKeyMapperTest {
         assertTrue(keys.contains("thinking-bubble-padding-horizontal"))
         assertTrue(keys.contains("thinking-bubble-padding-vertical"))
         assertTrue(keys.contains("thinking-dot-vertical-alignment"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Feedback dialog colors (12 new CSS vars)
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps feedback-sheet-background-color`() {
+        val result = CSSKeyMapper.apply("--feedback-sheet-background-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.feedback?.sheetBackground)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-color`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-color", "#131313", emptyTheme)
+        assertEquals("#131313", result.colors?.feedback?.titleText)
+    }
+
+    @Test
+    fun `apply maps feedback-question-text-color`() {
+        val result = CSSKeyMapper.apply("--feedback-question-text-color", "#424242", emptyTheme)
+        assertEquals("#424242", result.colors?.feedback?.questionText)
+    }
+
+    @Test
+    fun `apply maps feedback-options-text-color`() {
+        val result = CSSKeyMapper.apply("--feedback-options-text-color", "#131313", emptyTheme)
+        assertEquals("#131313", result.colors?.feedback?.optionsText)
+    }
+
+    @Test
+    fun `apply maps feedback-checkbox-border-color`() {
+        val result = CSSKeyMapper.apply("--feedback-checkbox-border-color", "#131313", emptyTheme)
+        assertEquals("#131313", result.colors?.feedback?.checkboxBorder)
+    }
+
+    @Test
+    fun `apply maps feedback-notes-text-color`() {
+        val result = CSSKeyMapper.apply("--feedback-notes-text-color", "#131313", emptyTheme)
+        assertEquals("#131313", result.colors?.feedback?.notesText)
+    }
+
+    @Test
+    fun `apply maps feedback-drag-handle-color`() {
+        val result = CSSKeyMapper.apply("--feedback-drag-handle-color", "#CCCCCC", emptyTheme)
+        assertEquals("#CCCCCC", result.colors?.feedback?.dragHandle)
+    }
+
+    @Test
+    fun `apply maps feedback-submit-button-fill-color`() {
+        val result = CSSKeyMapper.apply("--feedback-submit-button-fill-color", "#3B63FB", emptyTheme)
+        assertEquals("#3B63FB", result.colors?.feedback?.submitButtonFill)
+    }
+
+    @Test
+    fun `apply maps feedback-submit-button-text-color`() {
+        val result = CSSKeyMapper.apply("--feedback-submit-button-text-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.feedback?.submitButtonText)
+    }
+
+    @Test
+    fun `apply maps feedback-cancel-button-fill-color`() {
+        val result = CSSKeyMapper.apply("--feedback-cancel-button-fill-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.feedback?.cancelButtonFill)
+    }
+
+    @Test
+    fun `apply maps feedback-cancel-button-text-color`() {
+        val result = CSSKeyMapper.apply("--feedback-cancel-button-text-color", "#2C2C2C", emptyTheme)
+        assertEquals("#2C2C2C", result.colors?.feedback?.cancelButtonText)
+    }
+
+    @Test
+    fun `apply maps feedback-cancel-button-border-color`() {
+        val result = CSSKeyMapper.apply("--feedback-cancel-button-border-color", "#2C2C2C", emptyTheme)
+        assertEquals("#2C2C2C", result.colors?.feedback?.cancelButtonBorder)
+    }
+
+    // -----------------------------------------------------------------------
+    // Feedback dialog layout (8 new CSS vars)
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps feedback-submit-button-border-radius`() {
+        val result = CSSKeyMapper.apply("--feedback-submit-button-border-radius", "10px", emptyTheme)
+        assertEquals(10.0, result.cssLayout?.feedbackSubmitButtonBorderRadius)
+    }
+
+    @Test
+    fun `apply maps feedback-cancel-button-border-radius`() {
+        val result = CSSKeyMapper.apply("--feedback-cancel-button-border-radius", "10px", emptyTheme)
+        assertEquals(10.0, result.cssLayout?.feedbackCancelButtonBorderRadius)
+    }
+
+    @Test
+    fun `apply maps feedback-cancel-button-border-width`() {
+        val result = CSSKeyMapper.apply("--feedback-cancel-button-border-width", "1px", emptyTheme)
+        assertEquals(1.0, result.cssLayout?.feedbackCancelButtonBorderWidth)
+    }
+
+    @Test
+    fun `apply maps feedback-submit-button-font-weight`() {
+        val result = CSSKeyMapper.apply("--feedback-submit-button-font-weight", "600", emptyTheme)
+        assertEquals(600, result.cssLayout?.feedbackSubmitButtonFontWeight)
+    }
+
+    @Test
+    fun `apply maps feedback-cancel-button-font-weight`() {
+        val result = CSSKeyMapper.apply("--feedback-cancel-button-font-weight", "600", emptyTheme)
+        assertEquals(600, result.cssLayout?.feedbackCancelButtonFontWeight)
+    }
+
+    @Test
+    fun `apply maps feedback-checkbox-border-radius`() {
+        val result = CSSKeyMapper.apply("--feedback-checkbox-border-radius", "6px", emptyTheme)
+        assertEquals(6.0, result.cssLayout?.feedbackCheckboxBorderRadius)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-align leading to START`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-align", "leading", emptyTheme)
+        assertEquals(ConciergeTextAlignment.START, result.cssLayout?.feedbackTitleTextAlign)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-align center`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-align", "center", emptyTheme)
+        assertEquals(ConciergeTextAlignment.CENTER, result.cssLayout?.feedbackTitleTextAlign)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-align left to START`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-align", "left", emptyTheme)
+        assertEquals(ConciergeTextAlignment.START, result.cssLayout?.feedbackTitleTextAlign)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-align right to END`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-align", "right", emptyTheme)
+        assertEquals(ConciergeTextAlignment.END, result.cssLayout?.feedbackTitleTextAlign)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-align justify to CENTER`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-align", "justify", emptyTheme)
+        assertEquals(ConciergeTextAlignment.CENTER, result.cssLayout?.feedbackTitleTextAlign)
+    }
+
+    @Test
+    fun `apply maps feedback-title-text-align unknown value to START`() {
+        val result = CSSKeyMapper.apply("--feedback-title-text-align", "bogus", emptyTheme)
+        assertEquals(ConciergeTextAlignment.START, result.cssLayout?.feedbackTitleTextAlign)
+    }
+
+    @Test
+    fun `apply maps feedback-title-font-size`() {
+        val result = CSSKeyMapper.apply("--feedback-title-font-size", "22px", emptyTheme)
+        assertEquals(22.0, result.cssLayout?.feedbackTitleFontSize)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains all new feedback dialog keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        val expected = listOf(
+            "feedback-sheet-background-color",
+            "feedback-title-text-color",
+            "feedback-question-text-color",
+            "feedback-options-text-color",
+            "feedback-checkbox-border-color",
+            "feedback-notes-text-color",
+            "feedback-drag-handle-color",
+            "feedback-submit-button-fill-color",
+            "feedback-submit-button-text-color",
+            "feedback-cancel-button-fill-color",
+            "feedback-cancel-button-text-color",
+            "feedback-cancel-button-border-color",
+            "feedback-submit-button-border-radius",
+            "feedback-cancel-button-border-radius",
+            "feedback-cancel-button-border-width",
+            "feedback-submit-button-font-weight",
+            "feedback-cancel-button-font-weight",
+            "feedback-checkbox-border-radius",
+            "feedback-title-text-align",
+            "feedback-title-font-size"
+        )
+        expected.forEach { key ->
+            assertTrue("supportedCSSKeys should contain $key", keys.contains(key))
+        }
     }
 }

@@ -1049,9 +1049,7 @@ internal object ConciergeStyles {
             padding = 16.dp
         )
 
-    /**
-     * Styling for feedback dialog
-     */
+    /** Styling for the feedback dialog. `backgroundColor` also drives the notes editor fill. */
     @Immutable
     data class FeedbackDialogStyle(
         val padding: Dp,
@@ -1061,6 +1059,7 @@ internal object ConciergeStyles {
         val contentPadding: Dp,
         val titleStyle: TextStyle,
         val titleColor: Color,
+        val titleTextAlign: TextAlign,
         val titleSpacing: Dp,
         val questionStyle: TextStyle,
         val questionColor: Color,
@@ -1069,6 +1068,9 @@ internal object ConciergeStyles {
         val checkboxCheckedColor: Color,
         val checkboxCheckmarkColor: Color,
         val checkboxUncheckedColor: Color,
+        /** Unchecked checkbox outline; also reused for the notes editor outline. */
+        val checkboxBorderColor: Color,
+        val checkboxShape: Shape,
         val checkboxSpacing: Dp,
         val categoryTextStyle: TextStyle,
         val categoryTextColor: Color,
@@ -1083,55 +1085,143 @@ internal object ConciergeStyles {
         val textFieldTextColor: Color,
         val buttonSpacing: Dp,
         val cancelButtonColor: Color,
+        /** Cancel button fill; `Color.Transparent` when unthemed (outline style). */
+        val cancelButtonFill: Color,
+        val cancelButtonBorderColor: Color,
+        val cancelButtonBorderWidth: Dp,
+        val cancelButtonShape: Shape,
+        val cancelButtonFontWeight: FontWeight,
         val submitButtonColor: Color,
         val submitButtonTextColor: Color,
+        val submitButtonShape: Shape,
+        val submitButtonFontWeight: FontWeight,
+        val dragHandleColor: Color,
+        /** Tint of the X close icon; also falls back to cancel fill per iOS. */
+        val closeIconTint: Color,
         val buttonTextStyle: TextStyle
     )
 
     val feedbackDialogStyle: FeedbackDialogStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
-            // Use the screen background for the dialog so it is always fully opaque.
-            // conciergeMessageBackground can be semi-transparent (e.g. an overlay tint
-            // for chat bubbles), which causes bleed-through when used on the dialog.
-            val dialogBackground = themeColors.background
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            val isDark = isSystemInDarkTheme()
+
+            // Sheet/modal fill. Prefer the explicit feedback sheet background; fall back to the screen background.
+            // Avoid conciergeMessageBackground which may be semi-transparent (chat bubble tint).
+            val sheetBackground = themeColors.feedbackSheetBackground ?: themeColors.background
+
             val dialogTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface
+
             // Checkbox: primary background when checked, white checkmark in both light and dark
             val checkboxCheckedColor = themeColors.feedbackDialogCheckboxCheckedColor ?: themeColors.primary
-            val checkboxCheckmarkColor = Color.White
+
+            // Adaptive unchecked outline when no explicit feedback.checkboxBorder is set.
+            val adaptiveCheckboxBorder = if (isDark) Color.White.copy(alpha = 0.28f) else Color.Black.copy(alpha = 0.35f)
+            val checkboxBorder = themeColors.feedbackCheckboxBorder ?: adaptiveCheckboxBorder
+
+            val titleTextAlign = when (cssLayout?.feedbackTitleTextAlign) {
+                ConciergeTextAlignment.CENTER -> TextAlign.Center
+                ConciergeTextAlignment.END -> TextAlign.End
+                ConciergeTextAlignment.START, null -> TextAlign.Start
+            }
+
+            val titleStyle = MaterialTheme.typography.titleMedium
+                .copy(fontWeight = FontWeight.Bold)
+                .let { base ->
+                    cssLayout?.feedbackTitleFontSize?.let { size -> base.copy(fontSize = size.sp) } ?: base
+                }
+
+            val submitShape = RoundedCornerShape((cssLayout?.feedbackSubmitButtonBorderRadius ?: 10.0).dp)
+            val cancelShape = RoundedCornerShape((cssLayout?.feedbackCancelButtonBorderRadius ?: 10.0).dp)
+            val checkboxShape = RoundedCornerShape((cssLayout?.feedbackCheckboxBorderRadius ?: 6.0).dp)
+            val cancelBorderWidth = (cssLayout?.feedbackCancelButtonBorderWidth ?: 1.0).dp
+
+            val submitFontWeight = cssLayout?.feedbackSubmitButtonFontWeight?.let { FontWeight(it) }
+                ?: FontWeight.SemiBold
+            val cancelFontWeight = cssLayout?.feedbackCancelButtonFontWeight?.let { FontWeight(it) }
+                ?: FontWeight.SemiBold
+
+            val submitFill = themeColors.feedbackSubmitButtonFill
+                ?: themeColors.feedbackDialogSubmitButtonColor
+                ?: themeColors.buttonSubmitFill
+                ?: themeColors.buttonPrimaryBackground
+                ?: themeColors.primary
+            val submitText = themeColors.feedbackSubmitButtonText
+                ?: themeColors.feedbackDialogSubmitButtonTextColor
+                ?: themeColors.buttonSubmitText
+                ?: themeColors.buttonPrimaryText
+                ?: themeColors.onPrimary
+
+            // iOS `nil` fill renders an outline; mirror by defaulting to transparent when unthemed.
+            val cancelFill = themeColors.feedbackCancelButtonFill ?: Color.Transparent
+            val cancelText = themeColors.feedbackCancelButtonText
+                ?: themeColors.feedbackDialogCancelButtonColor
+                ?: themeColors.buttonSecondaryText
+                ?: themeColors.primary
+            val cancelBorder = themeColors.feedbackCancelButtonBorder
+                ?: themeColors.buttonSecondaryBorder
+                ?: dialogTextColor.copy(alpha = 0.2f)
+
+            // Close icon tint: `feedback.cancelButtonFill ?? button.secondaryText`.
+            val closeTint = themeColors.feedbackCancelButtonFill
+                ?: themeColors.buttonSecondaryText
+                ?: dialogTextColor
+
+            val dragHandleColor = themeColors.feedbackDragHandle ?: dialogTextColor.copy(alpha = 0.4f)
+
+            val titleColor = themeColors.feedbackTitleText ?: dialogTextColor
+            val questionColor = themeColors.feedbackQuestionText ?: dialogTextColor.copy(alpha = 0.7f)
+            val categoryTextColor = themeColors.feedbackOptionsText ?: dialogTextColor
+            val notesTextColor = themeColors.feedbackNotesText ?: dialogTextColor.copy(alpha = 0.7f)
+            val notesPlaceholderColor = themeColors.feedbackNotesText ?: dialogTextColor.copy(alpha = 0.5f)
+            // iOS reuses the checkbox outline for the notes editor outline when set.
+            val textFieldBorder = themeColors.feedbackCheckboxBorder ?: dialogTextColor.copy(alpha = 0.2f)
 
             return FeedbackDialogStyle(
                 padding = 16.dp,
-                backgroundColor = dialogBackground,
+                backgroundColor = sheetBackground,
                 elevation = 8.dp,
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = 20.dp,
-                titleStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                titleColor = dialogTextColor,
+                titleStyle = titleStyle,
+                titleColor = titleColor,
+                titleTextAlign = titleTextAlign,
                 titleSpacing = 12.dp,
                 questionStyle = MaterialTheme.typography.bodyMedium,
-                questionColor = dialogTextColor.copy(alpha = 0.7f),
+                questionColor = questionColor,
                 questionSpacing = 6.dp,
-                categorySpacing = 0.dp,
+                categorySpacing = 12.dp,
                 checkboxCheckedColor = checkboxCheckedColor,
-                checkboxCheckmarkColor = checkboxCheckmarkColor,
-                checkboxUncheckedColor = dialogTextColor.copy(alpha = 0.3f),
+                checkboxCheckmarkColor = Color.White,
+                checkboxUncheckedColor = checkboxBorder,
+                checkboxBorderColor = checkboxBorder,
+                checkboxShape = checkboxShape,
                 checkboxSpacing = 8.dp,
                 categoryTextStyle = MaterialTheme.typography.bodyMedium,
-                categoryTextColor = dialogTextColor,
+                categoryTextColor = categoryTextColor,
                 categoriesNotesSpacing = 6.dp,
                 notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                notesLabelColor = dialogTextColor.copy(alpha = 0.7f),
+                notesLabelColor = notesTextColor,
                 notesLabelSpacing = 8.dp,
                 notesPlaceholderStyle = MaterialTheme.typography.bodyMedium,
-                notesPlaceholderColor = dialogTextColor.copy(alpha = 0.5f),
+                notesPlaceholderColor = notesPlaceholderColor,
                 notesButtonsSpacing = 24.dp,
-                textFieldBorderColor = dialogTextColor.copy(alpha = 0.2f),
+                textFieldBorderColor = textFieldBorder,
                 textFieldTextColor = dialogTextColor,
                 buttonSpacing = 8.dp,
-                cancelButtonColor = themeColors.feedbackDialogCancelButtonColor ?: themeColors.primary,
-                submitButtonColor = themeColors.feedbackDialogSubmitButtonColor ?: themeColors.buttonSubmitFill ?: themeColors.primary,
-                submitButtonTextColor = themeColors.feedbackDialogSubmitButtonTextColor ?: themeColors.buttonSubmitText ?: themeColors.onPrimary,
+                cancelButtonColor = cancelText,
+                cancelButtonFill = cancelFill,
+                cancelButtonBorderColor = cancelBorder,
+                cancelButtonBorderWidth = cancelBorderWidth,
+                cancelButtonShape = cancelShape,
+                cancelButtonFontWeight = cancelFontWeight,
+                submitButtonColor = submitFill,
+                submitButtonTextColor = submitText,
+                submitButtonShape = submitShape,
+                submitButtonFontWeight = submitFontWeight,
+                dragHandleColor = dragHandleColor,
+                closeIconTint = closeTint,
                 buttonTextStyle = MaterialTheme.typography.labelMedium
             )
         }

@@ -162,7 +162,8 @@ internal object ThemeParser {
             behavior = parseBehavior(json["behavior"] as? Map<*, *>),
             assets = parseAssets(json["assets"] as? Map<*, *>),
             content = parseContent(json["content"] as? Map<*, *>),
-            layout = parseLayout(json["layout"] as? Map<*, *>)
+            layout = parseLayout(json["layout"] as? Map<*, *>),
+            components = parseComponentsConfig(json["components"] as? Map<*, *>)
         )
         
         // Parse CSS variables from "theme" block
@@ -172,6 +173,23 @@ internal object ThemeParser {
         }
         
         return theme
+    }
+
+    /** Parses the `components` JSON block. Returns `null` when the block is absent. */
+    private fun parseComponentsConfig(map: Map<*, *>?): ConciergeComponentsConfig? {
+        if (map == null) return null
+        val feedbackMap = map["feedback"] as? Map<*, *>
+        val feedbackComponent = feedbackMap?.let {
+            @Suppress("UNCHECKED_CAST")
+            val typed = it as? MutableMap<String?, Any?>
+            ConciergeFeedbackComponent(
+                iconButtonSizeDesktop = DataReader.optDouble(typed, "iconButtonSizeDesktop", 0.0)
+                    .takeIf { value -> value > 0.0 },
+                positiveNotesEnabled = DataReader.optBoolean(typed, "positiveNotesEnabled", true),
+                negativeNotesEnabled = DataReader.optBoolean(typed, "negativeNotesEnabled", true)
+            )
+        }
+        return ConciergeComponentsConfig(feedback = feedbackComponent)
     }
     
     /**
@@ -331,6 +349,19 @@ internal object ThemeParser {
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
+            // Feedback dialog extended styling from CSS themes
+            feedbackSheetBackground = themeColors.feedback?.sheetBackground?.toComposeColor(),
+            feedbackTitleText = themeColors.feedback?.titleText?.toComposeColor(),
+            feedbackQuestionText = themeColors.feedback?.questionText?.toComposeColor(),
+            feedbackOptionsText = themeColors.feedback?.optionsText?.toComposeColor(),
+            feedbackCheckboxBorder = themeColors.feedback?.checkboxBorder?.toComposeColor(),
+            feedbackNotesText = themeColors.feedback?.notesText?.toComposeColor(),
+            feedbackDragHandle = themeColors.feedback?.dragHandle?.toComposeColor(),
+            feedbackSubmitButtonFill = themeColors.feedback?.submitButtonFill?.toComposeColor(),
+            feedbackSubmitButtonText = themeColors.feedback?.submitButtonText?.toComposeColor(),
+            feedbackCancelButtonFill = themeColors.feedback?.cancelButtonFill?.toComposeColor(),
+            feedbackCancelButtonText = themeColors.feedback?.cancelButtonText?.toComposeColor(),
+            feedbackCancelButtonBorder = themeColors.feedback?.cancelButtonBorder?.toComposeColor(),
             // Prompt pill colors from CSS themes
             welcomePromptBackground = themeColors.welcomePrompt?.backgroundColor?.toComposeColor(),
             welcomePromptText = themeColors.welcomePrompt?.textColor?.toComposeColor(),
@@ -411,7 +442,10 @@ internal object ThemeParser {
         val feedback = feedbackTyped?.let {
             ConciergeFeedbackBehavior(
                 displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "modal")),
-                thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline"))
+                thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline")),
+                showCloseButton = it["showCloseButton"] as? Boolean,
+                showCancelButton = it["showCancelButton"] as? Boolean,
+                showNotes = it["showNotes"] as? Boolean
             )
         }
 
@@ -441,7 +475,7 @@ internal object ThemeParser {
         val chatTyped = chatMap as? MutableMap<String?, Any?>
         val chat = chatTyped?.let {
             ConciergeChatBehavior(
-                messageAlignment = ChatMessageAlignment.fromString(DataReader.optString(it, "messageAlignment", "start") ?: "start"),
+                messageAlignment = ConciergeTextAlignment.fromString(DataReader.optString(it, "messageAlignment", "start") ?: "start"),
                 messageWidth = DataReader.optString(it, "messageWidth", null),
                 userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default"))
             )
