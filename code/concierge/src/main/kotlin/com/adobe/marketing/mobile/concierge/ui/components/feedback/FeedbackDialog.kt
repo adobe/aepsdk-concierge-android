@@ -59,7 +59,6 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeFeedbackBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
@@ -149,17 +148,15 @@ private fun resolveQuestion(feedbackType: FeedbackType): String {
     }
 }
 
-/** Notes field visibility: `showNotes` when set, otherwise per-sentiment `positive/negativeNotesEnabled`. */
+/** Notes field visibility: per-sentiment `positive/negativeNotesEnabled` (defaults to `true`). */
 @Composable
 private fun resolveNotesEnabled(feedbackType: FeedbackType): Boolean {
     val componentsFeedback = ConciergeTheme.tokens?.components?.feedback
-    val sentimentFallback = if (feedbackType == FeedbackType.POSITIVE) {
+    return if (feedbackType == FeedbackType.POSITIVE) {
         componentsFeedback?.positiveNotesEnabled ?: true
     } else {
         componentsFeedback?.negativeNotesEnabled ?: true
     }
-    val behavior: ConciergeFeedbackBehavior? = ConciergeTheme.behavior?.feedback
-    return behavior?.resolvedShowNotes(sentimentFallback) ?: sentimentFallback
 }
 
 /** Close (X) button visibility: `true` for `"action"`, `false` for `"modal"` by default. */

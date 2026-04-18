@@ -339,18 +339,13 @@ data class ConciergeFeedbackBehavior(
     /** Overrides the close (X) button visibility. `null` defaults to `true` for `"action"`, `false` for `"modal"`. */
     val showCloseButton: Boolean? = null,
     /** Overrides the Cancel button visibility. `null` defaults to `true` for `"modal"`, `false` for `"action"`. */
-    val showCancelButton: Boolean? = null,
-    /** Overrides notes field visibility. `null` falls back to per-sentiment `positiveNotesEnabled` / `negativeNotesEnabled`. */
-    val showNotes: Boolean? = null
+    val showCancelButton: Boolean? = null
 ) {
     /** Effective close button visibility: `showCloseButton` when set, otherwise `displayMode == ACTION`. */
     fun resolvedShowCloseButton(): Boolean = showCloseButton ?: (displayMode == FeedbackDisplayMode.ACTION)
 
     /** Effective Cancel button visibility: `showCancelButton` when set, otherwise `displayMode == MODAL`. */
     fun resolvedShowCancelButton(): Boolean = showCancelButton ?: (displayMode == FeedbackDisplayMode.MODAL)
-
-    /** Notes field visibility: `showNotes` when set, otherwise the provided per-sentiment fallback. */
-    fun resolvedShowNotes(fallback: Boolean): Boolean = showNotes ?: fallback
 }
 
 /**

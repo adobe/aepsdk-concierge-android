@@ -64,7 +64,6 @@ class CSSKeyMapperTest {
             "feedback-question-text-color",
             "feedback-options-text-color",
             "feedback-checkbox-border-color",
-            "feedback-notes-text-color",
             "feedback-drag-handle-color",
             "feedback-submit-button-fill-color",
             "feedback-submit-button-text-color",
@@ -1121,12 +1120,6 @@ class CSSKeyMapperTest {
     }
 
     @Test
-    fun `apply maps feedback-notes-text-color`() {
-        val result = CSSKeyMapper.apply("--feedback-notes-text-color", "#131313", emptyTheme)
-        assertEquals("#131313", result.colors?.feedback?.notesText)
-    }
-
-    @Test
     fun `apply maps feedback-drag-handle-color`() {
         val result = CSSKeyMapper.apply("--feedback-drag-handle-color", "#CCCCCC", emptyTheme)
         assertEquals("#CCCCCC", result.colors?.feedback?.dragHandle)
@@ -1253,7 +1246,6 @@ class CSSKeyMapperTest {
             "feedback-question-text-color",
             "feedback-options-text-color",
             "feedback-checkbox-border-color",
-            "feedback-notes-text-color",
             "feedback-drag-handle-color",
             "feedback-submit-button-fill-color",
             "feedback-submit-button-text-color",
