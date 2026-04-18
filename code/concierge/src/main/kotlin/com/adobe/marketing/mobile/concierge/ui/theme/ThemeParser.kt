@@ -355,7 +355,6 @@ internal object ThemeParser {
             feedbackQuestionText = themeColors.feedback?.questionText?.toComposeColor(),
             feedbackOptionsText = themeColors.feedback?.optionsText?.toComposeColor(),
             feedbackCheckboxBorder = themeColors.feedback?.checkboxBorder?.toComposeColor(),
-            feedbackNotesText = themeColors.feedback?.notesText?.toComposeColor(),
             feedbackDragHandle = themeColors.feedback?.dragHandle?.toComposeColor(),
             feedbackSubmitButtonFill = themeColors.feedback?.submitButtonFill?.toComposeColor(),
             feedbackSubmitButtonText = themeColors.feedback?.submitButtonText?.toComposeColor(),
@@ -444,8 +443,7 @@ internal object ThemeParser {
                 displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "modal")),
                 thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline")),
                 showCloseButton = it["showCloseButton"] as? Boolean,
-                showCancelButton = it["showCancelButton"] as? Boolean,
-                showNotes = it["showNotes"] as? Boolean
+                showCancelButton = it["showCancelButton"] as? Boolean
             )
         }
 

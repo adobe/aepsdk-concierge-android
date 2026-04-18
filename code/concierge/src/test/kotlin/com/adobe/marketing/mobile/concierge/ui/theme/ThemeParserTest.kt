@@ -673,15 +673,14 @@ class ThemeParserTest {
     }
 
     @Test
-    fun `parseThemeTokens parses feedback behavior showCloseButton showCancelButton showNotes`() {
+    fun `parseThemeTokens parses feedback behavior showCloseButton and showCancelButton`() {
         val json = """
             {
                 "behavior": {
                     "feedback": {
                         "displayMode": "action",
                         "showCloseButton": false,
-                        "showCancelButton": true,
-                        "showNotes": false
+                        "showCancelButton": true
                     }
                 }
             }
@@ -694,7 +693,6 @@ class ThemeParserTest {
         assertEquals(FeedbackDisplayMode.ACTION, feedback?.displayMode)
         assertEquals(false, feedback?.showCloseButton)
         assertEquals(true, feedback?.showCancelButton)
-        assertEquals(false, feedback?.showNotes)
     }
 
     @Test
@@ -715,7 +713,6 @@ class ThemeParserTest {
         assertNotNull(feedback)
         assertNull(feedback?.showCloseButton)
         assertNull(feedback?.showCancelButton)
-        assertNull(feedback?.showNotes)
     }
 
     @Test
@@ -769,7 +766,6 @@ class ThemeParserTest {
                     "--feedback-question-text-color": "#424242",
                     "--feedback-options-text-color": "#222222",
                     "--feedback-checkbox-border-color": "#131313",
-                    "--feedback-notes-text-color": "#131313",
                     "--feedback-drag-handle-color": "#CCCCCC",
                     "--feedback-submit-button-fill-color": "#3B63FB",
                     "--feedback-submit-button-text-color": "#FFFFFF",
@@ -789,7 +785,6 @@ class ThemeParserTest {
         assertEquals("#424242", feedback?.questionText)
         assertEquals("#222222", feedback?.optionsText)
         assertEquals("#131313", feedback?.checkboxBorder)
-        assertEquals("#131313", feedback?.notesText)
         assertEquals("#CCCCCC", feedback?.dragHandle)
         assertEquals("#3B63FB", feedback?.submitButtonFill)
         assertEquals("#FFFFFF", feedback?.submitButtonText)

@@ -335,11 +335,6 @@ internal object CSSKeyMapper {
                 existing?.copy(checkboxBorder = color) ?: ConciergeFeedbackColors(checkboxBorder = color)
             }
         },
-        "feedback-notes-text-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(notesText = color) ?: ConciergeFeedbackColors(notesText = color)
-            }
-        },
         "feedback-drag-handle-color" to { cssValue, theme ->
             updateFeedbackColors(cssValue, theme) { existing, color ->
                 existing?.copy(dragHandle = color) ?: ConciergeFeedbackColors(dragHandle = color)
