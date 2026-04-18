@@ -15,6 +15,7 @@ import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.EventType
 import com.adobe.marketing.mobile.ExtensionApi
+import com.adobe.marketing.mobile.ExtensionHelper
 import com.adobe.marketing.mobile.SharedStateResolution
 import com.adobe.marketing.mobile.SharedStateResult
 import io.mockk.every
@@ -127,7 +128,7 @@ class ConciergeExtensionTest {
         // Verify the constants used by the extension
         assertEquals("brandconcierge", ConciergeConstants.EXTENSION_NAME)
         assertEquals("BrandConcierge", ConciergeConstants.EXTENSION_FRIENDLY_NAME)
-        assertEquals(ConciergeConstants.VERSION, extension.getVersion())
+        assertEquals(ConciergeConstants.VERSION, ExtensionHelper.getVersion(extension))
     }
 
     // ========== hasValidXdmSharedState Tests ==========
