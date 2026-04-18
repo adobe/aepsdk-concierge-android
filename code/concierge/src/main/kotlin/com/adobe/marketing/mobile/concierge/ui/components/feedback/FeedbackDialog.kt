@@ -265,6 +265,7 @@ private fun FeedbackTitleRow(
 @Composable
 private fun FeedbackActionButtons(
     showCancelButton: Boolean,
+    submitEnabled: Boolean,
     onCancel: () -> Unit,
     onSubmit: () -> Unit,
     style: ConciergeStyles.FeedbackDialogStyle
@@ -300,6 +301,7 @@ private fun FeedbackActionButtons(
 
         Button(
             onClick = onSubmit,
+            enabled = submitEnabled,
             shape = style.submitButtonShape,
             modifier = Modifier
                 .weight(1f)
@@ -468,6 +470,7 @@ private fun FeedbackCardContent(
 
         FeedbackActionButtons(
             showCancelButton = showCancelButton,
+            submitEnabled = selectedCategories.isNotEmpty() || (showNotes && notesText.isNotBlank()),
             onCancel = onDismiss,
             onSubmit = {
                 onSubmit(
@@ -571,6 +574,7 @@ private fun FeedbackBottomSheetContent(
 
         FeedbackActionButtons(
             showCancelButton = showCancelButton,
+            submitEnabled = selectedCategories.isNotEmpty(),
             onCancel = onDismiss,
             onSubmit = {
                 onSubmit(

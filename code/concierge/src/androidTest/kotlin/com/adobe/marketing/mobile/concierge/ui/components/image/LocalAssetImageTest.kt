@@ -104,9 +104,10 @@ class LocalAssetImageTest {
             }
         }
         composeTestRule.waitForIdle()
-
-        assert(assetBitmapCache.containsKey(source)) {
-            "Expected '$source' to be cached after load attempt"
+        // The cache is populated after a Dispatchers.IO load completes, which is not
+        // tracked by Compose idle. Poll until the key is present to avoid a race.
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            assetBitmapCache.containsKey(source)
         }
     }
 
