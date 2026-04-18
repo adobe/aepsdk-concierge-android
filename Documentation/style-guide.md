@@ -282,7 +282,6 @@ Feature toggles and interaction configuration.
 | `behavior.feedback.thumbsPlacement` | string | `"inline"` | Thumbs up/down placement. `"inline"` places thumbs beside the sources label; `"below"` places them below the sources accordion with an optional label. |
 | `behavior.feedback.showCloseButton` | boolean \| null | `null` | X close button visibility. `null` = shown for `"action"`, hidden for `"modal"`. |
 | `behavior.feedback.showCancelButton` | boolean \| null | `null` | Cancel button visibility. `null` = shown for `"modal"`, hidden for `"action"`. Both set to `false` is honored: Submit and (in action mode) drag-down still dismiss. |
-| `behavior.feedback.showNotes` | boolean \| null | `null` | Notes field visibility override for modal mode. `null` falls back to per-sentiment `positiveNotesEnabled` / `negativeNotesEnabled`. Not rendered in action mode. |
 
 ### Citations
 
@@ -340,8 +339,7 @@ Feature toggles and interaction configuration.
       "displayMode": "action",
       "thumbsPlacement": "below",
       "showCloseButton": true,
-      "showCancelButton": false,
-      "showNotes": null
+      "showCancelButton": false
     },
     "citations": {
       "showLinkIcon": true
@@ -698,7 +696,6 @@ These tokens style the feedback dialog (modal card and action bottom sheet).
 | `--feedback-question-text-color` | `colors.feedback.questionText` | `String?` | falls back to the title color | Dialog question color. |
 | `--feedback-options-text-color` | `colors.feedback.optionsText` | `String?` | falls back to the title color | Checkbox option label color. |
 | `--feedback-checkbox-border-color` | `colors.feedback.checkboxBorder` | `String?` | `"#7F7F7F"` (light) / `"#B0B0B0"` (dark) | Checkbox unchecked outline color. Also used for the notes editor outline. |
-| `--feedback-notes-text-color` | `colors.feedback.notesText` | `String?` | falls back to the title color | Notes label, entered text, and placeholder color. |
 | `--feedback-drag-handle-color` | `colors.feedback.dragHandle` | `String?` | `"#CCCCCC"` | Drag handle color. Only visible in action mode. |
 | `--feedback-submit-button-fill-color` | `colors.feedback.submitButtonFill` | `String?` | falls back to `colors.button.primaryBackground` | Submit button fill color. |
 | `--feedback-submit-button-text-color` | `colors.feedback.submitButtonText` | `String?` | falls back to `colors.button.primaryText` | Submit button text color. |
@@ -706,7 +703,7 @@ These tokens style the feedback dialog (modal card and action bottom sheet).
 | `--feedback-cancel-button-text-color` | `colors.feedback.cancelButtonText` | `String?` | falls back to `colors.button.secondaryText` | Cancel button label color. |
 | `--feedback-cancel-button-border-color` | `colors.feedback.cancelButtonBorder` | `String?` | falls back to `colors.button.secondaryBorder` | Cancel button outline color. |
 
-> **Contrast note:** When `--feedback-sheet-background-color` is pinned, also set `--feedback-title-text-color`, `--feedback-question-text-color`, `--feedback-options-text-color`, and `--feedback-notes-text-color` to maintain text contrast. System defaults track the device palette, not the themed surface.
+> **Contrast note:** When `--feedback-sheet-background-color` is pinned, also set `--feedback-title-text-color`, `--feedback-question-text-color`, and `--feedback-options-text-color` to maintain text contrast. System defaults track the device palette, not the themed surface.
 
 ### Colors - Disclaimer
 
@@ -846,8 +843,8 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
 | `components.feedback.iconButtonSizeDesktop` | number | `32` | Feedback icon button hit target size (dp). Mirrors `--feedback-icon-btn-size-desktop`. |
-| `components.feedback.positiveNotesEnabled` | boolean | `true` | Notes field visibility for positive-sentiment modal. Overridden by `behavior.feedback.showNotes`. Not applied in action mode. |
-| `components.feedback.negativeNotesEnabled` | boolean | `true` | Notes field visibility for negative-sentiment modal. Overridden by `behavior.feedback.showNotes`. Not applied in action mode. |
+| `components.feedback.positiveNotesEnabled` | boolean | `true` | Notes field visibility for positive-sentiment modal. Not applied in action mode. |
+| `components.feedback.negativeNotesEnabled` | boolean | `true` | Notes field visibility for negative-sentiment modal. Not applied in action mode. |
 
 ### Layout - Citations
 

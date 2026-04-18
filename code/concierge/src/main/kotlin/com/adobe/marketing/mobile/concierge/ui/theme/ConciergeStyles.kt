@@ -1173,8 +1173,8 @@ internal object ConciergeStyles {
             val titleColor = themeColors.feedbackTitleText ?: dialogTextColor
             val questionColor = themeColors.feedbackQuestionText ?: dialogTextColor.copy(alpha = 0.7f)
             val categoryTextColor = themeColors.feedbackOptionsText ?: dialogTextColor
-            val notesTextColor = themeColors.feedbackNotesText ?: dialogTextColor.copy(alpha = 0.7f)
-            val notesPlaceholderColor = themeColors.feedbackNotesText ?: dialogTextColor.copy(alpha = 0.5f)
+            val notesLabelColor = dialogTextColor.copy(alpha = 0.7f)
+            val notesPlaceholderColor = dialogTextColor.copy(alpha = 0.5f)
             // iOS reuses the checkbox outline for the notes editor outline when set.
             val textFieldBorder = themeColors.feedbackCheckboxBorder ?: dialogTextColor.copy(alpha = 0.2f)
 
@@ -1202,7 +1202,7 @@ internal object ConciergeStyles {
                 categoryTextColor = categoryTextColor,
                 categoriesNotesSpacing = 6.dp,
                 notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                notesLabelColor = notesTextColor,
+                notesLabelColor = notesLabelColor,
                 notesLabelSpacing = 8.dp,
                 notesPlaceholderStyle = MaterialTheme.typography.bodyMedium,
                 notesPlaceholderColor = notesPlaceholderColor,

@@ -86,7 +86,6 @@ data class ConciergeColors(
     val feedbackQuestionText: Color? = null,
     val feedbackOptionsText: Color? = null,
     val feedbackCheckboxBorder: Color? = null,
-    val feedbackNotesText: Color? = null,
     val feedbackDragHandle: Color? = null,
     val feedbackSubmitButtonFill: Color? = null,
     val feedbackSubmitButtonText: Color? = null,

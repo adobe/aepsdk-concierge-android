@@ -218,8 +218,6 @@ data class ConciergeFeedbackColors(
     val optionsText: String? = null,
     /** Checkbox unchecked outline color; also reused for the notes editor outline. */
     val checkboxBorder: String? = null,
-    /** Notes label and placeholder color. */
-    val notesText: String? = null,
     /** Action sheet drag handle color. */
     val dragHandle: String? = null,
     /** Submit button fill color. */

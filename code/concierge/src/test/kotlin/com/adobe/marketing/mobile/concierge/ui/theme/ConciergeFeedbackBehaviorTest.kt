@@ -19,8 +19,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Tests visibility defaults and overrides for the feedback close (X) and Cancel buttons,
- * and for the notes field. Mirrors the iOS `ConciergeFeedbackBehaviorTests` coverage.
+ * Tests visibility defaults and overrides for the feedback close (X) and Cancel buttons.
+ * Mirrors the iOS `ConciergeFeedbackBehaviorTests` coverage.
  */
 class ConciergeFeedbackBehaviorTest {
 
@@ -98,34 +98,6 @@ class ConciergeFeedbackBehaviorTest {
 
         assertNull(behavior.showCloseButton)
         assertNull(behavior.showCancelButton)
-        assertNull(behavior.showNotes)
-    }
-
-    // ========== showNotes resolver ==========
-
-    /** When `showNotes` is null, fall back to the per-sentiment value. */
-    @Test
-    fun `resolvedShowNotes null falls back to per sentiment fallback`() {
-        val behavior = ConciergeFeedbackBehavior(showNotes = null)
-
-        assertTrue(behavior.resolvedShowNotes(fallback = true))
-        assertFalse(behavior.resolvedShowNotes(fallback = false))
-    }
-
-    @Test
-    fun `resolvedShowNotes explicit true overrides fallback`() {
-        val behavior = ConciergeFeedbackBehavior(showNotes = true)
-
-        assertTrue(behavior.resolvedShowNotes(fallback = false))
-        assertTrue(behavior.resolvedShowNotes(fallback = true))
-    }
-
-    @Test
-    fun `resolvedShowNotes explicit false overrides fallback`() {
-        val behavior = ConciergeFeedbackBehavior(showNotes = false)
-
-        assertFalse(behavior.resolvedShowNotes(fallback = true))
-        assertFalse(behavior.resolvedShowNotes(fallback = false))
     }
 
     // ========== ConciergeFeedbackComponent per-sentiment flags ==========
@@ -160,14 +132,12 @@ class ConciergeFeedbackBehaviorTest {
         val original = ConciergeFeedbackBehavior(
             displayMode = FeedbackDisplayMode.ACTION,
             showCloseButton = false,
-            showCancelButton = true,
-            showNotes = false
+            showCancelButton = true
         )
         val updated = original.copy(displayMode = FeedbackDisplayMode.MODAL)
 
         assertEquals(FeedbackDisplayMode.MODAL, updated.displayMode)
         assertFalse(updated.showCloseButton!!)
         assertTrue(updated.showCancelButton!!)
-        assertFalse(updated.showNotes!!)
     }
 }
