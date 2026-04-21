@@ -39,15 +39,14 @@ The SDK handles permission requests internally when users interact with the micr
 
 ## Installation
 
-Add the dependencies to your app module's `build.gradle.kts`. Using the Adobe SDK BOM ensures all modules use compatible, tested versions together:
+Add the dependencies to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation(platform("com.adobe.marketing.mobile:sdk-bom:3.+"))
-    implementation("com.adobe.marketing.mobile:core")
-    implementation("com.adobe.marketing.mobile:edge")
-    implementation("com.adobe.marketing.mobile:edgeidentity")
-    implementation("com.adobe.marketing.mobile:concierge")
+    implementation("com.adobe.marketing.mobile:core:3.5.0")
+    implementation("com.adobe.marketing.mobile:edge:3.0.2")
+    implementation("com.adobe.marketing.mobile:edgeidentity:3.0.0")
+    implementation("com.adobe.marketing.mobile:concierge:3.5.0")
 }
 ```
 
