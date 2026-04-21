@@ -19,7 +19,6 @@ Both approaches are available for Compose and XML/Views-based apps.
 Your app needs these AEP SDK's available and registered:
 
 - [Mobile Core](https://github.com/adobe/aepsdk-core-android)
-- [Edge](https://github.com/adobe/aepsdk-edge-android)
 - [Edge Identity](https://github.com/adobe/aepsdk-edgeidentity-android)
 - [Brand Concierge](https://github.com/adobe/aepsdk-concierge-android)
 
@@ -44,7 +43,6 @@ Add the dependencies to your app module's `build.gradle.kts`:
 ```kotlin
 dependencies {
     implementation("com.adobe.marketing.mobile:core:3.5.0")
-    implementation("com.adobe.marketing.mobile:edge:3.0.2")
     implementation("com.adobe.marketing.mobile:edgeidentity:3.0.0")
     implementation("com.adobe.marketing.mobile:concierge:3.5.0")
 }
@@ -62,7 +60,6 @@ Import and register the extensions in your `Application` class `onCreate()`:
 
 ```kotlin
 import com.adobe.marketing.mobile.MobileCore
-import com.adobe.marketing.mobile.Edge
 import com.adobe.marketing.mobile.Concierge
 import com.adobe.marketing.mobile.edge.identity.Identity as EdgeIdentity
 import android.app.Application
