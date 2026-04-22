@@ -19,7 +19,6 @@ Both approaches are available for Compose and XML/Views-based apps.
 Your app needs these AEP SDK's available and registered:
 
 - [Mobile Core](https://github.com/adobe/aepsdk-core-android)
-- [Edge](https://github.com/adobe/aepsdk-edge-android)
 - [Edge Identity](https://github.com/adobe/aepsdk-edgeidentity-android)
 - [Brand Concierge](https://github.com/adobe/aepsdk-concierge-android)
 
@@ -39,7 +38,7 @@ The SDK handles permission requests internally when users interact with the micr
 
 ## Installation
 
-**Add the dependency to your app module's `build.gradle.kts` alongside the other AEPSDK extensions**
+Add the dependencies to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -49,28 +48,46 @@ dependencies {
 }
 ```
 
+Then sync your project with the Gradle files.
+
 ---
 
 ## Configuration
 
-### Step 1: Set up the Adobe Experience Platform Mobile SDK
+### Step 1: Register the Brand Concierge extension
 
-Follow the [Adobe Experience Platform Mobile SDK getting started guide](https://developer.adobe.com/client-sdks/home/getting-started/) to set up the base SDK integration used by Brand Concierge.
+Import and register the extensions in your `Application` class `onCreate()`:
 
-The required extensions are:
+```kotlin
+import com.adobe.marketing.mobile.MobileCore
+import com.adobe.marketing.mobile.Concierge
+import com.adobe.marketing.mobile.edge.identity.Identity as EdgeIdentity
+import android.app.Application
 
-- AEPCore
-- AEPEdge
-- AEPEdgeIdentity
-- AEPBrandConcierge
+class MainApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        MobileCore.setApplication(this)
+        MobileCore.initialize(this, "YOUR_APP_ID")
+    }
+}
+```
 
-### Step 2: Validate the Brand Concierge configuration keys exist
-If you set the Mobile SDK log level to trace (`MobileCore.setLogLevel(LoggingMode.VERBOSE)`), you can inspect the app logs to confirm that extension shared states are being set with the expected values.
+Replace `YOUR_APP_ID` with your mobile property App ID from Adobe Data Collection. For full setup instructions see the [Adobe Experience Platform Mobile SDK getting started guide](https://developer.adobe.com/client-sdks/home/getting-started/).
+
+### Step 2: Validate the Brand Concierge configuration keys
+If you set the Mobile SDK log level to trace:
+
+```kotlin
+MobileCore.setLogLevel(LoggingMode.VERBOSE)
+```
+
+you can then inspect the app logs to confirm that extension shared states are being set with the expected values.
 
 Brand Concierge expects the following keys to be present in the Configuration shared state:
 
 - **`concierge.server`**: String (server host or base domain used by Brand Concierge requests)
-- **`concierge.configId`**: String (datastream id)
+- **`concierge.configId`**: String (datastream ID)
 
 ECID is read from Edge Identity shared state.
 
@@ -247,7 +264,7 @@ class XmlActivity : AppCompatActivity() {
 
 ### Theme Customization
 
-Concierge chat interface can be customized by loading the theme file from `assets` directory of your app by using `ConciergeThemeLoader`.
+The Brand Concierge chat interface can be customized by loading the theme file from the `assets` directory of your app using `ConciergeThemeLoader`.
 
 ```kotlin
 @Composable
