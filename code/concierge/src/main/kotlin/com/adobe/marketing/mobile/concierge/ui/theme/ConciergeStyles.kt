@@ -412,7 +412,7 @@ internal object ConciergeStyles {
     @Immutable
     data class ProductCarouselStyle(
         val itemSpacing: Dp,
-        val horizontalPadding: Dp,
+        val trailingContentPadding: Dp,
         val verticalPadding: Dp,
         val imageWidth: Dp,
         val imageHeight: Dp,
@@ -431,7 +431,7 @@ internal object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val layout = ConciergeTheme.tokens?.cssLayout
-            val carouselHorizontalPadding = (
+            val carouselTrailingPadding = (
                 layout?.productCardCarouselHorizontalPadding
                     ?: layout?.chatHistoryPadding
                     ?: 4.0
@@ -439,7 +439,7 @@ internal object ConciergeStyles {
             val carouselItemSpacing = (layout?.productCardCarouselSpacing ?: 12.0).toFloat().dp
             return ProductCarouselStyle(
                 itemSpacing = carouselItemSpacing,
-                horizontalPadding = carouselHorizontalPadding,
+                trailingContentPadding = carouselTrailingPadding,
                 verticalPadding = 8.dp,
                 imageWidth = 200.dp,
                 imageHeight = 150.dp,

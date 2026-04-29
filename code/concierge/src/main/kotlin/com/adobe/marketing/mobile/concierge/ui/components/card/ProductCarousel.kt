@@ -37,6 +37,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.CarouselStyle
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -51,7 +53,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
     onImageClick: (MultimodalElement) -> Unit,
-    useExtendedProductCards: Boolean = false
+    useExtendedProductCards: Boolean = false,
+    leadingInset: Dp = 0.dp
 ) {
     val style = ConciergeStyles.productCarouselStyle
     val extendedProductCardStyle = ConciergeStyles.extendedProductCardStyle
@@ -69,8 +72,8 @@ internal fun ProductCarousel(
         LazyRow(
             state = listState,
             contentPadding = PaddingValues(
-                start = style.horizontalPadding,
-                end = if (isPaged) itemWidth else style.horizontalPadding,
+                start = leadingInset,
+                end = if (isPaged) itemWidth else style.trailingContentPadding,
                 top = style.verticalPadding,
                 bottom = style.verticalPadding
             ),
