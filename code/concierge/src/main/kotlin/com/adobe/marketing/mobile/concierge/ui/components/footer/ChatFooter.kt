@@ -58,7 +58,7 @@ internal fun ChatFooter(
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val hasCitations = !citations.isNullOrEmpty()
-    val showFeedbackButtons = !interactionId.isNullOrEmpty() && sseComplete
+    val showFeedbackButtons = hasCitations && !interactionId.isNullOrEmpty() && sseComplete
     var sourcesExpanded by remember { mutableStateOf(false) }
     val thumbsPlacement = ConciergeTheme.behavior?.feedback?.thumbsPlacement
         ?: FeedbackThumbsPlacement.INLINE

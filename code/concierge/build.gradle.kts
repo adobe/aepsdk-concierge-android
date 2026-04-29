@@ -18,7 +18,7 @@ plugins {
 
 val mavenCoreVersion: String by project
 val mavenEdgeIdentityVersion: String by project
-val material3Version = "1.2.0"
+val material3Version = "1.3.0"
 
 aepLibrary {
     namespace = "com.adobe.marketing.mobile.concierge"
@@ -44,6 +44,12 @@ aepLibrary {
         addMavenDependency("androidx.appcompat", "appcompat", BuildConstants.Versions.ANDROIDX_APPCOMPAT)
         addMavenDependency("androidx.compose.runtime", "runtime", BuildConstants.Versions.COMPOSE)
         addMavenDependency("androidx.activity", "activity-compose", BuildConstants.Versions.ANDROIDX_ACTIVITY_COMPOSE)
+    }
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force("androidx.compose.material3:material3:$material3Version")
     }
 }
 
