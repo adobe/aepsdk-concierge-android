@@ -175,14 +175,6 @@ fun ConciergeChat(
                     handleLink = handleLink
                 )
             }
-
-            // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
-            val state by viewModel.state.collectAsStateWithLifecycle()
-            ModalFeedbackOverlay(
-                feedback = state.feedback,
-                onDismiss = { viewModel.processEvent(FeedbackEvent.DismissFeedbackDialog) },
-                onSubmit = { viewModel.processEvent(FeedbackEvent.SubmitFeedback(it)) }
-            )
         }
 
     }
