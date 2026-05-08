@@ -12,16 +12,23 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.feedback
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,26 +43,31 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
@@ -484,7 +496,6 @@ private fun FeedbackCardContent(
 
 // --- Bottom sheet mode ---
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FeedbackDialogBottomSheet(
     modifier: Modifier = Modifier,
@@ -493,25 +504,57 @@ private fun FeedbackDialogBottomSheet(
     onSubmit: (Feedback) -> Unit
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+    val offsetY = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val dismissThresholdPx = with(LocalDensity.current) { 150.dp.toPx() }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-        containerColor = style.backgroundColor,
-        // Themable capsule handle replaces Material3's default.
-        dragHandle = { FeedbackDragHandle(style) },
-        modifier = modifier
-    ) {
-        FeedbackBottomSheetContent(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-            feedback = feedback,
-            onDismiss = onDismiss,
-            onSubmit = onSubmit
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
         )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Column(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .offset { IntOffset(0, offsetY.value.roundToInt().coerceAtLeast(0)) }
+                    .clip(sheetShape)
+                    .background(color = style.backgroundColor)
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
+                            scope.launch {
+                                offsetY.snapTo((offsetY.value + delta).coerceAtLeast(0f))
+                            }
+                        },
+                        onDragStopped = {
+                            scope.launch {
+                                if (offsetY.value > dismissThresholdPx) {
+                                    onDismiss()
+                                } else {
+                                    offsetY.animateTo(0f, animationSpec = spring())
+                                }
+                            }
+                        }
+                    )
+            ) {
+                FeedbackDragHandle(style)
+                FeedbackBottomSheetContent(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
+                    feedback = feedback,
+                    onDismiss = onDismiss,
+                    onSubmit = onSubmit
+                )
+            }
+        }
     }
 }
 
