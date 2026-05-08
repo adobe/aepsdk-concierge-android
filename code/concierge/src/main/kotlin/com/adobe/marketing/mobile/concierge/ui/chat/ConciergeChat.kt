@@ -65,6 +65,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
@@ -242,6 +243,17 @@ fun ConciergeChat(
         }
     }
 
+    // Track chat open/close lifecycle across all integration modes (Compose direct, dialog, XML).
+    // ChatOpened fires once when this composable enters composition.
+    // ChatClosed fires when this composable leaves composition — which covers the close button,
+    // back-press dialog dismissal, and XML view detachment — with no double-tracking.
+    DisposableEffect(Unit) {
+        viewModel.trackChatOpened()
+        onDispose {
+            viewModel.trackChatClosed()
+        }
+    }
+
     val resolvedLinkClick: (String) -> Unit = remember(handleLink) {
         { url -> viewModel.handleLinkClick(url, handleLink) }
     }
@@ -389,7 +401,7 @@ internal fun ConciergeChat(
                         WelcomeCard(
                             config = welcomeConfig,
                             isReturningUser = isReturningUser,
-                            onPromptClick = { prompt -> onEvent(ChatEvent.SendMessage(prompt)) },
+                            onPromptClick = { prompt -> onEvent(MessageInteractionEvent.WelcomePromptSuggestionClick(prompt)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -417,6 +429,7 @@ internal fun ConciergeChat(
             ConciergeDisclaimer(
                 disclaimerConfig = ConciergeTheme.disclaimer,
                 handleLink = handleLink,
+                onEvent = onEvent,
                 modifier = Modifier.fillMaxWidth()
             )
         }

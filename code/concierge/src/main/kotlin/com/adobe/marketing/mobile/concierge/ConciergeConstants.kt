@@ -75,4 +75,69 @@ internal object ConciergeConstants {
         const val DEFAULT_TERMS_LABEL = "Terms"
         const val DEFAULT_TERMS_URL = "https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html"
     }
+
+    object EventType {
+        const val CONCIERGE = "com.adobe.eventType.concierge"
+    }
+
+    object EventSource {
+        // Not available as a named constant in the Android AEP Core SDK — defined here for parity with iOS.
+        const val NOTIFICATION = "com.adobe.eventSource.notification"
+    }
+
+    object TrackingEvent {
+        object Name {
+            const val SESSION_INITIALIZED            = "Brand Concierge Session Initialized"
+            const val CHAT_OPENED                    = "Brand Concierge Chat Opened"
+            const val CHAT_CLOSED                    = "Brand Concierge Chat Closed"
+            const val QUERY_SUBMITTED                = "Brand Concierge Query Submitted"
+            const val PROMPT_SUGGESTION_CLICKED      = "Brand Concierge Prompt Suggestion Clicked"
+            const val WELCOME_PROMPT_SUGGESTION_CLICKED = "Brand Concierge Welcome Prompt Suggestion Clicked"
+            const val CARD_CLICKED                   = "Brand Concierge Card Clicked"
+            const val MIC_BUTTON_CLICKED             = "Brand Concierge Mic Button Clicked"
+            const val RESPONSE_STARTED               = "Brand Concierge Response Started"
+            const val RESPONSE_COMPLETED             = "Brand Concierge Response Completed"
+            const val CARDS_RENDERED                 = "Brand Concierge Cards Rendered"
+            const val FEEDBACK_SUBMITTED             = "Brand Concierge Feedback Submitted"
+            const val ERROR_OCCURRED                 = "Brand Concierge Error Occurred"
+            const val DISCLAIMER_LINK_CLICKED        = "Brand Concierge Disclaimer Link Clicked"
+        }
+
+        object XDMType {
+            const val SESSION_INITIALIZED            = "session:initialized"
+            const val CHAT_OPENED                    = "chat:opened"
+            const val CHAT_CLOSED                    = "chat:closed"
+            const val QUERY_SUBMITTED                = "query:submitted"
+            const val PROMPT_SUGGESTION_CLICKED      = "promptSuggestion:clicked"
+            const val WELCOME_PROMPT_SUGGESTION_CLICKED = "welcomePromptSuggestion:clicked"
+            const val CARD_CLICKED                   = "card:clicked"
+            const val MIC_BUTTON_CLICKED             = "micButton:clicked"
+            const val RESPONSE_STARTED               = "response:started"
+            const val RESPONSE_COMPLETED             = "response:completed"
+            const val CARDS_RENDERED                 = "cards:rendered"
+            const val FEEDBACK_SUBMITTED             = "feedback:submitted"
+            const val ERROR_OCCURRED                 = "error:occurred"
+            const val DISCLAIMER_LINK_CLICKED        = "disclaimerLink:clicked"
+        }
+
+        object EventData {
+            object Key {
+                const val EPOCH_TIME        = "epochTime"
+                const val DURATION_MILLIS   = "durationMillis"
+                const val EVENT_TYPE        = "concierge.eventType"
+                const val QUERY             = "query"
+                const val SUGGESTION        = "suggestion"
+                const val ELEMENT           = "element"
+                const val ELEMENTS          = "elements"
+                const val DISPLAY_MODE      = "displayMode"
+                const val CONVERSATION_ID   = "conversationId"
+                const val INTERACTION_ID    = "interactionId"
+                const val FEEDBACK_TYPE     = "feedbackType"
+                const val SELECTED_OPTIONS  = "selectedOptions"
+                const val NOTES             = "notes"
+                const val URL               = "url"
+                const val ERROR_MESSAGE     = "errorMessage"
+            }
+        }
+    }
 }

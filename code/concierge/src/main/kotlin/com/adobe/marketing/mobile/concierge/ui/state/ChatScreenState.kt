@@ -93,6 +93,8 @@ internal sealed class MicEvent : ChatEvent() {
     data class StopRecording(val isCancelled: Boolean, val isError: Boolean) : MicEvent()
 }
 
+internal class DisclaimerClickedEvent(val url: String) : ChatEvent()
+
 /**
  * Represents feedback events that can be processed by the ViewModel.
  */
@@ -136,6 +138,11 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
      * User clicked on a prompt suggestion.
      */
     data class PromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
+
+    /**
+     * User clicked on a welcome prompt suggestion.
+     */
+    data class WelcomePromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
 }
 
 /**
