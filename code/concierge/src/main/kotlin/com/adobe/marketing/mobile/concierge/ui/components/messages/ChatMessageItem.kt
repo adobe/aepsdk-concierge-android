@@ -394,6 +394,7 @@ private fun RenderMixedMessage(
                                 uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
                                 sseComplete = message.sseComplete,
+                                feedbackEligible = message.feedbackEligible,
                                 onFeedback = onFeedback,
                                 handleLink = handleLink,
                                 feedbackState = feedbackState
@@ -462,12 +463,13 @@ private fun AgentResponseContent(
         modifier = Modifier.fillMaxWidth()
     )
 
-    if (message.citations != null || message.interactionId != null) {
+    if (message.hasFooterContent) {
         ChatFooter(
             citations = message.citations,
             uniqueCitations = message.uniqueCitations,
             interactionId = message.interactionId,
             sseComplete = message.sseComplete,
+            feedbackEligible = message.feedbackEligible,
             onFeedback = onFeedback,
             handleLink = handleLink,
             feedbackState = feedbackState

@@ -60,13 +60,14 @@ class ChatFooterTest {
     }
 
     @Test
-    fun chatFooter_withInteractionIdAndSseComplete_displaysFeedbackButtons() {
+    fun chatFooter_withFeedbackEligibleAndSseComplete_displaysFeedbackButtons() {
         composeTestRule.setContent {
             ConciergeTheme {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -80,13 +81,35 @@ class ChatFooterTest {
     }
 
     @Test
-    fun chatFooter_withInteractionIdButSseNotComplete_hidesFeedbackButtons() {
+    fun chatFooter_feedbackEligibleButSseNotComplete_hidesFeedbackButtons() {
         composeTestRule.setContent {
             ConciergeTheme {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
                     sseComplete = false,
+                    feedbackEligible = true,
+                    onFeedback = {},
+                    feedbackState = FeedbackState.None
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Thumbs up"))
+            .assertDoesNotExist()
+        composeTestRule.onNode(hasContentDescription("Thumbs down"))
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun chatFooter_feedbackNotEligible_hidesFeedbackButtonsEvenWhenSseComplete() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatFooter(
+                    citations = null,
+                    interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = false,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -116,6 +139,7 @@ class ChatFooterTest {
                     citations = citations,
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -138,6 +162,7 @@ class ChatFooterTest {
                     citations = null,
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = { feedbackEvent = it },
                     feedbackState = FeedbackState.None
                 )
@@ -160,6 +185,7 @@ class ChatFooterTest {
                     citations = null,
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = { feedbackEvent = it },
                     feedbackState = FeedbackState.None
                 )
@@ -196,6 +222,7 @@ class ChatFooterTest {
                     citations = emptyList(),
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -237,6 +264,7 @@ class ChatFooterTest {
                     citations = null,
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.Positive
                 )
@@ -255,6 +283,7 @@ class ChatFooterTest {
                     citations = null,
                     interactionId = "test-id",
                     sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.Negative
                 )

@@ -2551,6 +2551,85 @@ class ConversationResponseParserTest {
         assertTrue(result[0].multimodalElements.isEmpty())
     }
 
+    // ========== Feedback Eligibility Tests ==========
+
+    @Test
+    fun `parseConversationData parses feedback eligible true`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Here is the answer.",
+                        "feedback": { "eligible": true }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(result[0].feedbackEligible)
+    }
+
+    @Test
+    fun `parseConversationData parses feedback eligible false`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Here is the answer.",
+                        "feedback": { "eligible": false }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertTrue(!result[0].feedbackEligible)
+    }
+
+    @Test
+    fun `parseConversationData defaults feedbackEligible to false when feedback field absent`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "No feedback field."
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = ConversationResponseParser.parseConversationData(json)
+        assertEquals(1, result.size)
+        assertFalse(result[0].feedbackEligible)
+    }
+
     @Test
     fun `parseConversationData parses CTA label from entity_info primary text`() {
         val json = """

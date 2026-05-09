@@ -350,12 +350,14 @@ data class ConciergeFeedbackBehavior(
 
 /**
  * Placement of the feedback thumbs relative to the sources accordion.
- * INLINE renders thumbs on the same row as the sources label (default).
- * BELOW renders thumbs on a separate row beneath the sources accordion with the feedback helpful label.
+ * - INLINE: Thumbs sit in the sources header row (default). Falls back to standalone when there are no sources.
+ * - BELOW: Thumbs appear below the expanded sources list with a helpful label. Falls back to standalone without sources.
+ * - STANDALONE: Always a separate block below the bubble, regardless of whether sources are present.
  */
 enum class FeedbackThumbsPlacement(val value: String) {
     INLINE("inline"),
-    BELOW("below");
+    BELOW("below"),
+    STANDALONE("standalone");
 
     companion object {
         fun fromString(value: String): FeedbackThumbsPlacement =

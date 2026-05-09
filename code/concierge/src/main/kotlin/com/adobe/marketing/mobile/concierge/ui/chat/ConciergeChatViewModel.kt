@@ -628,7 +628,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 if (parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
-                    setLastAssistantMessageSseComplete()
+                    setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
                 }
                 _state.update { currentState ->
             when (currentState) {
@@ -696,7 +696,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     emptyList(),
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
-                    sseComplete = true
+                    sseComplete = true,
+                    feedbackEligible = if (hasCtas) false else parsedMessage.feedbackEligible
                 )
             } else {
                 // No text, ordered elements only: remove the streaming placeholder so feedback
@@ -733,7 +734,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 parsedMessage.promptSuggestions,
                 parsedMessage.sources,
                 parsedMessage.interactionId,
-                sseComplete = true
+                sseComplete = true,
+                feedbackEligible = parsedMessage.feedbackEligible
             )
         }
     }
@@ -793,7 +795,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         promptSuggestions: List<String> = emptyList(),
         sources: List<Citation> = emptyList(),
         interactionId: String? = null,
-        sseComplete: Boolean? = null
+        sseComplete: Boolean? = null,
+        feedbackEligible: Boolean? = null
     ) {
         // Pre-compute unique citations once to avoid redundant processing
         val uniqueSources = if (sources.isNotEmpty()) {
@@ -813,7 +816,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     citations = sources,
                     uniqueCitations = uniqueSources,
                     interactionId = interactionId,
-                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete
+                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete,
+                    feedbackEligible = feedbackEligible ?: lastAssistantMessage.feedbackEligible
                 )
                 updatedMessages
             } else {
@@ -833,11 +837,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
-    private fun setLastAssistantMessageSseComplete() {
+    private fun setLastAssistantMessageSseComplete(feedbackEligible: Boolean = false) {
         _messages.update { existing ->
             val lastIdx = existing.lastIndex
             if (lastIdx >= 0 && !existing[lastIdx].isFromUser) {
-                existing.toMutableList().apply { set(lastIdx, this[lastIdx].copy(sseComplete = true)) }
+                existing.toMutableList().apply {
+                    set(lastIdx, this[lastIdx].copy(sseComplete = true, feedbackEligible = feedbackEligible))
+                }
             } else existing
         }
     }

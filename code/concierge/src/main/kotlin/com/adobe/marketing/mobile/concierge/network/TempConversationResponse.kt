@@ -56,7 +56,16 @@ internal data class ConversationResponse(
     val message: String,
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val promptSuggestions: List<String> = emptyList(),
-    val ctaButton: CtaButton? = null
+    val ctaButton: CtaButton? = null,
+    val feedback: ConversationFeedbackInfo? = null
+)
+
+/**
+ * Feedback metadata returned with an agent response.
+ * @param eligible Whether this message is eligible for end-user feedback. Defaults to `false` when absent.
+ */
+internal data class ConversationFeedbackInfo(
+    val eligible: Boolean = false
 )
 
 /**
@@ -137,5 +146,6 @@ internal data class ParsedConversationMessage(
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val orderedElements: List<ParsedMultimodalItem> = emptyList(),
-    val sources: List<Citation> = emptyList()
+    val sources: List<Citation> = emptyList(),
+    val feedbackEligible: Boolean = false
 )

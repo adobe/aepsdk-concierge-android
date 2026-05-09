@@ -43,6 +43,8 @@ internal object ConversationResponseParser {
     private const val FIELD_START_INDEX = "start_index"
     private const val FIELD_END_INDEX = "end_index"
     private const val FIELD_CITATION_NUMBER = "citation_number"
+    private const val FIELD_FEEDBACK = "feedback"
+    private const val FIELD_ELIGIBLE = "eligible"
     private const val FIELD_ELEMENTS = "elements"
     private const val FIELD_WIDTH = "width"
     private const val FIELD_HEIGHT = "height"
@@ -145,6 +147,8 @@ internal object ConversationResponseParser {
         val orderedElements = extractOrderedElements(response)
         val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
+        val feedbackInfo = DataReader.optTypedMap(Any::class.java, response, FIELD_FEEDBACK, null)
+        val feedbackEligible = DataReader.optBoolean(feedbackInfo, FIELD_ELIGIBLE, false)
 
         return ParsedConversationMessage(
             messageContent = message,
@@ -154,7 +158,8 @@ internal object ConversationResponseParser {
             promptSuggestions = promptSuggestions,
             multimodalElements = multimodalElements,
             orderedElements = orderedElements,
-            sources = sources
+            sources = sources,
+            feedbackEligible = feedbackEligible
         )
     }
 
