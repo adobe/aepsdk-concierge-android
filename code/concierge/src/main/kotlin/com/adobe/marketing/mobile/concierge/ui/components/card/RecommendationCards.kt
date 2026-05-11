@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.CardsAlignment
@@ -39,7 +41,8 @@ internal fun RecommendationCards(
     elements: List<MultimodalElement>,
     modifier: Modifier = Modifier,
     onImageClick: (MultimodalElement) -> Unit = {},
-    onActionClick: (ProductActionButton) -> Unit = {}
+    onActionClick: (ProductActionButton) -> Unit = {},
+    leadingInset: Dp = 0.dp
 ) {
     if (elements.isEmpty()) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements to display, returning early")
@@ -85,7 +88,8 @@ internal fun RecommendationCards(
                 ProductCarousel(
                     elements = elements,
                     onImageClick = onImageClick,
-                    useExtendedProductCards = useExtendedProductCards
+                    useExtendedProductCards = useExtendedProductCards,
+                    leadingInset = leadingInset
                 )
             }
         }

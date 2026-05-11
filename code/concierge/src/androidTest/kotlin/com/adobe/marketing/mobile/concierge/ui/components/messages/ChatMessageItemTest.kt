@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -500,6 +501,72 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithText("Tell me more").assertIsDisplayed()
         composeTestRule.onNodeWithText("Show deals").assertIsDisplayed()
+    }
+
+    // --- RenderMixedMessage — elements-only ---
+
+    @Test
+    fun chatMessageItem_mixedMessage_elementsOnly_displaysCarouselNavigation() {
+        // When there is no text, the Card branch is skipped entirely. The carousel
+        // should still render its navigation controls.
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "",
+                multimodalElements = listOf(
+                    MultimodalElement(id = "p1", url = "https://example.com/1.jpg", alttext = "Product 1"),
+                    MultimodalElement(id = "p2", url = "https://example.com/2.jpg", alttext = "Product 2")
+                )
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Previous page")).assertIsDisplayed()
+        composeTestRule.onNode(hasContentDescription("Next page")).assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_mixedMessage_elementsOnly_withCompanyIcon_displaysCarouselNavigation() {
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+        val message = ChatMessage(
+            content = MessageContent.Mixed(
+                text = "",
+                multimodalElements = listOf(
+                    MultimodalElement(id = "p1", url = "https://example.com/1.jpg", alttext = "Product 1"),
+                    MultimodalElement(id = "p2", url = "https://example.com/2.jpg", alttext = "Product 2")
+                )
+            ),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Previous page")).assertIsDisplayed()
+        composeTestRule.onNode(hasContentDescription("Next page")).assertIsDisplayed()
     }
 
     // -----------------------------------------------------------------------
