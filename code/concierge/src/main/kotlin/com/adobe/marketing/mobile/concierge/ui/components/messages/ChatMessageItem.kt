@@ -144,7 +144,7 @@ private fun RenderTextMessage(
             modifier = Modifier
                 .then(
                     when {
-                        message.isFromUser -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+                        message.isFromUser -> Modifier.align(Alignment.End)
                         isThinking -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.Start)
                         else -> messageAlignment.toModifier()
                     }
@@ -170,7 +170,7 @@ private fun RenderTextMessage(
                 )
             ) {
                 Column(
-                    modifier = if (isThinking) Modifier else Modifier.fillMaxWidth()
+                    modifier = if (isThinking || message.isFromUser) Modifier else Modifier.fillMaxWidth()
                 ) {
                     if (message.isFromUser) {
                         Text(

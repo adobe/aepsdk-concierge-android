@@ -19,7 +19,12 @@ import com.adobe.marketing.mobile.MobileCore
 class ChatApp : Application() {
     companion object {
         private const val LOG_TAG = "ChatApp"
-        private const val APP_ID = "staging/1b50a869c4a2/570831bce333/launch-bcc070a55cca-development"
+
+        // Regular environment
+        // private const val APP_ID = "staging/1b50a869c4a2/570831bce333/launch-bcc070a55cca-development"
+
+        // DSG environment
+        private const val APP_ID = "staging/1b50a869c4a2/2993416661b1/launch-03ab810b3d2d-development"
     }
 
     override fun onCreate() {
@@ -27,11 +32,13 @@ class ChatApp : Application() {
         MobileCore.setApplication(this)
         MobileCore.setLogLevel(LoggingMode.VERBOSE)
 
-        // if using a staging environment, set the edge environment to "int"
-//        MobileCore.updateConfiguration(
-//            hashMapOf("edge.environment" to "int") as Map<String, Any>
-//        )
-
-        MobileCore.initialize(this, APP_ID)
+        MobileCore.initialize(this, APP_ID) {
+            MobileCore.updateConfiguration(
+                mapOf(
+                    "concierge.server" to "edge.adobedc.net",
+                    "concierge.configId" to "4eb99a22-309c-471c-a1ab-f82560d87a0d"
+                )
+            )
+        }
     }
 }
