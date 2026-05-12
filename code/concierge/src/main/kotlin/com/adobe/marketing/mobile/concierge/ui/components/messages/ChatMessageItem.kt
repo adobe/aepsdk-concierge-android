@@ -372,6 +372,7 @@ private fun RenderMixedMessage(
                             ConciergeResponse(
                                 text = content.text,
                                 sources = message.citations ?: emptyList(),
+                                linkHints = message.linkHints,
                                 handleLink = handleLink,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -458,6 +459,7 @@ private fun AgentResponseContent(
     ConciergeResponse(
         text = message.text,
         sources = message.citations ?: emptyList(),
+        linkHints = message.linkHints,
         handleLink = handleLink,
         modifier = Modifier.fillMaxWidth()
     )

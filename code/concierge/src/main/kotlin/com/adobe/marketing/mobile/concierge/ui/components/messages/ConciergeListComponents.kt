@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,9 +45,10 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
     handleLink: (String) -> Unit,
+    modifier: Modifier = Modifier,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
-    modifier: Modifier = Modifier
+    linkHints: List<LinkHint> = emptyList(),
 ) {
     Column(modifier = modifier.wrapContentHeight()) {
         listTokens.forEach { token ->
@@ -54,7 +56,8 @@ internal fun ConciergeResponseList(
                 token = token,
                 handleLink = handleLink,
                 uniqueSources = uniqueSources,
-                inlineContentMap = inlineContentMap
+                inlineContentMap = inlineContentMap,
+                linkHints = linkHints
             )
         }
     }
@@ -76,7 +79,8 @@ private fun ListItem(
     token: MarkdownToken,
     handleLink: (String) -> Unit,
     uniqueSources: List<Citation> = emptyList(),
-    inlineContentMap: Map<String, InlineTextContent> = emptyMap()
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    linkHints: List<LinkHint> = emptyList()
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
@@ -85,7 +89,7 @@ private fun ListItem(
     val indentationLevel = token.indentationLevel
 
     // Parse markdown first to get the rendered text with inline content placeholders
-    val annotatedString = MarkdownParser.parse(listItemContent)
+    val annotatedString = MarkdownParser.parse(listItemContent, linkHints)
 
     // Use provided inline content map or create it if not provided
     val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {

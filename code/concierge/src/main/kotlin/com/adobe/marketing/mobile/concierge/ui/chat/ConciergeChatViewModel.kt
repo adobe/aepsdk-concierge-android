@@ -25,6 +25,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
@@ -798,7 +799,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     emptyList(),
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
-                    sseComplete = true
+                    sseComplete = true,
+                    linkHints = parsedMessage.linkHints
                 )
             } else {
                 // No text, ordered elements only: remove the streaming placeholder so feedback
@@ -835,7 +837,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 parsedMessage.promptSuggestions,
                 parsedMessage.sources,
                 parsedMessage.interactionId,
-                sseComplete = true
+                sseComplete = true,
+                linkHints = parsedMessage.linkHints
             )
         }
     }
@@ -901,7 +904,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         promptSuggestions: List<String> = emptyList(),
         sources: List<Citation> = emptyList(),
         interactionId: String? = null,
-        sseComplete: Boolean? = null
+        sseComplete: Boolean? = null,
+        linkHints: List<LinkHint> = emptyList()
     ) {
         // Pre-compute unique citations once to avoid redundant processing
         val uniqueSources = if (sources.isNotEmpty()) {
@@ -921,7 +925,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     citations = sources,
                     uniqueCitations = uniqueSources,
                     interactionId = interactionId,
-                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete
+                    sseComplete = sseComplete ?: lastAssistantMessage.sseComplete,
+                    linkHints = linkHints
                 )
                 updatedMessages
             } else {

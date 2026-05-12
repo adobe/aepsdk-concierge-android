@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
 
 /**
@@ -51,6 +52,7 @@ internal fun ConciergeResponseText(
     text: String,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    linkHints: List<LinkHint> = emptyList(),
     handleLink: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -58,7 +60,7 @@ internal fun ConciergeResponseText(
     val style = ConciergeStyles.citationBadgeStyle
 
     // Parse markdown first to get the rendered text with inline content placeholders
-    val markdownAnnotatedString = MarkdownParser.parse(text)
+    val markdownAnnotatedString = MarkdownParser.parse(text, linkHints)
 
     // Use provided inline content map or create it if not provided
     val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size, handleLink) {

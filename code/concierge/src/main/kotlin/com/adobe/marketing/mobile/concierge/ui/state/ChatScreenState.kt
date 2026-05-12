@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
@@ -171,7 +172,8 @@ internal data class ChatMessage(
     val sseComplete: Boolean = false,
     val promptSuggestions: List<String> = emptyList(),
     val feedbackState: FeedbackState = FeedbackState.None,
-    val ctaButton: NetworkCtaButton? = null
+    val ctaButton: NetworkCtaButton? = null,
+    val linkHints: List<LinkHint> = emptyList()
 ) {
     val text: String
         get() = when (content) {
