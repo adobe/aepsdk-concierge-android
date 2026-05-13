@@ -24,7 +24,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import com.adobe.marketing.mobile.concierge.R
 
 /**
  * Data class holding the active theme configuration including resolved colors
@@ -42,6 +45,26 @@ data class ActiveConciergeTheme(
  */
 private val LocalActiveConciergeTheme = staticCompositionLocalOf { 
     ActiveConciergeTheme(colors = LightConciergeColors)
+}
+
+private val bundledFonts: Map<String, FontFamily> = mapOf(
+    "raleway" to FontFamily(
+        Font(R.font.raleway_thin, FontWeight.Thin),
+        Font(R.font.raleway_extralight, FontWeight.ExtraLight),
+        Font(R.font.raleway_light, FontWeight.Light),
+        Font(R.font.raleway_regular, FontWeight.Normal),
+        Font(R.font.raleway_medium, FontWeight.Medium),
+        Font(R.font.raleway_semibold, FontWeight.SemiBold),
+        Font(R.font.raleway_bold, FontWeight.Bold),
+        Font(R.font.raleway_extrabold, FontWeight.ExtraBold),
+        Font(R.font.raleway_heavy, FontWeight.Black),
+    )
+)
+
+private fun resolveFontFamily(name: String): FontFamily? {
+    val key = name.trim().lowercase()
+    return bundledFonts[key]
+        ?: runCatching { FontFamily(Typeface.create(name, Typeface.NORMAL)) }.getOrNull()
 }
 
 /**
@@ -85,9 +108,7 @@ fun ConciergeTheme(
     val fontFamily = remember(theme?.tokens?.typography?.fontFamily) {
         theme?.tokens?.typography?.fontFamily
             ?.takeIf { it.isNotBlank() }
-            ?.let { name ->
-                runCatching { FontFamily(Typeface.create(name, Typeface.NORMAL)) }.getOrNull()
-            }
+            ?.let { name -> resolveFontFamily(name) }
     }
 
     val typography = remember(fontFamily) {
