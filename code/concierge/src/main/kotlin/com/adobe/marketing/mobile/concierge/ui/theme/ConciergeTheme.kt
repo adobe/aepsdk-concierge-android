@@ -12,8 +12,11 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import android.graphics.Typeface
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -21,6 +24,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 
 /**
  * Data class holding the active theme configuration including resolved colors
@@ -78,10 +82,45 @@ fun ConciergeTheme(
         )
     }
 
-    CompositionLocalProvider(
-        LocalActiveConciergeTheme provides activeTheme,
-        content = content
-    )
+    val fontFamily = remember(theme?.tokens?.typography?.fontFamily) {
+        theme?.tokens?.typography?.fontFamily
+            ?.takeIf { it.isNotBlank() }
+            ?.let { name ->
+                runCatching { FontFamily(Typeface.create(name, Typeface.NORMAL)) }.getOrNull()
+            }
+    }
+
+    val typography = remember(fontFamily) {
+        if (fontFamily != null) {
+            val base = Typography()
+            Typography(
+                displayLarge = base.displayLarge.copy(fontFamily = fontFamily),
+                displayMedium = base.displayMedium.copy(fontFamily = fontFamily),
+                displaySmall = base.displaySmall.copy(fontFamily = fontFamily),
+                headlineLarge = base.headlineLarge.copy(fontFamily = fontFamily),
+                headlineMedium = base.headlineMedium.copy(fontFamily = fontFamily),
+                headlineSmall = base.headlineSmall.copy(fontFamily = fontFamily),
+                titleLarge = base.titleLarge.copy(fontFamily = fontFamily),
+                titleMedium = base.titleMedium.copy(fontFamily = fontFamily),
+                titleSmall = base.titleSmall.copy(fontFamily = fontFamily),
+                bodyLarge = base.bodyLarge.copy(fontFamily = fontFamily),
+                bodyMedium = base.bodyMedium.copy(fontFamily = fontFamily),
+                bodySmall = base.bodySmall.copy(fontFamily = fontFamily),
+                labelLarge = base.labelLarge.copy(fontFamily = fontFamily),
+                labelMedium = base.labelMedium.copy(fontFamily = fontFamily),
+                labelSmall = base.labelSmall.copy(fontFamily = fontFamily),
+            )
+        } else {
+            Typography()
+        }
+    }
+
+    MaterialTheme(typography = typography) {
+        CompositionLocalProvider(
+            LocalActiveConciergeTheme provides activeTheme,
+            content = content
+        )
+    }
 }
 
 /**
