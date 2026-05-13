@@ -174,7 +174,7 @@ private fun RenderTextMessage(
                 ) {
                     if (message.isFromUser) {
                         Text(
-                            text = message.text,
+                            text = message.text.trimEnd(),
                             style = style.textStyle,
                             color = style.userMessageTextColor
                         )
