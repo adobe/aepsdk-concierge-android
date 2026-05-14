@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import com.adobe.marketing.mobile.concierge.ui.components.messages.ClickableText
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.DisclaimerClickedEvent
 import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.services.ServiceProvider
@@ -37,25 +39,30 @@ import com.adobe.marketing.mobile.services.ServiceProvider
 internal fun ConciergeDisclaimer(
     modifier: Modifier = Modifier,
     disclaimerConfig: DisclaimerConfig?,
-    handleLink: ((String) -> Unit)? = null
+    handleLink: ((String) -> Unit)? = null,
+    onEvent: (ChatEvent) -> Unit
 ) {
-    if (disclaimerConfig?.text.isNullOrBlank()) return
-    val config = disclaimerConfig!!
+    if (disclaimerConfig == null || disclaimerConfig.text.isNullOrBlank()) return
 
     val style = ConciergeStyles.disclaimerStyle
-    val annotatedText = remember(config, style) {
-        buildDisclaimerAnnotatedString(config, style)
+    val annotatedText = remember(disclaimerConfig, style) {
+        buildDisclaimerAnnotatedString(disclaimerConfig, style)
     }
     val modifierWithPadding = modifier
         .fillMaxWidth()
         .padding(style.padding)
-    val linkClickHandler: (String) -> Unit = handleLink ?: { url: String ->
-        ServiceProvider.getInstance().uriService.openUri(url)
+    val linkClickHandler: (String) -> Unit = { url ->
+        onEvent(DisclaimerClickedEvent(url))
+        if(handleLink == null) {
+            ServiceProvider.getInstance().uriService.openUri(url)
+        } else {
+            handleLink(url)
+        }
     }
 
     if (annotatedText.getStringAnnotations("URL", 0, annotatedText.length).isEmpty()) {
         Text(
-            text = config.text!!,
+            text = disclaimerConfig.text,
             style = style.textStyle,
             color = style.textColor,
             textAlign = TextAlign.Center,

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.appendInlineContent
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.services.Log
 
 /**
@@ -31,6 +32,23 @@ import com.adobe.marketing.mobile.services.Log
  */
 internal object MarkdownRenderer {
     private const val TAG = "MarkdownRenderer"
+
+    /**
+     * Inline content id prefix for link-hint icons. The UI layer must register entries keyed by
+     * [linkIconId] in the inline content map for the icons to render.
+     */
+    internal const val LINK_ICON_ID_PREFIX = "link_icon_"
+
+    /**
+     * Builds the inline content id for a link-hint icon. Renderer and UI layer must use this
+     * helper to stay in sync; one id per (kind, href) pair lets the UI register a per-link
+     * click handler.
+     */
+    internal fun linkIconId(kind: String, href: String): String =
+        "$LINK_ICON_ID_PREFIX${kind}_$href"
+
+    /** Non-breaking space, used between a link's text and its inline icon. */
+    private const val NBSP = ' '
 
     /**
      * Renders the provided list of [MarkdownToken]s into an [AnnotatedString].
@@ -45,7 +63,8 @@ internal object MarkdownRenderer {
         markdown: String,
         tokens: List<MarkdownToken>,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHints: List<LinkHint> = emptyList()
     ): AnnotatedString {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
@@ -53,6 +72,7 @@ internal object MarkdownRenderer {
             "Starting rendering of ${tokens.size} tokens"
         )
 
+        val linkHintByHref: Map<String, String> = linkHints.associate { it.href to it.kind }
         val builder = AnnotatedString.Builder()
         var currentIndex = 0
 
@@ -60,7 +80,7 @@ internal object MarkdownRenderer {
             if (token.start < currentIndex) return@forEach
 
             appendGapText(markdown, currentIndex, token.start, builder, colorScheme, baseTextStyle)
-            renderToken(token, builder, colorScheme, baseTextStyle)
+            renderToken(token, builder, colorScheme, baseTextStyle, linkHintByHref)
             currentIndex = token.end
         }
 
@@ -101,20 +121,21 @@ internal object MarkdownRenderer {
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap()
     ) {
         when (token.type) {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme, baseTextStyle)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme, baseTextStyle)
-            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle)
-            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle)
-            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle)
+            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkHintByHref)
+            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkHintByHref)
+            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkHintByHref)
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
             TokenType.HEADING -> renderHeading(token, builder, colorScheme, baseTextStyle)
-            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle)
-            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle)
+            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle, linkHintByHref)
+            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle, linkHintByHref)
         }
     }
 
@@ -168,7 +189,8 @@ internal object MarkdownRenderer {
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -189,13 +211,16 @@ internal object MarkdownRenderer {
             start = styleStart,
             end = builder.length
         )
+
+        appendLinkHintIcon(builder, linkUrl, linkHintByHref)
     }
 
     private fun renderBoldLink(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -217,13 +242,16 @@ internal object MarkdownRenderer {
             start = styleStart,
             end = builder.length
         )
+
+        appendLinkHintIcon(builder, linkUrl, linkHintByHref)
     }
 
     private fun renderItalicLink(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -243,6 +271,29 @@ internal object MarkdownRenderer {
             tag = "URL",
             annotation = linkUrl,
             start = styleStart,
+            end = builder.length
+        )
+
+        appendLinkHintIcon(builder, linkUrl, linkHintByHref)
+    }
+
+    private fun appendLinkHintIcon(
+        builder: AnnotatedString.Builder,
+        linkUrl: String,
+        linkHintByHref: Map<String, String>
+    ) {
+        val kind = linkHintByHref[linkUrl] ?: return
+        // Use a non-breaking space so the icon never wraps onto its own line, away from the link
+        // text. The gap is annotated with the URL too so taps between text and icon still trigger.
+        val annotationStart = builder.length
+        builder.append(NBSP)
+        // appendInlineContent docs recommend a single-character alternate; the actual visual is
+        // supplied by the InlineTextContent map keyed on the same id.
+        builder.appendInlineContent(linkIconId(kind, linkUrl), " ")
+        builder.addStringAnnotation(
+            tag = "URL",
+            annotation = linkUrl,
+            start = annotationStart,
             end = builder.length
         )
     }
@@ -357,7 +408,8 @@ internal object MarkdownRenderer {
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val listItem = token.groups[0]
         val listMarker = token.groups.getOrNull(1) ?: "•"
@@ -370,19 +422,20 @@ internal object MarkdownRenderer {
             builder.append("• ")
         }
 
-        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle)
+        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle, linkHintByHref)
     }
 
     private fun renderBlockquote(
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val quoteText = token.groups[0]
 
         val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
-        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle) { text, _, _ ->
+        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle, linkHintByHref) { text, _, _ ->
             val styleStart = builder.length
             builder.append(text)
             builder.addStyle(
@@ -410,6 +463,7 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkHintByHref: Map<String, String> = emptyMap(),
         textRenderer: ((String, Int, Int) -> Unit)? = null
     ) {
         val nestedTokens = MarkdownTokenizer.tokenize(content)
@@ -436,7 +490,7 @@ internal object MarkdownRenderer {
             }
 
             // Render the nested token
-            renderToken(nestedToken, builder, colorScheme, baseTextStyle)
+            renderToken(nestedToken, builder, colorScheme, baseTextStyle, linkHintByHref)
             currentIndex = nestedToken.end
         }
 

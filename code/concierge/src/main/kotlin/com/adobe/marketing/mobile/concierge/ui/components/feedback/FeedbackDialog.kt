@@ -12,16 +12,27 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.feedback
 
+import android.graphics.Color as AndroidColor
+import android.view.Gravity
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,31 +47,48 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
 import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
 
 private val POSITIVE_CATEGORIES = listOf(
@@ -484,7 +512,6 @@ private fun FeedbackCardContent(
 
 // --- Bottom sheet mode ---
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FeedbackDialogBottomSheet(
     modifier: Modifier = Modifier,
@@ -493,25 +520,103 @@ private fun FeedbackDialogBottomSheet(
     onSubmit: (Feedback) -> Unit
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+    val scope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-        containerColor = style.backgroundColor,
-        // Themable capsule handle replaces Material3's default.
-        dragHandle = { FeedbackDragHandle(style) },
-        modifier = modifier
-    ) {
-        FeedbackBottomSheetContent(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding(),
-            feedback = feedback,
-            onDismiss = onDismiss,
-            onSubmit = onSubmit
+    val offScreenPx = with(density) { (configuration.screenHeightDp + 100).dp.toPx() }
+    val fallbackThresholdPx = with(density) { 150.dp.toPx() }
+
+    val translationY = remember { Animatable(offScreenPx) }
+    var sheetHeightPx by remember { mutableStateOf(0) }
+
+    val maxScrimAlpha = 0.5f
+    val scrimDenominator = if (sheetHeightPx > 0) sheetHeightPx.toFloat() else offScreenPx
+    val scrimAlpha = (1f - (translationY.value / scrimDenominator).coerceIn(0f, 1f)) * maxScrimAlpha
+
+    LaunchedEffect(Unit) {
+        translationY.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
         )
+    }
+
+    val animateOutAndDo: (() -> Unit) -> Unit = { action ->
+        scope.launch {
+            translationY.animateTo(
+                targetValue = offScreenPx,
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            )
+            action()
+        }
+    }
+
+    Dialog(
+        onDismissRequest = { animateOutAndDo { onDismiss() } },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
+        val isLightSheetBg = style.backgroundColor.luminance() > 0.5f
+
+        SideEffect {
+            dialogWindowProvider?.window?.let { window ->
+                window.setGravity(Gravity.BOTTOM)
+                WindowCompat.setDecorFitsSystemWindows(window, false)
+                window.navigationBarColor = AndroidColor.TRANSPARENT
+                window.setDimAmount(scrimAlpha)
+                WindowInsetsControllerCompat(window, window.decorView)
+                    .isAppearanceLightNavigationBars = isLightSheetBg
+            }
+        }
+
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .onSizeChanged {
+                    if (sheetHeightPx == 0) sheetHeightPx = it.height
+                }
+                .offset { IntOffset(0, translationY.value.roundToInt()) }
+                .shadow(style.elevation, sheetShape)
+                .background(color = style.backgroundColor)
+                .draggable(
+                    orientation = Orientation.Vertical,
+                    state = rememberDraggableState { delta ->
+                        scope.launch {
+                            translationY.snapTo(
+                                (translationY.value + delta).coerceAtLeast(0f)
+                            )
+                        }
+                    },
+                    onDragStopped = { velocity ->
+                        val threshold = if (sheetHeightPx > 0) {
+                            sheetHeightPx * 0.4f
+                        } else fallbackThresholdPx
+                        val passedDistance = translationY.value > threshold
+                        val flungDown = velocity > 1500f
+                        if (passedDistance || flungDown) {
+                            animateOutAndDo { onDismiss() }
+                        } else {
+                            translationY.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring()
+                            )
+                        }
+                    }
+                )
+                .navigationBarsPadding()
+        ) {
+            FeedbackDragHandle(style)
+            FeedbackBottomSheetContent(
+                modifier = Modifier.fillMaxWidth(),
+                feedback = feedback,
+                onDismiss = { animateOutAndDo { onDismiss() } },
+                onSubmit = { result -> animateOutAndDo { onSubmit(result) } }
+            )
+        }
     }
 }
 
@@ -585,5 +690,21 @@ private fun FeedbackBottomSheetContent(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+
+@Preview(showBackground = true, showSystemUi = true, device = "spec:width=392dp,height=851dp,dpi=420")
+@Composable
+internal fun FeedbackBottomSheetPreview() {
+    ConciergeTheme(theme = ConciergeThemeLoader.default()) {
+        FeedbackDialogBottomSheet(
+            feedback = Feedback(
+                interactionId = "preview-id",
+                feedbackType = FeedbackType.POSITIVE
+            ),
+            onDismiss = {},
+            onSubmit = {}
+        )
     }
 }

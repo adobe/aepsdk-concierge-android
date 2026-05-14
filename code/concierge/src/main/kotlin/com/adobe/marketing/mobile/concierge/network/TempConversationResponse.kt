@@ -50,13 +50,22 @@ internal data class ConversationRequest(
 )
 
 /**
+ * Represents a backend hint about a link in the message, used to attach an inline icon.
+ */
+internal data class LinkHint(
+    val kind: String,
+    val href: String
+)
+
+/**
  * Response content containing the actual message and metadata
  */
 internal data class ConversationResponse(
     val message: String,
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val promptSuggestions: List<String> = emptyList(),
-    val ctaButton: CtaButton? = null
+    val ctaButton: CtaButton? = null,
+    val linkHints: List<LinkHint> = emptyList()
 )
 
 /**
@@ -137,5 +146,6 @@ internal data class ParsedConversationMessage(
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val orderedElements: List<ParsedMultimodalItem> = emptyList(),
-    val sources: List<Citation> = emptyList()
+    val sources: List<Citation> = emptyList(),
+    val linkHints: List<LinkHint> = emptyList()
 )

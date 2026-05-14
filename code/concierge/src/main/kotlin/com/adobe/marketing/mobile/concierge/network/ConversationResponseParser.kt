@@ -43,6 +43,9 @@ internal object ConversationResponseParser {
     private const val FIELD_START_INDEX = "start_index"
     private const val FIELD_END_INDEX = "end_index"
     private const val FIELD_CITATION_NUMBER = "citation_number"
+    private const val FIELD_LINK_HINTS = "linkHints"
+    private const val FIELD_KIND = "kind"
+    private const val FIELD_HREF = "href"
     private const val FIELD_ELEMENTS = "elements"
     private const val FIELD_WIDTH = "width"
     private const val FIELD_HEIGHT = "height"
@@ -146,6 +149,8 @@ internal object ConversationResponseParser {
         val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
 
+        val linkHints = extractLinkHints(response)
+
         return ParsedConversationMessage(
             messageContent = message,
             state = state,
@@ -154,7 +159,8 @@ internal object ConversationResponseParser {
             promptSuggestions = promptSuggestions,
             multimodalElements = multimodalElements,
             orderedElements = orderedElements,
-            sources = sources
+            sources = sources,
+            linkHints = linkHints
         )
     }
 
@@ -335,6 +341,20 @@ internal object ConversationResponseParser {
 
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed ${sources.size} sources from response.")
         return sources
+    }
+
+    /**
+     * Extracts link hints from the response map.
+     */
+    private fun extractLinkHints(response: Map<String, Any?>): List<LinkHint> {
+        val hintsList = DataReader.optTypedListOfMap(Any::class.java, response, FIELD_LINK_HINTS, null)
+            ?: return emptyList()
+
+        return hintsList.mapNotNull { hintMap ->
+            val kind = DataReader.optString(hintMap, FIELD_KIND, null)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val href = DataReader.optString(hintMap, FIELD_HREF, null)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            LinkHint(kind = kind, href = href)
+        }
     }
 
     /**
