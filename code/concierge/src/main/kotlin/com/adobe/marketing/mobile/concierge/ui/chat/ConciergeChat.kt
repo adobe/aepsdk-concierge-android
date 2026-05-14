@@ -40,12 +40,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,6 +67,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
@@ -167,6 +170,13 @@ fun ConciergeChat(
                 @Suppress("DEPRECATION")
                 window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
+                // Match status bar / nav bar icon contrast to the chat background so icons stay visible.
+                val isLightChatBg = ConciergeTheme.colors.background.luminance() > 0.5f
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = isLightChatBg
+                    isAppearanceLightNavigationBars = isLightChatBg
+                }
+
                 ConciergeChat(
                     viewModel = viewModel,
                     onClose = { viewModel.closeConcierge() },
@@ -174,14 +184,6 @@ fun ConciergeChat(
                     handleLink = handleLink
                 )
             }
-
-            // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
-            val state by viewModel.state.collectAsStateWithLifecycle()
-            ModalFeedbackOverlay(
-                feedback = state.feedback,
-                onDismiss = { viewModel.processEvent(FeedbackEvent.DismissFeedbackDialog) },
-                onSubmit = { viewModel.processEvent(FeedbackEvent.SubmitFeedback(it)) }
-            )
         }
 
     }
@@ -239,6 +241,17 @@ fun ConciergeChat(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Track chat open/close lifecycle across all integration modes (Compose direct, dialog, XML).
+    // ChatOpened fires once when this composable enters composition.
+    // ChatClosed fires when this composable leaves composition — which covers the close button,
+    // back-press dialog dismissal, and XML view detachment — with no double-tracking.
+    DisposableEffect(Unit) {
+        viewModel.trackChatOpened()
+        onDispose {
+            viewModel.trackChatClosed()
         }
     }
 
@@ -389,7 +402,7 @@ internal fun ConciergeChat(
                         WelcomeCard(
                             config = welcomeConfig,
                             isReturningUser = isReturningUser,
-                            onPromptClick = { prompt -> onEvent(ChatEvent.SendMessage(prompt)) },
+                            onPromptClick = { prompt -> onEvent(MessageInteractionEvent.WelcomePromptSuggestionClick(prompt)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -417,6 +430,7 @@ internal fun ConciergeChat(
             ConciergeDisclaimer(
                 disclaimerConfig = ConciergeTheme.disclaimer,
                 handleLink = handleLink,
+                onEvent = onEvent,
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -442,9 +456,12 @@ internal fun ConciergeChat(
 }
 
 /**
- * Renders the feedback bottom sheet outside the Dialog window when displayMode is "action".
- * This must be called at a composable scope that is NOT inside a Dialog, so the
- * ModalBottomSheet has full-screen access.
+ * Renders the feedback bottom sheet when displayMode is "action".
+ *
+ * The underlying [FeedbackDialog] in `ACTION` mode is implemented as its own [Dialog] with
+ * `usePlatformDefaultWidth = false` and `Gravity.BOTTOM`, so it spawns a separate window and
+ * occupies the full screen even when this composable is hosted inside another `Dialog` (e.g.,
+ * the chat-host dialog integration). No outer-scope hoisting required.
  */
 @Composable
 private fun ModalFeedbackOverlay(

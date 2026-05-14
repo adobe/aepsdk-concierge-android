@@ -29,8 +29,11 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotator
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLinkHintIconAssets
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 
 /**
  * Component that renders brand concierge responses containing markdown text
@@ -48,12 +51,14 @@ import com.adobe.marketing.mobile.concierge.network.Citation
 @Composable
 internal fun ConciergeResponse(
     text: String,
+    modifier: Modifier = Modifier,
     sources: List<Citation> = emptyList(),
+    linkHints: List<LinkHint> = emptyList(),
     handleLink: ((String) -> Unit)? = null,
-    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
+    val colorScheme = ConciergeTheme.colorScheme
 
     Crossfade(
         targetState = text.isEmpty(),
@@ -64,15 +69,28 @@ internal fun ConciergeResponse(
             CitationAnnotator.annotateText(text, sources)
         }
 
-        // Create inline content map once for all child components to share
-        // This avoids recreating the map for each list item
-        val inlineContentMap = remember(annotatedText.uniqueSources, handleLink) {
+        // Create inline content maps once for all child components to share
+        val citationInlineContentMap = remember(annotatedText.uniqueSources, handleLink) {
             CitationUiUtils.createInlineContentMap(
                 annotatedText.uniqueSources,
                 style.size,
                 context,
                 handleLink
             )
+        }
+        val linkHintAssets = ConciergeTheme.tokens?.assets?.icons?.linkHint
+            ?: ConciergeLinkHintIconAssets()
+        val linkHintInlineContentMap = remember(linkHints, colorScheme.primary, linkHintAssets, handleLink) {
+            LinkHintUiUtils.createLinkHintInlineContentMap(
+                linkHints = linkHints,
+                iconColor = colorScheme.primary,
+                iconAssets = linkHintAssets,
+                context = context,
+                handleLink = handleLink
+            )
+        }
+        val inlineContentMap = remember(citationInlineContentMap, linkHintInlineContentMap) {
+            citationInlineContentMap + linkHintInlineContentMap
         }
 
         if (isEmpty) {
@@ -89,6 +107,7 @@ internal fun ConciergeResponse(
                     listTokens = listTokens,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
+                    linkHints = linkHints,
                     handleLink = handleLink,
                     modifier = modifier
                 )
@@ -97,6 +116,7 @@ internal fun ConciergeResponse(
                     text = annotatedText.text,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
+                    linkHints = linkHints,
                     handleLink = handleLink,
                     modifier = modifier
                 )
@@ -115,6 +135,7 @@ private fun ConciergeResponseWithLists(
     listTokens: List<MarkdownToken>,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    linkHints: List<LinkHint> = emptyList(),
     handleLink: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -137,6 +158,7 @@ private fun ConciergeResponseWithLists(
                         text = segment.content,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
+                        linkHints = linkHints,
                         handleLink = handleLink,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -148,6 +170,7 @@ private fun ConciergeResponseWithLists(
                         handleLink = linkHandler,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
+                        linkHints = linkHints,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

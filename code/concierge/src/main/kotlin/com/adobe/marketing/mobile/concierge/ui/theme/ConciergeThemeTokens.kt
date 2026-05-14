@@ -418,7 +418,20 @@ data class ConciergeIconAssets(
     val thumbsUp: String? = null,
     val thumbsDown: String? = null,
     val chevronDown: String? = null,
-    val chevronRight: String? = null
+    val chevronRight: String? = null,
+    val linkHint: ConciergeLinkHintIconAssets = ConciergeLinkHintIconAssets()
+)
+
+/**
+ * Asset names for inline icons appended next to links flagged by the backend's `linkHints`
+ * array. Each field carries the name of a bitmap bundled under the integrating app's
+ * `assets/icons/` folder. A null/blank value or a name that fails to resolve falls back to
+ * the SDK's built-in link drawable.
+ */
+data class ConciergeLinkHintIconAssets(
+    val phone: String? = null,   // JSON key: link_phone — used for kind="phone"
+    val store: String? = null,   // JSON key: link_store — used for kind="store"
+    val default: String? = null  // JSON key: link_default — used for any other kind
 )
 
 data class ConciergeImageAssets(

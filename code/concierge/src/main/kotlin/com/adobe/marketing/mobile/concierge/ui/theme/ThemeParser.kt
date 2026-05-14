@@ -533,7 +533,19 @@ internal object ThemeParser {
             thumbsUp = DataReader.optString(typedMap, "thumbsUp", null),
             thumbsDown = DataReader.optString(typedMap, "thumbsDown", null),
             chevronDown = DataReader.optString(typedMap, "chevronDown", null),
-            chevronRight = DataReader.optString(typedMap, "chevronRight", null)
+            chevronRight = DataReader.optString(typedMap, "chevronRight", null),
+            linkHint = parseLinkHintIconAssets(map["linkHint"] as? Map<*, *>)
+        )
+    }
+
+    private fun parseLinkHintIconAssets(map: Map<*, *>?): ConciergeLinkHintIconAssets {
+        if (map == null) return ConciergeLinkHintIconAssets()
+        @Suppress("UNCHECKED_CAST")
+        val typedMap = map as? MutableMap<String?, Any?>
+        return ConciergeLinkHintIconAssets(
+            phone = DataReader.optString(typedMap, "link_phone", null),
+            store = DataReader.optString(typedMap, "link_store", null),
+            default = DataReader.optString(typedMap, "link_default", null)
         )
     }
 

@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
@@ -93,6 +94,8 @@ internal sealed class MicEvent : ChatEvent() {
     data class StopRecording(val isCancelled: Boolean, val isError: Boolean) : MicEvent()
 }
 
+internal class DisclaimerClickedEvent(val url: String) : ChatEvent()
+
 /**
  * Represents feedback events that can be processed by the ViewModel.
  */
@@ -136,6 +139,11 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
      * User clicked on a prompt suggestion.
      */
     data class PromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
+
+    /**
+     * User clicked on a welcome prompt suggestion.
+     */
+    data class WelcomePromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
 }
 
 /**
@@ -164,7 +172,8 @@ internal data class ChatMessage(
     val sseComplete: Boolean = false,
     val promptSuggestions: List<String> = emptyList(),
     val feedbackState: FeedbackState = FeedbackState.None,
-    val ctaButton: NetworkCtaButton? = null
+    val ctaButton: NetworkCtaButton? = null,
+    val linkHints: List<LinkHint> = emptyList()
 ) {
     val text: String
         get() = when (content) {
