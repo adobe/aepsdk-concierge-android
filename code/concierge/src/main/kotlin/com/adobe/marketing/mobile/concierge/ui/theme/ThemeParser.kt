@@ -443,7 +443,8 @@ internal object ThemeParser {
                 displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "modal")),
                 thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline")),
                 showCloseButton = it["showCloseButton"] as? Boolean,
-                showCancelButton = it["showCancelButton"] as? Boolean
+                showCancelButton = it["showCancelButton"] as? Boolean,
+                alwaysDisplay = DataReader.optBoolean(it, "alwaysDisplay", false)
             )
         }
 

@@ -339,7 +339,9 @@ data class ConciergeFeedbackBehavior(
     /** Overrides the close (X) button visibility. `null` defaults to `true` for `"action"`, `false` for `"modal"`. */
     val showCloseButton: Boolean? = null,
     /** Overrides the Cancel button visibility. `null` defaults to `true` for `"modal"`, `false` for `"action"`. */
-    val showCancelButton: Boolean? = null
+    val showCancelButton: Boolean? = null,
+    /** When `true`, feedback thumbs are shown on every message regardless of server eligibility. */
+    val alwaysDisplay: Boolean = false
 ) {
     /** Effective close button visibility: `showCloseButton` when set, otherwise `displayMode == ACTION`. */
     fun resolvedShowCloseButton(): Boolean = showCloseButton ?: (displayMode == FeedbackDisplayMode.ACTION)

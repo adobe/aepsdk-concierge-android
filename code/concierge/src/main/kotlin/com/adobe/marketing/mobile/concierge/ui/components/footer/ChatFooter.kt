@@ -12,10 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.footer
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
@@ -23,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
@@ -33,13 +29,12 @@ import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackThumbsPlacement
 /**
  * Footer component for chat messages that includes a sources accordion and feedback buttons.
  *
- * Layout is determined by `behavior.feedback.thumbsPlacement`:
- * - `"inline"` (default): Sources accordion and feedback thumbs on the same row.
- *   Falls back to standalone when there are no sources.
- * - `"below"`: Feedback thumbs with a helpful label appear below the expanded sources list.
- *   Falls back to standalone when there are no sources.
- * - `"standalone"`: Feedback thumbs always appear as a separate block below the bubble,
- *   regardless of whether sources are present.
+ * When sources are present, feedback always appears below the sources section regardless of
+ * `behavior.feedback.thumbsPlacement`. When there are no sources, `thumbsPlacement` governs
+ * the standalone feedback layout:
+ * - `"inline"` (default): Feedback thumbs aligned to the trailing edge.
+ * - `"below"`: Feedback thumbs with a "Helpful?" label.
+ * - `"standalone"`: Feedback thumbs as a separate block.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation] to display in the sources accordion.
@@ -63,34 +58,45 @@ internal fun ChatFooter(
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val hasCitations = !citations.isNullOrEmpty()
-    val showFeedbackButtons = feedbackEligible && sseComplete
+    val alwaysDisplay = ConciergeTheme.behavior?.feedback?.alwaysDisplay ?: false
+    val showFeedbackButtons = interactionId != null && (alwaysDisplay || (feedbackEligible && sseComplete))
     var sourcesExpanded by remember { mutableStateOf(false) }
     val thumbsPlacement = ConciergeTheme.behavior?.feedback?.thumbsPlacement
         ?: FeedbackThumbsPlacement.INLINE
 
-    // Whether feedback is shown inside the sources view or as a standalone block below.
-    val showFeedbackInSourcesView = showFeedbackButtons && thumbsPlacement != FeedbackThumbsPlacement.STANDALONE
-
     Column(modifier = modifier.padding(top = 12.dp)) {
-        when (thumbsPlacement) {
-            FeedbackThumbsPlacement.INLINE -> {
-                // Sources label and thumbs on the same row; standalone when there are no sources.
-                val arrangement = remember(hasCitations) {
-                    if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = arrangement,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (hasCitations) {
-                        SourcesAccordionButton(
-                            expanded = sourcesExpanded,
-                            onExpandedChange = { sourcesExpanded = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (showFeedbackInSourcesView) {
+        if (hasCitations) {
+            // Sources are present: always show feedback below the sources section.
+            val showHelpfulLabel = thumbsPlacement == FeedbackThumbsPlacement.BELOW
+            val citationIndent = if (thumbsPlacement == FeedbackThumbsPlacement.BELOW) {
+                Modifier.padding(start = 28.dp)
+            } else {
+                Modifier
+            }
+            SourcesAccordionButton(
+                expanded = sourcesExpanded,
+                onExpandedChange = { sourcesExpanded = it }
+            )
+            ExpandedCitations(
+                modifier = citationIndent,
+                citations = citations!!,
+                uniqueCitations = uniqueCitations,
+                expanded = sourcesExpanded,
+                handleLink = handleLink
+            )
+            if (showFeedbackButtons) {
+                FeedbackButtons(
+                    interactionId = interactionId!!,
+                    onFeedback = onFeedback,
+                    feedbackState = feedbackState,
+                    showHelpfulLabel = showHelpfulLabel
+                )
+            }
+        } else {
+            // No sources: feedback placement falls back to per-mode standalone behaviour.
+            when (thumbsPlacement) {
+                FeedbackThumbsPlacement.INLINE -> {
+                    if (showFeedbackButtons) {
                         FeedbackButtons(
                             interactionId = interactionId!!,
                             onFeedback = onFeedback,
@@ -98,70 +104,24 @@ internal fun ChatFooter(
                         )
                     }
                 }
-                if (hasCitations) {
-                    ExpandedCitations(
-                        citations = citations!!,
-                        uniqueCitations = uniqueCitations,
-                        expanded = sourcesExpanded,
-                        handleLink = handleLink
-                    )
+                FeedbackThumbsPlacement.BELOW -> {
+                    if (showFeedbackButtons) {
+                        FeedbackButtons(
+                            interactionId = interactionId!!,
+                            onFeedback = onFeedback,
+                            feedbackState = feedbackState,
+                            showHelpfulLabel = true
+                        )
+                    }
                 }
-            }
-
-            FeedbackThumbsPlacement.BELOW -> {
-                // Feedback thumbs inside the Sources accordion; standalone when there are no sources.
-                if (hasCitations) {
-                    SourcesAccordionButton(
-                        expanded = sourcesExpanded,
-                        onExpandedChange = { sourcesExpanded = it }
-                    )
-                    ExpandedCitations(
-                        modifier = Modifier.padding(start = 28.dp),
-                        citations = citations!!,
-                        uniqueCitations = uniqueCitations,
-                        expanded = sourcesExpanded,
-                        handleLink = handleLink,
-                        footerContent = if (showFeedbackInSourcesView) {
-                            {
-                                FeedbackButtons(
-                                    interactionId = interactionId!!,
-                                    onFeedback = onFeedback,
-                                    feedbackState = feedbackState,
-                                    showHelpfulLabel = true
-                                )
-                            }
-                        } else null
-                    )
-                } else if (showFeedbackButtons) {
-                    FeedbackButtons(
-                        interactionId = interactionId!!,
-                        onFeedback = onFeedback,
-                        feedbackState = feedbackState,
-                        showHelpfulLabel = true
-                    )
-                }
-            }
-
-            FeedbackThumbsPlacement.STANDALONE -> {
-                // Sources and feedback are always separate blocks.
-                if (hasCitations) {
-                    SourcesAccordionButton(
-                        expanded = sourcesExpanded,
-                        onExpandedChange = { sourcesExpanded = it }
-                    )
-                    ExpandedCitations(
-                        citations = citations!!,
-                        uniqueCitations = uniqueCitations,
-                        expanded = sourcesExpanded,
-                        handleLink = handleLink
-                    )
-                }
-                if (showFeedbackButtons) {
-                    FeedbackButtons(
-                        interactionId = interactionId!!,
-                        onFeedback = onFeedback,
-                        feedbackState = feedbackState
-                    )
+                FeedbackThumbsPlacement.STANDALONE -> {
+                    if (showFeedbackButtons) {
+                        FeedbackButtons(
+                            interactionId = interactionId!!,
+                            onFeedback = onFeedback,
+                            feedbackState = feedbackState
+                        )
+                    }
                 }
             }
         }
