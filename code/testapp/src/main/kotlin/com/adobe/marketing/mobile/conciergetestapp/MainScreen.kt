@@ -57,11 +57,10 @@ fun MainScreen() {
 
     // Surfaces passed via ConciergeChat parameter
     val surfaces = listOf( "web://brand-concierge-demo-stage.corp.ethos270-stage-va7.ethos.adobe.net/customer-pages/745F37C35E4B776E0A49421B@AdobeOrg/acom_m15/index.html")
-    var selectedTheme by rememberSaveable { mutableStateOf("theme-dsg") }
+    var selectedTheme by rememberSaveable { mutableStateOf("default") }
     
     // Theme options
     val themeOptions = listOf(
-        ThemeOption("theme-dsg", "theme-dsg", "DSG theme"),
         ThemeOption("default", "Default Theme", "Standard theme"),
         ThemeOption("demo", "Demo Theme", "Styling and behaviors demo"),
         ThemeOption("input field border", "Input Field Borders Test", "Configure input field borders"),
@@ -71,7 +70,6 @@ fun MainScreen() {
     // Load theme once, with fallback to default
     val theme = remember(selectedTheme) {
         val fileName = when (selectedTheme) {
-            "theme-dsg" -> "theme-dsg.json"
             "demo" -> "themeDemo.json"
             "input field border" -> "theme-test-implementation.json"
             "behaviors disabled" -> "theme-behavior-disabled.json"
@@ -167,7 +165,6 @@ fun MainScreen() {
                         val intent = Intent(context, XmlChatActivity::class.java)
                         // Pass theme selection to XML activity
                         val themeFile = when (selectedTheme) {
-                            "theme-dsg" -> "theme-dsg"
                             "demo" -> "themeDemo"
                             "input field border" -> "theme-test-implementation"
                             "behaviors disabled" -> "theme-behavior-disabled"

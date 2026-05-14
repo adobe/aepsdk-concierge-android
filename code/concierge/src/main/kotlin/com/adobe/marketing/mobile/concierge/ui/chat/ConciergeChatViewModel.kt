@@ -18,10 +18,14 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
@@ -35,6 +39,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.DisclaimerClickedEvent
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
@@ -179,6 +184,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val _isConciergeActive = MutableStateFlow(false)
     val isConciergeActive: StateFlow<Boolean> = _isConciergeActive.asStateFlow()
 
+    private var lastChatOpen: Long? = null
+
     /**
      * URL to show in the in-app fullscreen WebView overlay, or null when overlay is dismissed.
      */
@@ -245,30 +252,51 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private val chatService: ConciergeConversationServiceClient
 
-    constructor(application: Application) : this(application, AndroidSpeechCapturing(application))
+    /**
+     * Dispatch function for sending tracking events to the AEP Event Hub.
+     * Defaults to MobileCore::dispatchEvent; injectable for testing.
+     */
+    private val dispatch: ((Event) -> Unit)?
+
+    /**
+     * Prevents duplicate responseStarted events within a single conversation turn.
+     * Reset at the start of each new user message.
+     */
+    private var responseStartedDispatched = false
+
+    constructor(application: Application) : this(
+        application,
+        AndroidSpeechCapturing(application),
+        DefaultImageProvider(),
+        ConciergeConversationServiceClient(),
+        MobileCore::dispatchEvent
+    )
 
     internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing) : this(
         application,
         speechCapturing,
         DefaultImageProvider(),
-        ConciergeConversationServiceClient()
+        ConciergeConversationServiceClient(),
+        MobileCore::dispatchEvent
     )
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
         chatClient: ConciergeConversationServiceClient
-    ) : this(application, speechCapturing, DefaultImageProvider(), chatClient)
+    ) : this(application, speechCapturing, DefaultImageProvider(), chatClient, null)
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
         imageProvider: ImageProvider,
-        chatService: ConciergeConversationServiceClient
+        chatService: ConciergeConversationServiceClient,
+        dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
         this.imageProvider = imageProvider
         this.chatService = chatService
+        this.dispatch = dispatch
         speechCapturing.setListener(captureListener)
 
         // Initialize welcome card state based on config and user history
@@ -283,6 +311,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         if (welcomeConfig.value.showWelcomeCard) {
             _showWelcomeCard.value = true
         }
+        dispatchTrackingEvent(ConciergeTrackingEvent.SessionInitialized)
+    }
+
+    private fun dispatchTrackingEvent(trackingEvent: ConciergeTrackingEvent) {
+        val event = trackingEvent.toEvent()
+        Log.debug(ConciergeConstants.LOG_TAG, TAG, "Dispatching tracking event: $event")
+        dispatch?.invoke(event)
     }
 
     /**
@@ -338,7 +373,10 @@ class ConciergeChatViewModel : AndroidViewModel {
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
 
-            is MicEvent.StartRecording -> { startSpeechRecognition() }
+            is MicEvent.StartRecording -> {
+                dispatchTrackingEvent(ConciergeTrackingEvent.MicButtonClicked)
+                startSpeechRecognition()
+            }
 
             is MicEvent.StopRecording -> { handleStopRecording() }
 
@@ -358,6 +396,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
             is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
             is MessageInteractionEvent.PromptSuggestionClick -> handlePromptSuggestionClick(event.suggestion)
+            is MessageInteractionEvent.WelcomePromptSuggestionClick -> handleWelcomePromptSuggestionClick(event.suggestion)
+            is DisclaimerClickedEvent -> handleDisclaimerLinkClickedEvent(event.url)
         }
     }
 
@@ -376,6 +416,9 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Button pressed: ${button.text}, opening URL: ${button.url}"
         )
+        val element = buildMutableElementDict(button.url.toString())
+        element["productName"] = button.text
+        dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(element))
         openWebviewOverlay(button.url.toString())
     }
 
@@ -395,7 +438,41 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}"
         )
+        dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(buildCardElementDict(element.content)))
         openWebviewOverlay(url)
+    }
+
+    private fun buildCardElementDict(content: Map<String, Any>): Map<String, Any> {
+        val dict = mutableMapOf<String, Any>()
+        content["productName"]?.let { dict["productName"] = it }
+        content["productPageURL"]?.let { dict["productPageURL"] = it }
+        content["productPrice"]?.let { dict["productPrice"] = it }
+        content["productDescription"]?.let { dict["productDescription"] = it }
+        return dict
+    }
+
+    private fun buildMutableElementDict(url: String): MutableMap<String, Any> {
+        return mutableMapOf("productPageURL" to url)
+    }
+
+    /**
+     * Handle welcome prompt suggestion clicks
+     * @param suggestion The suggestion text that was clicked
+     */
+    private fun handleWelcomePromptSuggestionClick(suggestion: String) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Welcome Prompt suggestion clicked: $suggestion")
+        dispatchTrackingEvent(ConciergeTrackingEvent.WelcomePromptSuggestionClicked(suggestion))
+        // Auto-send the suggestion as a message
+        handleSendMessage(suggestion)
+    }
+
+    /**
+     * Handle disclaimer link clicks
+     * @param suggestion The suggestion text that was clicked
+     */
+    private fun handleDisclaimerLinkClickedEvent(url: String) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Disclaimer Link clicked: $url")
+        dispatchTrackingEvent(ConciergeTrackingEvent.DisclaimerLinkClicked(url))
     }
 
     /**
@@ -404,6 +481,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handlePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
+        dispatchTrackingEvent(ConciergeTrackingEvent.PromptSuggestionClicked(suggestion))
         // Auto-send the suggestion as a message
         handleSendMessage(suggestion)
     }
@@ -463,10 +541,21 @@ class ConciergeChatViewModel : AndroidViewModel {
         // Hide dialog
         updateFeedback(null)
 
+        dispatchTrackingEvent(ConciergeTrackingEvent.FeedbackSubmitted(
+            conversationId = currentConversationId ?: "",
+            interactionId = feedback.interactionId,
+            feedbackType = when (feedback.feedbackType) {
+                FeedbackType.POSITIVE -> ConciergeConstants.ChatInteraction.POSITIVE
+                FeedbackType.NEGATIVE -> ConciergeConstants.ChatInteraction.NEGATIVE
+            },
+            selectedOptions = feedback.selectedCategories,
+            notes = feedback.notes
+        ))
+
         // Send feedback to the conversation service
         viewModelScope.launch {
             val feedbackWithConversationId = feedback.copy(conversationId = currentConversationId)
-            
+
             val success = chatService.sendFeedback(feedbackWithConversationId)
             if (success) {
                 Log.debug(
@@ -530,11 +619,14 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
 
+        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(messageText))
+        responseStartedDispatched = false
+
         // Dismiss welcome card when user sends their first message
         if (_showWelcomeCard.value) {
             dismissWelcomeCard()
         }
-        
+
         // Mark user as returning (has seen and interacted with welcome)
         markUserAsReturning()
 
@@ -619,22 +711,46 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
+                    parsedMessage.orderedElements.isNotEmpty()
+                if (!responseStartedDispatched && hasVisibleContent) {
+                    responseStartedDispatched = true
+                    dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
+                        conversationId = currentConversationId ?: "",
+                        interactionId = parsedMessage.interactionId ?: ""
+                    ))
+                }
                 appendToAssistantMessage(parsedMessage, contentBuilder)
             }
 
             ConversationState.COMPLETED -> {
                 // For COMPLETED state, replace content if there is text or ordered elements.
                 // If both are absent, keep existing streamed content and just transition to Idle.
-                if (parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()) {
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
+                    parsedMessage.orderedElements.isNotEmpty()
+                if (hasVisibleContent) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
                     setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
                 }
+                // Ensure ResponseStarted precedes ResponseCompleted even if the server jumped
+                // straight to COMPLETED without an IN_PROGRESS chunk.
+                if (!responseStartedDispatched && hasVisibleContent) {
+                    responseStartedDispatched = true
+                    dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
+                        conversationId = currentConversationId ?: "",
+                        interactionId = parsedMessage.interactionId ?: ""
+                    ))
+                }
+                dispatchTrackingEvent(ConciergeTrackingEvent.ResponseCompleted(
+                    conversationId = currentConversationId ?: "",
+                    interactionId = parsedMessage.interactionId ?: ""
+                ))
                 _state.update { currentState ->
-            when (currentState) {
-                is ChatScreenState.Processing -> ChatScreenState.Idle(
-                    feedback = currentState.feedback
-                )
+                    when (currentState) {
+                        is ChatScreenState.Processing -> ChatScreenState.Idle(
+                            feedback = currentState.feedback
+                        )
                         else -> currentState
                     }
                 }
@@ -697,7 +813,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
                     sseComplete = true,
-                    feedbackEligible = if (hasCtas) false else parsedMessage.feedbackEligible
+                    feedbackEligible = if (hasCtas) false else parsedMessage.feedbackEligible,
+                    linkHints = parsedMessage.linkHints
                 )
             } else {
                 // No text, ordered elements only: remove the streaming placeholder so feedback
@@ -735,7 +852,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 parsedMessage.sources,
                 parsedMessage.interactionId,
                 sseComplete = true,
-                feedbackEligible = parsedMessage.feedbackEligible
+                feedbackEligible = parsedMessage.feedbackEligible,
+                linkHints = parsedMessage.linkHints
             )
         }
     }
@@ -753,6 +871,12 @@ class ConciergeChatViewModel : AndroidViewModel {
             .filterIsInstance<ParsedMultimodalItem.Card>()
             .map { it.element }
         var cardMessageAppended = false
+
+        if (cardElements.isNotEmpty()) {
+            val displayMode = if (cardElements.size == 1) "single" else "carousel"
+            val elementDicts = cardElements.map { element -> buildCardElementDict(element.content) }
+            dispatchTrackingEvent(ConciergeTrackingEvent.CardsRendered(displayMode, elementDicts))
+        }
 
         for (element in orderedElements) {
             when (element) {
@@ -796,7 +920,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         sources: List<Citation> = emptyList(),
         interactionId: String? = null,
         sseComplete: Boolean? = null,
-        feedbackEligible: Boolean? = null
+        feedbackEligible: Boolean? = null,
+        linkHints: List<LinkHint> = emptyList()
     ) {
         // Pre-compute unique citations once to avoid redundant processing
         val uniqueSources = if (sources.isNotEmpty()) {
@@ -817,7 +942,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     uniqueCitations = uniqueSources,
                     interactionId = interactionId,
                     sseComplete = sseComplete ?: lastAssistantMessage.sseComplete,
-                    feedbackEligible = feedbackEligible ?: lastAssistantMessage.feedbackEligible
+                    feedbackEligible = feedbackEligible ?: lastAssistantMessage.feedbackEligible,
+                    linkHints = linkHints
                 )
                 updatedMessages
             } else {
@@ -853,6 +979,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
+        dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
         replaceAssistantMessageContent(
             ParsedConversationMessage(
                 messageContent = "Sorry, I encountered an error: $errorMessage",
@@ -1006,17 +1133,47 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
-     * Opens the Concierge chat interface
+     * Opens the Concierge chat interface (dialog mode).
+     * ChatOpened tracking is handled by the [DisposableEffect] in the [ConciergeChat] composable,
+     * which fires when the chat composable enters composition.
      */
     fun openConcierge() {
         _isConciergeActive.value = true
     }
 
     /**
-     * Closes the Concierge chat interface
+     * Closes the Concierge chat interface (dialog mode).
+     * ChatClosed tracking is handled by the [DisposableEffect] onDispose in the [ConciergeChat]
+     * composable, which fires when the chat composable leaves composition.
      */
     fun closeConcierge() {
         _isConciergeActive.value = false
+    }
+
+    /**
+     * Dispatches a ChatOpened tracking event.
+     * Called from the [DisposableEffect] in the [ConciergeChat] composable when it enters
+     * composition. This covers all integration modes: Compose direct, dialog, and XML.
+     */
+    internal fun trackChatOpened() {
+        val now = System.currentTimeMillis()
+        lastChatOpen = now
+        dispatchTrackingEvent(ConciergeTrackingEvent.ChatOpened(now))
+    }
+
+    /**
+     * Dispatches a ChatClosed tracking event.
+     * Called from the [DisposableEffect] onDispose in the [ConciergeChat] composable when it
+     * leaves composition. This covers the close button, back-press dismissal, and XML view
+     * detachment — exactly once per open, with no double-tracking.
+     */
+    internal fun trackChatClosed() {
+        val currentTime = System.currentTimeMillis()
+        // If trackChatClosed somehow runs before trackChatOpened, report a 0 duration rather
+        // than a ~50-year value derived from an uninitialized epoch.
+        val duration = lastChatOpen?.let { currentTime - it } ?: 0L
+        dispatchTrackingEvent(ConciergeTrackingEvent.ChatClosed(currentTime, duration))
+        lastChatOpen = null
     }
 
     override fun onCleared() {

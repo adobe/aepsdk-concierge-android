@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.conciergetestapp.theme.ConciergeAppTheme
 
 class LinkHandlingTestActivity : ComponentActivity() {
@@ -36,6 +37,16 @@ class LinkHandlingTestActivity : ComponentActivity() {
                     LinkHandlingTesting(onBack = { finish() })
                 }
             }
+        }
+    }
+
+    private fun listenToEvents() {
+        MobileCore.registerEventListener(
+            "com.adobe.eventType.concierge",
+            "com.adobe.eventSource.notification"
+        ) { event ->
+            val url = event.eventData?.get("url") as? String
+            // Handle the URL as needed for testing
         }
     }
 }
