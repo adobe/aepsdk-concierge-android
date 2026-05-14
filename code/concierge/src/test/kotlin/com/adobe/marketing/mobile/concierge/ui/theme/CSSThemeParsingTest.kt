@@ -157,10 +157,69 @@ class CSSThemeParsingTest {
         assertNotNull("Theme should be parsed", theme)
         assertNotNull("Typography should exist", theme?.typography)
         
-        assertEquals("\"Adobe Clean\", sans-serif", theme?.typography?.fontFamily)
+        assertEquals(
+            ConciergeFontFamilySpec(regular = "\"Adobe Clean\", sans-serif"),
+            theme?.typography?.fontFamily
+        )
         assertEquals(1.5, theme?.typography?.lineHeight)
     }
     
+    @Test
+    fun `test CSS font-family object parsing`() {
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--font-family": {
+                  "thin": "MyFont_Thin",
+                  "light": "MyFont_Light",
+                  "regular": "MyFont_Regular",
+                  "italic": "MyFont_Italic",
+                  "bold": "MyFont_Bold",
+                  "black": "MyFont_Black"
+                },
+                "--line-height-body": "1.4"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull("Theme should be parsed", theme)
+        assertNotNull("Typography should exist", theme?.typography)
+        assertEquals(
+            ConciergeFontFamilySpec(
+                thin = "MyFont_Thin",
+                light = "MyFont_Light",
+                regular = "MyFont_Regular",
+                italic = "MyFont_Italic",
+                bold = "MyFont_Bold",
+                black = "MyFont_Black"
+            ),
+            theme?.typography?.fontFamily
+        )
+        assertEquals(1.4, theme?.typography?.lineHeight)
+    }
+
+    @Test
+    fun `test CSS font-family partial object parsing`() {
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--font-family": {
+                  "regular": "MyFont_Regular",
+                  "bold": "MyFont_Bold"
+                }
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull(theme)
+        assertEquals(
+            ConciergeFontFamilySpec(regular = "MyFont_Regular", bold = "MyFont_Bold"),
+            theme?.typography?.fontFamily
+        )
+    }
+
     @Test
     fun `test CSS box shadow parsing`() {
         val cssThemeJson = """

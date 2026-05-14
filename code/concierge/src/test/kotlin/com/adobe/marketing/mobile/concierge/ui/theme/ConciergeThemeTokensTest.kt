@@ -76,22 +76,78 @@ class ConciergeThemeTokensTest {
 
     @Test
     fun `ConciergeTypography creates with custom values`() {
+        val spec = ConciergeFontFamilySpec(regular = "Helvetica")
         val typography = ConciergeTypography(
-            fontFamily = "Helvetica",
+            fontFamily = spec,
             lineHeight = 1.5
         )
         
-        assertEquals("Helvetica", typography.fontFamily)
+        assertEquals(spec, typography.fontFamily)
         assertEquals(1.5, typography.lineHeight)
     }
 
     @Test
     fun `ConciergeTypography supports copy`() {
-        val original = ConciergeTypography(fontFamily = "Arial")
+        val spec = ConciergeFontFamilySpec(regular = "Arial")
+        val original = ConciergeTypography(fontFamily = spec)
         val updated = original.copy(lineHeight = 2.0)
         
-        assertEquals("Arial", updated.fontFamily)
+        assertEquals(spec, updated.fontFamily)
         assertEquals(2.0, updated.lineHeight)
+    }
+
+    // ========== ConciergeFontFamilySpec Tests ==========
+
+    @Test
+    fun `ConciergeFontFamilySpec creates with all slots null by default`() {
+        val spec = ConciergeFontFamilySpec()
+
+        assertNull(spec.thin)
+        assertNull(spec.light)
+        assertNull(spec.regular)
+        assertNull(spec.italic)
+        assertNull(spec.bold)
+        assertNull(spec.black)
+    }
+
+    @Test
+    fun `ConciergeFontFamilySpec retains all six slot values`() {
+        val spec = ConciergeFontFamilySpec(
+            thin = "F_Thin",
+            light = "F_Light",
+            regular = "F_Regular",
+            italic = "F_Italic",
+            bold = "F_Bold",
+            black = "F_Black"
+        )
+
+        assertEquals("F_Thin", spec.thin)
+        assertEquals("F_Light", spec.light)
+        assertEquals("F_Regular", spec.regular)
+        assertEquals("F_Italic", spec.italic)
+        assertEquals("F_Bold", spec.bold)
+        assertEquals("F_Black", spec.black)
+    }
+
+    @Test
+    fun `ConciergeFontFamilySpec uses structural equality`() {
+        val a = ConciergeFontFamilySpec(regular = "Arial", bold = "Arial_Bold")
+        val b = ConciergeFontFamilySpec(regular = "Arial", bold = "Arial_Bold")
+        val c = ConciergeFontFamilySpec(regular = "Arial")
+
+        assertEquals(a, b)
+        assertEquals(a.hashCode(), b.hashCode())
+        assertNotEquals(a, c)
+    }
+
+    @Test
+    fun `ConciergeFontFamilySpec supports copy`() {
+        val original = ConciergeFontFamilySpec(regular = "Arial")
+        val updated = original.copy(bold = "Arial_Bold")
+
+        assertEquals("Arial", updated.regular)
+        assertEquals("Arial_Bold", updated.bold)
+        assertNull(updated.italic)
     }
 
     // ========== ConciergeLayout Tests ==========
@@ -688,7 +744,7 @@ class ConciergeThemeTokensTest {
             content = ConciergeThemeContent(),
             layout = ConciergeThemeLayout(),
             cssLayout = ConciergeLayout(inputHeight = 52.0),
-            typography = ConciergeTypography(fontFamily = "Arial"),
+            typography = ConciergeTypography(fontFamily = ConciergeFontFamilySpec(regular = "Arial")),
             components = ConciergeComponentsConfig(),
             cssVariables = mapOf("--test" to "value")
         )
@@ -696,7 +752,7 @@ class ConciergeThemeTokensTest {
         assertEquals("Complete Theme", tokens.metadata.name)
         assertEquals("#FF0000", tokens.colors?.primary)
         assertEquals(52.0, tokens.cssLayout?.inputHeight)
-        assertEquals("Arial", tokens.typography?.fontFamily)
+        assertEquals(ConciergeFontFamilySpec(regular = "Arial"), tokens.typography?.fontFamily)
         assertEquals(1, tokens.cssVariables.size)
     }
 

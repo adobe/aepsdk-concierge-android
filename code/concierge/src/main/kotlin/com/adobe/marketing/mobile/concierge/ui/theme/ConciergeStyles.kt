@@ -44,18 +44,18 @@ internal object ConciergeStyles {
     /**
      * Helper that applies theme typography (custom font family + line height) to a [TextStyle].
      *
-     * The font family is resolved by name from the theme JSON's `--font-family` CSS variable
-     * (the only source of `tokens.typography.fontFamily`) against the host app's
-     * `assets/fonts/` folder via [ConciergeFontResolver]. When no name is set or no matching
-     * asset exists, the original style's family is preserved.
+     * The font family is resolved from the theme JSON's `--font-family` slot map
+     * (`tokens.typography.fontFamily: ConciergeFontFamilySpec`) against the host app's
+     * `assets/fonts/` folder via [ConciergeFontResolver]. When no slots are set or none of
+     * the declared files exist, the original style's family is preserved.
      */
     @Composable
     private fun TextStyle.withThemeTypography(): TextStyle {
         val typography = ConciergeTheme.tokens?.typography
-        val familyName = typography?.fontFamily
+        val spec = typography?.fontFamily
         val context = LocalContext.current
-        val resolvedFamily = remember(familyName) {
-            ConciergeFontResolver.resolve(context, familyName)
+        val resolvedFamily = remember(spec) {
+            ConciergeFontResolver.resolve(context, spec)
         }
 
         if (typography == null && resolvedFamily == null) {

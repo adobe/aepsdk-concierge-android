@@ -97,9 +97,101 @@ class CSSKeyMapperTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `apply maps font-family to typography`() {
+    fun `apply maps font-family string to single-slot spec on typography`() {
         val result = CSSKeyMapper.apply("--font-family", "\"Adobe Clean\", sans-serif", emptyTheme)
-        assertEquals("\"Adobe Clean\", sans-serif", result.typography?.fontFamily)
+        assertEquals(
+            ConciergeFontFamilySpec(regular = "\"Adobe Clean\", sans-serif"),
+            result.typography?.fontFamily
+        )
+    }
+
+    @Test
+    fun `apply maps font-family object to multi-slot spec on typography`() {
+        val map = mapOf(
+            "thin" to "MyFont_Thin",
+            "light" to "MyFont_Light",
+            "regular" to "MyFont_Regular",
+            "italic" to "MyFont_Italic",
+            "bold" to "MyFont_Bold",
+            "black" to "MyFont_Black"
+        )
+        val result = CSSKeyMapper.apply("--font-family", map, emptyTheme)
+        assertEquals(
+            ConciergeFontFamilySpec(
+                thin = "MyFont_Thin",
+                light = "MyFont_Light",
+                regular = "MyFont_Regular",
+                italic = "MyFont_Italic",
+                bold = "MyFont_Bold",
+                black = "MyFont_Black"
+            ),
+            result.typography?.fontFamily
+        )
+    }
+
+    @Test
+    fun `apply maps font-family object with only some slots populated`() {
+        val map = mapOf(
+            "regular" to "MyFont_Regular",
+            "bold" to "MyFont_Bold"
+        )
+        val result = CSSKeyMapper.apply("--font-family", map, emptyTheme)
+        assertEquals(
+            ConciergeFontFamilySpec(regular = "MyFont_Regular", bold = "MyFont_Bold"),
+            result.typography?.fontFamily
+        )
+    }
+
+    @Test
+    fun `apply maps empty font-family object to spec with all nulls`() {
+        val result = CSSKeyMapper.apply("--font-family", emptyMap<String, Any?>(), emptyTheme)
+        assertEquals(ConciergeFontFamilySpec(), result.typography?.fontFamily)
+    }
+
+    @Test
+    fun `apply font-family object preserves existing lineHeight on typography`() {
+        val themeWithLineHeight = emptyTheme.copy(
+            typography = ConciergeTypography(lineHeight = 1.5)
+        )
+        val map = mapOf("regular" to "MyFont_Regular")
+        val result = CSSKeyMapper.apply("--font-family", map, themeWithLineHeight)
+
+        assertEquals(
+            ConciergeFontFamilySpec(regular = "MyFont_Regular"),
+            result.typography?.fontFamily
+        )
+        assertEquals(1.5, result.typography?.lineHeight)
+    }
+
+    @Test
+    fun `apply font-family object normalizes double-dash prefix`() {
+        val map = mapOf("regular" to "MyFont_Regular")
+        val withPrefix = CSSKeyMapper.apply("--font-family", map, emptyTheme)
+        val withoutPrefix = CSSKeyMapper.apply("font-family", map, emptyTheme)
+
+        assertEquals(withPrefix.typography?.fontFamily, withoutPrefix.typography?.fontFamily)
+    }
+
+    @Test
+    fun `apply object overload ignores unknown key and returns theme unchanged`() {
+        val map = mapOf("regular" to "MyFont_Regular")
+        val result = CSSKeyMapper.apply("--unknown-object-key", map, emptyTheme)
+        assertEquals(emptyTheme, result)
+    }
+
+    @Test
+    fun `apply font-family object ignores non-string slot values`() {
+        val map = mapOf(
+            "regular" to "MyFont_Regular",
+            "bold" to 42,
+            "italic" to true
+        )
+        val result = CSSKeyMapper.apply("--font-family", map, emptyTheme)
+        val spec = result.typography?.fontFamily
+        assertNotNull(spec)
+        assertEquals("MyFont_Regular", spec?.regular)
+        assertNull(spec?.bold)
+        assertNull(spec?.italic)
     }
 
     @Test

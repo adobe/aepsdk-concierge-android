@@ -204,9 +204,11 @@ internal object ThemeParser {
         // Apply each CSS variable to the theme
         themeBlock.forEach { (key, value) ->
             val cssKey = key as? String ?: return@forEach
-            val cssValue = value as? String ?: return@forEach
-            
-            theme = CSSKeyMapper.apply(cssKey, cssValue, theme)
+            theme = when (value) {
+                is String -> CSSKeyMapper.apply(cssKey, value, theme)
+                is Map<*, *> -> CSSKeyMapper.apply(cssKey, value, theme)
+                else -> theme
+            }
         }
         
         return theme

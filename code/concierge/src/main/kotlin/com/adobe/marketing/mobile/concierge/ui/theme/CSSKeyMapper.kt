@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.theme
 
 import android.util.Log
+import com.adobe.marketing.mobile.util.DataReader
 
 /**
  * Direct assignment function that converts CSS value and applies it to theme
@@ -106,10 +107,10 @@ internal object CSSKeyMapper {
     private val cssToAssignmentMap: Map<String, CSSAssignment> = mapOf(
         // Typography
         "font-family" to { cssValue, theme ->
-            val fontFamily = CSSValueConverter.parseFontFamily(cssValue)
+            val spec = ConciergeFontFamilySpec(regular = CSSValueConverter.parseFontFamily(cssValue))
             theme.copy(
-                typography = theme.typography?.copy(fontFamily = fontFamily)
-                    ?: ConciergeTypography(fontFamily = fontFamily)
+                typography = theme.typography?.copy(fontFamily = spec)
+                    ?: ConciergeTypography(fontFamily = spec)
             )
         },
         "line-height-body" to { cssValue, theme ->
@@ -1027,5 +1028,39 @@ internal object CSSKeyMapper {
             Log.d(LOG_TAG, "Unknown CSS key '$normalizedKey' ignored.")
             theme
         }
+    }
+
+    /**
+     * Object-valued overload for CSS variables whose value is a JSON object rather than a string.
+     * Currently handles `--font-family` (multi-slot font configuration).
+     */
+    fun apply(cssKey: String, cssValue: Map<*, *>, theme: ConciergeThemeTokens): ConciergeThemeTokens {
+        val normalizedKey = cssKey.removePrefix("--")
+        return when (normalizedKey) {
+            "font-family" -> {
+                val spec = parseFontFamilySpec(cssValue)
+                theme.copy(
+                    typography = theme.typography?.copy(fontFamily = spec)
+                        ?: ConciergeTypography(fontFamily = spec)
+                )
+            }
+            else -> {
+                Log.d(LOG_TAG, "Object-valued CSS key '$normalizedKey' has no handler, ignored.")
+                theme
+            }
+        }
+    }
+
+    private fun parseFontFamilySpec(map: Map<*, *>): ConciergeFontFamilySpec {
+        @Suppress("UNCHECKED_CAST")
+        val typedMap = map as? MutableMap<String?, Any?>
+        return ConciergeFontFamilySpec(
+            thin = DataReader.optString(typedMap, "thin", null),
+            light = DataReader.optString(typedMap, "light", null),
+            regular = DataReader.optString(typedMap, "regular", null),
+            italic = DataReader.optString(typedMap, "italic", null),
+            bold = DataReader.optString(typedMap, "bold", null),
+            black = DataReader.optString(typedMap, "black", null)
+        )
     }
 }

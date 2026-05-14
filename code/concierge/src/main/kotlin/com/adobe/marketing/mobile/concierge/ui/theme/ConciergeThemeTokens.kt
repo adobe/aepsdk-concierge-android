@@ -33,8 +33,22 @@ data class ConciergeThemeTokens(
  * Typography configuration for fonts and text styling
  */
 data class ConciergeTypography(
-    val fontFamily: String? = null,
+    val fontFamily: ConciergeFontFamilySpec? = null,
     val lineHeight: Double? = null
+)
+
+/**
+ * Multi-slot font family configuration parsed from the `--font-family` JSON object in the
+ * theme block. Each non-null value is the asset file basename (without extension) under
+ * `assets/fonts/`; the resolver tries `.ttf` first, then `.otf`.
+ */
+data class ConciergeFontFamilySpec(
+    val thin: String? = null,
+    val light: String? = null,
+    val regular: String? = null,
+    val italic: String? = null,
+    val bold: String? = null,
+    val black: String? = null
 )
 
 /**
