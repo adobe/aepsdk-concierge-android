@@ -1537,12 +1537,16 @@ class ThemeParserTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `parseThemeJson should parse header title and subtitle`() {
+    fun `parseThemeJson should parse header title subtitle image and imagePosition`() {
         val json = """
             {
                 "text": {
-                    "header.title": "My Assistant",
-                    "header.subtitle": "Powered by Adobe"
+                    "header": {
+                        "title": "My Assistant",
+                        "subtitle": "Powered by Adobe",
+                        "image": "logo",
+                        "imagePosition": "trailing"
+                    }
                 }
             }
         """.trimIndent()
@@ -1551,14 +1555,55 @@ class ThemeParserTest {
         assertNotNull(config)
         assertEquals("My Assistant", config?.text?.headerTitle)
         assertEquals("Powered by Adobe", config?.text?.headerSubtitle)
+        assertEquals("logo", config?.text?.headerImage)
+        assertEquals("trailing", config?.text?.headerImagePosition)
     }
 
     @Test
-    fun `parseThemeJson should return null header text when not provided`() {
+    fun `parseThemeJson should parse header with only title set`() {
+        val json = """
+            {
+                "text": {
+                    "header": {
+                        "title": "My Assistant"
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+        assertEquals("My Assistant", config?.text?.headerTitle)
+        assertNull(config?.text?.headerSubtitle)
+        assertNull(config?.text?.headerImage)
+        assertNull(config?.text?.headerImagePosition)
+    }
+
+    @Test
+    fun `parseThemeJson should return null header text when header block not provided`() {
         val json = """
             {
                 "text": {
                     "input.placeholder": "Ask me anything"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNotNull(config)
+        assertNull(config?.text?.headerTitle)
+        assertNull(config?.text?.headerSubtitle)
+        assertNull(config?.text?.headerImage)
+        assertNull(config?.text?.headerImagePosition)
+    }
+
+    @Test
+    fun `parseThemeJson should ignore legacy flat header keys`() {
+        val json = """
+            {
+                "text": {
+                    "header.title": "Legacy Title",
+                    "header.subtitle": "Legacy Subtitle"
                 }
             }
         """.trimIndent()

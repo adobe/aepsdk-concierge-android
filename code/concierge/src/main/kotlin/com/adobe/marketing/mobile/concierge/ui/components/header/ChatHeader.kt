@@ -27,15 +27,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
+private const val HEADER_IMAGE_POSITION_TRAILING = "trailing"
+
 /**
- * Header component for the chat interface with title, subtitle, and close button.
+ * Header component for the chat interface with title, subtitle, optional image (leading or
+ * trailing) and a close button.
+ *
+ * The image source is resolved by [LocalAssetImage]: an `http(s)://` URL is loaded remotely,
+ * otherwise the value is treated as a basename under `assets/icons/` and matched against
+ * `.png`, `.webp`, `.jpg`, `.jpeg` in that order — i.e. extension is irrelevant in the config.
+ *
  * @param modifier Modifier for the header
  * @param onClose Callback when the close button is pressed
  */
@@ -46,8 +56,14 @@ internal fun ChatHeader(
 ) {
     val style = ConciergeStyles.headerStyle
     val themeText = ConciergeTheme.text
+    val titleText = themeText?.headerTitle ?: ConciergeConstants.ChatHeader.TITLE
     val subtitleText = themeText?.headerSubtitle ?: ConciergeConstants.ChatHeader.SUBTITLE
     val showSubtitle = subtitleText.isNotBlank()
+
+    val imageSource = themeText?.headerImage?.takeIf { it.isNotBlank() }
+    val isTrailingImage = themeText?.headerImagePosition
+        .equals(HEADER_IMAGE_POSITION_TRAILING, ignoreCase = true)
+
     val closeButtonAtStart = ConciergeTheme.behavior?.welcomeCard
         ?.closeButtonAlignment.equals("start", ignoreCase = true)
 
@@ -67,19 +83,34 @@ internal fun ChatHeader(
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = themeText?.headerTitle ?: ConciergeConstants.ChatHeader.TITLE,
-                    style = style.titleStyle,
-                    fontWeight = style.titleFontWeight,
-                    color = style.titleColor
-                )
-                if (showSubtitle) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (imageSource != null && !isTrailingImage) {
+                    HeaderImage(source = imageSource, style = style)
+                    Spacer(modifier = Modifier.width(style.imageSpacing))
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = subtitleText,
-                        style = style.subtitleStyle,
-                        color = style.subtitleColor
+                        text = titleText,
+                        style = style.titleStyle,
+                        fontWeight = style.titleFontWeight,
+                        color = style.titleColor
                     )
+                    if (showSubtitle) {
+                        Text(
+                            text = subtitleText,
+                            style = style.subtitleStyle,
+                            color = style.subtitleColor
+                        )
+                    }
+                }
+
+                if (imageSource != null && isTrailingImage) {
+                    Spacer(modifier = Modifier.width(style.imageSpacing))
+                    HeaderImage(source = imageSource, style = style)
                 }
             }
 
@@ -93,6 +124,19 @@ internal fun ChatHeader(
             color = style.dividerColor
         )
     }
+}
+
+@Composable
+private fun HeaderImage(
+    source: String,
+    style: ConciergeStyles.HeaderStyle
+) {
+    LocalAssetImage(
+        source = source,
+        contentDescription = null,
+        modifier = Modifier.size(style.imageSize),
+        contentScale = ContentScale.Fit
+    )
 }
 
 @Composable

@@ -84,6 +84,10 @@ data class ConciergeTextStrings(
     // Header
     val headerTitle: String? = null,
     val headerSubtitle: String? = null,
+    /** Basename (no extension) of an asset under `assets/icons/`, or an absolute http(s) URL. */
+    val headerImage: String? = null,
+    /** `"leading"` (left of title column) or `"trailing"` (right of title column). Defaults to leading. */
+    val headerImagePosition: String? = null,
 
     // Welcome
     val welcomeHeading: String? = null,

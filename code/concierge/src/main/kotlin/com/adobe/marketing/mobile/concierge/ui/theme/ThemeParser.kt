@@ -64,10 +64,13 @@ internal object ThemeParser {
             // Parse text strings
             val textMap = DataReader.optTypedMap(Any::class.java, json, "text", null)
             val textStrings = textMap?.let {
+                val headerMap = DataReader.optTypedMap(Any::class.java, it, "header", null)
                 ConciergeTextStrings(
                     inputPlaceholder = DataReader.optString(it, "input.placeholder", null),
-                    headerTitle = DataReader.optString(it, "header.title", null),
-                    headerSubtitle = DataReader.optString(it, "header.subtitle", null),
+                    headerTitle = DataReader.optString(headerMap, "title", null),
+                    headerSubtitle = DataReader.optString(headerMap, "subtitle", null),
+                    headerImage = DataReader.optString(headerMap, "image", null),
+                    headerImagePosition = DataReader.optString(headerMap, "imagePosition", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),
