@@ -250,6 +250,48 @@ class ConciergeChatViewModelTrackingTest {
         assertEquals("responseStarted should fire once per turn", 2, startedCount)
     }
 
+    @Test
+    fun `cards-only response still fires paired responseStarted and responseCompleted`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val card = ParsedMultimodalItem.Card(
+            MultimodalElement(id = "c1", content = mapOf("productName" to "Photoshop"))
+        )
+        every { chatClient.chat("show cards") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(card),
+                interactionId = "int-cards"
+            ))
+        }
+        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("show cards"))
+        advanceUntilIdle()
+
+        val started = dispatched.count { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_STARTED }
+        val completed = dispatched.count { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_COMPLETED }
+        assertEquals("responseStarted should fire even when messageContent is blank but cards exist", 1, started)
+        assertEquals("responseCompleted should remain paired with responseStarted", 1, completed)
+    }
+
+    // MARK: - chatOpened & chatClosed
+
+    @Test
+    fun `trackChatClosed before trackChatOpened emits duration 0`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val vm = makeViewModel(dispatch = { dispatched.add(it) })
+
+        vm.trackChatClosed()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.CHAT_CLOSED }
+        assertEquals(
+            0L,
+            event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.DURATION_MILLIS)
+        )
+    }
+
     // MARK: - cardsRendered
 
     @Test

@@ -184,7 +184,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val _isConciergeActive = MutableStateFlow(false)
     val isConciergeActive: StateFlow<Boolean> = _isConciergeActive.asStateFlow()
 
-    private var lastChatOpen: Long = 0L
+    private var lastChatOpen: Long? = null
 
     /**
      * URL to show in the in-app fullscreen WebView overlay, or null when overlay is dismissed.
@@ -711,7 +711,9 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                if (!responseStartedDispatched && parsedMessage.messageContent.isNotBlank()) {
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
+                    parsedMessage.orderedElements.isNotEmpty()
+                if (!responseStartedDispatched && hasVisibleContent) {
                     responseStartedDispatched = true
                     dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
                         conversationId = currentConversationId ?: "",
@@ -724,10 +726,21 @@ class ConciergeChatViewModel : AndroidViewModel {
             ConversationState.COMPLETED -> {
                 // For COMPLETED state, replace content if there is text or ordered elements.
                 // If both are absent, keep existing streamed content and just transition to Idle.
-                if (parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()) {
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
+                    parsedMessage.orderedElements.isNotEmpty()
+                if (hasVisibleContent) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
                     setLastAssistantMessageSseComplete()
+                }
+                // Ensure ResponseStarted precedes ResponseCompleted even if the server jumped
+                // straight to COMPLETED without an IN_PROGRESS chunk.
+                if (!responseStartedDispatched && hasVisibleContent) {
+                    responseStartedDispatched = true
+                    dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
+                        conversationId = currentConversationId ?: "",
+                        interactionId = parsedMessage.interactionId ?: ""
+                    ))
                 }
                 dispatchTrackingEvent(ConciergeTrackingEvent.ResponseCompleted(
                     conversationId = currentConversationId ?: "",
@@ -1137,8 +1150,9 @@ class ConciergeChatViewModel : AndroidViewModel {
      * composition. This covers all integration modes: Compose direct, dialog, and XML.
      */
     internal fun trackChatOpened() {
-        lastChatOpen = System.currentTimeMillis()
-        dispatchTrackingEvent(ConciergeTrackingEvent.ChatOpened(lastChatOpen))
+        val now = System.currentTimeMillis()
+        lastChatOpen = now
+        dispatchTrackingEvent(ConciergeTrackingEvent.ChatOpened(now))
     }
 
     /**
@@ -1149,8 +1163,11 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     internal fun trackChatClosed() {
         val currentTime = System.currentTimeMillis()
-        val duration = currentTime - lastChatOpen
+        // If trackChatClosed somehow runs before trackChatOpened, report a 0 duration rather
+        // than a ~50-year value derived from an uninitialized epoch.
+        val duration = lastChatOpen?.let { currentTime - it } ?: 0L
         dispatchTrackingEvent(ConciergeTrackingEvent.ChatClosed(currentTime, duration))
+        lastChatOpen = null
     }
 
     override fun onCleared() {

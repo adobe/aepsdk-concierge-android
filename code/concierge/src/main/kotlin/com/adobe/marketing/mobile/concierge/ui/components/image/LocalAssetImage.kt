@@ -95,7 +95,7 @@ private fun LocalFileImage(
             }
             assetBitmapCache[assetName] = loaded
             value = loaded
-        } else if (!fallback.isNullOrBlank()) {
+        } else if (assetBitmapCache[assetName] == null && !fallback.isNullOrBlank()) {
             val fallbackImage = withContext(Dispatchers.IO) {
                 loadAssetBitmap(context, fallback)?.asImageBitmap()
             }

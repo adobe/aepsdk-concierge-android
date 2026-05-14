@@ -456,9 +456,12 @@ internal fun ConciergeChat(
 }
 
 /**
- * Renders the feedback bottom sheet outside the Dialog window when displayMode is "action".
- * This must be called at a composable scope that is NOT inside a Dialog, so the
- * ModalBottomSheet has full-screen access.
+ * Renders the feedback bottom sheet when displayMode is "action".
+ *
+ * The underlying [FeedbackDialog] in `ACTION` mode is implemented as its own [Dialog] with
+ * `usePlatformDefaultWidth = false` and `Gravity.BOTTOM`, so it spawns a separate window and
+ * occupies the full screen even when this composable is hosted inside another `Dialog` (e.g.,
+ * the chat-host dialog integration). No outer-scope hoisting required.
  */
 @Composable
 private fun ModalFeedbackOverlay(
