@@ -12,7 +12,10 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.footer
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
@@ -20,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
@@ -29,12 +33,15 @@ import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackThumbsPlacement
 /**
  * Footer component for chat messages that includes a sources accordion and feedback buttons.
  *
- * When sources are present, feedback always appears below the sources section regardless of
- * `behavior.feedback.thumbsPlacement`. When there are no sources, `thumbsPlacement` governs
- * the standalone feedback layout:
- * - `"inline"` (default): Feedback thumbs aligned to the trailing edge.
- * - `"below"`: Feedback thumbs with a "Helpful?" label.
- * - `"standalone"`: Feedback thumbs as a separate block.
+ * Layout is determined by `behavior.feedback.thumbsPlacement`:
+ * - `"inline"` (default): Sources accordion and feedback thumbs on the same row.
+ *   Only rendered when citations are present.
+ * - `"below"`: Feedback thumbs appear inside the expanded sources accordion, below the citations.
+ *   Only rendered when citations are present.
+ * - `"standalone"`: Feedback thumbs appear as a separate block below the bubble after SSE
+ *   completes, regardless of whether citations are present.
+ *
+ * `alwaysDisplay` bypasses server eligibility (`feedbackEligible`) but never `sseComplete`.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation] to display in the sources accordion.
@@ -59,69 +66,91 @@ internal fun ChatFooter(
 ) {
     val hasCitations = !citations.isNullOrEmpty()
     val alwaysDisplay = ConciergeTheme.behavior?.feedback?.alwaysDisplay ?: false
-    val showFeedbackButtons = interactionId != null && (alwaysDisplay || (feedbackEligible && sseComplete))
+    // sseComplete always required; alwaysDisplay only bypasses feedbackEligible.
+    val showFeedbackButtons = interactionId != null && sseComplete && (alwaysDisplay || feedbackEligible)
     var sourcesExpanded by remember { mutableStateOf(false) }
     val thumbsPlacement = ConciergeTheme.behavior?.feedback?.thumbsPlacement
         ?: FeedbackThumbsPlacement.INLINE
 
     Column(modifier = modifier.padding(top = 12.dp)) {
-        if (hasCitations) {
-            // Sources are present: always show feedback below the sources section.
-            val showHelpfulLabel = thumbsPlacement == FeedbackThumbsPlacement.BELOW
-            val citationIndent = if (thumbsPlacement == FeedbackThumbsPlacement.BELOW) {
-                Modifier.padding(start = 28.dp)
-            } else {
-                Modifier
-            }
-            SourcesAccordionButton(
-                expanded = sourcesExpanded,
-                onExpandedChange = { sourcesExpanded = it }
-            )
-            ExpandedCitations(
-                modifier = citationIndent,
-                citations = citations!!,
-                uniqueCitations = uniqueCitations,
-                expanded = sourcesExpanded,
-                handleLink = handleLink
-            )
-            if (showFeedbackButtons) {
-                FeedbackButtons(
-                    interactionId = interactionId!!,
-                    onFeedback = onFeedback,
-                    feedbackState = feedbackState,
-                    showHelpfulLabel = showHelpfulLabel
-                )
-            }
-        } else {
-            // No sources: feedback placement falls back to per-mode standalone behaviour.
-            when (thumbsPlacement) {
-                FeedbackThumbsPlacement.INLINE -> {
-                    if (showFeedbackButtons) {
-                        FeedbackButtons(
-                            interactionId = interactionId!!,
-                            onFeedback = onFeedback,
-                            feedbackState = feedbackState
+        when (thumbsPlacement) {
+            FeedbackThumbsPlacement.INLINE -> {
+                // Only rendered with citations: sources button and feedback thumbs on the same row.
+                if (hasCitations) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SourcesAccordionButton(
+                            expanded = sourcesExpanded,
+                            onExpandedChange = { sourcesExpanded = it },
+                            modifier = Modifier.weight(1f)
                         )
+                        if (showFeedbackButtons) {
+                            FeedbackButtons(
+                                interactionId = interactionId!!,
+                                onFeedback = onFeedback,
+                                feedbackState = feedbackState
+                            )
+                        }
                     }
+                    ExpandedCitations(
+                        citations = citations!!,
+                        uniqueCitations = uniqueCitations,
+                        expanded = sourcesExpanded,
+                        handleLink = handleLink
+                    )
                 }
-                FeedbackThumbsPlacement.BELOW -> {
-                    if (showFeedbackButtons) {
-                        FeedbackButtons(
-                            interactionId = interactionId!!,
-                            onFeedback = onFeedback,
-                            feedbackState = feedbackState,
-                            showHelpfulLabel = true
-                        )
-                    }
+            }
+
+            FeedbackThumbsPlacement.BELOW -> {
+                // Only rendered with citations: feedback inside the expanded sources accordion.
+                if (hasCitations) {
+                    SourcesAccordionButton(
+                        expanded = sourcesExpanded,
+                        onExpandedChange = { sourcesExpanded = it }
+                    )
+                    ExpandedCitations(
+                        modifier = Modifier.padding(start = 28.dp),
+                        citations = citations!!,
+                        uniqueCitations = uniqueCitations,
+                        expanded = sourcesExpanded,
+                        handleLink = handleLink,
+                        footerContent = if (showFeedbackButtons) {
+                            {
+                                FeedbackButtons(
+                                    interactionId = interactionId!!,
+                                    onFeedback = onFeedback,
+                                    feedbackState = feedbackState,
+                                    showHelpfulLabel = true
+                                )
+                            }
+                        } else null
+                    )
                 }
-                FeedbackThumbsPlacement.STANDALONE -> {
-                    if (showFeedbackButtons) {
-                        FeedbackButtons(
-                            interactionId = interactionId!!,
-                            onFeedback = onFeedback,
-                            feedbackState = feedbackState
-                        )
-                    }
+            }
+
+            FeedbackThumbsPlacement.STANDALONE -> {
+                // Sources shown if present; feedback always shown as a separate block after SSE.
+                if (hasCitations) {
+                    SourcesAccordionButton(
+                        expanded = sourcesExpanded,
+                        onExpandedChange = { sourcesExpanded = it }
+                    )
+                    ExpandedCitations(
+                        citations = citations!!,
+                        uniqueCitations = uniqueCitations,
+                        expanded = sourcesExpanded,
+                        handleLink = handleLink
+                    )
+                }
+                if (showFeedbackButtons) {
+                    FeedbackButtons(
+                        interactionId = interactionId!!,
+                        onFeedback = onFeedback,
+                        feedbackState = feedbackState
+                    )
                 }
             }
         }
