@@ -30,7 +30,7 @@ class InputActionButtonsTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun inputActionButtons_emptyState_displaysMicAndSend() {
+    fun inputActionButtons_emptyState_displaysMic() {
         composeTestRule.setContent {
             ConciergeTheme {
                 InputActionButtons(
@@ -45,7 +45,7 @@ class InputActionButtonsTest {
         }
 
         composeTestRule.onNode(hasContentDescription("Start voice input")).assertIsDisplayed()
-        composeTestRule.onNode(hasContentDescription("Send message")).assertIsDisplayed()
+        composeTestRule.onNode(hasContentDescription("Send message")).assertDoesNotExist()
     }
 
     @Test
