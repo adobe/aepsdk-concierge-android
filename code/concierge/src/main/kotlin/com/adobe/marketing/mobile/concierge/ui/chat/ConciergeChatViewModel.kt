@@ -367,34 +367,28 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Process incoming events from the UI
      * @param event The event to process
      */
-    internal fun processEvent(event: ChatEvent) {
+    internal fun processEvent(event: ChatEvent, handleLink: ((String) -> Boolean)? = null) {
         when (event) {
             is ChatEvent.Error -> handleProcessingError(event.message)
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
-
             is MicEvent.StartRecording -> {
                 dispatchTrackingEvent(ConciergeTrackingEvent.MicButtonClicked)
                 startSpeechRecognition()
             }
-
             is MicEvent.StopRecording -> { handleStopRecording() }
-
             is FeedbackEvent.ThumbsUp -> handleFeedback(
                 event.interactionId,
                 ConciergeConstants.ChatInteraction.POSITIVE
             )
-
             is FeedbackEvent.ThumbsDown -> handleFeedback(
                 event.interactionId,
                 ConciergeConstants.ChatInteraction.NEGATIVE
             )
-
             is FeedbackEvent.SubmitFeedback -> handleFeedbackSubmission(event.feedback)
             is FeedbackEvent.DismissFeedbackDialog -> handleDismissFeedbackDialog()
-
-            is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button)
-            is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element)
+            is MessageInteractionEvent.ProductActionClick -> handleProductActionClick(event.button, handleLink)
+            is MessageInteractionEvent.ProductImageClick -> handleProductImageClick(event.element, handleLink)
             is MessageInteractionEvent.PromptSuggestionClick -> handlePromptSuggestionClick(event.suggestion)
             is MessageInteractionEvent.WelcomePromptSuggestionClick -> handleWelcomePromptSuggestionClick(event.suggestion)
             is DisclaimerClickedEvent -> handleDisclaimerLinkClickedEvent(event.url)
@@ -405,54 +399,43 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Handle product action button clicks
      * @param button The [ProductActionButton] that was pressed
      */
-    private fun handleProductActionClick(button: ProductActionButton) {
+    private fun handleProductActionClick(button: ProductActionButton, handleLink: ((String) -> Boolean)?) {
+        val element = mutableMapOf<String, Any>("productName" to button.text)
+        button.url?.let { element["productPageURL"] = it }
+        dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(element))
+
         if (button.url.isNullOrEmpty()) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid url found, cannot open.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No URL on action button, skipping navigation.")
             return
         }
-
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            "Button pressed: ${button.text}, opening URL: ${button.url}"
-        )
-        val element = buildMutableElementDict(button.url.toString())
-        element["productName"] = button.text
-        dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(element))
-        openWebviewOverlay(button.url.toString())
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Button pressed: ${button.text}, opening URL: ${button.url}")
+        handleLinkClick(button.url, handleLink)
     }
 
     /**
      * Handle product image clicks
      * @param element The [MultimodalElement] image that was clicked
      */
-    private fun handleProductImageClick(element: MultimodalElement) {
+    private fun handleProductImageClick(element: MultimodalElement, handleLink: ((String) -> Boolean)?) {
+        dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(buildCardElementDict(element.content)))
+
         val url = element.content["productPageURL"] as? String
         if (url.isNullOrEmpty()) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Invalid url found, cannot open.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No URL on card image, skipping navigation.")
             return
         }
-
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            "Multimodal element image clicked: ${element.id}, opening URL: ${element.content["productPageURL"]}"
-        )
-        dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(buildCardElementDict(element.content)))
-        openWebviewOverlay(url)
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Multimodal element image clicked: ${element.id}, opening URL: $url")
+        handleLinkClick(url, handleLink)
     }
 
     private fun buildCardElementDict(content: Map<String, Any>): Map<String, Any> {
         val dict = mutableMapOf<String, Any>()
         content["productName"]?.let { dict["productName"] = it }
+        content["productDescription"]?.let { dict["productDescription"] = it }
         content["productPageURL"]?.let { dict["productPageURL"] = it }
         content["productPrice"]?.let { dict["productPrice"] = it }
-        content["productDescription"]?.let { dict["productDescription"] = it }
+        content["productBadge"]?.let { dict["productBadge"] = it }
         return dict
-    }
-
-    private fun buildMutableElementDict(url: String): MutableMap<String, Any> {
-        return mutableMapOf("productPageURL" to url)
     }
 
     /**
