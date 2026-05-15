@@ -27,7 +27,7 @@ object ConciergeTracker {
 
     private const val LOG_TAG = "ConciergeTracker"
 
-    fun init() {
+    fun start() {
         MobileCore.registerEventListener(
             ConciergeConstants.EventType.CONCIERGE,
             ConciergeConstants.EventSource.NOTIFICATION
