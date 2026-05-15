@@ -144,7 +144,7 @@ private fun RenderTextMessage(
             modifier = Modifier
                 .then(
                     when {
-                        message.isFromUser -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+                        message.isFromUser -> Modifier.align(Alignment.End)
                         isThinking -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.Start)
                         else -> messageAlignment.toModifier()
                     }
@@ -170,11 +170,11 @@ private fun RenderTextMessage(
                 )
             ) {
                 Column(
-                    modifier = if (isThinking) Modifier else Modifier.fillMaxWidth()
+                    modifier = if (isThinking || message.isFromUser) Modifier else Modifier.fillMaxWidth()
                 ) {
                     if (message.isFromUser) {
                         Text(
-                            text = message.text,
+                            text = message.text.trimEnd(),
                             style = style.textStyle,
                             color = style.userMessageTextColor
                         )
@@ -395,6 +395,7 @@ private fun RenderMixedMessage(
                                 uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
                                 sseComplete = message.sseComplete,
+                                feedbackEligible = message.feedbackEligible,
                                 onFeedback = onFeedback,
                                 handleLink = handleLink,
                                 feedbackState = feedbackState
@@ -464,12 +465,13 @@ private fun AgentResponseContent(
         modifier = Modifier.fillMaxWidth()
     )
 
-    if (message.citations != null || message.interactionId != null) {
+    if (message.hasFooterContent) {
         ChatFooter(
             citations = message.citations,
             uniqueCitations = message.uniqueCitations,
             interactionId = message.interactionId,
             sseComplete = message.sseComplete,
+            feedbackEligible = message.feedbackEligible,
             onFeedback = onFeedback,
             handleLink = handleLink,
             feedbackState = feedbackState

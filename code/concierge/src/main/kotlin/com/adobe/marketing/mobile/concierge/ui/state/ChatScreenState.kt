@@ -173,6 +173,7 @@ internal data class ChatMessage(
     val promptSuggestions: List<String> = emptyList(),
     val feedbackState: FeedbackState = FeedbackState.None,
     val ctaButton: NetworkCtaButton? = null,
+    val feedbackEligible: Boolean = false,
     val linkHints: List<LinkHint> = emptyList()
 ) {
     val text: String
@@ -191,5 +192,5 @@ internal data class ChatMessage(
         get() = !isFromUser && content is MessageContent.Text && text.isEmpty()
 
     val hasFooterContent: Boolean
-        get() = !isFromUser && (citations != null || interactionId != null)
+        get() = !isFromUser && (citations != null || interactionId != null || feedbackEligible)
 }

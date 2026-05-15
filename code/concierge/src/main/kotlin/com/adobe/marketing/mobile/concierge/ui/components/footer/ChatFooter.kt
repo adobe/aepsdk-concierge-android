@@ -32,17 +32,23 @@ import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackThumbsPlacement
 
 /**
  * Footer component for chat messages that includes a sources accordion and feedback buttons.
- * The footer component is only displayed if there are citations provided in the ChatMessage.
  *
  * Layout is determined by `behavior.feedback.thumbsPlacement`:
  * - `"inline"` (default): Sources accordion and feedback thumbs on the same row.
- * - `"below"`: Feedback thumbs with a feedback "helpful" label appear below the sources accordion.
+ *   Only rendered when citations are present.
+ * - `"below"`: Feedback thumbs appear inside the expanded sources accordion, below the citations.
+ *   Only rendered when citations are present.
+ * - `"standalone"`: Feedback thumbs appear as a separate block below the bubble after SSE
+ *   completes, regardless of whether citations are present.
+ *
+ * `alwaysDisplay` bypasses server eligibility (`feedbackEligible`) but never `sseComplete`.
  *
  * @param modifier Optional [Modifier] for this component.
  * @param citations List of [Citation] to display in the sources accordion.
  * @param uniqueCitations Pre-computed list of unique citations.
- * @param interactionId interaction ID for feedback buttons.
+ * @param interactionId Interaction ID used as the turn ID for feedback API calls.
  * @param sseComplete True when the SSE stream for this message has completed.
+ * @param feedbackEligible Whether the server has indicated this message supports feedback.
  * @param onFeedback Callback invoked when a feedback button is pressed.
  * @param feedbackState Current feedback state for this interaction.
  */
@@ -53,12 +59,15 @@ internal fun ChatFooter(
     uniqueCitations: List<Citation>? = null,
     interactionId: String?,
     sseComplete: Boolean = false,
+    feedbackEligible: Boolean = false,
     onFeedback: (FeedbackEvent) -> Unit,
     handleLink: (String) -> Unit = {},
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val hasCitations = !citations.isNullOrEmpty()
-    val showFeedbackButtons = !interactionId.isNullOrEmpty() && sseComplete
+    val alwaysDisplay = ConciergeTheme.behavior?.feedback?.alwaysDisplay ?: false
+    // sseComplete always required; alwaysDisplay only bypasses feedbackEligible.
+    val showFeedbackButtons = interactionId != null && sseComplete && (alwaysDisplay || feedbackEligible)
     var sourcesExpanded by remember { mutableStateOf(false) }
     val thumbsPlacement = ConciergeTheme.behavior?.feedback?.thumbsPlacement
         ?: FeedbackThumbsPlacement.INLINE
@@ -66,31 +75,26 @@ internal fun ChatFooter(
     Column(modifier = modifier.padding(top = 12.dp)) {
         when (thumbsPlacement) {
             FeedbackThumbsPlacement.INLINE -> {
-                // Original layout: sources label and thumbs on the same row
-                val arrangement = remember(hasCitations) {
-                    if (hasCitations) Arrangement.SpaceBetween else Arrangement.End
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = arrangement,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (hasCitations) {
+                // Only rendered with citations: sources button and feedback thumbs on the same row.
+                if (hasCitations) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         SourcesAccordionButton(
                             expanded = sourcesExpanded,
                             onExpandedChange = { sourcesExpanded = it },
                             modifier = Modifier.weight(1f)
                         )
+                        if (showFeedbackButtons) {
+                            FeedbackButtons(
+                                interactionId = interactionId!!,
+                                onFeedback = onFeedback,
+                                feedbackState = feedbackState
+                            )
+                        }
                     }
-                    if (showFeedbackButtons) {
-                        FeedbackButtons(
-                            interactionId = interactionId!!,
-                            onFeedback = onFeedback,
-                            feedbackState = feedbackState
-                        )
-                    }
-                }
-                if (hasCitations) {
                     ExpandedCitations(
                         citations = citations!!,
                         uniqueCitations = uniqueCitations,
@@ -101,7 +105,7 @@ internal fun ChatFooter(
             }
 
             FeedbackThumbsPlacement.BELOW -> {
-                // Design spec: feedback thumbs inside the Sources & Feedback accordion
+                // Only rendered with citations: feedback inside the expanded sources accordion.
                 if (hasCitations) {
                     SourcesAccordionButton(
                         expanded = sourcesExpanded,
@@ -124,13 +128,28 @@ internal fun ChatFooter(
                             }
                         } else null
                     )
-                } else if (showFeedbackButtons) {
-                    // No citations: show feedback standalone
+                }
+            }
+
+            FeedbackThumbsPlacement.STANDALONE -> {
+                // Sources shown if present; feedback always shown as a separate block after SSE.
+                if (hasCitations) {
+                    SourcesAccordionButton(
+                        expanded = sourcesExpanded,
+                        onExpandedChange = { sourcesExpanded = it }
+                    )
+                    ExpandedCitations(
+                        citations = citations!!,
+                        uniqueCitations = uniqueCitations,
+                        expanded = sourcesExpanded,
+                        handleLink = handleLink
+                    )
+                }
+                if (showFeedbackButtons) {
                     FeedbackButtons(
                         interactionId = interactionId!!,
                         onFeedback = onFeedback,
-                        feedbackState = feedbackState,
-                        showHelpfulLabel = true
+                        feedbackState = feedbackState
                     )
                 }
             }

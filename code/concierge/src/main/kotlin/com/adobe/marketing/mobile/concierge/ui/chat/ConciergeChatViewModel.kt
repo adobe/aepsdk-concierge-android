@@ -731,7 +731,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 if (hasVisibleContent) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
-                    setLastAssistantMessageSseComplete()
+                    setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
                 }
                 // Ensure ResponseStarted precedes ResponseCompleted even if the server jumped
                 // straight to COMPLETED without an IN_PROGRESS chunk.
@@ -813,6 +813,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
                     sseComplete = true,
+                    feedbackEligible = if (hasCtas) false else parsedMessage.feedbackEligible,
                     linkHints = parsedMessage.linkHints
                 )
             } else {
@@ -851,6 +852,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 parsedMessage.sources,
                 parsedMessage.interactionId,
                 sseComplete = true,
+                feedbackEligible = parsedMessage.feedbackEligible,
                 linkHints = parsedMessage.linkHints
             )
         }
@@ -918,6 +920,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         sources: List<Citation> = emptyList(),
         interactionId: String? = null,
         sseComplete: Boolean? = null,
+        feedbackEligible: Boolean? = null,
         linkHints: List<LinkHint> = emptyList()
     ) {
         // Pre-compute unique citations once to avoid redundant processing
@@ -939,6 +942,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     uniqueCitations = uniqueSources,
                     interactionId = interactionId,
                     sseComplete = sseComplete ?: lastAssistantMessage.sseComplete,
+                    feedbackEligible = feedbackEligible ?: lastAssistantMessage.feedbackEligible,
                     linkHints = linkHints
                 )
                 updatedMessages
@@ -959,11 +963,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
-    private fun setLastAssistantMessageSseComplete() {
+    private fun setLastAssistantMessageSseComplete(feedbackEligible: Boolean = false) {
         _messages.update { existing ->
             val lastIdx = existing.lastIndex
             if (lastIdx >= 0 && !existing[lastIdx].isFromUser) {
-                existing.toMutableList().apply { set(lastIdx, this[lastIdx].copy(sseComplete = true)) }
+                existing.toMutableList().apply {
+                    set(lastIdx, this[lastIdx].copy(sseComplete = true, feedbackEligible = feedbackEligible))
+                }
             } else existing
         }
     }

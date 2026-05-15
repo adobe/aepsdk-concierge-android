@@ -66,7 +66,7 @@ internal fun ConciergeResponse(
     ) { isEmpty ->
         // Apply citation annotations to the complete text first
         val annotatedText = remember(text, sources) {
-            CitationAnnotator.annotateText(text, sources)
+            CitationAnnotator.annotateText(text.trimEnd(), sources)
         }
 
         // Create inline content maps once for all child components to share
