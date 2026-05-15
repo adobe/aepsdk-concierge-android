@@ -28,5 +28,7 @@ class ChatApp : Application() {
         MobileCore.setLogLevel(LoggingMode.VERBOSE)
 
         ConciergeTracker.init()
+
+        MobileCore.initialize(this, APP_ID)
     }
 }
