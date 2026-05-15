@@ -260,21 +260,7 @@ fun ConciergeChat(
     }
 
     val resolvedEvent: (ChatEvent) -> Unit = remember(handleLink) {
-        { event ->
-            when (event) {
-                is ProductActionClick -> {
-                    val url = event.button.url
-                    if (url.isNullOrEmpty()) viewModel.processEvent(event)
-                    else viewModel.handleLinkClick(url, handleLink)
-                }
-                is ProductImageClick -> {
-                    val url = event.element.content["productPageURL"] as? String
-                    if (url.isNullOrEmpty()) viewModel.processEvent(event)
-                    else viewModel.handleLinkClick(url, handleLink)
-                }
-                else -> viewModel.processEvent(event)
-            }
-        }
+        { event -> viewModel.processEvent(event, handleLink) }
     }
 
     CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {

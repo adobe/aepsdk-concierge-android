@@ -451,9 +451,24 @@ internal object ThemeParser {
         val citationsMap = typedMap?.get("citations") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
         val citationsTyped = citationsMap as? MutableMap<String?, Any?>
+        val styleMap = citationsTyped?.get("linkIconStyle") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val styleTyped = styleMap as? MutableMap<String?, Any?>
+        val linkIconStyle = styleTyped?.let {
+            ConciergeLinkIconStyle(
+                size = DataReader.optDouble(it, "size", 0.0).takeIf { v -> v > 0.0 }?.toFloat(),
+                spacing = DataReader.optDouble(it, "spacing", 0.0).takeIf { v -> v > 0.0 }?.toFloat(),
+                color = DataReader.optString(it, "color", null)
+            )
+        }
+
         val citations = citationsTyped?.let {
             ConciergeCitationsBehavior(
-                showLinkIcon = DataReader.optBoolean(it, "showLinkIcon", false)
+                showLinkIcon = DataReader.optBoolean(it, "showLinkIcon", false),
+                phoneIcon = DataReader.optString(it, "phoneIcon", null),
+                storeIcon = DataReader.optString(it, "storeIcon", null),
+                defaultLinkIcon = DataReader.optString(it, "defaultLinkIcon", null),
+                linkIconStyle = linkIconStyle
             )
         }
 
@@ -534,19 +549,7 @@ internal object ThemeParser {
             thumbsUp = DataReader.optString(typedMap, "thumbsUp", null),
             thumbsDown = DataReader.optString(typedMap, "thumbsDown", null),
             chevronDown = DataReader.optString(typedMap, "chevronDown", null),
-            chevronRight = DataReader.optString(typedMap, "chevronRight", null),
-            linkHint = parseLinkHintIconAssets(map["linkHint"] as? Map<*, *>)
-        )
-    }
-
-    private fun parseLinkHintIconAssets(map: Map<*, *>?): ConciergeLinkHintIconAssets {
-        if (map == null) return ConciergeLinkHintIconAssets()
-        @Suppress("UNCHECKED_CAST")
-        val typedMap = map as? MutableMap<String?, Any?>
-        return ConciergeLinkHintIconAssets(
-            phone = DataReader.optString(typedMap, "link_phone", null),
-            store = DataReader.optString(typedMap, "link_store", null),
-            default = DataReader.optString(typedMap, "link_default", null)
+            chevronRight = DataReader.optString(typedMap, "chevronRight", null)
         )
     }
 

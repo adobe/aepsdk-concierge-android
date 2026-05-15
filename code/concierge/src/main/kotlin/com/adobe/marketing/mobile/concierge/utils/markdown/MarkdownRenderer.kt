@@ -47,8 +47,15 @@ internal object MarkdownRenderer {
     internal fun linkIconId(kind: String, href: String): String =
         "$LINK_ICON_ID_PREFIX${kind}_$href"
 
-    /** Non-breaking space, used between a link's text and its inline icon. */
-    private const val NBSP = ' '
+    /** Inline content id prefix for the spacing slot that precedes each link-hint icon. */
+    internal const val LINK_SPACING_ID_PREFIX = "link_spacing_"
+
+    /**
+     * Builds the inline content id for the spacing slot preceding a link-hint icon.
+     * The UI layer registers a transparent placeholder of the configured width for this id.
+     */
+    internal fun linkSpacingId(kind: String, href: String): String =
+        "$LINK_SPACING_ID_PREFIX${kind}_$href"
 
     /**
      * Renders the provided list of [MarkdownToken]s into an [AnnotatedString].
@@ -283,12 +290,9 @@ internal object MarkdownRenderer {
         linkHintByHref: Map<String, String>
     ) {
         val kind = linkHintByHref[linkUrl] ?: return
-        // Use a non-breaking space so the icon never wraps onto its own line, away from the link
-        // text. The gap is annotated with the URL too so taps between text and icon still trigger.
         val annotationStart = builder.length
-        builder.append(NBSP)
-        // appendInlineContent docs recommend a single-character alternate; the actual visual is
-        // supplied by the InlineTextContent map keyed on the same id.
+        // Spacing slot: width is controlled by the InlineTextContent entry in the map.
+        builder.appendInlineContent(linkSpacingId(kind, linkUrl), " ")
         builder.appendInlineContent(linkIconId(kind, linkUrl), " ")
         builder.addStringAnnotation(
             tag = "URL",

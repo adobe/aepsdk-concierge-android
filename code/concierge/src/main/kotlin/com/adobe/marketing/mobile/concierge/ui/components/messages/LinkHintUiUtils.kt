@@ -15,7 +15,9 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Icon
 import androidx.compose.ui.Modifier
@@ -27,7 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.network.LinkHint
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLinkHintIconAssets
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownRenderer
 
 /**
@@ -35,79 +37,123 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownRenderer
  */
 internal object LinkHintUiUtils {
 
+    private val MARKDOWN_LINK_REGEX = Regex("""\[([^\]]*)\]\(([^)]+)\)""")
+
+    /**
+     * Extracts all link URLs from a raw markdown string.
+     */
+    internal fun extractMarkdownLinkUrls(text: String): List<String> =
+        MARKDOWN_LINK_REGEX.findAll(text).map { it.groupValues[2].trim() }.toList()
+
+    /**
+     * Builds an augmented list of [LinkHint]s that covers every link URL found in [text].
+     *
+     * URLs already present in [linkHints] retain their original kind (phone, store, etc.).
+     * All other URLs receive kind `"default"` so the renderer appends the default icon.
+     * Returns an empty list when [showLinkIcon] is false.
+     */
+    internal fun augmentedLinkHints(
+        text: String,
+        linkHints: List<LinkHint>,
+        showLinkIcon: Boolean
+    ): List<LinkHint> {
+        if (!showLinkIcon) return emptyList()
+        val hintsByHref = linkHints.associateBy { it.href }
+        return extractMarkdownLinkUrls(text)
+            .distinct()
+            .map { url -> hintsByHref[url] ?: LinkHint(kind = "default", href = url) }
+    }
+
     /**
      * Creates an inline text content map for link hint icons.
      *
-     * One entry is emitted per unique (kind, href) pair so each icon can carry its own click
-     * handler — tapping the icon invokes [handleLink] (or opens the href in the browser if
-     * [handleLink] is null).
+     * For each hint two entries are emitted:
+     * - A transparent spacer keyed by [MarkdownRenderer.linkSpacingId] — controls the gap
+     *   between the link text and the icon.
+     * - An icon keyed by [MarkdownRenderer.linkIconId] — the actual icon with its click handler.
      *
-     * Every hint produces an icon. The icon source is resolved per-kind from [iconAssets]:
-     * - `phone`  → [ConciergeLinkHintIconAssets.phone]
-     * - `store`  → [ConciergeLinkHintIconAssets.store]
-     * - anything else → [ConciergeLinkHintIconAssets.default]
+     * The icon asset is resolved per-kind from [citationsBehavior]:
+     * - `phone`  → [ConciergeCitationsBehavior.phoneIcon]
+     * - `store`  → [ConciergeCitationsBehavior.storeIcon]
+     * - anything else → [ConciergeCitationsBehavior.defaultLinkIcon]
      *
-     * If the resolved name is null/blank or the named asset can't be loaded, the SDK's
-     * built-in `external_link` drawable is used as the fallback (see [rememberLinkHintIconPainter]).
+     * A null/blank asset name or an asset that fails to load falls back to the SDK's built-in
+     * `external_link` drawable (see [rememberLinkHintIconPainter]).
      *
-     * @param linkHints The link hints from the backend response
-     * @param iconColor The tint color to apply to every icon (typically the primary/link color)
-     * @param iconAssets Theme-supplied asset names for the per-kind icons
-     * @param context Used only for the default link-handling fallback when [handleLink] is null
-     * @param iconSize The size of each icon and its placeholder slot
-     * @param handleLink Optional handler invoked when the icon is tapped
+     * @param linkHints The (augmented) link hints covering every URL in the message
+     * @param iconColor Tint color applied to every icon
+     * @param citationsBehavior Theme-supplied citations config with per-kind asset names and style
+     * @param context Used for the default link-handling fallback when [handleLink] is null
+     * @param iconSize Size of each icon and its placeholder slot
+     * @param iconSpacing Width of the transparent spacer slot before each icon
+     * @param handleLink Optional handler invoked when an icon is tapped
      */
     internal fun createLinkHintInlineContentMap(
         linkHints: List<LinkHint>,
         iconColor: Color,
-        iconAssets: ConciergeLinkHintIconAssets,
+        citationsBehavior: ConciergeCitationsBehavior,
         context: Context,
         iconSize: Dp = 16.dp,
+        iconSpacing: Dp = 2.dp,
         handleLink: ((String) -> Unit)? = null
     ): Map<String, InlineTextContent> {
         if (linkHints.isEmpty()) return emptyMap()
 
-        // Inline content width/height must be expressed in Sp. Using Density(1f, 1f) yields a 1:1
-        // dp->sp mapping so the placeholder matches the icon's logical size regardless of the
-        // user's font scale. This matches the pattern used in CitationUiUtils.
-        val placeholderSize = with(Density(1f, 1f)) { iconSize.toSp() }
+        // Inline content dimensions must be in Sp. Using Density(1f, 1f) gives a 1:1 dp→sp
+        // mapping so placeholders match logical sizes regardless of user font scale.
+        val iconSizeSp = with(Density(1f, 1f)) { iconSize.toSp() }
+        val spacingSp = with(Density(1f, 1f)) { iconSpacing.toSp() }
 
-        return linkHints.asSequence()
-            .distinctBy { it.kind to it.href }.associate { hint ->
-                val themedAssetName = themedAssetNameFor(hint.kind, iconAssets)
-                val content = InlineTextContent(
-                    placeholder = Placeholder(
-                        width = placeholderSize,
-                        height = placeholderSize,
-                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
-                    )
-                ) {
-                    Icon(
-                        painter = rememberLinkHintIconPainter(themedAssetName),
-                        contentDescription = hint.kind,
-                        tint = iconColor,
-                        modifier = Modifier
-                            .size(iconSize)
-                            .clickable {
-                                if (handleLink != null) {
-                                    handleLink(hint.href)
-                                } else {
-                                    val intent = Intent(Intent.ACTION_VIEW, hint.href.toUri())
-                                    context.startActivity(intent)
-                                }
-                            }
-                    )
-                }
-                MarkdownRenderer.linkIconId(hint.kind, hint.href) to content
+        val result = mutableMapOf<String, InlineTextContent>()
+
+        linkHints.distinctBy { it.kind to it.href }.forEach { hint ->
+            // Spacer slot — transparent, provides the configurable gap before the icon
+            result[MarkdownRenderer.linkSpacingId(hint.kind, hint.href)] = InlineTextContent(
+                placeholder = Placeholder(
+                    width = spacingSp,
+                    height = iconSizeSp,
+                    placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
+                )
+            ) {
+                Spacer(modifier = Modifier.width(iconSpacing))
             }
+
+            // Icon slot
+            val assetName = themedAssetNameFor(hint.kind, citationsBehavior)
+            result[MarkdownRenderer.linkIconId(hint.kind, hint.href)] = InlineTextContent(
+                placeholder = Placeholder(
+                    width = iconSizeSp,
+                    height = iconSizeSp,
+                    placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
+                )
+            ) {
+                Icon(
+                    painter = rememberLinkHintIconPainter(assetName),
+                    contentDescription = hint.kind,
+                    tint = iconColor,
+                    modifier = Modifier
+                        .size(iconSize)
+                        .clickable {
+                            if (handleLink != null) {
+                                handleLink(hint.href)
+                            } else {
+                                val intent = Intent(Intent.ACTION_VIEW, hint.href.toUri())
+                                context.startActivity(intent)
+                            }
+                        }
+                )
+            }
+        }
+
+        return result
     }
 
     private fun themedAssetNameFor(
         kind: String,
-        assets: ConciergeLinkHintIconAssets
+        behavior: ConciergeCitationsBehavior
     ): String? = when (kind) {
-        "phone" -> assets.phone
-        "store" -> assets.store
-        else -> assets.default
+        "phone" -> behavior.phoneIcon
+        "store" -> behavior.storeIcon
+        else -> behavior.defaultLinkIcon
     }
 }
