@@ -27,10 +27,7 @@ class ChatApp : Application() {
         MobileCore.setApplication(this)
         MobileCore.setLogLevel(LoggingMode.VERBOSE)
 
-        // if using a staging environment, set the edge environment to "int"
-//        MobileCore.updateConfiguration(
-//            hashMapOf("edge.environment" to "int") as Map<String, Any>
-//        )
+        ConciergeTracker.start()
 
         MobileCore.initialize(this, APP_ID)
     }

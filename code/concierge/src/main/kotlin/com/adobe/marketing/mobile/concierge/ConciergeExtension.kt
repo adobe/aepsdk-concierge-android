@@ -49,7 +49,7 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
         api.registerEventListener(
             EventType.CONFIGURATION,
             EventSource.RESPONSE_CONTENT,
-            this::processEvent);
+            this::processEvent)
     }
 
     override fun readyForEvent(event: Event): Boolean {

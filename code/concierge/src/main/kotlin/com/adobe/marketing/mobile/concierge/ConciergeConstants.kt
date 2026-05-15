@@ -11,14 +11,14 @@
 
 package com.adobe.marketing.mobile.concierge
 
-internal object ConciergeConstants {
-    const val EXTENSION_NAME = "brandconcierge"
-    const val EXTENSION_FRIENDLY_NAME = "BrandConcierge"
-    const val VERSION = "3.5.1"
-    const val LOG_TAG = "BrandConcierge"
-    const val DATA_STORE_NAME = EXTENSION_NAME
+object ConciergeConstants {
+    internal const val EXTENSION_NAME = "brandconcierge"
+    internal const val EXTENSION_FRIENDLY_NAME = "BrandConcierge"
+    internal const val VERSION = "3.5.1"
+    internal const val LOG_TAG = "BrandConcierge"
+    internal const val DATA_STORE_NAME = EXTENSION_NAME
 
-    object SharedState {
+    internal object SharedState {
         const val STATEOWNER = "stateowner"
 
         object EdgeIdentity {
@@ -40,7 +40,7 @@ internal object ConciergeConstants {
         }
     }
 
-    object ConsentValues {
+    internal object ConsentValues {
         const val IN_VALUE = "in"
         const val OUT_VALUE = "out"
         const val UNKNOWN_VALUE = "unknown"
@@ -52,25 +52,25 @@ internal object ConciergeConstants {
         const val NEGATIVE = "negative"
     }
 
-    object ChatHeader {
+    internal object ChatHeader {
         const val TITLE = "Concierge"
         const val SUBTITLE = "Powered by Adobe"
     }
 
-    object DataStoreKeys {
+    internal object DataStoreKeys {
         const val KEY_HAS_SEEN_WELCOME = "has_seen_welcome"
         const val KEY_SESSION_ID = "concierge_session_id"
         const val KEY_SESSION_TIMESTAMP = "concierge_session_timestamp"
     }
 
-    object WelcomeCard {
+    internal object WelcomeCard {
         const val DEFAULT_HEADING = "I'm your personal guide to help you explore and find exactly what you need. Let's get started!"
         const val RETURNING_USER_WELCOME = "Hey, welcome back!"
         const val FIRST_TIME_WELCOME_TEMPLATE = "Welcome to %s concierge!"
         const val DEFAULT_SUBHEADING = "Not sure where to start? Explore the suggested ideas below."
     }
 
-    object Disclaimer {
+    internal object Disclaimer {
         const val DEFAULT_TEXT = "AI responses may be inaccurate. Check answers and sources. {Terms}"
         const val DEFAULT_TERMS_LABEL = "Terms"
         const val DEFAULT_TERMS_URL = "https://www.adobe.com/legal/licenses-terms/adobe-gen-ai-user-guidelines.html"
@@ -86,7 +86,7 @@ internal object ConciergeConstants {
     }
 
     object TrackingEvent {
-        object Name {
+        internal object Name {
             const val SESSION_INITIALIZED            = "Brand Concierge Session Initialized"
             const val CHAT_OPENED                    = "Brand Concierge Chat Opened"
             const val CHAT_CLOSED                    = "Brand Concierge Chat Closed"
