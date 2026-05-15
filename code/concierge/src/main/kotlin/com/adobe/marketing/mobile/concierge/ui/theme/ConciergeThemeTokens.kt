@@ -367,8 +367,18 @@ enum class FeedbackThumbsPlacement(val value: String) {
     }
 }
 
+data class ConciergeLinkIconStyle(
+    val size: Float? = null,      // icon size in dp; null → 16 dp
+    val spacing: Float? = null,   // gap between link text and icon in dp; null → 2 dp
+    val color: String? = null     // hex color string; null → falls back to link color
+)
+
 data class ConciergeCitationsBehavior(
-    val showLinkIcon: Boolean = false
+    val showLinkIcon: Boolean = false,
+    val phoneIcon: String? = null,
+    val storeIcon: String? = null,
+    val defaultLinkIcon: String? = null,
+    val linkIconStyle: ConciergeLinkIconStyle? = null
 )
 
 /**
@@ -422,20 +432,7 @@ data class ConciergeIconAssets(
     val thumbsUp: String? = null,
     val thumbsDown: String? = null,
     val chevronDown: String? = null,
-    val chevronRight: String? = null,
-    val linkHint: ConciergeLinkHintIconAssets = ConciergeLinkHintIconAssets()
-)
-
-/**
- * Asset names for inline icons appended next to links flagged by the backend's `linkHints`
- * array. Each field carries the name of a bitmap bundled under the integrating app's
- * `assets/icons/` folder. A null/blank value or a name that fails to resolve falls back to
- * the SDK's built-in link drawable.
- */
-data class ConciergeLinkHintIconAssets(
-    val phone: String? = null,   // JSON key: link_phone — used for kind="phone"
-    val store: String? = null,   // JSON key: link_store — used for kind="store"
-    val default: String? = null  // JSON key: link_default — used for any other kind
+    val chevronRight: String? = null
 )
 
 data class ConciergeImageAssets(

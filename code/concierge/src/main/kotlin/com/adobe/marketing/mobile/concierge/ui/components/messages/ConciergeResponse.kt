@@ -29,9 +29,11 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotator
 import androidx.core.net.toUri
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLinkHintIconAssets
+import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.toComposeColor
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 
@@ -78,14 +80,30 @@ internal fun ConciergeResponse(
                 handleLink
             )
         }
-        val linkHintAssets = ConciergeTheme.tokens?.assets?.icons?.linkHint
-            ?: ConciergeLinkHintIconAssets()
-        val linkHintInlineContentMap = remember(linkHints, colorScheme.primary, linkHintAssets, handleLink) {
+        val citationsBehavior = ConciergeTheme.tokens?.behavior?.citations ?: ConciergeCitationsBehavior()
+
+        // Compute style values from linkIconStyle, falling back to theme link color then primary
+        val iconStyle = citationsBehavior.linkIconStyle
+        val iconSize = iconStyle?.size?.dp ?: 16.dp
+        val iconSpacing = iconStyle?.spacing?.dp ?: 2.dp
+        val iconColor = iconStyle?.color?.toComposeColor()
+            ?: ConciergeTheme.colors.messageConciergeLink
+            ?: colorScheme.primary
+
+        // Augment linkHints to cover every URL in the text when showLinkIcon is enabled.
+        // Non-hint URLs receive kind "default" so they get the default icon asset.
+        val effectiveLinkHints = remember(text, linkHints, citationsBehavior.showLinkIcon) {
+            LinkHintUiUtils.augmentedLinkHints(text, linkHints, citationsBehavior.showLinkIcon)
+        }
+
+        val linkHintInlineContentMap = remember(effectiveLinkHints, iconColor, iconSize, iconSpacing, citationsBehavior, handleLink) {
             LinkHintUiUtils.createLinkHintInlineContentMap(
-                linkHints = linkHints,
-                iconColor = colorScheme.primary,
-                iconAssets = linkHintAssets,
+                linkHints = effectiveLinkHints,
+                iconColor = iconColor,
+                citationsBehavior = citationsBehavior,
                 context = context,
+                iconSize = iconSize,
+                iconSpacing = iconSpacing,
                 handleLink = handleLink
             )
         }
@@ -107,7 +125,7 @@ internal fun ConciergeResponse(
                     listTokens = listTokens,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
-                    linkHints = linkHints,
+                    linkHints = effectiveLinkHints,
                     handleLink = handleLink,
                     modifier = modifier
                 )
@@ -116,7 +134,7 @@ internal fun ConciergeResponse(
                     text = annotatedText.text,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
-                    linkHints = linkHints,
+                    linkHints = effectiveLinkHints,
                     handleLink = handleLink,
                     modifier = modifier
                 )
