@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,7 +64,6 @@ internal fun ExtendedProductCard(
     val imageWidth: Dp
     val imageHeight: Dp
     if (element.thumbnailWidth != null && element.thumbnailHeight != null) {
-        // Use thumbnail dimensions as image size
         imageWidth = element.thumbnailWidth.dp
         imageHeight = element.thumbnailHeight.dp
     } else {
@@ -72,11 +71,12 @@ internal fun ExtendedProductCard(
         imageHeight = style.imageHeight
     }
 
-    // Clickable card container (image + badge row + title/subtitle/price).
+    val hasExactHeight = style.cardHeight != null
+
     Card(
         modifier = modifier
             .width(style.cardWidth)
-            .height(style.cardHeight)
+            .then(style.cardHeight?.let { Modifier.height(it) } ?: Modifier)
             .clip(style.cardShape)
             .then(
                 if (style.cardOutlineColor != Color.Transparent) {
@@ -89,23 +89,36 @@ internal fun ExtendedProductCard(
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = if (hasExactHeight) Modifier.fillMaxSize() else Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(0.dp)
+            verticalArrangement = Arrangement.Top
         ) {
-            // Image with optional badge overlay at BottomStart.
+            // Image section: flexible (fills remaining space) when card has exact height,
+            // fixed natural height otherwise.
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = style.imageTopPadding)
-                    .height(style.imageHeight),
+                modifier = if (hasExactHeight) {
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = style.imageTopPadding)
+                        .weight(1f)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = style.imageTopPadding)
+                        .height(imageHeight)
+                },
                 contentAlignment = Alignment.Center
             ) {
                 Box(
-                    modifier = Modifier
-                        .width(style.imageWidth)
-                        .height(style.imageHeight)
-                        .clip(style.cardShape),
+                    modifier = if (hasExactHeight) {
+                        Modifier
+                            .width(imageWidth)
+                            .fillMaxHeight()
+                    } else {
+                        Modifier
+                            .width(imageWidth)
+                            .height(imageHeight)
+                    },
                     contentAlignment = Alignment.Center
                 ) {
                     if (imageUrl != null) {
@@ -113,9 +126,13 @@ internal fun ExtendedProductCard(
                             url = imageUrl,
                             contentDescription = productName,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .width(imageWidth)
-                                .height(imageHeight)
+                            modifier = if (hasExactHeight) {
+                                Modifier.fillMaxSize()
+                            } else {
+                                Modifier
+                                    .width(imageWidth)
+                                    .height(imageHeight)
+                            }
                         )
                     }
                 }
@@ -152,7 +169,6 @@ internal fun ExtendedProductCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = true)
                     .padding(
                         start = style.contentPadding,
                         end = style.contentPadding,
@@ -182,16 +198,15 @@ internal fun ExtendedProductCard(
                         letterSpacing = style.subtitleLetterSpacing,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = style.headlineGap)
+                        modifier = Modifier.padding(top = style.titleSubtitleSpacing)
                     )
                 }
 
-                // Flexible spacer pushes price block to the bottom.
-                Column(modifier = Modifier.weight(1f)) {}
-
                 if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = style.sectionSpacing),
                         verticalArrangement = Arrangement.Top
                     ) {
                         if (!productPrice.isNullOrBlank()) {
@@ -206,17 +221,18 @@ internal fun ExtendedProductCard(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
-                            text = style.wasPriceTextPrefix + (productWasPrice ?: ""),
-                            color = style.wasPriceColor,
-                            fontSize = style.wasPriceFontSize,
-                            fontWeight = style.wasPriceFontWeight,
-                            lineHeight = style.wasPriceLineHeight,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            // Always rendered; alpha=0 when absent keeps price at a fixed Y position.
-                            modifier = Modifier.alpha(if (!productWasPrice.isNullOrBlank()) 1f else 0f)
-                        )
+                        if (!productWasPrice.isNullOrBlank()) {
+                            Text(
+                                text = style.wasPriceTextPrefix + productWasPrice,
+                                color = style.wasPriceColor,
+                                fontSize = style.wasPriceFontSize,
+                                fontWeight = style.wasPriceFontWeight,
+                                lineHeight = style.wasPriceLineHeight,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = style.priceSpacing)
+                            )
+                        }
                     }
                 }
             }
