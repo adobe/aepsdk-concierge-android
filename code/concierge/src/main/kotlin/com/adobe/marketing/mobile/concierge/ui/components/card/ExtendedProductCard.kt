@@ -61,14 +61,11 @@ internal fun ExtendedProductCard(
         ?: element.content["description"] as? String
         ?: element.content["learningResource"] as? String
     val imageUrl = element.url ?: element.thumbnailUrl
-    val imageWidth: Dp
-    val imageHeight: Dp
-    if (element.thumbnailWidth != null && element.thumbnailHeight != null) {
-        imageWidth = element.thumbnailWidth.dp
-        imageHeight = element.thumbnailHeight.dp
+    val imageWidth = style.imageWidth
+    val imageHeight: Dp = if (element.thumbnailWidth != null && element.thumbnailHeight != null && element.thumbnailWidth > 0) {
+        style.imageWidth * (element.thumbnailHeight.toFloat() / element.thumbnailWidth.toFloat())
     } else {
-        imageWidth = style.imageWidth
-        imageHeight = style.imageHeight
+        style.imageHeight
     }
 
     val hasExactHeight = style.cardHeight != null
