@@ -40,26 +40,6 @@ import androidx.compose.ui.unit.sp
 internal object ConciergeStyles {
 
     /**
-     * Helper function to apply theme typography (font family and line height) to a TextStyle
-     */
-    @Composable
-    private fun TextStyle.withThemeTypography(): TextStyle {
-        val tokens = ConciergeTheme.tokens
-        val typography = tokens?.typography
-
-        if (typography == null) {
-            return this
-        }
-
-        val resolvedFamily = ConciergeFontResolver.resolve(typography.fontFamily)
-
-        return this.copy(
-            fontFamily = resolvedFamily ?: this.fontFamily,
-            lineHeight = typography.lineHeight?.let { (this.fontSize.value * it).sp } ?: this.lineHeight
-        )
-    }
-
-    /**
      * Styling for the chat header component
      */
     @Immutable
@@ -90,10 +70,10 @@ internal object ConciergeStyles {
             return HeaderStyle(
                 horizontalPadding = 12.dp,
                 verticalPadding = 8.dp,
-                titleStyle = titleStyle.withThemeTypography(),
+                titleStyle = titleStyle,
                 titleFontWeight = FontWeight.Bold,
                 titleColor = textColor,
-                subtitleStyle = MaterialTheme.typography.bodySmall.withThemeTypography(),
+                subtitleStyle = MaterialTheme.typography.bodySmall,
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
                 iconColor = textColor,
@@ -190,7 +170,7 @@ internal object ConciergeStyles {
                 cancelIconColor = themeColors.onSurface,
                 contentSpacing = 12.dp,
                 pulseAnimationDuration = 1000,
-                textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
+                textStyle = MaterialTheme.typography.bodyLarge,
                 textColor = themeColors.onSurface,
                 listeningText = "Listening"
             )
@@ -243,7 +223,10 @@ internal object ConciergeStyles {
                 botMessageBackgroundColor = themeColors.conciergeMessageBackground ?: themeColors.container,
                 userMessageTextColor = themeColors.userMessageText ?: themeColors.onPrimary,
                 botMessageTextColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
-                textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
+                textStyle = MaterialTheme.typography.bodyLarge.let { style ->
+                    val lh = ConciergeTheme.tokens?.typography?.lineHeight
+                    if (lh != null) style.copy(lineHeight = (style.fontSize.value * lh).sp) else style
+                },
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp,
                 agentIconSize = cssLayout?.agentIconSize?.dp ?: 39.dp,
@@ -313,7 +296,7 @@ internal object ConciergeStyles {
                 textDotSpacing = 8.dp,
                 dotAnimationDuration = 600,
                 dotAnimationDelay = 200,
-                textStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
+                textStyle = MaterialTheme.typography.bodyLarge,
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 dotColor = themeColors.thinkingDotColor
                     ?: themeColors.primary.copy(alpha = 0.7f),
@@ -353,11 +336,11 @@ internal object ConciergeStyles {
                 elevation = 1.dp,
                 backgroundColor = themeColors.container,
                 imageHeight = 250.dp,
-                titleStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
+                titleStyle = MaterialTheme.typography.bodyLarge,
                 titleFontWeight = FontWeight.Bold,
                 titleColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 titleMaxLines = 2,
-                captionStyle = MaterialTheme.typography.bodyLarge.withThemeTypography(),
+                captionStyle = MaterialTheme.typography.bodyLarge,
                 captionColor = themeColors.conciergeMessageText?.copy(alpha = 0.9f) ?: themeColors.onSurface.copy(alpha = 0.9f),
                 captionTopPadding = 12.dp,
                 captionBottomPadding = 16.dp,
@@ -403,7 +386,7 @@ internal object ConciergeStyles {
                 overlayTextColor = themeColors.onSurface,
                 overlayTextSize = 16.dp,
                 overlayTextFontWeight = FontWeight.Medium,
-                overlayTextStyle = MaterialTheme.typography.bodyMedium.withThemeTypography()
+                overlayTextStyle = MaterialTheme.typography.bodyMedium
             )
         }
 
@@ -612,7 +595,7 @@ internal object ConciergeStyles {
                 secondaryBorderWidth = 1.dp,
                 secondaryBorderColor = themeColors.buttonSecondaryBorder ?: themeColors.outline.copy(alpha = 0.5f),
                 secondaryBorderAlpha = 0.5f,
-                textStyle = MaterialTheme.typography.labelMedium.withThemeTypography(),
+                textStyle = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
                 fontSize = 12.dp,
                 fontWeight = FontWeight.Medium,
@@ -665,12 +648,12 @@ internal object ConciergeStyles {
                 iconSize = 10.dp,
                 iconColor = textColor,
                 iconSpacing = 12.dp,
-                textStyle = MaterialTheme.typography.bodyMedium.withThemeTypography(),
+                textStyle = MaterialTheme.typography.bodyMedium,
                 textColor = textColor,
                 textMaxLines = behavior?.itemMaxLines ?: 1,
                 showHeader = behavior?.showHeader ?: false,
                 headerText = ConciergeTheme.text?.suggestionsHeader ?: "Suggestions",
-                headerStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold).withThemeTypography(),
+                headerStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 headerColor = contentColor,
                 headerBottomPadding = 4.dp
             )
@@ -714,7 +697,7 @@ internal object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = fontSize,
                     fontWeight = fontWeight
-                ).withThemeTypography(),
+                ),
                 textColor = themeColors.ctaButtonText ?: Color(0xFF191F1C)
             )
         }
@@ -749,7 +732,7 @@ internal object ConciergeStyles {
                 backgroundColor = themeColors.citationBackground,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = fontSize ?: MaterialTheme.typography.bodyMedium.fontSize
-                ).withThemeTypography(),
+                ),
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 textLength = 1,
                 urlColor = themeColors.messageConciergeLink ?: themeColors.onSurface,
@@ -777,7 +760,7 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             return ChatFooterStyle(
                 sourcesButtonPadding = 0.dp,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium).withThemeTypography(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 textColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconColor = themeColors.conciergeMessageText ?: themeColors.onSurface,
                 iconSpacing = 4.dp,
@@ -809,7 +792,7 @@ internal object ConciergeStyles {
                 textStyle = bodySmall.copy(
                     fontSize = fontSize,
                     fontWeight = fontWeight
-                ).withThemeTypography(),
+                ),
                 textColor = themeColors.disclaimerColor ?: themeColors.onSurfaceVariant,
                 linkTextDecoration = TextDecoration.Underline,
                 padding = 8.dp
@@ -844,7 +827,7 @@ internal object ConciergeStyles {
                 backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
                 hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground,
                 helpfulLabelText = ConciergeTheme.text?.feedbackHelpfulLabel ?: "Was this helpful?",
-                helpfulLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold).withThemeTypography(),
+                helpfulLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 helpfulLabelColor = textColor
             )
         }
@@ -1031,7 +1014,7 @@ internal object ConciergeStyles {
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,
                     fontSize = fontSize ?: MaterialTheme.typography.bodyLarge.fontSize
-                ).withThemeTypography(),
+                ),
                 placeholderTextColor = themeColors.inputText?.copy(alpha = 0.7f) ?: themeColors.onSurface.copy(alpha = 0.7f),
                 fontSize = fontSize
             )
@@ -1132,7 +1115,6 @@ internal object ConciergeStyles {
                 .let { base ->
                     cssLayout?.feedbackTitleFontSize?.let { size -> base.copy(fontSize = size.sp) } ?: base
                 }
-                .withThemeTypography()
 
             val submitShape = RoundedCornerShape((cssLayout?.feedbackSubmitButtonBorderRadius ?: 10.0).dp)
             val cancelShape = RoundedCornerShape((cssLayout?.feedbackCancelButtonBorderRadius ?: 10.0).dp)
@@ -1190,7 +1172,7 @@ internal object ConciergeStyles {
                 titleColor = titleColor,
                 titleTextAlign = titleTextAlign,
                 titleSpacing = 12.dp,
-                questionStyle = MaterialTheme.typography.bodyMedium.withThemeTypography(),
+                questionStyle = MaterialTheme.typography.bodyMedium,
                 questionColor = questionColor,
                 questionSpacing = 6.dp,
                 categorySpacing = 12.dp,
@@ -1200,13 +1182,13 @@ internal object ConciergeStyles {
                 checkboxBorderColor = checkboxBorder,
                 checkboxShape = checkboxShape,
                 checkboxSpacing = 8.dp,
-                categoryTextStyle = MaterialTheme.typography.bodyMedium.withThemeTypography(),
+                categoryTextStyle = MaterialTheme.typography.bodyMedium,
                 categoryTextColor = categoryTextColor,
                 categoriesNotesSpacing = 6.dp,
-                notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium).withThemeTypography(),
+                notesLabelStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 notesLabelColor = notesLabelColor,
                 notesLabelSpacing = 8.dp,
-                notesPlaceholderStyle = MaterialTheme.typography.bodyMedium.withThemeTypography(),
+                notesPlaceholderStyle = MaterialTheme.typography.bodyMedium,
                 notesPlaceholderColor = notesPlaceholderColor,
                 notesButtonsSpacing = 24.dp,
                 textFieldBorderColor = textFieldBorder,
@@ -1224,7 +1206,7 @@ internal object ConciergeStyles {
                 submitButtonFontWeight = submitFontWeight,
                 dragHandleColor = dragHandleColor,
                 closeIconTint = closeTint,
-                buttonTextStyle = MaterialTheme.typography.labelMedium.withThemeTypography()
+                buttonTextStyle = MaterialTheme.typography.labelMedium
             )
         }
 
@@ -1291,9 +1273,9 @@ internal object ConciergeStyles {
             }
 
             // Resolve title text style from theme font size
-            val titleTextStyle = (cssLayout?.welcomeTitleFontSize?.let { size ->
+            val titleTextStyle = cssLayout?.welcomeTitleFontSize?.let { size ->
                 MaterialTheme.typography.bodyLarge.copy(fontSize = size.sp)
-            } ?: MaterialTheme.typography.headlineSmall).withThemeTypography()
+            } ?: MaterialTheme.typography.headlineSmall
 
             return WelcomeCardStyle(
                 backgroundColor = cardBackground,
@@ -1304,12 +1286,12 @@ internal object ConciergeStyles {
                 titleTextColor = textColor,
                 titleBottomSpacing = cssLayout?.welcomeTitleBottomSpacing?.dp ?: 8.dp,
                 titleTextAlign = textAlign,
-                descriptionTextStyle = MaterialTheme.typography.bodyMedium.withThemeTypography(),
+                descriptionTextStyle = MaterialTheme.typography.bodyMedium,
                 descriptionTextColor = textColor.copy(alpha = 0.9f),
                 descriptionTextAlign = textAlign,
                 horizontalAlignment = horizontalAlignment,
                 promptsTopSpacing = cssLayout?.welcomePromptsTopSpacing?.dp ?: 8.dp,
-                promptsHeaderTextStyle = MaterialTheme.typography.bodySmall.withThemeTypography(),
+                promptsHeaderTextStyle = MaterialTheme.typography.bodySmall,
                 promptsHeaderTextColor = textColor.copy(alpha = 0.8f),
                 promptsHeaderBottomSpacing = 12.dp,
                 promptsSpacing = cssLayout?.welcomePromptSpacing?.dp ?: 8.dp,
@@ -1320,7 +1302,7 @@ internal object ConciergeStyles {
                 promptImageShape = RoundedCornerShape(4.dp),
                 promptImagePlaceholderColor = textColor.copy(alpha = 0.1f),
                 promptImageSpacing = 12.dp,
-                promptTextStyle = MaterialTheme.typography.bodyMedium.withThemeTypography(),
+                promptTextStyle = MaterialTheme.typography.bodyMedium,
                 promptTextColor = themeColors.welcomePromptText ?: textColor,
                 promptFullWidth = ConciergeTheme.behavior?.welcomeCard?.promptFullWidth ?: true,
                 promptMaxLines = ConciergeTheme.behavior?.welcomeCard?.promptMaxLines ?: Int.MAX_VALUE
