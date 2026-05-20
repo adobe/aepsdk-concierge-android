@@ -25,12 +25,30 @@ data class ConciergeThemeConfig(
     val name: String? = null,
     val colors: ConciergeThemeColors? = null,
     val styles: ConciergeThemeStyles? = null,
+    val header: HeaderConfig? = null,
     val text: ConciergeTextStrings? = null,
     val disclaimer: DisclaimerConfig? = null,
     val welcomeExamples: List<ConciergeWelcomeExample>? = null,
     val feedbackPositiveOptions: List<String>? = null,
     val feedbackNegativeOptions: List<String>? = null,
     val typography: ConciergeTypographyConfig? = null
+)
+
+/**
+ * Header configuration parsed from the root-level `header` block in the theme JSON.
+ */
+data class HeaderConfig(
+    val title: String? = null,
+    val subtitle: String? = null,
+    /** Basename (no extension) of an asset under `assets/icons/`, or an absolute http(s) URL. */
+    val image: String? = null,
+    /**
+     * Header layout mode. Supported values:
+     * - `"imageOnly"` — render only the image, hide title and subtitle
+     * - `"textOnly"` — render only the title and subtitle, ignore image
+     * - `null` or unknown — defaults to text-only (title and subtitle only)
+     */
+    val layoutType: String? = null
 )
 
 /**
@@ -80,21 +98,6 @@ internal fun ConciergeThemeConfig.toWelcomeConfig(
 data class ConciergeTextStrings(
     // Input
     val inputPlaceholder: String? = null,
-
-    // Header
-    val headerTitle: String? = null,
-    val headerSubtitle: String? = null,
-    /** Basename (no extension) of an asset under `assets/icons/`, or an absolute http(s) URL. */
-    val headerImage: String? = null,
-    /**
-     * Header layout mode. Supported values:
-     * - `"imageOnly"` — render only the image, hide title and subtitle
-     * - `"textOnly"` — render only the title and subtitle, ignore image
-     * - `null` or unknown — defaults to `textOnly` behaviour (title and subtitle only)
-     *
-     * The `image` field is consulted only when `layoutType == "imageOnly"`.
-     */
-    val headerLayoutType: String? = null,
 
     // Welcome
     val welcomeHeading: String? = null,

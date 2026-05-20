@@ -1540,96 +1540,86 @@ class ThemeParserTest {
     fun `parseThemeJson should parse header title subtitle and image`() {
         val json = """
             {
-                "text": {
-                    "header": {
-                        "title": "My Assistant",
-                        "subtitle": "Powered by Adobe",
-                        "image": "logo"
-                    }
+                "header": {
+                    "title": "My Assistant",
+                    "subtitle": "Powered by Adobe",
+                    "image": "logo"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertEquals("My Assistant", config?.text?.headerTitle)
-        assertEquals("Powered by Adobe", config?.text?.headerSubtitle)
-        assertEquals("logo", config?.text?.headerImage)
-        assertNull(config?.text?.headerLayoutType)
+        assertEquals("My Assistant", config?.header?.title)
+        assertEquals("Powered by Adobe", config?.header?.subtitle)
+        assertEquals("logo", config?.header?.image)
+        assertNull(config?.header?.layoutType)
     }
 
     @Test
     fun `parseThemeJson should parse header layoutType imageOnly`() {
         val json = """
             {
-                "text": {
-                    "header": {
-                        "title": "My Assistant",
-                        "subtitle": "Powered by Adobe",
-                        "image": "logo",
-                        "layoutType": "imageOnly"
-                    }
+                "header": {
+                    "title": "My Assistant",
+                    "subtitle": "Powered by Adobe",
+                    "image": "logo",
+                    "layoutType": "imageOnly"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertEquals("imageOnly", config?.text?.headerLayoutType)
+        assertEquals("imageOnly", config?.header?.layoutType)
     }
 
     @Test
     fun `parseThemeJson should parse header layoutType textOnly`() {
         val json = """
             {
-                "text": {
-                    "header": {
-                        "title": "My Assistant",
-                        "layoutType": "textOnly"
-                    }
+                "header": {
+                    "title": "My Assistant",
+                    "layoutType": "textOnly"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertEquals("textOnly", config?.text?.headerLayoutType)
+        assertEquals("textOnly", config?.header?.layoutType)
     }
 
     @Test
     fun `parseThemeJson should return null headerLayoutType when not provided`() {
         val json = """
             {
-                "text": {
-                    "header": {
-                        "title": "My Assistant"
-                    }
+                "header": {
+                    "title": "My Assistant"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertNull(config?.text?.headerLayoutType)
+        assertNull(config?.header?.layoutType)
     }
 
     @Test
     fun `parseThemeJson should parse header with only title set`() {
         val json = """
             {
-                "text": {
-                    "header": {
-                        "title": "My Assistant"
-                    }
+                "header": {
+                    "title": "My Assistant"
                 }
             }
         """.trimIndent()
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertEquals("My Assistant", config?.text?.headerTitle)
-        assertNull(config?.text?.headerSubtitle)
-        assertNull(config?.text?.headerImage)
+        assertEquals("My Assistant", config?.header?.title)
+        assertNull(config?.header?.subtitle)
+        assertNull(config?.header?.image)
     }
 
     @Test
@@ -1644,9 +1634,9 @@ class ThemeParserTest {
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertNull(config?.text?.headerTitle)
-        assertNull(config?.text?.headerSubtitle)
-        assertNull(config?.text?.headerImage)
+        assertNull(config?.header?.title)
+        assertNull(config?.header?.subtitle)
+        assertNull(config?.header?.image)
     }
 
     @Test
@@ -1662,8 +1652,8 @@ class ThemeParserTest {
 
         val config = ThemeParser.parseThemeJson(json)
         assertNotNull(config)
-        assertNull(config?.text?.headerTitle)
-        assertNull(config?.text?.headerSubtitle)
+        assertNull(config?.header?.title)
+        assertNull(config?.header?.subtitle)
     }
 
     // -----------------------------------------------------------------------

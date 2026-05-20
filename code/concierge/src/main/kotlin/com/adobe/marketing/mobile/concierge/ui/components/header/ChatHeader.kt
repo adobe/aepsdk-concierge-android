@@ -60,17 +60,17 @@ internal fun ChatHeader(
     onClose: () -> Unit
 ) {
     val style = ConciergeStyles.headerStyle
-    val themeText = ConciergeTheme.text
-    val titleText = themeText?.headerTitle ?: ConciergeConstants.ChatHeader.TITLE
-    val subtitleText = themeText?.headerSubtitle ?: ConciergeConstants.ChatHeader.SUBTITLE
+    val headerConfig = ConciergeTheme.header
+    val titleText = headerConfig?.title ?: ConciergeConstants.ChatHeader.TITLE
+    val subtitleText = headerConfig?.subtitle ?: ConciergeConstants.ChatHeader.SUBTITLE
     val showSubtitle = subtitleText.isNotBlank()
 
-    val imageSource = themeText?.headerImage?.takeIf { it.isNotBlank() }
+    val imageSource = headerConfig?.image?.takeIf { it.isNotBlank() }
 
     // Resolve layout mode. Image is shown only when `layoutType == "imageOnly"` (explicit).
     // Every other value — including `"textOnly"`, `null`, or any unknown string — renders
     // only the title and subtitle.
-    val isImageOnly = themeText?.headerLayoutType
+    val isImageOnly = headerConfig?.layoutType
         .equals(HEADER_LAYOUT_IMAGE_ONLY, ignoreCase = true)
 
     val closeButtonAtStart = ConciergeTheme.behavior?.welcomeCard
