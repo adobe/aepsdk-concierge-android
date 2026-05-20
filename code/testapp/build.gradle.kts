@@ -20,6 +20,7 @@ val mavenCoreVersion: String by project
 val mavenEdgeVersion: String by project
 val mavenEdgeIdentityVersion: String by project
 val mavenEdgeConsentVersion: String by project
+val mavenAnalyticsVersion: String by project
 
 android {
     defaultConfig {
@@ -74,9 +75,14 @@ dependencies {
     // brand concierge from project module
     implementation(project(":concierge"))
 
-    implementation("com.adobe.marketing.mobile:core:$mavenCoreVersion")
-    implementation("com.adobe.marketing.mobile:edgeidentity:$mavenEdgeIdentityVersion")
-    implementation("com.adobe.marketing.mobile:edgeconsent:$mavenEdgeConsentVersion")
+    implementation(platform("com.adobe.marketing.mobile:sdk-bom:3.+"))
+    implementation("com.adobe.marketing.mobile:core")
+    implementation("com.adobe.marketing.mobile:edge")
+    implementation("com.adobe.marketing.mobile:edgeidentity")
+    implementation("com.adobe.marketing.mobile:edgeconsent")
+    implementation("com.adobe.marketing.mobile:identity")
+    implementation("com.adobe.marketing.mobile:analytics")
+    implementation("com.adobe.marketing.mobile:lifecycle")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
