@@ -99,7 +99,7 @@ internal object ConciergeStyles {
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
                 iconColor = textColor,
-                imageHeight = 32.dp,
+                imageHeight = 48.dp,
                 imageSpacing = 8.dp,
                 dividerColor = textColor.copy(alpha = 0.12f),
                 dividerThickness = 0.5.dp

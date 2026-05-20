@@ -70,7 +70,7 @@ internal object ThemeParser {
                     headerTitle = DataReader.optString(headerMap, "title", null),
                     headerSubtitle = DataReader.optString(headerMap, "subtitle", null),
                     headerImage = DataReader.optString(headerMap, "image", null),
-                    headerImagePosition = DataReader.optString(headerMap, "imagePosition", null),
+                    headerLayoutType = DataReader.optString(headerMap, "layoutType", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),

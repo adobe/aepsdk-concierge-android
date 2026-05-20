@@ -86,8 +86,15 @@ data class ConciergeTextStrings(
     val headerSubtitle: String? = null,
     /** Basename (no extension) of an asset under `assets/icons/`, or an absolute http(s) URL. */
     val headerImage: String? = null,
-    /** `"leading"` (left of title column) or `"trailing"` (right of title column). Defaults to leading. */
-    val headerImagePosition: String? = null,
+    /**
+     * Header layout mode. Supported values:
+     * - `"imageOnly"` — render only the image, hide title and subtitle
+     * - `"textOnly"` — render only the title and subtitle, ignore image
+     * - `null` or unknown — defaults to `textOnly` behaviour (title and subtitle only)
+     *
+     * The `image` field is consulted only when `layoutType == "imageOnly"`.
+     */
+    val headerLayoutType: String? = null,
 
     // Welcome
     val welcomeHeading: String? = null,
