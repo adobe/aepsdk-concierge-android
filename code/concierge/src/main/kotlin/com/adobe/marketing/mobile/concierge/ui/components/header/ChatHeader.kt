@@ -38,11 +38,14 @@ import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
-private const val HEADER_IMAGE_POSITION_TRAILING = "trailing"
+private const val HEADER_LAYOUT_IMAGE_ONLY = "imageOnly"
 
 /**
- * Header component for the chat interface with title, subtitle, optional image (leading or
- * trailing) and a close button.
+ * Header component for the chat interface with a close button and one of two content modes:
+ *
+ * - `layoutType == "imageOnly"` — only the image is rendered.
+ * - any other value (including `"textOnly"`, `null`, or unknown) — only the title and
+ *   subtitle are rendered. This is the default.
  *
  * The image source is resolved by [LocalAssetImage]: an `http(s)://` URL is loaded remotely,
  * otherwise the value is treated as a basename under `assets/icons/` and matched against
@@ -63,8 +66,12 @@ internal fun ChatHeader(
     val showSubtitle = subtitleText.isNotBlank()
 
     val imageSource = themeText?.headerImage?.takeIf { it.isNotBlank() }
-    val isTrailingImage = themeText?.headerImagePosition
-        .equals(HEADER_IMAGE_POSITION_TRAILING, ignoreCase = true)
+
+    // Resolve layout mode. Image is shown only when `layoutType == "imageOnly"` (explicit).
+    // Every other value — including `"textOnly"`, `null`, or any unknown string — renders
+    // only the title and subtitle.
+    val isImageOnly = themeText?.headerLayoutType
+        .equals(HEADER_LAYOUT_IMAGE_ONLY, ignoreCase = true)
 
     val closeButtonAtStart = ConciergeTheme.behavior?.welcomeCard
         ?.closeButtonAlignment.equals("start", ignoreCase = true)
@@ -89,30 +96,26 @@ internal fun ChatHeader(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (imageSource != null && !isTrailingImage) {
-                    HeaderImage(source = imageSource, style = style)
-                    Spacer(modifier = Modifier.width(style.imageSpacing))
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = titleText,
-                        style = style.titleStyle,
-                        fontWeight = style.titleFontWeight,
-                        color = style.titleColor
-                    )
-                    if (showSubtitle) {
-                        Text(
-                            text = subtitleText,
-                            style = style.subtitleStyle,
-                            color = style.subtitleColor
-                        )
+                if (isImageOnly) {
+                    if (imageSource != null) {
+                        HeaderImage(source = imageSource, style = style)
                     }
-                }
-
-                if (imageSource != null && isTrailingImage) {
-                    Spacer(modifier = Modifier.width(style.imageSpacing))
-                    HeaderImage(source = imageSource, style = style)
+                } else {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = titleText,
+                            style = style.titleStyle,
+                            fontWeight = style.titleFontWeight,
+                            color = style.titleColor
+                        )
+                        if (showSubtitle) {
+                            Text(
+                                text = subtitleText,
+                                style = style.subtitleStyle,
+                                color = style.subtitleColor
+                            )
+                        }
+                    }
                 }
             }
 
