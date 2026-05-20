@@ -104,27 +104,27 @@ object ConciergeConstants {
         }
 
         object XDMType {
-            const val SESSION_INITIALIZED            = "session:initialized"
-            const val CHAT_OPENED                    = "chat:opened"
-            const val CHAT_CLOSED                    = "chat:closed"
-            const val QUERY_SUBMITTED                = "query:submitted"
-            const val PROMPT_SUGGESTION_CLICKED      = "promptSuggestion:clicked"
-            const val WELCOME_PROMPT_SUGGESTION_CLICKED = "welcomePromptSuggestion:clicked"
-            const val CARD_CLICKED                   = "card:clicked"
-            const val MIC_BUTTON_CLICKED             = "micButton:clicked"
-            const val RESPONSE_STARTED               = "response:started"
-            const val RESPONSE_COMPLETED             = "response:completed"
-            const val CARDS_RENDERED                 = "cards:rendered"
-            const val FEEDBACK_SUBMITTED             = "feedback:submitted"
-            const val ERROR_OCCURRED                 = "error:occurred"
-            const val DISCLAIMER_LINK_CLICKED        = "disclaimerLink:clicked"
+            const val SESSION_INITIALIZED            = "concierge:session:initialized"
+            const val CHAT_OPENED                    = "concierge:chat:opened"
+            const val CHAT_CLOSED                    = "concierge:chat:closed"
+            const val QUERY_SUBMITTED                = "concierge:query:submitted"
+            const val PROMPT_SUGGESTION_CLICKED      = "concierge:promptSuggestion:clicked"
+            const val WELCOME_PROMPT_SUGGESTION_CLICKED = "concierge:welcomePromptSuggestion:clicked"
+            const val CARD_CLICKED                   = "concierge:card:clicked"
+            const val MIC_BUTTON_CLICKED             = "concierge:micButton:clicked"
+            const val RESPONSE_STARTED               = "concierge:response:started"
+            const val RESPONSE_COMPLETED             = "concierge:response:completed"
+            const val CARDS_RENDERED                 = "concierge:cards:rendered"
+            const val FEEDBACK_SUBMITTED             = "concierge:feedback:submitted"
+            const val ERROR_OCCURRED                 = "concierge:error:occurred"
+            const val DISCLAIMER_LINK_CLICKED        = "concierge:disclaimerLink:clicked"
         }
 
         object EventData {
             object Key {
                 const val EPOCH_TIME        = "epochTime"
                 const val DURATION_MILLIS   = "durationMillis"
-                const val EVENT_TYPE        = "concierge.eventType"
+                const val EVENT_TYPE        = "conciergeEventType"
                 const val QUERY             = "query"
                 const val SUGGESTION        = "suggestion"
                 const val ELEMENT           = "element"
