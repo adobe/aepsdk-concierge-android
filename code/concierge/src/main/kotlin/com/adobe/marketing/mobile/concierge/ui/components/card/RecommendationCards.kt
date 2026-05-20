@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,12 +66,14 @@ internal fun RecommendationCards(
             CardsAlignment.END -> Alignment.End
             else -> Alignment.Start
         }
+        val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
+        val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
         Column(
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier
+                .fillMaxWidth()
+                .then(if (elements.size == 1) Modifier.padding(start = leadingInset) else Modifier),
             horizontalAlignment = horizontalAlignment
         ) {
-            val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
-            val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
             if (elements.size == 1) {
                 if (useExtendedProductCards) {
                     ExtendedProductCard(
