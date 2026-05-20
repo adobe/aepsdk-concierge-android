@@ -26,11 +26,15 @@ import androidx.compose.ui.text.font.FontFamily
  */
 internal object ConciergeFontResolver {
 
+    private const val SERIF = "serif"
+    private const val SANS_SERIF = "sans-serif"
+    private const val MONOSPACE = "monospace"
+
     fun resolve(fontFamily: String?): FontFamily? {
         return when (fontFamily?.trim()?.lowercase()) {
-            "serif" -> FontFamily.Serif
-            "sans-serif" -> FontFamily.SansSerif
-            "monospace" -> FontFamily.Monospace
+            SERIF -> FontFamily.Serif
+            SANS_SERIF -> FontFamily.SansSerif
+            MONOSPACE -> FontFamily.Monospace
             else -> null
         }
     }
