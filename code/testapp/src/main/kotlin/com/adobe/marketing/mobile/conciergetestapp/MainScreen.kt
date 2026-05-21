@@ -70,7 +70,7 @@ fun MainScreen() {
     // Load theme once, with fallback to default
     val theme = remember(selectedTheme) {
         val fileName = when (selectedTheme) {
-            "demo" -> "themeDemo.json"
+            "demo" -> "theme-dsg.json"
             "input field border" -> "theme-test-implementation.json"
             "behaviors disabled" -> "theme-behavior-disabled.json"
             else -> "themeDefault.json"
@@ -80,7 +80,6 @@ fun MainScreen() {
     }
     
     // Apply theme at the root level
-    ConciergeTheme(theme = theme) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -122,20 +121,22 @@ fun MainScreen() {
                 // Compose wrapper implementation button
                 val viewModel = viewModel<ConciergeChatViewModel>()
 
-                ConciergeChat(
-                    modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel,
-                    surfaces = surfaces
-                ) { showChat ->
-                    Button(
-                        onClick = { showChat() },
-                        modifier = Modifier.size(width = 240.dp, height = 60.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5E35B1)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
+                ConciergeTheme(theme = theme) {
+                    ConciergeChat(
+                        modifier = Modifier.fillMaxSize(),
+                        viewModel = viewModel,
+                        surfaces = surfaces
+                    ) { showChat ->
+                        Button(
+                            onClick = { showChat() },
+                            modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF5E35B1)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
+                        }
                     }
                 }
 
@@ -187,7 +188,6 @@ fun MainScreen() {
                 }
             }
         }
-    }
 }
 
 /**
