@@ -239,7 +239,7 @@ internal object ConciergeStyles {
             
             return MessageBubbleStyle(
                 padding = 8.dp,
-                innerPadding = 16.dp,
+                innerPadding = 12.dp,
                 shape = defaultShape,
                 userMessageShape = userMessageShape,
                 elevation = 0.dp,
