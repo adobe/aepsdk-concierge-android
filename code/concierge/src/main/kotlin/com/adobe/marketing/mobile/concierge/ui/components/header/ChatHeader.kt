@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,7 +45,8 @@ private const val HEADER_LAYOUT_IMAGE_ONLY = "imageOnly"
 /**
  * Header component for the chat interface with a close button and one of two content modes:
  *
- * - `layoutType == "imageOnly"` — only the image is rendered.
+ * - `layoutType == "imageOnly"` — only the image is rendered. When no `image` is configured
+ *   (or the field is blank), falls back to Material `Icons.AutoMirrored.Filled.Chat`.
  * - any other value (including `"textOnly"`, `null`, or unknown) — only the title and
  *   subtitle are rendered. This is the default.
  *
@@ -99,6 +102,13 @@ internal fun ChatHeader(
                 if (isImageOnly) {
                     if (imageSource != null) {
                         HeaderImage(source = imageSource, style = style)
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = null,
+                            modifier = Modifier.size(style.imageHeight),
+                            tint = style.titleColor
+                        )
                     }
                 } else {
                     Column(modifier = Modifier.weight(1f)) {
