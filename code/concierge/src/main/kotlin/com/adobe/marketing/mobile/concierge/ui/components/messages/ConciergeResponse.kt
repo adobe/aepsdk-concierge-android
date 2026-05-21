@@ -29,8 +29,13 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.TokenType
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 import com.adobe.marketing.mobile.concierge.utils.markdown.CitationAnnotator
 import androidx.core.net.toUri
+import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.toComposeColor
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 
 /**
  * Component that renders brand concierge responses containing markdown text
@@ -48,12 +53,14 @@ import com.adobe.marketing.mobile.concierge.network.Citation
 @Composable
 internal fun ConciergeResponse(
     text: String,
+    modifier: Modifier = Modifier,
     sources: List<Citation> = emptyList(),
-    onLinkClick: ((String) -> Unit)? = null,
-    modifier: Modifier = Modifier
+    linkHints: List<LinkHint> = emptyList(),
+    handleLink: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
+    val colorScheme = ConciergeTheme.colorScheme
 
     Crossfade(
         targetState = text.isEmpty(),
@@ -61,18 +68,47 @@ internal fun ConciergeResponse(
     ) { isEmpty ->
         // Apply citation annotations to the complete text first
         val annotatedText = remember(text, sources) {
-            CitationAnnotator.annotateText(text, sources)
+            CitationAnnotator.annotateText(text.trimEnd(), sources)
         }
 
-        // Create inline content map once for all child components to share
-        // This avoids recreating the map for each list item
-        val inlineContentMap = remember(annotatedText.uniqueSources, onLinkClick) {
+        // Create inline content maps once for all child components to share
+        val citationInlineContentMap = remember(annotatedText.uniqueSources, handleLink) {
             CitationUiUtils.createInlineContentMap(
                 annotatedText.uniqueSources,
                 style.size,
                 context,
-                onLinkClick
+                handleLink
             )
+        }
+        val citationsBehavior = ConciergeTheme.tokens?.behavior?.citations ?: ConciergeCitationsBehavior()
+
+        // Compute style values from linkIconStyle, falling back to theme link color then primary
+        val iconStyle = citationsBehavior.linkIconStyle
+        val iconSize = iconStyle?.size?.dp ?: 16.dp
+        val iconSpacing = iconStyle?.spacing?.dp ?: 2.dp
+        val iconColor = iconStyle?.color?.toComposeColor()
+            ?: ConciergeTheme.colors.messageConciergeLink
+            ?: colorScheme.primary
+
+        // Augment linkHints to cover every URL in the text when showLinkIcon is enabled.
+        // Non-hint URLs receive kind "default" so they get the default icon asset.
+        val effectiveLinkHints = remember(text, linkHints, citationsBehavior.showLinkIcon) {
+            LinkHintUiUtils.augmentedLinkHints(text, linkHints, citationsBehavior.showLinkIcon)
+        }
+
+        val linkHintInlineContentMap = remember(effectiveLinkHints, iconColor, iconSize, iconSpacing, citationsBehavior, handleLink) {
+            LinkHintUiUtils.createLinkHintInlineContentMap(
+                linkHints = effectiveLinkHints,
+                iconColor = iconColor,
+                citationsBehavior = citationsBehavior,
+                context = context,
+                iconSize = iconSize,
+                iconSpacing = iconSpacing,
+                handleLink = handleLink
+            )
+        }
+        val inlineContentMap = remember(citationInlineContentMap, linkHintInlineContentMap) {
+            citationInlineContentMap + linkHintInlineContentMap
         }
 
         if (isEmpty) {
@@ -89,7 +125,8 @@ internal fun ConciergeResponse(
                     listTokens = listTokens,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
-                    onLinkClick = onLinkClick,
+                    linkHints = effectiveLinkHints,
+                    handleLink = handleLink,
                     modifier = modifier
                 )
             } else {
@@ -97,7 +134,8 @@ internal fun ConciergeResponse(
                     text = annotatedText.text,
                     uniqueSources = annotatedText.uniqueSources,
                     inlineContentMap = inlineContentMap,
-                    onLinkClick = onLinkClick,
+                    linkHints = effectiveLinkHints,
+                    handleLink = handleLink,
                     modifier = modifier
                 )
             }
@@ -115,7 +153,8 @@ private fun ConciergeResponseWithLists(
     listTokens: List<MarkdownToken>,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
-    onLinkClick: ((String) -> Unit)? = null,
+    linkHints: List<LinkHint> = emptyList(),
+    handleLink: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -123,7 +162,7 @@ private fun ConciergeResponseWithLists(
     val contentSegments = remember(text, listTokens) {
         ContentSegmentParser.createSegments(text, listTokens)
     }
-    val linkHandler = onLinkClick ?: { url ->
+    val linkHandler = handleLink ?: { url ->
         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         context.startActivity(intent)
     }
@@ -137,7 +176,8 @@ private fun ConciergeResponseWithLists(
                         text = segment.content,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
-                        onLinkClick = onLinkClick,
+                        linkHints = linkHints,
+                        handleLink = handleLink,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -145,9 +185,10 @@ private fun ConciergeResponseWithLists(
                 is ContentSegment.List -> {
                     ConciergeResponseList(
                         listTokens = segment.tokens,
-                        onLinkClick = linkHandler,
+                        handleLink = linkHandler,
                         uniqueSources = uniqueSources,
                         inlineContentMap = inlineContentMap,
+                        linkHints = linkHints,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

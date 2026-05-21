@@ -14,27 +14,49 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberLocalAssetBitmap
+import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextAlignment
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+
+/** Maps [ConciergeTextAlignment] to the [Modifier] that horizontally aligns a bot message card. */
+private fun ConciergeTextAlignment.toModifier(): Modifier = when (this) {
+    ConciergeTextAlignment.CENTER -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+    ConciergeTextAlignment.END -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+    ConciergeTextAlignment.START -> Modifier.fillMaxWidth()
+}
 
 /**
  * Component that displays a single chat message.
@@ -46,12 +68,13 @@ internal fun ChatMessageItem(
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
-    onLinkClick: (String) -> Unit = {},
-    feedbackState: FeedbackState = FeedbackState.None
+    handleLink: (String) -> Unit = {},
+    feedbackState: FeedbackState = FeedbackState.None,
+    onCtaButtonClick: (CtaButton) -> Unit = {}
 ) {
     when (message.content) {
         is MessageContent.Text -> {
-            RenderTextMessage(message, onFeedback, onSuggestionClick, onLinkClick, feedbackState)
+            RenderTextMessage(message, onFeedback, onSuggestionClick, handleLink, feedbackState, onCtaButtonClick)
         }
 
         is MessageContent.Mixed -> {
@@ -61,11 +84,31 @@ internal fun ChatMessageItem(
                 onActionClick,
                 onImageClick,
                 onSuggestionClick,
-                onLinkClick,
-                feedbackState
+                handleLink,
+                feedbackState,
+                onCtaButtonClick
+            )
+        }
+
+        is MessageContent.CtaButton -> {
+            RenderCtaButton(
+                content = message.content,
+                onCtaButtonClick = onCtaButtonClick
             )
         }
     }
+}
+
+@Composable
+private fun RenderCtaButton(
+    content: MessageContent.CtaButton,
+    onCtaButtonClick: (CtaButton) -> Unit
+) {
+    CtaButton(
+        cta = content.button,
+        onClick = onCtaButtonClick,
+        applyContainerPadding = false
+    )
 }
 
 @Composable
@@ -73,22 +116,44 @@ private fun RenderTextMessage(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit,
     onSuggestionClick: (String) -> Unit,
-    onLinkClick: (String) -> Unit,
-    feedbackState: FeedbackState
+    handleLink: (String) -> Unit,
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
+    val isThinking = message.isThinking
+    val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
+    val companyIconName = if (iconBitmap != null) rawIconName else null
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
+
+    if (companyIconName != null) {
+        RenderTextMessageWithIcon(
+            message = message,
+            companyIconName = companyIconName,
+            isThinking = isThinking,
+            style = style,
+            thinkingStyle = thinkingStyle,
+            onFeedback = onFeedback,
+            onSuggestionClick = onSuggestionClick,
+            handleLink = handleLink,
+            feedbackState = feedbackState,
+            onCtaButtonClick = onCtaButtonClick
+        )
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
                 .then(
-                    if (message.isFromUser) {
-                        Modifier.wrapContentWidth(Alignment.End)
-                    } else {
-                        Modifier
+                    when {
+                        message.isFromUser -> Modifier.align(Alignment.End)
+                        isThinking -> Modifier.fillMaxWidth().wrapContentWidth(Alignment.Start)
+                        else -> messageAlignment.toModifier()
                     }
                 )
                 .padding(style.padding),
@@ -100,39 +165,33 @@ private fun RenderTextMessage(
                 }
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-            shape = style.shape
+            shape = when {
+                isThinking -> thinkingStyle.bubbleShape
+                message.isFromUser -> style.userMessageShape
+                else -> style.shape
+            }
         ) {
             Box(
-                modifier = Modifier.padding(style.innerPadding)
+                modifier = Modifier.padding(
+                    if (isThinking) thinkingStyle.bubblePadding else PaddingValues(style.innerPadding)
+                )
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = if (isThinking || message.isFromUser) Modifier else Modifier.fillMaxWidth()
                 ) {
-                    // Use ConciergeResponse composable for response messages to support markdown formatting
                     if (message.isFromUser) {
                         Text(
-                            text = message.text,
+                            text = message.text.trimEnd(),
                             style = style.textStyle,
                             color = style.userMessageTextColor
                         )
+                    } else if (isThinking) {
+                        ConciergeThinking()
                     } else {
-                        ConciergeResponse(
-                            text = message.text,
-                            sources = message.citations ?: emptyList(),
-                            onLinkClick = onLinkClick,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Show footer if we have citations or have an interaction id for providing feedback
-                    if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
-                        ChatFooter(
-                            citations = message.citations,
-                            uniqueCitations = message.uniqueCitations,
-                            interactionId = message.interactionId,
+                        AgentResponseContent(
+                            message = message,
+                            handleLink = handleLink,
                             onFeedback = onFeedback,
-                            onLinkClick = onLinkClick,
                             feedbackState = feedbackState
                         )
                     }
@@ -140,11 +199,105 @@ private fun RenderTextMessage(
             }
         }
 
-        // Show prompt suggestions for concierge responses
-        if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-            PromptSuggestions(
-                suggestions = message.promptSuggestions,
-                onSuggestionClick = onSuggestionClick
+        if (!message.isFromUser) {
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
+            )
+        }
+    }
+}
+
+/**
+ * Icon + message layout for agent text responses when a company icon is configured in the theme.
+ * The icon sits to the left of the card; start padding is removed from the card and its inner
+ * box so that text aligns flush with the 12dp gap between icon and content.
+ */
+@Composable
+private fun RenderTextMessageWithIcon(
+    message: ChatMessage,
+    companyIconName: String,
+    isThinking: Boolean,
+    style: ConciergeStyles.MessageBubbleStyle,
+    thinkingStyle: ConciergeStyles.ThinkingAnimationStyle,
+    onFeedback: (FeedbackEvent) -> Unit,
+    onSuggestionClick: (String) -> Unit,
+    handleLink: (String) -> Unit,
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (CtaButton) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = style.padding)
+                    .size(style.agentIconSize)
+            ) {
+                LocalAssetImage(
+                    source = companyIconName,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape)
+                )
+            }
+            Spacer(modifier = Modifier.width(style.agentIconSpacing))
+            Column(modifier = Modifier.weight(1f)) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (isThinking) Modifier.wrapContentWidth(Alignment.Start) else Modifier
+                        )
+                        .padding(
+                            top = style.padding,
+                            bottom = style.padding,
+                            end = style.padding
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = style.botMessageBackgroundColor
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+                    shape = if (isThinking) thinkingStyle.bubbleShape else style.shape
+                ) {
+                    Box(
+                        modifier = Modifier.padding(
+                            if (isThinking) thinkingStyle.bubblePadding else PaddingValues(
+                                top = style.innerPadding,
+                                bottom = style.innerPadding,
+                                end = style.innerPadding
+                            )
+                        )
+                    ) {
+                        if (isThinking) {
+                            ConciergeThinking()
+                        } else {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                AgentResponseContent(
+                                    message = message,
+                                    handleLink = handleLink,
+                                    onFeedback = onFeedback,
+                                    feedbackState = feedbackState
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(modifier = Modifier.width(style.agentIconSize + style.agentIconSpacing))
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
             )
         }
     }
@@ -157,82 +310,205 @@ private fun RenderMixedMessage(
     onActionClick: (ProductActionButton) -> Unit,
     onImageClick: (MultimodalElement) -> Unit,
     onSuggestionClick: (String) -> Unit,
-    onLinkClick: (String) -> Unit,
-    feedbackState: FeedbackState
+    handleLink: (String) -> Unit,
+    feedbackState: FeedbackState,
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
+    val content = message.content as MessageContent.Mixed
+    val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
+    val companyIconName = if (iconBitmap != null) rawIconName else null
+    val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
-    if (message.content is MessageContent.Mixed) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+    val hasText = content.text.isNotEmpty()
+    val hasElements = !content.multimodalElements.isNullOrEmpty()
+    val contentPad = if (companyIconName != null) 0.dp else style.innerPadding
+
+    // MessageList applies padding(horizontal = listPadding) to every item. The layout modifier on
+    // the carousel Box escapes that constraint by measuring at full screen width and placing the
+    // content at a negative offset so it aligns with the screen edges.
+    val listPadding = ConciergeStyles.messageListStyle.horizontalPadding
+    val escapeLeft: Dp = listPadding + if (companyIconName != null) {
+        style.agentIconSize + style.agentIconSpacing
+    } else 0.dp
+    val escapeRight: Dp = listPadding
+
+    // First card aligns with the text content: escapeLeft + innerPadding (no icon) or escapeLeft
+    // alone (with icon). style.padding (card outer padding) is excluded because the carousel
+    // renders outside the card wrapper.
+    val carouselLeadingInset: Dp = escapeLeft + if (companyIconName == null) style.innerPadding else 0.dp
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (companyIconName != null) Modifier.padding(start = style.agentIconSize + style.agentIconSpacing)
+                else Modifier
+            )
+    ) {
+        // Text and footer stay inside the Card so they retain the message bubble background and shape.
+        // The carousel is rendered as a sibling outside the Card so its LazyRow is not clipped by
+        // the card's shape during horizontal scroll.
+        if (hasText || message.hasFooterContent) {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(style.padding),
+                    .then(messageAlignment.toModifier())
+                    .padding(
+                        top = if (companyIconName != null) 0.dp else style.padding,
+                        bottom = style.padding,
+                        end = style.padding,
+                        start = if (companyIconName != null) 0.dp else style.padding
+                    ),
                 colors = CardDefaults.cardColors(
                     containerColor = style.botMessageBackgroundColor
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
                 shape = style.shape
             ) {
-                Box(
-                    modifier = Modifier.padding(style.innerPadding)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        // Render text content if present
-                        if (message.content.text.isNotEmpty()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (hasText) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    top = contentPad,
+                                    bottom = if (!message.hasFooterContent) style.innerPadding else 0.dp,
+                                    start = contentPad,
+                                    end = style.innerPadding
+                                )
+                        ) {
                             ConciergeResponse(
-                                text = message.content.text,
+                                text = content.text,
                                 sources = message.citations ?: emptyList(),
-                                onLinkClick = onLinkClick,
+                                linkHints = message.linkHints,
+                                handleLink = handleLink,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
 
-                        // Add spacing between text and recommendation cards if both are present
-                        if (message.content.text.isNotEmpty() &&
-                            !message.content.multimodalElements.isNullOrEmpty()
-                        ) {
-                            Spacer(modifier = Modifier.height(style.contentSpacing))
-                        }
-
-                        // Render multi-modal elements if present
-                        message.content.multimodalElements?.let { multimodalElements ->
-                            if (multimodalElements.isNotEmpty()) {
-                                RecommendationCards(
-                                    elements = multimodalElements,
-                                    onImageClick = onImageClick,
-                                    onActionClick = onActionClick
+                    if (message.hasFooterContent) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    top = if (!hasText) contentPad else 0.dp,
+                                    bottom = style.innerPadding,
+                                    start = contentPad,
+                                    end = style.innerPadding
                                 )
-                            }
-                        }
-
-                        // Show footer if we have citations or have an interaction id for providing feedback
-                        if (!message.isFromUser && (message.citations != null || message.interactionId != null)) {
+                        ) {
                             ChatFooter(
                                 citations = message.citations,
                                 uniqueCitations = message.uniqueCitations,
                                 interactionId = message.interactionId,
+                                sseComplete = message.sseComplete,
+                                feedbackEligible = message.feedbackEligible,
                                 onFeedback = onFeedback,
-                                onLinkClick = onLinkClick,
+                                handleLink = handleLink,
                                 feedbackState = feedbackState
                             )
                         }
                     }
                 }
             }
+        }
 
-            // Show prompt suggestions for concierge responses
-            if (!message.isFromUser && message.promptSuggestions.isNotEmpty()) {
-                PromptSuggestions(
-                    suggestions = message.promptSuggestions,
-                    onSuggestionClick = onSuggestionClick
-                )
+        if ((hasText || message.hasFooterContent) && hasElements) {
+            Spacer(modifier = Modifier.height(style.contentSpacing))
+        }
+
+        content.multimodalElements?.let { multimodalElements ->
+            if (multimodalElements.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .layout { measurable, constraints ->
+                            val leftPx = escapeLeft.roundToPx()
+                            val rightPx = escapeRight.roundToPx()
+                            val placeable = measurable.measure(
+                                constraints.copy(maxWidth = constraints.maxWidth + leftPx + rightPx)
+                            )
+                            layout(constraints.maxWidth, placeable.height) {
+                                placeable.place(-leftPx, 0)
+                            }
+                        }
+                ) {
+                    RecommendationCards(
+                        elements = multimodalElements,
+                        onImageClick = onImageClick,
+                        onActionClick = onActionClick,
+                        leadingInset = carouselLeadingInset
+                    )
+                }
             }
         }
+
+        if (!message.isFromUser) {
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
+            )
+        }
+    }
+}
+
+/**
+ * The markdown response text and citation footer for a bot message card body.
+ * Shared between [RenderTextMessage] and [RenderTextMessageWithIcon].
+ */
+@Composable
+private fun AgentResponseContent(
+    message: ChatMessage,
+    handleLink: (String) -> Unit,
+    onFeedback: (FeedbackEvent) -> Unit,
+    feedbackState: FeedbackState
+) {
+    ConciergeResponse(
+        text = message.text,
+        sources = message.citations ?: emptyList(),
+        linkHints = message.linkHints,
+        handleLink = handleLink,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    if (message.hasFooterContent) {
+        ChatFooter(
+            citations = message.citations,
+            uniqueCitations = message.uniqueCitations,
+            interactionId = message.interactionId,
+            sseComplete = message.sseComplete,
+            feedbackEligible = message.feedbackEligible,
+            onFeedback = onFeedback,
+            handleLink = handleLink,
+            feedbackState = feedbackState
+        )
+    }
+}
+
+/**
+ * Prompt suggestions and CTA button shown below the message card for bot responses.
+ * Shared across all bot message render functions.
+ */
+@Composable
+private fun BotMessageSuffix(
+    message: ChatMessage,
+    onSuggestionClick: (String) -> Unit,
+    onCtaButtonClick: (CtaButton) -> Unit
+) {
+    if (message.promptSuggestions.isNotEmpty()) {
+        PromptSuggestions(
+            suggestions = message.promptSuggestions,
+            onSuggestionClick = onSuggestionClick
+        )
+    }
+
+    message.ctaButton?.let { cta ->
+        CtaButton(
+            cta = cta,
+            onClick = onCtaButtonClick
+        )
     }
 }

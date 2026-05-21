@@ -25,12 +25,35 @@ data class ConciergeThemeConfig(
     val name: String? = null,
     val colors: ConciergeThemeColors? = null,
     val styles: ConciergeThemeStyles? = null,
+    val header: HeaderConfig? = null,
     val text: ConciergeTextStrings? = null,
     val disclaimer: DisclaimerConfig? = null,
     val welcomeExamples: List<ConciergeWelcomeExample>? = null,
     val feedbackPositiveOptions: List<String>? = null,
     val feedbackNegativeOptions: List<String>? = null,
     val typography: ConciergeTypographyConfig? = null
+)
+
+/**
+ * Header configuration parsed from the root-level `header` block in the theme JSON.
+ */
+data class HeaderConfig(
+    val title: String? = null,
+    val subtitle: String? = null,
+    /** Basename (no extension) of an asset under `assets/icons/`, or an absolute http(s) URL. */
+    val image: String? = null,
+    /**
+     * Header layout mode. Supported values:
+     * - `"imageOnly"` — render only the image, hide title and subtitle
+     * - `"textOnly"` — render only the title and subtitle, ignore image
+     * - `null` or unknown — defaults to text-only (title and subtitle only)
+     */
+    val layoutType: String? = null,
+    /**
+     * Height of the header image / fallback chat icon. Parsed from a CSS pixel value
+     * (e.g. `"48px"`) and applied as `dp`. `null` falls back to the default in `headerStyle`.
+     */
+    val imageHeight: Double? = null
 )
 
 /**
@@ -80,7 +103,7 @@ internal fun ConciergeThemeConfig.toWelcomeConfig(
 data class ConciergeTextStrings(
     // Input
     val inputPlaceholder: String? = null,
-    
+
     // Welcome
     val welcomeHeading: String? = null,
     val welcomeSubheading: String? = null,
@@ -98,7 +121,10 @@ data class ConciergeTextStrings(
     val feedbackDialogCancel: String? = null,
     val feedbackDialogNotesPlaceholder: String? = null,
     val feedbackToastSuccess: String? = null,
-    
+    val feedbackHelpfulLabel: String? = null,
+    val sourcesLabel: String? = null,
+    val suggestionsHeader: String? = null,
+
     // Error
     val errorNetwork: String? = null
 )
@@ -142,7 +168,11 @@ data class ConciergeThemeColors(
     val button: ConciergeButtonColors? = null,
     val input: ConciergeInputColors? = null,
     val feedback: ConciergeFeedbackColors? = null,
-    val citation: ConciergeCitationColors? = null
+    val citation: ConciergeCitationColors? = null,
+    val welcomePrompt: ConciergeWelcomePromptColors? = null,
+    val ctaButton: ConciergeCtaButtonColors? = null,
+    val promptSuggestion: ConciergeWelcomePromptColors? = null,
+    val thinking: ConciergeThinkingColors? = null
 )
 
 /**
@@ -186,17 +216,59 @@ data class ConciergeInputColors(
     val background: String? = null,
     val text: String? = null,
     val outline: String? = null,
-    val outlineFocus: String? = null
+    val outlineFocus: String? = null,
+    val sendIconColor: String? = null,
+    val sendArrowIconColor: String? = null,
+    val sendArrowBackgroundColor: String? = null,
+    val micIconColor: String? = null,
+    val micRecordingIconColor: String? = null
 )
 
 data class ConciergeFeedbackColors(
     val iconButtonBackground: String? = null,
-    val iconButtonHoverBackground: String? = null
+    val iconButtonHoverBackground: String? = null,
+    /** Dialog sheet/modal background fill. Also applied to the notes editor. */
+    val sheetBackground: String? = null,
+    /** Dialog title text color. */
+    val titleText: String? = null,
+    /** Dialog question text color. */
+    val questionText: String? = null,
+    /** Checkbox option label color. */
+    val optionsText: String? = null,
+    /** Checkbox unchecked outline color; also reused for the notes editor outline. */
+    val checkboxBorder: String? = null,
+    /** Action sheet drag handle color. */
+    val dragHandle: String? = null,
+    /** Submit button fill color. */
+    val submitButtonFill: String? = null,
+    /** Submit button text color. */
+    val submitButtonText: String? = null,
+    /** Cancel button fill color. `null` renders with a transparent fill (outline style). Also tints the X close icon. */
+    val cancelButtonFill: String? = null,
+    /** Cancel button text color. */
+    val cancelButtonText: String? = null,
+    /** Cancel button border color. */
+    val cancelButtonBorder: String? = null
 )
 
 data class ConciergeCitationColors(
     val backgroundColor: String? = null,
     val textColor: String? = null
+)
+
+data class ConciergeWelcomePromptColors(
+    val backgroundColor: String? = null,
+    val textColor: String? = null
+)
+
+data class ConciergeCtaButtonColors(
+    val backgroundColor: String? = null,
+    val textColor: String? = null,
+    val iconColor: String? = null
+)
+
+data class ConciergeThinkingColors(
+    val dotColor: String? = null
 )
 
 /**

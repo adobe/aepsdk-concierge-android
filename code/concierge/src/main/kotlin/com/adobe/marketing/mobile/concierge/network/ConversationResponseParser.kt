@@ -43,6 +43,11 @@ internal object ConversationResponseParser {
     private const val FIELD_START_INDEX = "start_index"
     private const val FIELD_END_INDEX = "end_index"
     private const val FIELD_CITATION_NUMBER = "citation_number"
+    private const val FIELD_FEEDBACK = "feedback"
+    private const val FIELD_ELIGIBLE = "eligible"
+    private const val FIELD_LINK_HINTS = "linkHints"
+    private const val FIELD_KIND = "kind"
+    private const val FIELD_HREF = "href"
     private const val FIELD_ELEMENTS = "elements"
     private const val FIELD_WIDTH = "width"
     private const val FIELD_HEIGHT = "height"
@@ -66,6 +71,8 @@ internal object ConversationResponseParser {
     private const val FIELD_ENTITY_INFO = "entity_info"
     private const val FIELD_PRODUCT_PRICE = "productPrice"
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
+    private const val FIELD_PRODUCT_BADGE = "productBadge"
+    private const val ELEMENT_TYPE_CTA_BUTTON = "ctaButton"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -140,8 +147,13 @@ internal object ConversationResponseParser {
         val promptSuggestions = (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
             ?: emptyList()).filter { it.isNotEmpty() }
 
-        val multimodalElements = extractMultimodalElements(response)
+        val orderedElements = extractOrderedElements(response)
+        val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
+        val feedbackInfo = DataReader.optTypedMap(Any::class.java, response, FIELD_FEEDBACK, null)
+        val feedbackEligible = DataReader.optBoolean(feedbackInfo, FIELD_ELIGIBLE, false)
+
+        val linkHints = extractLinkHints(response)
 
         return ParsedConversationMessage(
             messageContent = message,
@@ -150,29 +162,22 @@ internal object ConversationResponseParser {
             interactionId = interactionId,
             promptSuggestions = promptSuggestions,
             multimodalElements = multimodalElements,
-            sources = sources
+            orderedElements = orderedElements,
+            sources = sources,
+            feedbackEligible = feedbackEligible,
+            linkHints = linkHints
         )
     }
 
     /**
-     * Extracts multimodal elements from the response map.
-     * Ignores array-format multimodalElements; expects object with elements list.
+     * Extracts ordered elements from the response, preserving original array position.
+     * Each element is parsed as either a [ParsedMultimodalItem.Cta] (for ctaButton elements)
+     * or a [ParsedMultimodalItem.Card] (for all other element types).
      */
-    private fun extractMultimodalElements(response: Map<String, Any?>): List<MultimodalElement> {
-        val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS]
-        if (multimodalRaw == null) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
-            return emptyList()
-        }
-        if (multimodalRaw is List<*>) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "multimodalElements array format; ignoring.")
-            return emptyList()
-        }
-        val multimodalMap = multimodalRaw as? Map<*, *>
-        if (multimodalMap == null) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No multimodalElements found in response.")
-            return emptyList()
-        }
+    private fun extractOrderedElements(response: Map<String, Any?>): List<ParsedMultimodalItem> {
+        val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
+        if (multimodalRaw is List<*>) return emptyList()
+        val multimodalMap = multimodalRaw as? Map<*, *> ?: return emptyList()
 
         @Suppress("UNCHECKED_CAST")
         val elementsList = DataReader.optTypedListOfMap(
@@ -180,38 +185,44 @@ internal object ConversationResponseParser {
             multimodalMap as Map<String, Any?>,
             FIELD_ELEMENTS,
             null
-        )
-        if (elementsList == null) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements array found in multimodalElements.")
-            return emptyList()
-        }
+        ) ?: return emptyList()
 
-        val elements = mutableListOf<MultimodalElement>()
+        val items = mutableListOf<ParsedMultimodalItem>()
         elementsList.forEachIndexed { i, elementMap ->
-            val element = parseMultimodalElement(elementMap)
-            if (element != null) {
-                elements.add(element)
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Parsed multimodal element ${i + 1}: id=${element.id}, title=${element.title ?: "N/A"}."
-                )
+            val elementType = DataReader.optString(elementMap, FIELD_TYPE, "")
+            if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
+                val ctaButton = parseCtaButton(elementMap)
+                if (ctaButton != null) {
+                    items.add(ParsedMultimodalItem.Cta(ctaButton))
+                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed CTA button ${i + 1}: label=${ctaButton.label}")
+                } else {
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse CTA button element ${i + 1}.")
+                }
             } else {
-                Log.warning(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Failed to parse multimodal element ${i + 1} from JSON."
-                )
+                val element = parseMultimodalElement(elementMap)
+                if (element != null) {
+                    items.add(ParsedMultimodalItem.Card(element))
+                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed card element ${i + 1}: id=${element.id}")
+                } else {
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse card element ${i + 1}.")
+                }
             }
         }
+        return items
+    }
 
-        if (elements.isNotEmpty()) {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Successfully parsed ${elements.size} multimodal elements from response.")
-        } else {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No valid multimodal elements found in elements array.")
-        }
-
-        return elements
+    /**
+     * Parses a CTA button from an element map.
+     * Reads label and url from entity_info.primary.text and entity_info.primary.url.
+     * Returns null if label or url is missing.
+     */
+    private fun parseCtaButton(elementMap: Map<String, Any?>): CtaButton? {
+        val entityInfo = DataReader.optTypedMap(Any::class.java, elementMap, FIELD_ENTITY_INFO, null)
+        val primaryAction = entityInfo?.let { DataReader.optTypedMap(Any::class.java, it, FIELD_PRIMARY, null) }
+        val label = DataReader.optString(primaryAction, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotEmpty() }
+        val url = DataReader.optString(primaryAction, FIELD_BUTTON_URL, null)?.takeIf { it.isNotEmpty() }
+        if (label.isNullOrEmpty() || url.isNullOrEmpty()) return null
+        return CtaButton(label = label, url = url)
     }
 
     /**
@@ -249,6 +260,7 @@ internal object ConversationResponseParser {
 
         val productPrice = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_PRICE)
         val productWasPrice = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_WAS_PRICE)
+        val productBadge = optStringFallback(entityInfo, elementMap, FIELD_PRODUCT_BADGE)
 
         productName?.let { content["productName"] = it }
         productDescription?.let { content["productDescription"] = it }
@@ -261,6 +273,7 @@ internal object ConversationResponseParser {
         details?.let { content["details"] = it }
         productPrice?.let { content["productPrice"] = it }
         productWasPrice?.let { content["productWasPrice"] = it }
+        productBadge?.let { content["productBadge"] = it }
 
         primaryAction?.let { action ->
             val primaryText = DataReader.optString(action, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotEmpty() }
@@ -333,6 +346,20 @@ internal object ConversationResponseParser {
 
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed ${sources.size} sources from response.")
         return sources
+    }
+
+    /**
+     * Extracts link hints from the response map.
+     */
+    private fun extractLinkHints(response: Map<String, Any?>): List<LinkHint> {
+        val hintsList = DataReader.optTypedListOfMap(Any::class.java, response, FIELD_LINK_HINTS, null)
+            ?: return emptyList()
+
+        return hintsList.mapNotNull { hintMap ->
+            val kind = DataReader.optString(hintMap, FIELD_KIND, null)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            val href = DataReader.optString(hintMap, FIELD_HREF, null)?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            LinkHint(kind = kind, href = href)
+        }
     }
 
     /**

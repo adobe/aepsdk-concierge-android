@@ -31,9 +31,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+
+/** Inner pulsing disc is 30% larger than the mic icon. Reused for the stop icon so both visually align during recording. */
+internal const val MIC_INNER_DISC_SCALE = 1.3f
 
 /**
  * A voice input button that supports recording, transcribing, and idle states.
@@ -55,9 +60,8 @@ internal fun MicButton(
 
     // Drive the pulse when recording
     val infiniteTransition = rememberInfiniteTransition(label = "mic_pulse")
-    val innerBaseScale = 1.3f // inner disc is 30% larger than mic
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = innerBaseScale,
+        initialValue = MIC_INNER_DISC_SCALE,
         targetValue = style.pulseScaleRange.second,
         animationSpec = infiniteRepeatable(
             animation = tween(style.pulseAnimationDuration),
@@ -66,15 +70,24 @@ internal fun MicButton(
         label = "mic_pulse_anim"
     )
 
+    // When idle, push the mic glyph to the right edge of the 56dp tap area so the visible icon
+    // hugs the panel's right edge (matches the visual rhythm of the typing-state send button).
+    // While recording we keep it centered so the pulse animation stays radially symmetric.
+    val contentAlignment = if (userInputState is UserInputState.Recording) {
+        Alignment.Center
+    } else {
+        Alignment.CenterEnd
+    }
+
     Box(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        contentAlignment = contentAlignment
     ) {
         // Two filled circles while recording: inner static disc and outer pulsing disc
         if (userInputState is UserInputState.Recording) {
             Box(
                 modifier = Modifier
-                    .size(style.size * innerBaseScale)
+                    .size(style.size * MIC_INNER_DISC_SCALE)
                     .clip(CircleShape)
                     .background(style.pulsingBackgroundColor)
             )
@@ -89,26 +102,33 @@ internal fun MicButton(
             )
         }
 
+        val isRecording = userInputState is UserInputState.Recording
         IconButton(
             onClick = {
                 if (isEnabled) {
                     onClick()
                 }
             },
-            modifier = Modifier.size(style.size)
+            modifier = Modifier
+                .size(style.size)
+                .semantics { contentDescription = if (isRecording) "Recording in progress" else "Start voice input" }
         ) {
             // Choose icon tint based on state and enabled flag
-            val baseIconColor = if (userInputState is UserInputState.Recording) style.recordingIconColor else style.iconColor
+            val baseIconColor = if (isRecording) style.recordingIconColor else style.iconColor
             val tintColor = if (isEnabled) baseIconColor else baseIconColor.copy(alpha = 0.38f)
 
-            Image(
-                painter = painterResource(R.drawable.microphone),
-                contentDescription = when (userInputState) {
-                    is UserInputState.Recording -> "Stop recording"
-                    else -> "Start voice input"
-                },
-                colorFilter = ColorFilter.tint(tintColor)
-            )
+            if (isRecording) {
+                AnimatedAudioWave(
+                    modifier = Modifier.size(style.size),
+                    color = tintColor
+                )
+            } else {
+                Image(
+                    painter = painterResource(R.drawable.microphone),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(tintColor)
+                )
+            }
         }
     }
 }

@@ -24,18 +24,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.adobe.marketing.mobile.concierge.R
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
@@ -52,8 +55,10 @@ internal data class SuggestedPrompt(
 )
 
 /**
- * A single suggested prompt item with optional image
- * 
+ * A single suggested prompt item with optional image.
+ * Renders as a full-width card (with image) or a compact chip (icon + text)
+ * depending on [ConciergeStyles.WelcomeCardStyle.promptFullWidth].
+ *
  * @param prompt The suggested prompt data
  * @param onClick Callback when the prompt is clicked
  */
@@ -74,62 +79,87 @@ internal fun SuggestedPromptItem(
         else -> prompt.backgroundColor ?: style.promptBackgroundColor
     }
 
+    val widthModifier = if (style.promptFullWidth) Modifier.fillMaxWidth() else Modifier
+
     Surface(
         modifier = modifier
-            .fillMaxWidth()
+            .then(widthModifier)
             .clickable { onClick() },
         color = surfaceColor,
         shape = style.promptShape
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .then(widthModifier)
                 .padding(style.promptPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = if (style.promptFullWidth) Arrangement.SpaceBetween else Arrangement.Start
         ) {
-            // Suggested prompt image or icon
-            Box(
-                modifier = Modifier
-                    .size(style.promptImageSize)
-                    .background(
-                        color = style.promptImagePlaceholderColor,
-                        shape = style.promptImageShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    prompt.imageUrl != null -> AsyncImage(
-                        url = prompt.imageUrl,
-                        contentDescription = null,
-                        modifier = Modifier.size(style.promptImageSize),
-                        contentScale = ContentScale.Crop
-                    )
-                    prompt.imagePainter != null -> Image(
-                        painter = prompt.imagePainter,
-                        contentDescription = null,
-                        modifier = Modifier.size(style.promptImageSize),
-                        contentScale = ContentScale.Crop
-                    )
-                    else -> Icon(
-                        imageVector = prompt.imageVector ?: Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = style.promptTextColor.copy(alpha = 0.6f),
-                        modifier = Modifier.size(style.promptImageSize * 0.6f)
-                    )
-                }
+            if (style.promptFullWidth) {
+                // Full-width layout: image box + text
+                PromptImage(prompt = prompt, style = style)
+                Spacer(modifier = Modifier.width(style.promptImageSpacing))
+            } else {
+                // TODO: Add style controls for the compact chip layout (icon size, spacing, etc.) if needed in the future
+                // Compact chip layout: small icon only
+                Icon(
+                    painter = promptIconPainter(prompt.imageVector),
+                    contentDescription = null,
+                    tint = style.promptTextColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(style.promptImageSpacing))
             }
-            
-            Spacer(modifier = Modifier.width(style.promptImageSpacing))
-            
-            // Prompt text
+
             Text(
                 text = prompt.text,
                 style = style.promptTextStyle,
                 color = style.promptTextColor,
-                modifier = Modifier.weight(1f)
+                maxLines = style.promptMaxLines,
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (style.promptFullWidth) Modifier.weight(1f) else Modifier
             )
         }
     }
 }
 
+@Composable
+private fun promptIconPainter(imageVector: ImageVector?): Painter =
+    imageVector?.let { rememberVectorPainter(it) } ?: painterResource(R.drawable.sparkle)
+
+@Composable
+private fun PromptImage(
+    prompt: SuggestedPrompt,
+    style: ConciergeStyles.WelcomeCardStyle
+) {
+    Box(
+        modifier = Modifier
+            .size(style.promptImageSize)
+            .background(
+                color = style.promptImagePlaceholderColor,
+                shape = style.promptImageShape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            prompt.imageUrl != null -> AsyncImage(
+                url = prompt.imageUrl,
+                contentDescription = null,
+                modifier = Modifier.size(style.promptImageSize),
+                contentScale = ContentScale.Crop
+            )
+            prompt.imagePainter != null -> Image(
+                painter = prompt.imagePainter,
+                contentDescription = null,
+                modifier = Modifier.size(style.promptImageSize),
+                contentScale = ContentScale.Crop
+            )
+            else -> Icon(
+                painter = promptIconPainter(prompt.imageVector),
+                contentDescription = null,
+                tint = style.promptTextColor.copy(alpha = 0.6f),
+                modifier = Modifier.size(style.promptImageSize * 0.6f)
+            )
+        }
+    }
+}

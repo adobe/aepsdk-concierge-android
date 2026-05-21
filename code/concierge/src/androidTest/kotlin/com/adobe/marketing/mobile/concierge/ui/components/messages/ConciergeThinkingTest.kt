@@ -16,6 +16,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
 import org.junit.Rule
 import org.junit.Test
 
@@ -66,5 +69,63 @@ class ConciergeThinkingTest {
 
         // This test ensures the animation doesn't cause conflicts
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun conciergeThinking_withCustomLoadingMessage_displaysCustomText() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(text = ConciergeTextStrings(loadingMessage = "Please wait")),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ConciergeThinking()
+            }
+        }
+
+        composeTestRule.onNodeWithText("Please wait", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun conciergeThinking_withEmptyLoadingMessage_doesNotDisplayText() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(text = ConciergeTextStrings(loadingMessage = "")),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ConciergeThinking()
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // No text node should exist when thinkingText is empty (dots-only layout)
+        composeTestRule.onNodeWithText("Thinking").assertDoesNotExist()
+    }
+
+    @Test
+    fun conciergeThinking_withLoadingText_rendersWithoutCrashing() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(loadingMessage = "Generating response from our knowledge base")
+            ),
+            tokens = null
+        )
+
+        var renderSuccessful = false
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ConciergeThinking()
+            }
+            renderSuccessful = true
+        }
+
+        composeTestRule.waitForIdle()
+        assert(renderSuccessful)
+        composeTestRule.onNodeWithText("Generating response from our knowledge base", substring = true)
+            .assertIsDisplayed()
     }
 }

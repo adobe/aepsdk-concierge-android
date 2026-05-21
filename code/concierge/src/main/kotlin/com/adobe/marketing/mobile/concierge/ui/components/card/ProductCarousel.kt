@@ -37,18 +37,32 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.CarouselStyle
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
- * Composable that displays a carousel of product images with navigation controls.
+ * Composable that displays a carousel of product items with navigation controls.
+ * When [useExtendedProductCards] is true, shows extended product cards
+ * (image, badge, name, subtitle, price); otherwise shows image-only tiles.
  */
 @Composable
 internal fun ProductCarousel(
     elements: List<MultimodalElement>,
-    onImageClick: (MultimodalElement) -> Unit
+    onImageClick: (MultimodalElement) -> Unit,
+    useExtendedProductCards: Boolean = false,
+    leadingInset: Dp = 0.dp
 ) {
     val style = ConciergeStyles.productCarouselStyle
+    val extendedProductCardStyle = ConciergeStyles.extendedProductCardStyle
+    val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else style.imageWidth
+    val extendedCardHeight = extendedProductCardStyle.cardHeight
+    val itemHeight = if (useExtendedProductCards) extendedCardHeight else style.imageHeight
+    val carouselMode = ConciergeTheme.behavior?.multimodalCarousel?.carouselStyle ?: CarouselStyle.PAGED
+    val isPaged = carouselMode == CarouselStyle.PAGED
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val currentPage = listState.firstVisibleItemIndex
@@ -59,51 +73,63 @@ internal fun ProductCarousel(
         LazyRow(
             state = listState,
             contentPadding = PaddingValues(
-                start = style.horizontalPadding,
-                end = style.imageWidth,
+                start = leadingInset,
+                end = if (isPaged) itemWidth else style.trailingContentPadding,
                 top = style.verticalPadding,
                 bottom = style.verticalPadding
             ),
             horizontalArrangement = Arrangement.spacedBy(style.itemSpacing),
+            verticalAlignment = Alignment.Top,
             modifier = Modifier.fillMaxWidth()
         ) {
             items(elements.size) { index ->
-                ProductImage(
-                    element = elements[index],
-                    modifier = Modifier
-                        .width(style.imageWidth)
-                        .height(style.imageHeight),
-                    onImageClick = onImageClick,
-                    isMultiElement = true
-                )
+                if (useExtendedProductCards) {
+                    ExtendedProductCard(
+                        element = elements[index],
+                        modifier = Modifier.width(itemWidth)
+                            .then(extendedCardHeight?.let { Modifier.height(it) } ?: Modifier),
+                        onCardClick = onImageClick
+                    )
+                } else {
+                    ProductImage(
+                        element = elements[index],
+                        modifier = Modifier
+                            .width(itemWidth)
+                            .height(itemHeight ?: style.imageHeight),
+                        onImageClick = onImageClick,
+                        isMultiElement = true
+                    )
+                }
             }
         }
 
-        CarouselSwitcher(
-            currentPage = currentPage,
-            totalPages = elements.size,
-            onPreviousClick = {
-                val page = listState.firstVisibleItemIndex
-                if (page > 0) {
+        if (isPaged) {
+            CarouselSwitcher(
+                currentPage = currentPage,
+                totalPages = elements.size,
+                onPreviousClick = {
+                    val page = listState.firstVisibleItemIndex
+                    if (page > 0) {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(page - 1)
+                        }
+                    }
+                },
+                onNextClick = {
+                    val page = listState.firstVisibleItemIndex
+                    if (page < elements.size - 1) {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(page + 1)
+                        }
+                    }
+                },
+                onPageClick = { page ->
                     coroutineScope.launch {
-                        listState.animateScrollToItem(page - 1)
+                        listState.animateScrollToItem(page)
                     }
                 }
-            },
-            onNextClick = {
-                val page = listState.firstVisibleItemIndex
-                if (page < elements.size - 1) {
-                    coroutineScope.launch {
-                        listState.animateScrollToItem(page + 1)
-                    }
-                }
-            },
-            onPageClick = { page ->
-                coroutineScope.launch {
-                    listState.animateScrollToItem(page)
-                }
-            }
-        )
+            )
+        }
     }
 }
 

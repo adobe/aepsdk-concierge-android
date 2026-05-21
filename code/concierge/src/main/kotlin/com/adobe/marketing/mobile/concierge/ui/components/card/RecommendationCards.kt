@@ -18,10 +18,17 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.CardsAlignment
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ProductCardStyle
 import com.adobe.marketing.mobile.services.Log
 
 private const val TAG = "RecommendationCards"
@@ -35,7 +42,8 @@ internal fun RecommendationCards(
     elements: List<MultimodalElement>,
     modifier: Modifier = Modifier,
     onImageClick: (MultimodalElement) -> Unit = {},
-    onActionClick: (ProductActionButton) -> Unit = {}
+    onActionClick: (ProductActionButton) -> Unit = {},
+    leadingInset: Dp = 0.dp
 ) {
     if (elements.isEmpty()) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements to display, returning early")
@@ -53,21 +61,38 @@ internal fun RecommendationCards(
         enter = fadeIn(animationSpec = tween(durationMillis = 220)),
         exit = fadeOut(animationSpec = tween(durationMillis = 180))
     ) {
+        val horizontalAlignment = when (ConciergeTheme.behavior?.productCard?.cardsAlignment) {
+            CardsAlignment.CENTER -> Alignment.CenterHorizontally
+            CardsAlignment.END -> Alignment.End
+            else -> Alignment.Start
+        }
+        val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
+        val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
         Column(
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier
+                .fillMaxWidth()
+                .then(if (elements.size == 1) Modifier.padding(start = leadingInset) else Modifier),
+            horizontalAlignment = horizontalAlignment
         ) {
-            // Special handling for single element - display as a product card
             if (elements.size == 1) {
-                ProductCard(
-                    element = elements[0],
-                    onImageClick = onImageClick,
-                    onActionClick = onActionClick
-                )
+                if (useExtendedProductCards) {
+                    ExtendedProductCard(
+                        element = elements[0],
+                        onCardClick = onImageClick
+                    )
+                } else {
+                    ProductCard(
+                        element = elements[0],
+                        onImageClick = onImageClick,
+                        onActionClick = onActionClick
+                    )
+                }
             } else {
-                // Multiple elements - display in a product carousel with navigation controls
                 ProductCarousel(
                     elements = elements,
-                    onImageClick = onImageClick
+                    onImageClick = onImageClick,
+                    useExtendedProductCards = useExtendedProductCards,
+                    leadingInset = leadingInset
                 )
             }
         }

@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -43,16 +42,16 @@ internal fun ConciergeThinking(
 
     Row(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = style.dotVerticalAlignment
     ) {
-        Text(
-            text = style.thinkingText,
-            style = style.textStyle,
-            color = style.textColor,
-            modifier = Modifier.weight(1f, fill = false)
-        )
-
-        Spacer(modifier = Modifier.width(style.textDotSpacing))
+        if (style.thinkingText.isNotEmpty()) {
+            Text(
+                text = style.thinkingText,
+                style = style.textStyle,
+                color = style.textColor
+            )
+            Spacer(modifier = Modifier.width(style.textDotSpacing))
+        }
 
         // Create three pulsing dots with staggered animation
         PulsingDot(
@@ -95,29 +94,22 @@ private fun PulsingDot(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "dot_pulse")
 
+    val animationSpec = infiniteRepeatable<Float>(
+        animation = tween(durationMillis = animationDuration, delayMillis = delay),
+        repeatMode = RepeatMode.Reverse
+    )
+
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.5f,
         targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = animationDuration,
-                delayMillis = delay
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
+        animationSpec = animationSpec,
         label = "dot_scale"
     )
 
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = animationDuration,
-                delayMillis = delay
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
+        animationSpec = animationSpec,
         label = "dot_alpha"
     )
 

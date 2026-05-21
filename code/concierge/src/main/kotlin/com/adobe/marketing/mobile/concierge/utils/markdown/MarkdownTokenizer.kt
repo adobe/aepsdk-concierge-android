@@ -113,15 +113,22 @@ internal object MarkdownTokenizer {
             
             // Find the end of this list item (start of next list item or end of string)
             val contentEnd = if (i < matches.size - 1) {
-                // Content ends at the start of the next list item
-                // Find the position just before the next list marker, trimming any whitespace/newlines
                 val nextListStart = matches[i + 1].range.first
-                // Back up to find the last non-whitespace character before the next list item
-                var actualEnd = nextListStart
-                while (actualEnd > contentStart && markdown[actualEnd - 1].isWhitespace()) {
-                    actualEnd--
+                // A blank line ends the current list item's content, even if the next
+                // list marker appears later. This ensures that non-list text between
+                // two list sections is not absorbed into the preceding item's content.
+                val contentSubstring = markdown.substring(contentStart, nextListStart)
+                val blankLineIndex = contentSubstring.indexOf("\n\n")
+                if (blankLineIndex != -1) {
+                    contentStart + blankLineIndex
+                } else {
+                    // Back up to find the last non-whitespace character before the next list item
+                    var actualEnd = nextListStart
+                    while (actualEnd > contentStart && markdown[actualEnd - 1].isWhitespace()) {
+                        actualEnd--
+                    }
+                    actualEnd
                 }
-                actualEnd
             } else {
                 // This is the last list item
                 // Check if there's content after this list item (separated by blank lines)
@@ -248,9 +255,9 @@ internal object MarkdownTokenizer {
         // Check content between previous item and current line
         if (lineStart <= prevContentEnd) return false
         
-        val contentBetween = markdown.substring(prevContentEnd, lineStart)
         // Blank line = 2+ newlines
-        return contentBetween.count { it == '\n' } >= 2
+        val contentBetween = markdown.substring(prevContentEnd, lineStart)
+        return contentBetween.contains("\n\n")
     }
 }
 

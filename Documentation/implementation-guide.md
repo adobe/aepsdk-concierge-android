@@ -19,7 +19,6 @@ Both approaches are available for Compose and XML/Views-based apps.
 Your app needs these AEP SDK's available and registered:
 
 - [Mobile Core](https://github.com/adobe/aepsdk-core-android)
-- [Edge](https://github.com/adobe/aepsdk-edge-android)
 - [Edge Identity](https://github.com/adobe/aepsdk-edgeidentity-android)
 - [Brand Concierge](https://github.com/adobe/aepsdk-concierge-android)
 
@@ -39,7 +38,7 @@ The SDK handles permission requests internally when users interact with the micr
 
 ## Installation
 
-**Add the dependency to your app module's `build.gradle.kts` alongside the other AEPSDK extensions**
+Add the dependencies to your app module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -49,28 +48,46 @@ dependencies {
 }
 ```
 
+Then sync your project with the Gradle files.
+
 ---
 
 ## Configuration
 
-### Step 1: Set up the Adobe Experience Platform Mobile SDK
+### Step 1: Register the Brand Concierge extension
 
-Follow the [Adobe Experience Platform Mobile SDK getting started guide](https://developer.adobe.com/client-sdks/home/getting-started/) to set up the base SDK integration used by Brand Concierge.
+Import and register the extensions in your `Application` class `onCreate()`:
 
-The required extensions are:
+```kotlin
+import com.adobe.marketing.mobile.MobileCore
+import com.adobe.marketing.mobile.Concierge
+import com.adobe.marketing.mobile.edge.identity.Identity as EdgeIdentity
+import android.app.Application
 
-- AEPCore
-- AEPEdge
-- AEPEdgeIdentity
-- AEPBrandConcierge
+class MainApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        MobileCore.setApplication(this)
+        MobileCore.initialize(this, "YOUR_APP_ID")
+    }
+}
+```
 
-### Step 2: Validate the Brand Concierge configuration keys exist
-If you set the Mobile SDK log level to trace (`MobileCore.setLogLevel(LoggingMode.VERBOSE)`), you can inspect the app logs to confirm that extension shared states are being set with the expected values.
+Replace `YOUR_APP_ID` with your mobile property App ID from Adobe Data Collection. For full setup instructions see the [Adobe Experience Platform Mobile SDK getting started guide](https://developer.adobe.com/client-sdks/home/getting-started/).
+
+### Step 2: Validate the Brand Concierge configuration keys
+If you set the Mobile SDK log level to trace:
+
+```kotlin
+MobileCore.setLogLevel(LoggingMode.VERBOSE)
+```
+
+you can then inspect the app logs to confirm that extension shared states are being set with the expected values.
 
 Brand Concierge expects the following keys to be present in the Configuration shared state:
 
 - **`concierge.server`**: String (server host or base domain used by Brand Concierge requests)
-- **`concierge.configId`**: String (datastream id)
+- **`concierge.configId`**: String (datastream ID)
 
 ECID is read from Edge Identity shared state.
 
@@ -114,6 +131,13 @@ fun MyScreen() {
 
 #### XML/Views
 For non-Compose apps, the SDK provides `ConciergeChatView` that wraps the Compose chat UI and can be included in XML layouts.
+
+> **Note:** The activity hosting `ConciergeChatView` must have `android:windowSoftInputMode="adjustResize"` added in the app's `AndroidManifest.xml` to ensure the chat input field remains visible when the keyboard is shown:
+> ```xml
+> <activity
+>     android:name=".YourActivity"
+>     android:windowSoftInputMode="adjustResize" />
+> ```
 
 **Step 1: Add the view to your XML layout**
 
@@ -196,6 +220,14 @@ fun YourChatScreen() {
 ```
 
 #### XML/Views
+
+> **Note:** The activity hosting `ConciergeChatView` must have `android:windowSoftInputMode="adjustResize"` added in the app's `AndroidManifest.xml` to ensure the chat input field remains visible when the keyboard is shown:
+> ```xml
+> <activity
+>     android:name=".YourActivity"
+>     android:windowSoftInputMode="adjustResize" />
+> ```
+
 **Step 1: Add the view to your XML layout**
 
 ```xml
@@ -232,7 +264,7 @@ class XmlActivity : AppCompatActivity() {
 
 ### Theme Customization
 
-Concierge chat interface can be customized by loading the theme file from `assets` directory of your app by using `ConciergeThemeLoader`.
+The Brand Concierge chat interface can be customized by loading the theme file from the `assets` directory of your app using `ConciergeThemeLoader`.
 
 ```kotlin
 @Composable
@@ -250,4 +282,117 @@ fun MyScreen() {
 }
 ```
 
-More information regarding theme customization can be found in the [style-guide](./style-guide.md)
+More information regarding theme customization can be found in the [style-guide](./style-guide.md).
+
+### Deep Links and App Links
+
+#### Required manifest entries
+
+**1. Register your app as an App Link handler (all API levels)**
+
+Add an `<intent-filter>` with `android:autoVerify="true"` to the activity in your `AndroidManifest.xml` that should handle your domain's URLs. This triggers Android's domain verification against your domain's `assetlinks.json` file, which is what makes your app the verified handler. Without this, the Concierge extension's App Link check will always fall back to the in-app WebView.
+
+```xml
+<activity android:name=".YourActivity" ...>
+    <intent-filter android:autoVerify="true" android:exported="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="yourdomain.com" />
+    </intent-filter>
+</activity>
+```
+
+**2. Package visibility for Android 11 or higher**
+
+Add the following `<queries>` block to your `AndroidManifest.xml`. Without it, the Concierge extension cannot use `PackageManager.resolveActivity()` to detect the App Link handler on API 30 or higher, and App Links will silently fall back to the in-app WebView on that API level.
+
+```xml
+<!-- Required for PackageManager.resolveActivity() on Android 11+ to detect
+     which app handles VIEW intents for http/https URLs. -->
+<queries>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="https" />
+    </intent>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="http" />
+    </intent>
+</queries>
+```
+
+#### Chat message link handling
+
+The Concierge extension automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). If your app is not the handler, the link opens in the in-app WebView overlay.
+
+**Default link handling flow:** host `handleLink` callback (if provided) → App Link check → WebView overlay.
+
+To customize this behavior, provide a `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with its default behavior (trying to open it as an App Link first, then using the WebView overlay).
+
+**Compose (ConciergeChat):**
+```kotlin
+val context = LocalContext.current
+ConciergeChat(
+    viewModel = viewModel,
+    onClose = { finish() },
+    handleLink = { url ->
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            context.startActivity(intent)
+            true  // Handled
+        } catch (e: ActivityNotFoundException) {
+            false  // Fall back to WebView overlay
+        }
+    }
+)
+```
+
+**XML (ConciergeChatView):**
+```kotlin
+chatView.bind(
+    lifecycleOwner = this,
+    viewModelStoreOwner = this,
+    surfaces = surfaces,
+    theme = theme,
+    handleLink = { url ->
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+    },
+    onClose = { finish() }
+)
+```
+
+When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying to open it as an App Link first, then using the WebView overlay).
+
+To close the chat when a deeplink is clicked, call `viewModel.closeConcierge()` inside your `handleLink` callback before returning `true`:
+
+```kotlin
+ConciergeChat(
+    viewModel = viewModel,
+    handleLink = { url ->
+        if (url.startsWith("myapp://")) {
+            viewModel.closeConcierge()
+            // navigate to the deeplink destination
+            true
+        } else {
+            false
+        }
+    }
+) { showChat -> ... }
+```
+
+#### In-app WebView overlay link handling
+
+Links clicked inside the in-app WebView overlay (e.g., links on a product page) follow their own routing rules, independent of the `handleLink` callback:
+
+- **http/https URLs**: If your app is the verified App Link handler for the domain, the URL is forwarded to your app. Otherwise it loads in the WebView.
+- **Non-web schemes** (e.g., `mailto:`, `tel:`, `sms:`, `myapp://`): Forwarded to the system via `Intent.ACTION_VIEW`.
+- **Dangerous schemes** (`javascript:`, `file:`, `content:`, `intent:`, `data:`): Blocked.
+
+No additional configuration is required for this behavior. App Link forwarding within the WebView uses the same domain verification as chat message link handling.

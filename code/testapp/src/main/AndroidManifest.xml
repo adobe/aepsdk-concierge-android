@@ -14,6 +14,18 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Required for PackageManager.resolveActivity() on Android 11+ (API 30) to detect
+         which app handles VIEW intents for http/https URLs. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -39,10 +51,18 @@
         </activity>
         
         <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.LinkHandlingTestActivity"
+            android:exported="false"
+            android:label="Link Handling Tests"
+            android:theme="@style/Theme.AEPSDKBrandConciergeAgent" />
+
+        <activity
             android:name="com.adobe.marketing.mobile.conciergetestapp.XmlChatActivity"
             android:exported="false"
             android:label="XML Integration Demo"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+            android:windowSoftInputMode="adjustResize"/>
+
     </application>
 
 </manifest>

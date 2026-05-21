@@ -61,7 +61,19 @@ internal object ThemeParser {
             // Parse the full theme (which includes CSS theme parsing)
             val themeTokens = parseThemeTokensFromMap(json)
             
-            // Parse text strings
+            // Parse header config from root-level "header" block
+            val headerConfig = DataReader.optTypedMap(Any::class.java, json, "header", null)?.let {
+                HeaderConfig(
+                    title = DataReader.optString(it, "title", null),
+                    subtitle = DataReader.optString(it, "subtitle", null),
+                    image = DataReader.optString(it, "image", null),
+                    layoutType = DataReader.optString(it, "layoutType", null),
+                    imageHeight = DataReader.optString(it, "imageHeight", null)
+                        ?.let(CSSValueConverter::parsePxValue)
+                )
+            }
+
+            // Parse text strings from "text" block
             val textMap = DataReader.optTypedMap(Any::class.java, json, "text", null)
             val textStrings = textMap?.let {
                 ConciergeTextStrings(
@@ -78,6 +90,9 @@ internal object ThemeParser {
                     feedbackDialogCancel = DataReader.optString(it, "feedback.dialog.cancel", null),
                     feedbackDialogNotesPlaceholder = DataReader.optString(it, "feedback.dialog.notes.placeholder", null),
                     feedbackToastSuccess = DataReader.optString(it, "feedback.toast.success", null),
+                    feedbackHelpfulLabel = DataReader.optString(it, "feedbackHelpfulLabel", null),
+                    sourcesLabel = DataReader.optString(it, "sourcesLabel", null),
+                    suggestionsHeader = DataReader.optString(it, "suggestions.header", null),
                     errorNetwork = DataReader.optString(it, "error.network", null)
                 )
             }
@@ -115,6 +130,7 @@ internal object ThemeParser {
                 name = themeTokens.metadata.name,
                 colors = themeTokens.colors,
                 styles = null,
+                header = headerConfig,
                 text = textStrings,
                 disclaimer = disclaimer,
                 welcomeExamples = welcomeExamples,
@@ -157,7 +173,8 @@ internal object ThemeParser {
             behavior = parseBehavior(json["behavior"] as? Map<*, *>),
             assets = parseAssets(json["assets"] as? Map<*, *>),
             content = parseContent(json["content"] as? Map<*, *>),
-            layout = parseLayout(json["layout"] as? Map<*, *>)
+            layout = parseLayout(json["layout"] as? Map<*, *>),
+            components = parseComponentsConfig(json["components"] as? Map<*, *>)
         )
         
         // Parse CSS variables from "theme" block
@@ -167,6 +184,23 @@ internal object ThemeParser {
         }
         
         return theme
+    }
+
+    /** Parses the `components` JSON block. Returns `null` when the block is absent. */
+    private fun parseComponentsConfig(map: Map<*, *>?): ConciergeComponentsConfig? {
+        if (map == null) return null
+        val feedbackMap = map["feedback"] as? Map<*, *>
+        val feedbackComponent = feedbackMap?.let {
+            @Suppress("UNCHECKED_CAST")
+            val typed = it as? MutableMap<String?, Any?>
+            ConciergeFeedbackComponent(
+                iconButtonSizeDesktop = DataReader.optDouble(typed, "iconButtonSizeDesktop", 0.0)
+                    .takeIf { value -> value > 0.0 },
+                positiveNotesEnabled = DataReader.optBoolean(typed, "positiveNotesEnabled", true),
+                negativeNotesEnabled = DataReader.optBoolean(typed, "negativeNotesEnabled", true)
+            )
+        }
+        return ConciergeComponentsConfig(feedback = feedbackComponent)
     }
     
     /**
@@ -318,13 +352,42 @@ internal object ThemeParser {
             inputOutline = themeColors.input?.outline?.toComposeColor(),
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
             micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
+            sendIconColor = themeColors.input?.sendIconColor?.toComposeColor(),
+            sendArrowIconColor = themeColors.input?.sendArrowIconColor?.toComposeColor(),
+            sendArrowBackgroundColor = themeColors.input?.sendArrowBackgroundColor?.toComposeColor(),
+            micIconColor = themeColors.input?.micIconColor?.toComposeColor(),
+            micRecordingIconColor = themeColors.input?.micRecordingIconColor?.toComposeColor(),
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
+            // Feedback dialog extended styling from CSS themes
+            feedbackSheetBackground = themeColors.feedback?.sheetBackground?.toComposeColor(),
+            feedbackTitleText = themeColors.feedback?.titleText?.toComposeColor(),
+            feedbackQuestionText = themeColors.feedback?.questionText?.toComposeColor(),
+            feedbackOptionsText = themeColors.feedback?.optionsText?.toComposeColor(),
+            feedbackCheckboxBorder = themeColors.feedback?.checkboxBorder?.toComposeColor(),
+            feedbackDragHandle = themeColors.feedback?.dragHandle?.toComposeColor(),
+            feedbackSubmitButtonFill = themeColors.feedback?.submitButtonFill?.toComposeColor(),
+            feedbackSubmitButtonText = themeColors.feedback?.submitButtonText?.toComposeColor(),
+            feedbackCancelButtonFill = themeColors.feedback?.cancelButtonFill?.toComposeColor(),
+            feedbackCancelButtonText = themeColors.feedback?.cancelButtonText?.toComposeColor(),
+            feedbackCancelButtonBorder = themeColors.feedback?.cancelButtonBorder?.toComposeColor(),
+            // Prompt pill colors from CSS themes
+            welcomePromptBackground = themeColors.welcomePrompt?.backgroundColor?.toComposeColor(),
+            welcomePromptText = themeColors.welcomePrompt?.textColor?.toComposeColor(),
+            // Prompt suggestion colors from CSS themes
+            suggestionBackground = themeColors.promptSuggestion?.backgroundColor?.toComposeColor(),
+            suggestionText = themeColors.promptSuggestion?.textColor?.toComposeColor(),
             // Citation/Disclaimer colors from CSS themes
             citationBackground = themeColors.citation?.backgroundColor?.toComposeColor(),
             citationText = themeColors.citation?.textColor?.toComposeColor(),
-            disclaimerColor = themeColors.disclaimer?.toComposeColor()
+            disclaimerColor = themeColors.disclaimer?.toComposeColor(),
+            // CTA button colors from CSS themes
+            ctaButtonBackground = themeColors.ctaButton?.backgroundColor?.toComposeColor(),
+            ctaButtonText = themeColors.ctaButton?.textColor?.toComposeColor(),
+            ctaButtonIcon = themeColors.ctaButton?.iconColor?.toComposeColor(),
+            // Thinking animation colors from CSS themes
+            thinkingDotColor = themeColors.thinking?.dotColor?.toComposeColor()
         )
         
         return result
@@ -354,15 +417,104 @@ internal object ThemeParser {
         @Suppress("UNCHECKED_CAST")
         val typedMap = map as? MutableMap<String?, Any?>
         val inputMap = typedMap?.get("input") as? Map<*, *>
-        val enableVoiceInput = if (inputMap != null) {
-            @Suppress("UNCHECKED_CAST")
-            val inputTypedMap = inputMap as? MutableMap<String?, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val inputTypedMap = inputMap as? MutableMap<String?, Any?>
+        val enableVoiceInput = if (inputTypedMap != null) {
             DataReader.optBoolean(inputTypedMap, "enableVoiceInput", true)
         } else {
             // Default to false if not specified
             false
         }
+        val disableMultiline = DataReader.optBoolean(inputTypedMap, "disableMultiline", true)
         
+        val productCardMap = typedMap?.get("productCard") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val productCardTyped = productCardMap as? MutableMap<String?, Any?>
+        val productCard = productCardTyped?.let {
+            ConciergeProductCardBehavior(
+                cardStyle = ProductCardStyle.fromString(DataReader.optString(it, "cardStyle", "actionButton")),
+                cardsAlignment = CardsAlignment.fromString(DataReader.optString(it, "cardsAlignment", "center"))
+            )
+        }
+
+        val carouselMap = typedMap?.get("multimodalCarousel") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val carouselTyped = carouselMap as? MutableMap<String?, Any?>
+        val multimodalCarousel = carouselTyped?.let {
+            ConciergeMultimodalCarouselBehavior(
+                carouselStyle = CarouselStyle.fromString(DataReader.optString(it, "carouselStyle", "paged"))
+            )
+        }
+
+        val feedbackMap = typedMap?.get("feedback") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val feedbackTyped = feedbackMap as? MutableMap<String?, Any?>
+        val feedback = feedbackTyped?.let {
+            ConciergeFeedbackBehavior(
+                displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "modal")),
+                thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline")),
+                showCloseButton = it["showCloseButton"] as? Boolean,
+                showCancelButton = it["showCancelButton"] as? Boolean,
+                alwaysDisplay = DataReader.optBoolean(it, "alwaysDisplay", false)
+            )
+        }
+
+        val citationsMap = typedMap?.get("citations") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val citationsTyped = citationsMap as? MutableMap<String?, Any?>
+        val styleMap = citationsTyped?.get("linkIconStyle") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val styleTyped = styleMap as? MutableMap<String?, Any?>
+        val linkIconStyle = styleTyped?.let {
+            ConciergeLinkIconStyle(
+                size = DataReader.optDouble(it, "size", 0.0).takeIf { v -> v > 0.0 }?.toFloat(),
+                spacing = DataReader.optDouble(it, "spacing", 0.0).takeIf { v -> v > 0.0 }?.toFloat(),
+                color = DataReader.optString(it, "color", null)
+            )
+        }
+
+        val citations = citationsTyped?.let {
+            ConciergeCitationsBehavior(
+                showLinkIcon = DataReader.optBoolean(it, "showLinkIcon", false),
+                phoneIcon = DataReader.optString(it, "phoneIcon", null),
+                storeIcon = DataReader.optString(it, "storeIcon", null),
+                defaultLinkIcon = DataReader.optString(it, "defaultLinkIcon", null),
+                linkIconStyle = linkIconStyle
+            )
+        }
+
+        val welcomeCardMap = typedMap?.get("welcomeCard") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val welcomeCardTyped = welcomeCardMap as? MutableMap<String?, Any?>
+        val welcomeCard = welcomeCardTyped?.let {
+            ConciergeWelcomeCardBehavior(
+                closeButtonAlignment = DataReader.optString(it, "closeButtonAlignment", "end"),
+                promptFullWidth = DataReader.optBoolean(it, "promptFullWidth", true),
+                promptMaxLines = DataReader.optInt(it, "promptMaxLines", Int.MAX_VALUE),
+                contentAlignment = DataReader.optString(it, "contentAlignment", "top")
+            )
+        }
+
+        val chatMap = typedMap?.get("chat") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val chatTyped = chatMap as? MutableMap<String?, Any?>
+        val chat = chatTyped?.let {
+            ConciergeChatBehavior(
+                messageAlignment = ConciergeTextAlignment.fromString(DataReader.optString(it, "messageAlignment", "start") ?: "start"),
+                messageWidth = DataReader.optString(it, "messageWidth", null),
+                userMessageBubbleStyle = UserMessageBubbleStyle.fromString(DataReader.optString(it, "userMessageBubbleStyle", "default"))
+            )
+        }
+        val promptSuggestionsMap = typedMap?.get("promptSuggestions") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val promptSuggestionsTyped = promptSuggestionsMap as? MutableMap<String?, Any?>
+        val promptSuggestions = promptSuggestionsTyped?.let {
+            ConciergePromptSuggestionsBehavior(
+                itemMaxLines = DataReader.optInt(it, "itemMaxLines", 1),
+                showHeader = DataReader.optBoolean(it, "showHeader", false)
+            )
+        }
+
         return ConciergeThemeBehavior(
             enableDarkMode = DataReader.optBoolean(typedMap, "enableDarkMode", true),
             enableAnimations = DataReader.optBoolean(typedMap, "enableAnimations", true),
@@ -373,8 +525,18 @@ internal object ThemeParser {
             enableMarkdown = DataReader.optBoolean(typedMap, "enableMarkdown", true),
             enableCitations = DataReader.optBoolean(typedMap, "enableCitations", true),
             enableVoiceInput = enableVoiceInput,
+            disableMultiline = disableMultiline,
+            sendButtonStyle = DataReader.optString(inputTypedMap, "sendButtonStyle", "default") ?: "default",
+            stopRecordingIcon = DataReader.optString(inputTypedMap, "stopRecordingIcon", null),
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
-            typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500)
+            typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
+            feedback = feedback,
+            citations = citations,
+            productCard = productCard,
+            multimodalCarousel = multimodalCarousel,
+            welcomeCard = welcomeCard,
+            chat = chat,
+            promptSuggestions = promptSuggestions
         )
     }
 
@@ -449,7 +611,6 @@ internal object ThemeParser {
             feedbackTitle = DataReader.optString(typedMap, "feedbackTitle", "Provide feedback"),
             feedbackSubmit = DataReader.optString(typedMap, "feedbackSubmit", "Submit"),
             feedbackCancel = DataReader.optString(typedMap, "feedbackCancel", "Cancel"),
-            sourcesLabel = DataReader.optString(typedMap, "sourcesLabel", "Sources"),
             thinkingLabel = DataReader.optString(typedMap, "thinkingLabel", "Thinking"),
             listeningLabel = DataReader.optString(typedMap, "listeningLabel", "Listening")
         )

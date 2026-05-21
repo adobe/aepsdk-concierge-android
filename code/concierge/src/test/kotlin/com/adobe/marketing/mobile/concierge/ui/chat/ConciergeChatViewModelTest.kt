@@ -14,18 +14,22 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.app.Application
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
@@ -33,9 +37,13 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureError
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.services.ServiceProvider
+import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.Runs
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.slot
@@ -73,19 +81,34 @@ class ConciergeChatViewModelTest {
         // Default: grant audio permission
         mockkStatic(ContextCompat::class)
         every { ContextCompat.checkSelfPermission(any(), any()) } returns PackageManager.PERMISSION_GRANTED
-        
+
         // Mock ServiceProvider and UriService
         mockkStatic(ServiceProvider::class)
         mockServiceProvider = mockk<ServiceProvider>(relaxed = true)
         every { ServiceProvider.getInstance() } returns mockServiceProvider
         every { mockServiceProvider.uriService } returns mockk(relaxed = true)
         every { mockServiceProvider.uriService.openUri(any()) } returns true
+
+        // Scheme mocks for handleLinkClick tests
+        mockkStatic(Uri::class)
+        mockkStatic(::tryOpenAsAppLink)
+        mockkStatic(::tryOpenWithSystemHandler)
+        every { Uri.parse(any()) } answers {
+            val url = firstArg<String>()
+            val scheme = url.substringBefore(':', "").lowercase().ifEmpty { null }
+            mockk { every { this@mockk.scheme } returns scheme }
+        }
+        every { tryOpenAsAppLink(any(), any()) } returns false
+        every { tryOpenWithSystemHandler(any(), any()) } just Runs
     }
 
     @After
     fun tearDown() {
         unmockkStatic(ContextCompat::class)
         unmockkStatic(ServiceProvider::class)
+        unmockkStatic(Uri::class)
+        unmockkStatic(::tryOpenAsAppLink)
+        unmockkStatic(::tryOpenWithSystemHandler)
         Dispatchers.resetMain()
     }
 
@@ -801,16 +824,20 @@ class ConciergeChatViewModelTest {
     // ========== Prompt Suggestion Tests ==========
 
     @Test
-    fun `promptSuggestionClick sets text in input field`() = runTest {
+    fun `promptSuggestionClick auto-sends message`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
-        
+
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
-        
+
         vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("What can you do?"))
-        
-        val inputState = vm.inputState.value as UserInputState.Editing
-        assertEquals("What can you do?", inputState.content)
+
+        // Prompt suggestion should auto-send, so input should be empty and message added
+        assertEquals(UserInputState.Empty, vm.inputState.value)
+        val messages = vm.messages.value
+        assertTrue(messages.isNotEmpty())
+        val userMessage = messages.first()
+        assertTrue(userMessage.isFromUser)
     }
 
     // ========== Text Input State Tests ==========
@@ -998,6 +1025,223 @@ class ConciergeChatViewModelTest {
         assertEquals("conv-123", feedbackSlot.captured.conversationId)
     }
 
+    // ========== Ordered Elements Tests ==========
+
+    @Test
+    fun `orderedElements with CTA appends standalone CtaButton message`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Go") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Tap below",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "Shop All", url = "https://example.com/shop"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Go"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + CTA = 3
+        assertEquals(3, messages.size)
+        assertTrue(messages[1].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Text)
+        assertTrue(messages[2].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton)
+        val ctaContent = messages[2].content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton
+        assertEquals("Shop All", ctaContent.button.label)
+    }
+
+    @Test
+    fun `orderedElements with cards appends separate Mixed card message`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val card = MultimodalElement(id = "card-1")
+
+        every { chatClient.chat("Products") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Here they are",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(ParsedMultimodalItem.Card(card))
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Products"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + carousel = 3
+        assertEquals(3, messages.size)
+        assertTrue(messages[1].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Text)
+        val mixed = messages[2].content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Mixed
+        assertEquals(1, mixed.multimodalElements?.size)
+    }
+
+    @Test
+    fun `orderedElements interleaves CTA before cards preserving array order`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val card = MultimodalElement(id = "card-1")
+
+        every { chatClient.chat("Mix") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Here you go",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "Shop", url = "https://example.com")),
+                    ParsedMultimodalItem.Card(card)
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Mix"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + CTA + carousel = 4
+        assertEquals(4, messages.size)
+        assertTrue(messages[2].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton)
+        assertTrue(messages[3].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Mixed)
+    }
+
+    @Test
+    fun `multiple CTAs each produce a separate CtaButton message`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Options") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Choose one",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "A", url = "https://example.com/a")),
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "B", url = "https://example.com/b"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Options"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + CTA1 + CTA2 = 4
+        assertEquals(4, messages.size)
+        val cta1 = messages[2].content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton
+        val cta2 = messages[3].content as com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton
+        assertEquals("A", cta1.button.label)
+        assertEquals("B", cta2.button.label)
+    }
+
+    @Test
+    fun `empty orderedElements falls back to legacy Mixed behavior`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val elements = listOf(MultimodalElement(id = "card-1"))
+
+        every { chatClient.chat("Hello") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Here are products",
+                state = ConversationState.COMPLETED,
+                multimodalElements = elements,
+                orderedElements = emptyList()
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Hello"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + Mixed = 2 (legacy path)
+        assertEquals(2, messages.size)
+        assertTrue(messages[1].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.Mixed)
+    }
+
+    @Test
+    fun `text message has no interactionId when orderedElements contains a CTA`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Connect") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "I'll connect you with an agent.",
+                state = ConversationState.COMPLETED,
+                interactionId = "interaction-123",
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Connect"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + CTA = 3
+        assertEquals(3, messages.size)
+        // text message must NOT have interactionId so feedback controls are suppressed
+        assertNull(messages[1].interactionId)
+        assertTrue(messages[2].content is com.adobe.marketing.mobile.concierge.ui.state.MessageContent.CtaButton)
+    }
+
+    @Test
+    fun `text message retains interactionId when orderedElements contains only cards`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Products") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "Here are some products.",
+                state = ConversationState.COMPLETED,
+                interactionId = "interaction-456",
+                orderedElements = listOf(ParsedMultimodalItem.Card(MultimodalElement(id = "card-1")))
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Products"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + text + carousel = 3; text message retains interactionId for feedback
+        assertEquals(3, messages.size)
+        assertEquals("interaction-456", messages[1].interactionId)
+    }
+
+    @Test
+    fun `orderedElements with empty text removes placeholder and shows only CTA`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Chat") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "",
+                state = ConversationState.COMPLETED,
+                orderedElements = listOf(
+                    ParsedMultimodalItem.Cta(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Chat"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + CTA only — no empty text bubble
+        assertEquals(2, messages.size)
+        assertTrue(messages[1].content is MessageContent.CtaButton)
+        val cta = messages[1].content as MessageContent.CtaButton
+        assertEquals("Chat now", cta.button.label)
+    }
+
     // ========== Theme Config Tests ==========
 
     @Test
@@ -1025,15 +1269,102 @@ class ConciergeChatViewModelTest {
     fun `updateWelcomeConfigFromTheme with null does not change config`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
-        
+
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
-        
+
         val originalConfig = vm.welcomeConfig.value
-        
+
         vm.updateWelcomeConfigFromTheme(null)
-        
+
         // Config should remain unchanged
         assertEquals(originalConfig, vm.welcomeConfig.value)
+    }
+
+    // ========== handleLinkClick Tests ==========
+
+    @Test
+    fun `handleLinkClick with blank URL does nothing`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("   ", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick host callback returning true prevents any further handling`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", handleLink = { true })
+
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with tel scheme calls tryOpenWithSystemHandler and does not open overlay`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", null)
+
+        verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with geo scheme calls tryOpenWithSystemHandler`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("geo:0,0?q=1+Apple+Park+Way", null)
+
+        verify { tryOpenWithSystemHandler(app, "geo:0,0?q=1+Apple+Park+Way") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with mailto scheme calls tryOpenWithSystemHandler`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("mailto:user@example.com", null)
+
+        verify { tryOpenWithSystemHandler(app, "mailto:user@example.com") }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with https URL opens overlay when not an App Link`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertEquals("https://example.com", vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with https URL handled as App Link does not open overlay`() = runTest {
+        every { tryOpenAsAppLink(any(), any()) } returns true
+
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with blocked scheme is silently dropped`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("javascript:alert(1)", null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick host callback returning false falls through to normal routing`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", handleLink = { false })
+
+        verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
+        assertNull(vm.webviewOverlay.value)
     }
 }
 

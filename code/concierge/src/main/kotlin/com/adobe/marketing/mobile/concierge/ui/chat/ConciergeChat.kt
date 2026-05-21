@@ -18,6 +18,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +26,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -37,34 +40,40 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
+import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.CtaButtonClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
-import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 
 /**
@@ -104,6 +113,7 @@ fun ConciergeChat(
     modifier: Modifier = Modifier,
     viewModel: ConciergeChatViewModel,
     surfaces: List<String>? = null,
+    handleLink: LinkHandler? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
@@ -156,10 +166,23 @@ fun ConciergeChat(
                     window.attributes.fitInsetsSides = 0
                 }
 
+                // Resize the dialog when the keyboard appears so the
+                // header stays fixed and the weight(1f) messages area shrinks.
+                @Suppress("DEPRECATION")
+                window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+
+                // Match status bar / nav bar icon contrast to the chat background so icons stay visible.
+                val isLightChatBg = ConciergeTheme.colors.background.luminance() > 0.5f
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = isLightChatBg
+                    isAppearanceLightNavigationBars = isLightChatBg
+                }
+
                 ConciergeChat(
                     viewModel = viewModel,
                     onClose = { viewModel.closeConcierge() },
-                    modifier = modifier
+                    modifier = modifier,
+                    handleLink = handleLink
                 )
             }
         }
@@ -167,11 +190,29 @@ fun ConciergeChat(
     }
 }
 
+/**
+ * Optional callback for intercepting link clicks (e.g., product cards, in-message links, citations).
+ * Return `true` if the link was handled (e.g., opened as a deep link); return `false` to use
+ * default behavior (in-app WebView overlay). When null, all links use the default WebView overlay.
+ */
+typealias LinkHandler = (url: String) -> Boolean
+
+/**
+ * Concierge chat composable (direct mode).
+ *
+ * @param viewModel The ConciergeChatViewModel for the chat session
+ * @param onClose Callback when the close button is pressed
+ * @param modifier Optional modifier for the chat content
+ * @param handleLink Optional callback to intercept link clicks (product cards, in-message links, citations).
+ *        Return true if the link was handled (e.g., opened as a deep link); return false to use
+ *        default behavior (in-app WebView overlay). When null, all links use the WebView overlay.
+ */
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    handleLink: LinkHandler? = null
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val inputState by viewModel.inputState.collectAsStateWithLifecycle()
@@ -204,6 +245,25 @@ fun ConciergeChat(
         }
     }
 
+    // Track chat open/close lifecycle across all integration modes (Compose direct, dialog, XML).
+    // ChatOpened fires once when this composable enters composition.
+    // ChatClosed fires when this composable leaves composition — which covers the close button,
+    // back-press dialog dismissal, and XML view detachment — with no double-tracking.
+    DisposableEffect(Unit) {
+        viewModel.trackChatOpened()
+        onDispose {
+            viewModel.trackChatClosed()
+        }
+    }
+
+    val resolvedLinkClick: (String) -> Unit = remember(handleLink) {
+        { url -> viewModel.handleLinkClick(url, handleLink) }
+    }
+
+    val resolvedEvent: (ChatEvent) -> Unit = remember(handleLink) {
+        { event -> viewModel.processEvent(event, handleLink) }
+    }
+
     CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
         ConciergeChat(
             messages = messages,
@@ -214,15 +274,20 @@ fun ConciergeChat(
             welcomeConfig = welcomeConfig,
             isReturningUser = isReturningUser,
             onTextChanged = viewModel::onTextStateChanged,
-            onEvent = viewModel::processEvent,
-            onLinkClick = viewModel::openWebviewOverlay,
-            onPermissionResult = { granted ->
-                viewModel.refreshPermissionStatus()
-            },
+            onEvent = resolvedEvent,
+            handleLink = resolvedLinkClick,
+            onPermissionResult = { viewModel.refreshPermissionStatus() },
             onClose = onClose,
             modifier = modifier
         )
     }
+
+    // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
+    ModalFeedbackOverlay(
+        feedback = state.feedback,
+        onDismiss = { resolvedEvent(FeedbackEvent.DismissFeedbackDialog) },
+        onSubmit = { resolvedEvent(FeedbackEvent.SubmitFeedback(it)) }
+    )
 
     // WebView overlay dialog used for handling link clicks that require a browser.
     webviewOverlay?.let { url ->
@@ -235,6 +300,7 @@ fun ConciergeChat(
 
 @Composable
 internal fun ConciergeChat(
+    modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
     chatState: ChatScreenState,
     inputState: UserInputState,
@@ -244,10 +310,9 @@ internal fun ConciergeChat(
     isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
-    onLinkClick: (String) -> Unit = {},
+    handleLink: (String) -> Unit = {},
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
@@ -257,11 +322,12 @@ internal fun ConciergeChat(
     val isProcessing = chatState is ChatScreenState.Processing
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(style.backgroundColor)
-            .navigationBarsPadding()
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
@@ -289,7 +355,11 @@ internal fun ConciergeChat(
                     onActionClick = { button -> onEvent(ProductActionClick(button)) },
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
-                    onLinkClick = onLinkClick,
+                    handleLink = handleLink,
+                    onCtaButtonClick = { cta ->
+                        onEvent(CtaButtonClick(cta))
+                        handleLink(cta.url)
+                                       },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)
@@ -305,16 +375,22 @@ internal fun ConciergeChat(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
+                    val welcomeAlignment = when (
+                        ConciergeTheme.behavior?.welcomeCard?.contentAlignment
+                    ) {
+                        "center" -> Alignment.Center
+                        else -> Alignment.TopCenter
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(style.backgroundColor),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = welcomeAlignment
                     ) {
                         WelcomeCard(
                             config = welcomeConfig,
                             isReturningUser = isReturningUser,
-                            onPromptClick = { prompt -> onTextChanged(prompt) },
+                            onPromptClick = { prompt -> onEvent(MessageInteractionEvent.WelcomePromptSuggestionClick(prompt)) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -341,24 +417,53 @@ internal fun ConciergeChat(
             // Disclaimer
             ConciergeDisclaimer(
                 disclaimerConfig = ConciergeTheme.disclaimer,
-                onLinkClick = onLinkClick,
+                handleLink = handleLink,
+                onEvent = onEvent,
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        // Feedback dialog overlay
-        chatState.feedback?.let { feedback ->
+        // Feedback dialog overlay (modal mode; bottom sheet is rendered at outer composable level)
+        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION) {
+            chatState.feedback?.let { feedback ->
+                FeedbackDialog(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.Center),
+                    feedback = feedback,
+                    onDismiss = {
+                        onEvent(FeedbackEvent.DismissFeedbackDialog)
+                    },
+                    onSubmit = { submittedFeedback ->
+                        onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Renders the feedback bottom sheet when displayMode is "action".
+ *
+ * The underlying [FeedbackDialog] in `ACTION` mode is implemented as its own [Dialog] with
+ * `usePlatformDefaultWidth = false` and `Gravity.BOTTOM`, so it spawns a separate window and
+ * occupies the full screen even when this composable is hosted inside another `Dialog` (e.g.,
+ * the chat-host dialog integration). No outer-scope hoisting required.
+ */
+@Composable
+private fun ModalFeedbackOverlay(
+    feedback: Feedback?,
+    onDismiss: () -> Unit,
+    onSubmit: (Feedback) -> Unit
+) {
+    val displayMode = ConciergeTheme.behavior?.feedback?.displayMode
+    if (displayMode == FeedbackDisplayMode.ACTION) {
+        feedback?.let {
             FeedbackDialog(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center),
-                feedback = feedback,
-                onDismiss = {
-                    onEvent(FeedbackEvent.DismissFeedbackDialog)
-                },
-                onSubmit = { submittedFeedback ->
-                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
-                }
+                feedback = it,
+                onDismiss = onDismiss,
+                onSubmit = onSubmit
             )
         }
     }

@@ -51,6 +51,7 @@ internal fun ChatInputPanel(
     onMicPressed: () -> Unit,
     onSend: (String) -> Unit,
     onVoiceCancel: (() -> Unit)? = null,
+    onClear: (() -> Unit)? = null,
     borderColors: List<Color> = emptyList(),
     isFocused: Boolean = false
 ) {
@@ -86,7 +87,8 @@ internal fun ChatInputPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(style.innerPadding),
-            verticalAlignment = Alignment.CenterVertically
+            // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
+            verticalAlignment = Alignment.Bottom
         ) {
             ChatTextField(
                 modifier = Modifier.weight(1f),
@@ -96,14 +98,15 @@ internal fun ChatInputPanel(
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
 
-            // Input action buttons (mic and send) with state-aware animations
+            // Input action buttons (clear, mic, and send) with state-aware animations
             InputActionButtons(
                 inputState = inputState,
                 text = text,
                 isProcessing = isProcessing,
                 onMicPressed = onMicPressed,
                 onVoiceCancel = { onVoiceCancel?.invoke() },
-                onSend = onSend
+                onSend = onSend,
+                onClear = { onClear?.invoke() }
             )
         }
     }

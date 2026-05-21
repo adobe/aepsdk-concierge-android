@@ -12,10 +12,12 @@
 package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -497,6 +499,38 @@ class ChatScreenStateTest {
 
         // Then
         assertEquals(unicodeText, actualText)
+    }
+
+    // ========== MessageContent.CtaButton Tests ==========
+
+    @Test
+    fun `MessageContent CtaButton creates with button`() {
+        val button = NetworkCtaButton(label = "Shop All", url = "https://example.com/shop")
+        val content = MessageContent.CtaButton(button)
+        assertEquals("Shop All", content.button.label)
+        assertEquals("https://example.com/shop", content.button.url)
+    }
+
+    @Test
+    fun `ChatMessage getText returns label from CtaButton content`() {
+        val button = NetworkCtaButton(label = "Learn More", url = "https://example.com/learn")
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(button),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        assertEquals("Learn More", message.text)
+    }
+
+    @Test
+    fun `MessageContent CtaButton is distinct from Text and Mixed`() {
+        val textContent = MessageContent.Text("Hello")
+        val mixedContent = MessageContent.Mixed(text = "Mixed")
+        val ctaContent = MessageContent.CtaButton(NetworkCtaButton(label = "Go", url = "https://example.com"))
+
+        assertTrue(textContent is MessageContent.Text)
+        assertTrue(mixedContent is MessageContent.Mixed)
+        assertTrue(ctaContent is MessageContent.CtaButton)
     }
 
     // ========== FeedbackType Tests ==========
@@ -1188,6 +1222,115 @@ class ChatScreenStateTest {
         assertEquals("https://original.com", modified.url)
         // Original should be unchanged
         assertEquals("Original Text", original.text)
+    }
+
+    // ========== ChatMessage.isThinking Tests ==========
+
+    @Test
+    fun `ChatMessage isThinking returns true for bot empty text message`() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        assertTrue(message.isThinking)
+    }
+
+    @Test
+    fun `ChatMessage isThinking returns false for bot non-empty text message`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Hello"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        assertFalse(message.isThinking)
+    }
+
+    @Test
+    fun `ChatMessage isThinking returns false for user empty text message`() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = true,
+            timestamp = System.currentTimeMillis()
+        )
+        assertFalse(message.isThinking)
+    }
+
+    @Test
+    fun `ChatMessage isThinking returns false for mixed content`() {
+        val message = ChatMessage(
+            content = MessageContent.Mixed(text = "", multimodalElements = emptyList()),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        assertFalse(message.isThinking)
+    }
+
+    // ========== ChatMessage.hasFooterContent Tests ==========
+
+    @Test
+    fun `ChatMessage hasFooterContent returns true for bot message with citations`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            citations = listOf(Citation(title = "Source", url = "https://example.com"))
+        )
+        assertTrue(message.hasFooterContent)
+    }
+
+    @Test
+    fun `ChatMessage hasFooterContent returns true for bot message with interactionId`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            interactionId = "interaction-123"
+        )
+        assertTrue(message.hasFooterContent)
+    }
+
+    @Test
+    fun `ChatMessage hasFooterContent returns false for bot message with no citations or interactionId`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        assertFalse(message.hasFooterContent)
+    }
+
+    @Test
+    fun `ChatMessage hasFooterContent returns true for bot message with feedbackEligible`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            feedbackEligible = true
+        )
+        assertTrue(message.hasFooterContent)
+    }
+
+    @Test
+    fun `ChatMessage hasFooterContent returns false for bot message when feedbackEligible is false and no citations or interactionId`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            feedbackEligible = false
+        )
+        assertFalse(message.hasFooterContent)
+    }
+
+    @Test
+    fun `ChatMessage hasFooterContent returns false for user message even with citations`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("User message"),
+            isFromUser = true,
+            timestamp = System.currentTimeMillis(),
+            citations = listOf(Citation(title = "Source", url = "https://example.com"))
+        )
+        assertFalse(message.hasFooterContent)
     }
 
     @Test

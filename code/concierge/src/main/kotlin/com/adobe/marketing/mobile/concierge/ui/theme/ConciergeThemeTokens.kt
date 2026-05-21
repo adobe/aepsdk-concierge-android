@@ -56,6 +56,8 @@ data class ConciergeLayout(
     val messageBorderRadius: Double? = null,
     val messagePadding: List<Double>? = null,
     val messageMaxWidth: Double? = null,
+    val agentIconSize: Double? = null,
+    val agentIconSpacing: Double? = null,
     
     // Chat layout
     val chatInterfaceMaxWidth: Double? = null,
@@ -73,7 +75,17 @@ data class ConciergeLayout(
     
     // Feedback layout
     val feedbackContainerGap: Double? = null,
-    
+    val feedbackSubmitButtonBorderRadius: Double? = null,
+    val feedbackCancelButtonBorderRadius: Double? = null,
+    val feedbackCancelButtonBorderWidth: Double? = null,
+    val feedbackSubmitButtonFontWeight: Int? = null,
+    val feedbackCancelButtonFontWeight: Int? = null,
+    val feedbackCheckboxBorderRadius: Double? = null,
+    /** Title text alignment. `null` falls back to `START` (leading). */
+    val feedbackTitleTextAlign: ConciergeTextAlignment? = null,
+    /** Dialog title font size in points. `null` falls back to Material `titleMedium`. */
+    val feedbackTitleFontSize: Double? = null,
+
     // Citations layout
     val citationsTextFontWeight: Int? = null,
     val citationsDesktopButtonFontSize: Double? = null,
@@ -82,10 +94,70 @@ data class ConciergeLayout(
     val disclaimerFontSize: Double? = null,
     val disclaimerFontWeight: Int? = null,
     
-    // Welcome order
+    // Welcome layout
     val welcomeInputOrder: Int? = null,
     val welcomeCardsOrder: Int? = null,
-    
+    val welcomeTitleFontSize: Double? = null,
+    val welcomeTextAlign: String? = null,
+    val welcomeContentPadding: Double? = null,
+    val welcomePromptImageSize: Double? = null,
+    val welcomePromptSpacing: Double? = null,
+    val welcomeTitleBottomSpacing: Double? = null,
+    val welcomePromptsTopSpacing: Double? = null,
+    val welcomePromptPadding: Double? = null,
+    val welcomePromptCornerRadius: Double? = null,
+    val headerTitleFontSize: Double? = null,
+    val suggestionItemBorderRadius: Double? = null,
+
+    // Extended product cards
+    val productCardTitleFontWeight: Int? = null,
+    val productCardTitleFontSize: Double? = null,
+    val productCardSubtitleFontWeight: Int? = null,
+    val productCardSubtitleFontSize: Double? = null,
+    val productCardPriceFontWeight: Int? = null,
+    val productCardPriceFontSize: Double? = null,
+    val productCardBadgeFontSize: Double? = null,
+    val productCardBadgeFontWeight: Int? = null,
+    val productCardBadgeTextColor: String? = null,
+    val productCardBadgeBackgroundColor: String? = null,
+    val productCardBackgroundColor: String? = null,
+    val productCardTitleColor: String? = null,
+    val productCardSubtitleColor: String? = null,
+    val productCardPriceColor: String? = null,
+    val productCardOutlineColor: String? = null,
+    val productCardWidth: Double? = null,
+    val productCardHeight: Double? = null,
+    val productCardBorderRadius: Double? = null,
+    val productCardWasPriceColor: String? = null,
+    val productCardWasPriceFontSize: Double? = null,
+    val productCardWasPriceFontWeight: Int? = null,
+    val productCardWasPriceTextPrefix: String? = null,
+    val productCardTextSpacing: Double? = null,
+    val productCardTitleSubtitleSpacing: Double? = null,
+    val productCardSectionSpacing: Double? = null,
+    val productCardPriceSpacing: Double? = null,
+    val productCardTextTopPadding: Double? = null,
+    val productCardTextBottomPadding: Double? = null,
+    val productCardTextHorizontalPadding: Double? = null,
+    val productCardCarouselHorizontalPadding: Double? = null,
+    val productCardCarouselSpacing: Double? = null,
+
+    // CTA button layout
+    val ctaButtonBorderRadius: Double? = null,
+    val ctaButtonHorizontalPadding: Double? = null,
+    val ctaButtonVerticalPadding: Double? = null,
+    val ctaButtonFontSize: Double? = null,
+    val ctaButtonFontWeight: Int? = null,
+    val ctaButtonIconSize: Double? = null,
+
+    // Thinking animation layout
+    val thinkingDotSize: Double? = null,
+    val thinkingDotSpacing: Double? = null,
+    val thinkingBubbleBorderRadius: Double? = null,
+    val thinkingBubblePaddingHorizontal: Double? = null,
+    val thinkingBubblePaddingVertical: Double? = null,
+    val thinkingDotVerticalAlignment: String? = null,
+
     // Nested layout for hierarchical themes
     val spacing: ConciergeSpacingLayout? = null,
     val sizing: ConciergeSizingLayout? = null,
@@ -100,7 +172,11 @@ data class ConciergeComponentsConfig(
 )
 
 data class ConciergeFeedbackComponent(
-    val iconButtonSizeDesktop: Double? = null
+    val iconButtonSizeDesktop: Double? = null,
+    /** Whether the notes field is shown for positive feedback. Default `true`. */
+    val positiveNotesEnabled: Boolean = true,
+    /** Whether the notes field is shown for negative feedback. Default `true`. */
+    val negativeNotesEnabled: Boolean = true
 )
 
 /**
@@ -126,9 +202,222 @@ data class ConciergeThemeBehavior(
     val showTimestamps: Boolean = false,
     val enableMarkdown: Boolean = true,
     val enableCitations: Boolean = true,
+    val welcomeCard: ConciergeWelcomeCardBehavior? = null,
     val enableVoiceInput: Boolean = true,
+    val disableMultiline: Boolean = true,
+    val sendButtonStyle: String = "default",
+    /** Basename (no extension) of the stop-recording icon under `assets/icons/`. Falls back to Material `Icons.Filled.StopCircle` when null/blank or unresolved. */
+    val stopRecordingIcon: String? = null,
     val maxMessageLength: Int = 2000,
-    val typingIndicatorDelay: Int = 500
+    val typingIndicatorDelay: Int = 500,
+    val feedback: ConciergeFeedbackBehavior? = null,
+    val citations: ConciergeCitationsBehavior? = null,
+    val productCard: ConciergeProductCardBehavior? = null,
+    val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null,
+    val chat: ConciergeChatBehavior? = null,
+    val promptSuggestions: ConciergePromptSuggestionsBehavior? = null
+)
+
+data class ConciergePromptSuggestionsBehavior(
+    val itemMaxLines: Int = 1,
+    val showHeader: Boolean = false
+)
+
+/**
+ * Chat behavior configuration from `behavior.chat` in theme JSON.
+ */
+data class ConciergeChatBehavior(
+    val messageAlignment: ConciergeTextAlignment = ConciergeTextAlignment.START,
+    val messageWidth: String? = null,
+    val userMessageBubbleStyle: UserMessageBubbleStyle = UserMessageBubbleStyle.DEFAULT
+)
+
+/**
+ * Horizontal text/content alignment with Compose-idiomatic case names (Start/End vs Leading/Trailing).
+ * Accepts (case-insensitive): `"left"` / `"leading"` / `"start"` -> START,
+ * `"center"` / `"justify"` -> CENTER, `"right"` / `"trailing"` / `"end"` -> END.
+ * Unknown or `null` falls back to `START`.
+ */
+enum class ConciergeTextAlignment(val value: String) {
+    START("start"),
+    CENTER("center"),
+    END("end");
+
+    companion object {
+        fun fromString(value: String?): ConciergeTextAlignment =
+            when (value?.trim()?.lowercase()) {
+                "left", "leading", "start" -> START
+                "right", "trailing", "end" -> END
+                "center", "justify" -> CENTER
+                else -> START
+            }
+    }
+}
+
+/**
+ * User message bubble shape from `behavior.chat.userMessageBubbleStyle` in theme JSON.
+ *
+ * - `"default"` — all corners rounded.
+ * - `"balloon"` — rounded except bottom-right corner is square (speech balloon style).
+ */
+enum class UserMessageBubbleStyle(val value: String) {
+    DEFAULT("default"),
+    BALLOON("balloon");
+
+    companion object {
+        fun fromString(value: String): UserMessageBubbleStyle =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: DEFAULT
+    }
+}
+
+/**
+ * Display mode for the feedback dialog from `behavior.feedback.displayMode` in theme JSON.
+ *
+ * - `"modal"` — centered card overlay ([Modal] in Compose).
+ * - `"action"` — [ModalBottomSheet].
+ */
+enum class FeedbackDisplayMode(val value: String) {
+    MODAL("modal"),
+    ACTION("action");
+
+    companion object {
+        fun fromString(value: String): FeedbackDisplayMode {
+            val normalized = value.trim().lowercase()
+            return when (normalized) {
+                MODAL.value -> MODAL
+                ACTION.value -> ACTION
+                else -> MODAL
+            }
+        }
+    }
+}
+
+/**
+ * Dot vertical alignment within the thinking bubble from `--thinking-dot-vertical-alignment` CSS variable.
+ *
+ * - `"top"` — dots aligned to the top.
+ * - `"center"` — dots centered vertically (default).
+ * - `"bottom"` — dots aligned to the bottom.
+ */
+enum class ThinkingDotVerticalAlignment(val value: String) {
+    TOP("top"),
+    CENTER("center"),
+    BOTTOM("bottom");
+
+    companion object {
+        fun fromString(value: String): ThinkingDotVerticalAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
+    }
+}
+
+/**
+ * Product card behavior: ACTION_BUTTON = image overlay with action buttons,
+ * PRODUCT_DETAIL = structured layout (image, badge, title, subtitle, price).
+ */
+enum class ProductCardStyle(val value: String) {
+    ACTION_BUTTON("actionButton"),
+    PRODUCT_DETAIL("productDetail");
+
+    companion object {
+        fun fromString(value: String): ProductCardStyle =
+            values().find { it.value == value } ?: ACTION_BUTTON
+    }
+}
+
+/**
+ * Multimodal carousel behavior: PAGED = snap to item with prev/next and dots,
+ * SCROLL = continuous horizontal scroll with no paging controls.
+ */
+enum class CarouselStyle(val value: String) {
+    PAGED("paged"),
+    SCROLL("scroll");
+
+    companion object {
+        fun fromString(value: String): CarouselStyle =
+            values().find { it.value == value } ?: PAGED
+    }
+}
+
+data class ConciergeFeedbackBehavior(
+    val displayMode: FeedbackDisplayMode = FeedbackDisplayMode.MODAL,
+    val thumbsPlacement: FeedbackThumbsPlacement = FeedbackThumbsPlacement.INLINE,
+    /** Overrides the close (X) button visibility. `null` defaults to `true` for `"action"`, `false` for `"modal"`. */
+    val showCloseButton: Boolean? = null,
+    /** Overrides the Cancel button visibility. `null` defaults to `true` for `"modal"`, `false` for `"action"`. */
+    val showCancelButton: Boolean? = null,
+    /** When `true`, feedback thumbs are shown on every message regardless of server eligibility. */
+    val alwaysDisplay: Boolean = false
+) {
+    /** Effective close button visibility: `showCloseButton` when set, otherwise `displayMode == ACTION`. */
+    fun resolvedShowCloseButton(): Boolean = showCloseButton ?: (displayMode == FeedbackDisplayMode.ACTION)
+
+    /** Effective Cancel button visibility: `showCancelButton` when set, otherwise `displayMode == MODAL`. */
+    fun resolvedShowCancelButton(): Boolean = showCancelButton ?: (displayMode == FeedbackDisplayMode.MODAL)
+}
+
+/**
+ * Placement of the feedback thumbs relative to the sources accordion.
+ * - INLINE: Thumbs sit in the sources header row (default). Falls back to standalone when there are no sources.
+ * - BELOW: Thumbs appear below the expanded sources list with a helpful label. Falls back to standalone without sources.
+ * - STANDALONE: Always a separate block below the bubble, regardless of whether sources are present.
+ */
+enum class FeedbackThumbsPlacement(val value: String) {
+    INLINE("inline"),
+    BELOW("below"),
+    STANDALONE("standalone");
+
+    companion object {
+        fun fromString(value: String): FeedbackThumbsPlacement =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: INLINE
+    }
+}
+
+data class ConciergeLinkIconStyle(
+    val size: Float? = null,      // icon size in dp; null → 16 dp
+    val spacing: Float? = null,   // gap between link text and icon in dp; null → 2 dp
+    val color: String? = null     // hex color string; null → falls back to link color
+)
+
+data class ConciergeCitationsBehavior(
+    val showLinkIcon: Boolean = false,
+    val phoneIcon: String? = null,
+    val storeIcon: String? = null,
+    val defaultLinkIcon: String? = null,
+    val linkIconStyle: ConciergeLinkIconStyle? = null
+)
+
+/**
+ * Horizontal alignment of product cards within their display area.
+ *
+ * - `"start"` — left-aligned.
+ * - `"center"` — centered (default).
+ * - `"end"` — right-aligned.
+ */
+enum class CardsAlignment(val value: String) {
+    START("start"),
+    CENTER("center"),
+    END("end");
+
+    companion object {
+        fun fromString(value: String): CardsAlignment =
+            values().firstOrNull { it.value.equals(value, ignoreCase = true) } ?: CENTER
+    }
+}
+
+data class ConciergeProductCardBehavior(
+    val cardStyle: ProductCardStyle = ProductCardStyle.ACTION_BUTTON,
+    val cardsAlignment: CardsAlignment = CardsAlignment.CENTER
+)
+
+data class ConciergeMultimodalCarouselBehavior(
+    val carouselStyle: CarouselStyle = CarouselStyle.PAGED
+)
+
+data class ConciergeWelcomeCardBehavior(
+    val closeButtonAlignment: String = "end",
+    val promptFullWidth: Boolean = true,
+    val promptMaxLines: Int = Int.MAX_VALUE,
+    val contentAlignment: String = "top"
 )
 
 /**
@@ -183,7 +472,6 @@ data class ConciergeTextContent(
     val feedbackTitle: String = "Provide feedback",
     val feedbackSubmit: String = "Submit",
     val feedbackCancel: String = "Cancel",
-    val sourcesLabel: String = "Sources",
     val thinkingLabel: String = "Thinking",
     val listeningLabel: String = "Listening"
 )

@@ -47,7 +47,7 @@ class MicButtonTest {
     }
 
     @Test
-    fun micButton_inRecordingState_displaysStopRecording() {
+    fun micButton_inRecordingState_displaysRecordingInProgress() {
         composeTestRule.setContent {
             ConciergeTheme {
                 MicButton(
@@ -58,7 +58,7 @@ class MicButtonTest {
             }
         }
 
-        composeTestRule.onNode(hasContentDescription("Stop recording"))
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
             .assertIsDisplayed()
     }
 
@@ -132,7 +132,7 @@ class MicButtonTest {
             }
         }
 
-        composeTestRule.onNode(hasContentDescription("Stop recording"))
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
             .performClick()
 
         assert(clickCalled)
@@ -196,7 +196,7 @@ class MicButtonTest {
     }
 
     @Test
-    fun micButton_withTranscription_stillDisplaysStopRecording() {
+    fun micButton_withTranscription_stillDisplaysRecordingInProgress() {
         composeTestRule.setContent {
             ConciergeTheme {
                 MicButton(
@@ -207,7 +207,7 @@ class MicButtonTest {
             }
         }
 
-        composeTestRule.onNode(hasContentDescription("Stop recording"))
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
             .assertIsDisplayed()
     }
 }

@@ -78,7 +78,7 @@ class ConciergeTextComponentsTest {
             ConciergeTheme {
                 ClickableText(
                     text = annotatedText,
-                    onLinkClick = {},
+                    handleLink = {},
                     textAlign = TextAlign.Center
                 )
             }

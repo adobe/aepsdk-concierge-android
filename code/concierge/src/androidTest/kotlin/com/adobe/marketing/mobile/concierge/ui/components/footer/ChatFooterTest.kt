@@ -19,7 +19,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeFeedbackBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
+import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackThumbsPlacement
 import org.junit.Rule
 import org.junit.Test
 
@@ -31,6 +37,15 @@ class ChatFooterTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    private val standaloneTheme = ConciergeThemeData(
+        config = ConciergeThemeConfig(),
+        tokens = ConciergeThemeTokens(
+            behavior = ConciergeThemeBehavior(
+                feedback = ConciergeFeedbackBehavior(thumbsPlacement = FeedbackThumbsPlacement.STANDALONE)
+            )
+        )
+    )
 
     @Test
     fun chatFooter_withCitations_displaysSourcesButton() {
@@ -48,6 +63,7 @@ class ChatFooterTest {
                 ChatFooter(
                     citations = citations,
                     interactionId = "test-id",
+                    sseComplete = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -59,12 +75,14 @@ class ChatFooterTest {
     }
 
     @Test
-    fun chatFooter_withInteractionId_displaysFeedbackButtons() {
+    fun chatFooter_withFeedbackEligibleAndSseComplete_displaysFeedbackButtons() {
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = standaloneTheme) {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -75,6 +93,48 @@ class ChatFooterTest {
             .assertIsDisplayed()
         composeTestRule.onNode(hasContentDescription("Thumbs down"))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatFooter_feedbackEligibleButSseNotComplete_hidesFeedbackButtons() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatFooter(
+                    citations = null,
+                    interactionId = "test-id",
+                    sseComplete = false,
+                    feedbackEligible = true,
+                    onFeedback = {},
+                    feedbackState = FeedbackState.None
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Thumbs up"))
+            .assertDoesNotExist()
+        composeTestRule.onNode(hasContentDescription("Thumbs down"))
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun chatFooter_feedbackNotEligible_hidesFeedbackButtonsEvenWhenSseComplete() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatFooter(
+                    citations = null,
+                    interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = false,
+                    onFeedback = {},
+                    feedbackState = FeedbackState.None
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Thumbs up"))
+            .assertDoesNotExist()
+        composeTestRule.onNode(hasContentDescription("Thumbs down"))
+            .assertDoesNotExist()
     }
 
     @Test
@@ -93,6 +153,8 @@ class ChatFooterTest {
                 ChatFooter(
                     citations = citations,
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -110,10 +172,12 @@ class ChatFooterTest {
         var feedbackEvent: FeedbackEvent? = null
 
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = standaloneTheme) {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = { feedbackEvent = it },
                     feedbackState = FeedbackState.None
                 )
@@ -131,10 +195,12 @@ class ChatFooterTest {
         var feedbackEvent: FeedbackEvent? = null
 
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = standaloneTheme) {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = { feedbackEvent = it },
                     feedbackState = FeedbackState.None
                 )
@@ -166,10 +232,12 @@ class ChatFooterTest {
     @Test
     fun chatFooter_emptyCitationsList_doesNotDisplaySources() {
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = standaloneTheme) {
                 ChatFooter(
                     citations = emptyList(),
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.None
                 )
@@ -206,10 +274,12 @@ class ChatFooterTest {
     @Test
     fun chatFooter_feedbackStatePositive_displaysFilledThumbsUp() {
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = standaloneTheme) {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.Positive
                 )
@@ -223,10 +293,12 @@ class ChatFooterTest {
     @Test
     fun chatFooter_feedbackStateNegative_displaysFilledThumbsDown() {
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = standaloneTheme) {
                 ChatFooter(
                     citations = null,
                     interactionId = "test-id",
+                    sseComplete = true,
+                    feedbackEligible = true,
                     onFeedback = {},
                     feedbackState = FeedbackState.Negative
                 )

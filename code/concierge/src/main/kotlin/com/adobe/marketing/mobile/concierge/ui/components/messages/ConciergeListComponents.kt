@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,7 +36,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
  * Renders list content with proper indentation and spacing.
  *
  * @param listTokens List of [MarkdownToken] objects representing list items
- * @param onLinkClick Callback function for handling link clicks
+ * @param handleLink Callback function for handling link clicks
  * @param uniqueSources List of [Citation] objects for generating citation annotations
  * @param inlineContentMap Pre-computed inline content map for citations
  * @param modifier [Modifier] to be applied to the [Column] container
@@ -43,18 +44,20 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 @Composable
 internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
-    onLinkClick: (String) -> Unit,
+    handleLink: (String) -> Unit,
+    modifier: Modifier = Modifier,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
-    modifier: Modifier = Modifier
+    linkHints: List<LinkHint> = emptyList(),
 ) {
     Column(modifier = modifier.wrapContentHeight()) {
         listTokens.forEach { token ->
             ListItem(
                 token = token,
-                onLinkClick = onLinkClick,
+                handleLink = handleLink,
                 uniqueSources = uniqueSources,
-                inlineContentMap = inlineContentMap
+                inlineContentMap = inlineContentMap,
+                linkHints = linkHints
             )
         }
     }
@@ -67,16 +70,17 @@ internal fun ConciergeResponseList(
  * citation annotations applied.
  *
  * @param token The [MarkdownToken] representing the list item
- * @param onLinkClick Callback function for handling link clicks within the list item
+ * @param handleLink Callback function for handling link clicks within the list item
  * @param uniqueSources List of [Citation] objects for generating citation annotations
  * @param inlineContentMap Pre-computed inline content map for citations
  */
 @Composable
 private fun ListItem(
     token: MarkdownToken,
-    onLinkClick: (String) -> Unit,
+    handleLink: (String) -> Unit,
     uniqueSources: List<Citation> = emptyList(),
-    inlineContentMap: Map<String, InlineTextContent> = emptyMap()
+    inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
+    linkHints: List<LinkHint> = emptyList()
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
@@ -85,7 +89,7 @@ private fun ListItem(
     val indentationLevel = token.indentationLevel
 
     // Parse markdown first to get the rendered text with inline content placeholders
-    val annotatedString = MarkdownParser.parse(listItemContent)
+    val annotatedString = MarkdownParser.parse(listItemContent, linkHints)
 
     // Use provided inline content map or create it if not provided
     val finalInlineContentMap = remember(inlineContentMap, uniqueSources, style.size) {
@@ -115,7 +119,7 @@ private fun ListItem(
         ClickableText(
             text = annotatedString,
             inlineContent = finalInlineContentMap,
-            onLinkClick = onLinkClick,
+            handleLink = handleLink,
             modifier = Modifier
                 .weight(1f, fill = true)
                 .wrapContentHeight()

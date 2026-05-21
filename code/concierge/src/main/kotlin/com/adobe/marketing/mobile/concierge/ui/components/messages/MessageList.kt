@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -44,7 +45,8 @@ internal fun MessageList(
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
-    onLinkClick: (String) -> Unit = {}
+    handleLink: (String) -> Unit = {},
+    onCtaButtonClick: (CtaButton) -> Unit = {}
 ) {
     val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
@@ -96,8 +98,9 @@ internal fun MessageList(
                         onActionClick = onActionClick,
                         onImageClick = onImageClick,
                         onSuggestionClick = onSuggestionClick,
-                        onLinkClick = onLinkClick,
-                        feedbackState = message.feedbackState
+                        handleLink = handleLink,
+                        feedbackState = message.feedbackState,
+                        onCtaButtonClick = onCtaButtonClick
                     )
                 }
             }

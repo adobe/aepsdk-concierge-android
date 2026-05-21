@@ -14,6 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -21,6 +24,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 
 /**
  * Data class holding the active theme configuration including resolved colors
@@ -38,6 +43,34 @@ data class ActiveConciergeTheme(
  */
 private val LocalActiveConciergeTheme = staticCompositionLocalOf { 
     ActiveConciergeTheme(colors = LightConciergeColors)
+}
+
+/**
+ * Copies all 15 Material3 typography slots with the given [fontFamily] so that any text
+ * composable resolving its style through `MaterialTheme.typography` inherits the theme font.
+ */
+private fun buildThemedTypography(
+    base: Typography,
+    fontFamily: FontFamily
+): Typography {
+    fun TextStyle.patched(): TextStyle = copy(fontFamily = fontFamily)
+    return Typography(
+        displayLarge   = base.displayLarge.patched(),
+        displayMedium  = base.displayMedium.patched(),
+        displaySmall   = base.displaySmall.patched(),
+        headlineLarge  = base.headlineLarge.patched(),
+        headlineMedium = base.headlineMedium.patched(),
+        headlineSmall  = base.headlineSmall.patched(),
+        titleLarge     = base.titleLarge.patched(),
+        titleMedium    = base.titleMedium.patched(),
+        titleSmall     = base.titleSmall.patched(),
+        bodyLarge      = base.bodyLarge.patched(),
+        bodyMedium     = base.bodyMedium.patched(),
+        bodySmall      = base.bodySmall.patched(),
+        labelLarge     = base.labelLarge.patched(),
+        labelMedium    = base.labelMedium.patched(),
+        labelSmall     = base.labelSmall.patched(),
+    )
 }
 
 /**
@@ -78,10 +111,25 @@ fun ConciergeTheme(
         )
     }
 
-    CompositionLocalProvider(
-        LocalActiveConciergeTheme provides activeTheme,
-        content = content
-    )
+    val resolvedFamily = ConciergeFontResolver.resolve(theme?.tokens?.typography?.fontFamily)
+
+    CompositionLocalProvider(LocalActiveConciergeTheme provides activeTheme) {
+        if (resolvedFamily != null) {
+            val themed = buildThemedTypography(MaterialTheme.typography, resolvedFamily)
+            MaterialTheme(
+                colorScheme = MaterialTheme.colorScheme,
+                typography = themed,
+                shapes = MaterialTheme.shapes
+            ) {
+                CompositionLocalProvider(
+                    LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = resolvedFamily),
+                    content = content
+                )
+            }
+        } else {
+            content()
+        }
+    }
 }
 
 /**
@@ -147,6 +195,12 @@ object ConciergeTheme {
     val behavior: ConciergeThemeBehavior?
         @Composable get() = LocalActiveConciergeTheme.current.themeTokens?.behavior
     
+    /**
+     * Retrieves header configuration from the theme
+     */
+    val header: HeaderConfig?
+        @Composable get() = LocalActiveConciergeTheme.current.config?.header
+
     /**
      * Retrieves text strings from the theme configuration
      */

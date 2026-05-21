@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,7 +62,7 @@ fun MainScreen() {
     // Theme options
     val themeOptions = listOf(
         ThemeOption("default", "Default Theme", "Standard theme"),
-        ThemeOption("demo", "Demo Theme", "Blue-themed demo"),
+        ThemeOption("demo", "Demo Theme", "Styling and behaviors demo"),
         ThemeOption("input field border", "Input Field Borders Test", "Configure input field borders"),
         ThemeOption("behaviors disabled", "Behavior Test", "No voice input")
     )
@@ -79,7 +80,6 @@ fun MainScreen() {
     }
     
     // Apply theme at the root level
-    ConciergeTheme(theme = theme) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -121,28 +121,48 @@ fun MainScreen() {
                 // Compose wrapper implementation button
                 val viewModel = viewModel<ConciergeChatViewModel>()
 
-                ConciergeChat(
-                    modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel,
-                    surfaces = surfaces
-                ) { showChat ->
-                    Button(
-                        onClick = { showChat() },
-                        modifier = Modifier.size(width = 240.dp, height = 60.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF5E35B1)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
+                ConciergeTheme(theme = theme) {
+                    ConciergeChat(
+                        modifier = Modifier.fillMaxSize(),
+                        viewModel = viewModel,
+                        surfaces = surfaces
+                    ) { showChat ->
+                        Button(
+                            onClick = { showChat() },
+                            modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF5E35B1)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
+                        }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Link handling testing button
+                Button(
+                    onClick = { context.startActivity(Intent(context, LinkHandlingTestActivity::class.java)) },
+                    modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00897B)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "🔗 Test Link Handling",
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // XML Integration button
                 Button(
-                    onClick = { 
+                    onClick = {
                         val intent = Intent(context, XmlChatActivity::class.java)
                         // Pass theme selection to XML activity
                         val themeFile = when (selectedTheme) {
@@ -168,7 +188,6 @@ fun MainScreen() {
                 }
             }
         }
-    }
 }
 
 /**

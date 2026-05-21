@@ -235,13 +235,121 @@ class CSSThemeParsingTest {
               }
             }
         """.trimIndent()
-        
+
         val theme = ThemeParser.parseThemeTokens(cssThemeJson)
         assertNotNull("Theme should be parsed", theme)
         assertNotNull("Input colors should exist", theme?.colors?.input)
-        
+
         // Gradients should be set to null
         assertNull("Gradient outline should be null", theme?.colors?.input?.outline)
+    }
+
+    @Test
+    fun `test product card border radius parsing`() {
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--product-card-border-radius": "8px"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull("Theme should be parsed", theme)
+        assertNotNull("CSS layout should exist", theme?.cssLayout)
+        assertEquals(8.0, theme?.cssLayout?.productCardBorderRadius)
+    }
+
+    @Test
+    fun `test product card text padding parsing`() {
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--product-card-text-horizontal-padding": "16px",
+                "--product-card-text-top-padding": "24px",
+                "--product-card-text-bottom-padding": "16px",
+                "--product-card-text-spacing": "8px"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull("Theme should be parsed", theme)
+        assertNotNull("CSS layout should exist", theme?.cssLayout)
+        assertEquals(16.0, theme?.cssLayout?.productCardTextHorizontalPadding)
+        assertEquals(24.0, theme?.cssLayout?.productCardTextTopPadding)
+        assertEquals(16.0, theme?.cssLayout?.productCardTextBottomPadding)
+        assertEquals(8.0, theme?.cssLayout?.productCardTextSpacing)
+    }
+
+    @Test
+    fun `test product card carousel spacing parsing`() {
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--product-card-carousel-horizontal-padding": "16px",
+                "--product-card-carousel-spacing": "12px"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull("Theme should be parsed", theme)
+        assertNotNull("CSS layout should exist", theme?.cssLayout)
+        assertEquals(16.0, theme?.cssLayout?.productCardCarouselHorizontalPadding)
+        assertEquals(12.0, theme?.cssLayout?.productCardCarouselSpacing)
+    }
+
+    @Test
+    fun `test product card new variables are null when not specified`() {
+        // Provide only an unrelated layout key so cssLayout is created but new variables are absent.
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--input-height-mobile": "52px"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull("Theme should be parsed", theme)
+        assertNotNull("CSS layout should exist", theme?.cssLayout)
+        assertNull("Border radius should be null when not specified", theme?.cssLayout?.productCardBorderRadius)
+        assertNull("Text horizontal padding should be null when not specified", theme?.cssLayout?.productCardTextHorizontalPadding)
+        assertNull("Text top padding should be null when not specified", theme?.cssLayout?.productCardTextTopPadding)
+        assertNull("Text bottom padding should be null when not specified", theme?.cssLayout?.productCardTextBottomPadding)
+        assertNull("Text spacing should be null when not specified", theme?.cssLayout?.productCardTextSpacing)
+        assertNull("Carousel horizontal padding should be null when not specified", theme?.cssLayout?.productCardCarouselHorizontalPadding)
+        assertNull("Carousel spacing should be null when not specified", theme?.cssLayout?.productCardCarouselSpacing)
+    }
+
+    @Test
+    fun `test product card complete new variables block`() {
+        val cssThemeJson = """
+            {
+              "theme": {
+                "--product-card-border-radius": "12px",
+                "--product-card-text-horizontal-padding": "20px",
+                "--product-card-text-top-padding": "28px",
+                "--product-card-text-bottom-padding": "12px",
+                "--product-card-text-spacing": "10px",
+                "--product-card-carousel-horizontal-padding": "8px",
+                "--product-card-carousel-spacing": "16px"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(cssThemeJson)
+        assertNotNull("Theme should be parsed", theme)
+        val layout = theme?.cssLayout
+        assertNotNull("CSS layout should exist", layout)
+        assertEquals(12.0, layout?.productCardBorderRadius)
+        assertEquals(20.0, layout?.productCardTextHorizontalPadding)
+        assertEquals(28.0, layout?.productCardTextTopPadding)
+        assertEquals(12.0, layout?.productCardTextBottomPadding)
+        assertEquals(10.0, layout?.productCardTextSpacing)
+        assertEquals(8.0, layout?.productCardCarouselHorizontalPadding)
+        assertEquals(16.0, layout?.productCardCarouselSpacing)
     }
 }
 

@@ -37,7 +37,8 @@ class ConciergeDisclaimerTest {
                     disclaimerConfig = DisclaimerConfig(
                         text = "AI responses may be inaccurate.",
                         links = emptyList()
-                    )
+                    ),
+                    onEvent = {}
                 )
             }
         }
@@ -54,7 +55,8 @@ class ConciergeDisclaimerTest {
                     disclaimerConfig = DisclaimerConfig(
                         text = "Check our {Terms} for more.",
                         links = listOf(DisclaimerLink("Terms", "https://example.com/terms"))
-                    )
+                    ),
+                    onEvent = {}
                 )
             }
         }
@@ -67,7 +69,7 @@ class ConciergeDisclaimerTest {
     fun disclaimer_doesNotDisplayWhenConfigNull_rendersWithoutCrashing() {
         composeTestRule.setContent {
             ConciergeTheme {
-                ConciergeDisclaimer(disclaimerConfig = null)
+                ConciergeDisclaimer(disclaimerConfig = null, onEvent = {})
             }
         }
 
@@ -79,7 +81,8 @@ class ConciergeDisclaimerTest {
         composeTestRule.setContent {
             ConciergeTheme {
                 ConciergeDisclaimer(
-                    disclaimerConfig = DisclaimerConfig(text = "  ", links = null)
+                    disclaimerConfig = DisclaimerConfig(text = "  ", links = null),
+                    onEvent = {}
                 )
             }
         }

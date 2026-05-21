@@ -12,12 +12,16 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.header
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.HeaderConfig
 import org.junit.Rule
 import org.junit.Test
 
@@ -29,6 +33,17 @@ class ChatHeaderTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    /** Wraps content in a ConciergeTheme whose only configured block is [header]. */
+    @Composable
+    private fun ThemedHeader(header: HeaderConfig?, content: @Composable () -> Unit) {
+        ConciergeTheme(
+            theme = ConciergeThemeData(
+                config = ConciergeThemeConfig(header = header),
+                tokens = null
+            )
+        ) { content() }
+    }
 
     @Test
     fun chatHeader_displaysTitle() {
@@ -98,5 +113,108 @@ class ChatHeaderTest {
         closeButton.performClick()
 
         assert(clickCount == 3)
+    }
+
+    @Test
+    fun chatHeader_bothBlank_fallsBackToDefaults() {
+        composeTestRule.setContent {
+            ThemedHeader(header = HeaderConfig(title = "", subtitle = "")) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("Concierge").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Powered by Adobe").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatHeader_onlyTitleSet_hidesSubtitle() {
+        composeTestRule.setContent {
+            ThemedHeader(header = HeaderConfig(title = "My Assistant", subtitle = "")) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("My Assistant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Powered by Adobe").assertDoesNotExist()
+    }
+
+    @Test
+    fun chatHeader_onlySubtitleSet_hidesTitle() {
+        composeTestRule.setContent {
+            ThemedHeader(header = HeaderConfig(title = "", subtitle = "Adobe brand")) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("Adobe brand").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Concierge").assertDoesNotExist()
+    }
+
+    @Test
+    fun chatHeader_bothSet_rendersBoth() {
+        composeTestRule.setContent {
+            ThemedHeader(header = HeaderConfig(title = "My Assistant", subtitle = "Adobe brand")) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("My Assistant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adobe brand").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatHeader_imageOnly_doesNotRenderText() {
+        composeTestRule.setContent {
+            ThemedHeader(
+                header = HeaderConfig(
+                    title = "My Assistant",
+                    subtitle = "Adobe brand",
+                    image = "logo",
+                    layoutType = "imageOnly"
+                )
+            ) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("My Assistant").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Adobe brand").assertDoesNotExist()
+    }
+
+    @Test
+    fun chatHeader_layoutTypeTextOnly_rendersText() {
+        composeTestRule.setContent {
+            ThemedHeader(
+                header = HeaderConfig(
+                    title = "My Assistant",
+                    subtitle = "Adobe brand",
+                    image = "logo",
+                    layoutType = "textOnly"
+                )
+            ) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("My Assistant").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Adobe brand").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatHeader_layoutTypeUnknown_fallsBackToText() {
+        composeTestRule.setContent {
+            ThemedHeader(
+                header = HeaderConfig(
+                    title = "My Assistant",
+                    image = "logo",
+                    layoutType = "garbage"
+                )
+            ) {
+                ChatHeader(onClose = {})
+            }
+        }
+
+        composeTestRule.onNodeWithText("My Assistant").assertIsDisplayed()
     }
 }

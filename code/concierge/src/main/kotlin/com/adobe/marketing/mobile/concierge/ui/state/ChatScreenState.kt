@@ -13,7 +13,9 @@
 package com.adobe.marketing.mobile.concierge.ui.state
 
 import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 
@@ -92,6 +94,8 @@ internal sealed class MicEvent : ChatEvent() {
     data class StopRecording(val isCancelled: Boolean, val isError: Boolean) : MicEvent()
 }
 
+internal class DisclaimerClickedEvent(val url: String) : ChatEvent()
+
 /**
  * Represents feedback events that can be processed by the ViewModel.
  */
@@ -135,6 +139,16 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
      * User clicked on a prompt suggestion.
      */
     data class PromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
+
+    /**
+     * User clicked on a welcome prompt suggestion.
+     */
+    data class WelcomePromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
+
+    /*
+     * User clicked on a ctaButton in the message.
+     */
+    data class CtaButtonClick(val ctaButton: NetworkCtaButton) : MessageInteractionEvent()
 }
 
 /**
@@ -147,6 +161,7 @@ internal sealed class MessageContent {
         val text: String,
         val multimodalElements: List<MultimodalElement>? = null
     ) : MessageContent()
+    data class CtaButton(val button: NetworkCtaButton) : MessageContent()
 }
 
 /**
@@ -159,12 +174,28 @@ internal data class ChatMessage(
     val citations: List<Citation>? = null,
     val uniqueCitations: List<Citation>? = null,
     val interactionId: String? = null,
+    val sseComplete: Boolean = false,
     val promptSuggestions: List<String> = emptyList(),
-    val feedbackState: FeedbackState = FeedbackState.None
+    val feedbackState: FeedbackState = FeedbackState.None,
+    val ctaButton: NetworkCtaButton? = null,
+    val feedbackEligible: Boolean = false,
+    val linkHints: List<LinkHint> = emptyList()
 ) {
     val text: String
         get() = when (content) {
             is MessageContent.Text -> content.text
             is MessageContent.Mixed -> content.text
+            is MessageContent.CtaButton -> content.button.label
         }
+
+    /**
+     * True when this message is an agent thinking indicator: a non-user text message whose
+     * text is empty. The thinking animation composable is shown in place of message content
+     * and the footer (citations/feedback) is suppressed until a real response arrives.
+     */
+    val isThinking: Boolean
+        get() = !isFromUser && content is MessageContent.Text && text.isEmpty()
+
+    val hasFooterContent: Boolean
+        get() = !isFromUser && (citations != null || interactionId != null || feedbackEligible)
 }
