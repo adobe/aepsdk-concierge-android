@@ -48,7 +48,12 @@ data class HeaderConfig(
      * - `"textOnly"` — render only the title and subtitle, ignore image
      * - `null` or unknown — defaults to text-only (title and subtitle only)
      */
-    val layoutType: String? = null
+    val layoutType: String? = null,
+    /**
+     * Height of the header image / fallback chat icon. Parsed from a CSS pixel value
+     * (e.g. `"48px"`) and applied as `dp`. `null` falls back to the default in `headerStyle`.
+     */
+    val imageHeight: Double? = null
 )
 
 /**

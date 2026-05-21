@@ -89,6 +89,10 @@ internal object ConciergeStyles {
                 MaterialTheme.typography.bodyLarge.copy(fontSize = size.sp)
             } ?: MaterialTheme.typography.headlineSmall
 
+            // Image height: theme-configurable via `header.imageHeight` (e.g. "48px") in JSON,
+            // falls back to 48dp when not set.
+            val imageHeight = ConciergeTheme.header?.imageHeight?.dp ?: 48.dp
+
             return HeaderStyle(
                 horizontalPadding = 12.dp,
                 verticalPadding = 8.dp,
@@ -99,7 +103,7 @@ internal object ConciergeStyles {
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
                 iconColor = textColor,
-                imageHeight = 48.dp,
+                imageHeight = imageHeight,
                 imageSpacing = 8.dp,
                 dividerColor = textColor.copy(alpha = 0.12f),
                 dividerThickness = 0.5.dp
