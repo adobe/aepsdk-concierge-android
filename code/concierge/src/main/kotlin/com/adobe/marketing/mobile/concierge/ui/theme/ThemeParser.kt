@@ -61,13 +61,21 @@ internal object ThemeParser {
             // Parse the full theme (which includes CSS theme parsing)
             val themeTokens = parseThemeTokensFromMap(json)
             
-            // Parse text strings
+            // Parse header config from root-level "header" block
+            val headerConfig = DataReader.optTypedMap(Any::class.java, json, "header", null)?.let {
+                HeaderConfig(
+                    title = DataReader.optString(it, "title", null),
+                    subtitle = DataReader.optString(it, "subtitle", null),
+                    image = DataReader.optString(it, "image", null),
+                    layoutType = DataReader.optString(it, "layoutType", null)
+                )
+            }
+
+            // Parse text strings from "text" block
             val textMap = DataReader.optTypedMap(Any::class.java, json, "text", null)
             val textStrings = textMap?.let {
                 ConciergeTextStrings(
                     inputPlaceholder = DataReader.optString(it, "input.placeholder", null),
-                    headerTitle = DataReader.optString(it, "header.title", null),
-                    headerSubtitle = DataReader.optString(it, "header.subtitle", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),
@@ -120,6 +128,7 @@ internal object ThemeParser {
                 name = themeTokens.metadata.name,
                 colors = themeTokens.colors,
                 styles = null,
+                header = headerConfig,
                 text = textStrings,
                 disclaimer = disclaimer,
                 welcomeExamples = welcomeExamples,

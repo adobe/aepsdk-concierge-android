@@ -196,6 +196,12 @@ object ConciergeTheme {
         @Composable get() = LocalActiveConciergeTheme.current.themeTokens?.behavior
     
     /**
+     * Retrieves header configuration from the theme
+     */
+    val header: HeaderConfig?
+        @Composable get() = LocalActiveConciergeTheme.current.config?.header
+
+    /**
      * Retrieves text strings from the theme configuration
      */
     val text: ConciergeTextStrings?

@@ -72,6 +72,9 @@ internal object ConciergeStyles {
         val subtitleColor: Color,
         val iconSize: Dp,
         val iconColor: Color,
+        /** Fixed height for the header logo; width follows aspect ratio (wrap content). */
+        val imageHeight: Dp,
+        val imageSpacing: Dp,
         val dividerColor: Color,
         val dividerThickness: Dp
     )
@@ -96,6 +99,8 @@ internal object ConciergeStyles {
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
                 iconColor = textColor,
+                imageHeight = 48.dp,
+                imageSpacing = 8.dp,
                 dividerColor = textColor.copy(alpha = 0.12f),
                 dividerThickness = 0.5.dp
             )
