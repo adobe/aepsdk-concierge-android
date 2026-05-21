@@ -101,7 +101,6 @@ internal fun InputActionButtons(
                         Icon(
                             painter = painterResource(R.drawable.close),
                             contentDescription = "Clear input",
-                            tint = sendButtonStyle.enabledIconColor.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -127,6 +126,17 @@ internal fun InputActionButtons(
                         onClick = onMicPressed
                     )
                 }
+            }
+        } else if (hasText) {
+            // Voice disabled — clear button (X) accompanies the send button when typing
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier.size(micContainerSize)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.close),
+                    contentDescription = "Clear input",
+                )
             }
         }
 

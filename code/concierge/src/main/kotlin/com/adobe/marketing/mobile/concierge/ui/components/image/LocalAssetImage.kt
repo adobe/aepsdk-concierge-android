@@ -79,6 +79,24 @@ internal fun LocalAssetImage(
     }
 }
 
+/**
+ * Returns the loaded [ImageBitmap] for a local asset, or null if the asset does not exist or
+ * has not finished loading yet. Results are cached so subsequent calls are synchronous.
+ */
+@Composable
+internal fun rememberLocalAssetBitmap(assetName: String): ImageBitmap? {
+    val context = LocalContext.current
+    return produceState(initialValue = assetBitmapCache[assetName], key1 = assetName) {
+        if (!assetBitmapCache.containsKey(assetName)) {
+            val loaded = withContext(Dispatchers.IO) {
+                loadAssetBitmap(context, assetName)?.asImageBitmap()
+            }
+            assetBitmapCache[assetName] = loaded
+            value = loaded
+        }
+    }.value
+}
+
 @Composable
 private fun LocalFileImage(
     assetName: String,

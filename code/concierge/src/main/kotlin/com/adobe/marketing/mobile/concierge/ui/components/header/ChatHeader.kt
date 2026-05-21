@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberLocalAssetBitmap
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
@@ -108,8 +109,17 @@ internal fun ChatHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isImageOnly) {
-                    if (imageSource != null) {
-                        HeaderImage(source = imageSource, style = style)
+                    // For local assets, verify the file resolves before rendering; fall back to
+                    // the Chat icon if the asset name is missing, blank, or not found on disk.
+                    // Remote URLs are passed through directly (AsyncImage handles its own errors).
+                    val isRemoteUrl = imageSource?.startsWith("http") == true
+                    val localBitmap = if (!isRemoteUrl && imageSource != null) {
+                        rememberLocalAssetBitmap(imageSource)
+                    } else null
+                    val showImage = imageSource != null && (isRemoteUrl || localBitmap != null)
+
+                    if (showImage) {
+                        HeaderImage(source = imageSource!!, style = style)
                     } else {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Chat,
