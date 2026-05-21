@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -l -i \"voice\\\\|recording\\\\|microphone\\\\|enableVoiceInput\" code/concierge/src/main/kotlin)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -l \"LocalAssetImage\\\\|loadAssetIcon\\\\|loadAssetBitmap\\\\|assets/icons\" code/concierge/src/main/kotlin/)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -rn \"material.icons\" code/concierge/src/main/kotlin)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"recordingIconColor\\\\|MicButtonStyle\\\\|pulsingBackgroundColor\" code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/theme/ConciergeStyles.kt)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android log --oneline dev..HEAD)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android status)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android branch --show-current)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android status --short)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android checkout -- code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/components/header/ChatHeader.kt)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android checkout header-image)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"class ConciergeThemeData\\\\|data class ConciergeThemeData\\\\|object ConciergeThemeData\" code/concierge/src/main/kotlin)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"assertDoesNotExist\" code/concierge/src/androidTest)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android log --oneline -3)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android status --short code/concierge/src/androidTest/kotlin/com/adobe/marketing/mobile/concierge/ui/components/input/InputActionButtonsTest.kt)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android fetch origin)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android log origin/input_revamp --oneline -3)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"inputHeight\\\\|input-height\\\\|input.*height\" code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/)",
+      "Bash(grep -nB2 -A20 \"val inputPanelStyle\" /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android/code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/theme/ConciergeStyles.kt)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"headerImage\\\\|HeaderImage\\\\|header.*image\\\\|brand_logo\\\\|companyIcon\\\\|company.*icon\" code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/components/header/)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"companyIcon\\\\|company_logo\\\\|brand_logo\\\\|BrandLogo\" code/concierge/src/main/kotlin/)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"parsePxValue\\\\|CSSValueConverter\" code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/theme/CSSValueConverter.kt)",
+      "Bash(grep -nB1 -A8 \"HeaderConfig\\(\" /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android/code/concierge/src/main/kotlin/com/adobe/marketing/mobile/concierge/ui/theme/ThemeParser.kt)",
+      "Bash(git -C /Users/navratansoni/Documents/StudioRepos/aepsdk-concierge-android grep -n \"parsePxValue\" code/concierge/src/main/kotlin/)"
+    ]
+  }
+}
