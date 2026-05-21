@@ -206,6 +206,8 @@ data class ConciergeThemeBehavior(
     val enableVoiceInput: Boolean = true,
     val disableMultiline: Boolean = true,
     val sendButtonStyle: String = "default",
+    /** Basename (no extension) of the stop-recording icon under `assets/icons/`. Falls back to Material `Icons.Filled.StopCircle` when null/blank or unresolved. */
+    val stopRecordingIcon: String? = null,
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
     val feedback: ConciergeFeedbackBehavior? = null,

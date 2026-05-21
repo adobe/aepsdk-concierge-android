@@ -87,7 +87,8 @@ internal fun ChatInputPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(style.innerPadding),
-            verticalAlignment = Alignment.CenterVertically
+            // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
+            verticalAlignment = Alignment.Bottom
         ) {
             ChatTextField(
                 modifier = Modifier.weight(1f),
