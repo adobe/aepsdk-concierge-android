@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
@@ -64,8 +65,15 @@ internal fun ChatHeader(
 ) {
     val style = ConciergeStyles.headerStyle
     val headerConfig = ConciergeTheme.header
-    val titleText = headerConfig?.title ?: ConciergeConstants.ChatHeader.TITLE
-    val subtitleText = headerConfig?.subtitle ?: ConciergeConstants.ChatHeader.SUBTITLE
+    // Per-field fallbacks would shadow a deliberately-blank value; only fall back to defaults
+    // when BOTH title and subtitle are blank/unset, so that setting just one keeps the other hidden.
+    val configuredTitle = headerConfig?.title.orEmpty()
+    val configuredSubtitle = headerConfig?.subtitle.orEmpty()
+    val useDefaults = configuredTitle.isBlank() && configuredSubtitle.isBlank()
+
+    val titleText = if (useDefaults) ConciergeConstants.ChatHeader.TITLE else configuredTitle
+    val subtitleText = if (useDefaults) ConciergeConstants.ChatHeader.SUBTITLE else configuredSubtitle
+    val showTitle = titleText.isNotBlank()
     val showSubtitle = subtitleText.isNotBlank()
 
     val imageSource = headerConfig?.image?.takeIf { it.isNotBlank() }
@@ -112,17 +120,23 @@ internal fun ChatHeader(
                     }
                 } else {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = titleText,
-                            style = style.titleStyle,
-                            fontWeight = style.titleFontWeight,
-                            color = style.titleColor
-                        )
+                        if (showTitle) {
+                            Text(
+                                text = titleText,
+                                style = style.titleStyle,
+                                fontWeight = style.titleFontWeight,
+                                color = style.titleColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         if (showSubtitle) {
                             Text(
                                 text = subtitleText,
                                 style = style.subtitleStyle,
-                                color = style.subtitleColor
+                                color = style.subtitleColor,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
