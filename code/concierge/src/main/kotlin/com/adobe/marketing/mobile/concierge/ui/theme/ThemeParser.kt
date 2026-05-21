@@ -67,7 +67,9 @@ internal object ThemeParser {
                     title = DataReader.optString(it, "title", null),
                     subtitle = DataReader.optString(it, "subtitle", null),
                     image = DataReader.optString(it, "image", null),
-                    layoutType = DataReader.optString(it, "layoutType", null)
+                    layoutType = DataReader.optString(it, "layoutType", null),
+                    imageHeight = DataReader.optString(it, "imageHeight", null)
+                        ?.let(CSSValueConverter::parsePxValue)
                 )
             }
 
