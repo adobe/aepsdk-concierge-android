@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -91,7 +92,7 @@ class InputActionButtonsTest {
     }
 
     @Test
-    fun inputActionButtons_recordingState_voiceCancelTriggeredOnMicClick() {
+    fun inputActionButtons_recordingState_voiceCancelTriggeredOnStopButtonClick() {
         var voiceCancelCalled = false
 
         composeTestRule.setContent {
@@ -109,6 +110,86 @@ class InputActionButtonsTest {
 
         composeTestRule.onNode(hasContentDescription("Stop recording")).performClick()
         assert(voiceCancelCalled)
+    }
+
+    @Test
+    fun inputActionButtons_recordingState_displaysStopRecordingButton() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Recording(transcription = "test"),
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Stop recording")).assertIsDisplayed()
+    }
+
+    @Test
+    fun inputActionButtons_emptyState_doesNotDisplayStopRecordingButton() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Stop recording")).assertDoesNotExist()
+    }
+
+    @Test
+    fun inputActionButtons_recordingState_displaysBothMicAnimationAndStopButton() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Recording(transcription = "test"),
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Recording in progress")).assertIsDisplayed()
+        composeTestRule.onNode(hasContentDescription("Stop recording")).assertIsDisplayed()
+    }
+
+    @Test
+    fun inputActionButtons_recordingState_micClickDoesNotTriggerVoiceCancel() {
+        var voiceCancelCalled = false
+        var micPressedCalled = false
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Recording(transcription = "test"),
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = { micPressedCalled = true },
+                    onVoiceCancel = { voiceCancelCalled = true },
+                    onSend = {}
+                )
+            }
+        }
+
+        // Tapping the mic animation during recording is a no-op — only the stop button cancels.
+        composeTestRule.onNode(hasContentDescription("Recording in progress")).performClick()
+
+        assert(!voiceCancelCalled) { "onVoiceCancel must not fire when the mic animation is tapped during recording" }
+        assert(!micPressedCalled) { "onMicPressed must not fire when the mic animation is tapped during recording" }
     }
 
     @Test

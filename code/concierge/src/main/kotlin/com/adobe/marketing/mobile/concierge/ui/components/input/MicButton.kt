@@ -102,7 +102,7 @@ internal fun MicButton(
             },
             modifier = Modifier
                 .size(style.size)
-                .semantics { contentDescription = if (isRecording) "Stop recording" else "Start voice input" }
+                .semantics { contentDescription = if (isRecording) "Recording in progress" else "Start voice input" }
         ) {
             // Choose icon tint based on state and enabled flag
             val baseIconColor = if (isRecording) style.recordingIconColor else style.iconColor
