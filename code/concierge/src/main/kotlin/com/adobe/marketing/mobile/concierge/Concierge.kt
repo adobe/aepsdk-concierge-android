@@ -29,7 +29,7 @@ object Concierge {
      *
      */
     @JvmStatic
-    fun enableTracking() {
-        ConciergeEventTracker.enableTracking()
+    fun setEdgeTrackingEnabled(enabled: Boolean) {
+        ConciergeEventTracker.enableTracking(enabled)
     }
 }
