@@ -70,7 +70,7 @@ fun MainScreen() {
     // Load theme once, with fallback to default
     val theme = remember(selectedTheme) {
         val fileName = when (selectedTheme) {
-            "demo" -> "theme-dsg.json"
+            "demo" -> "themeDemo.json"
             "input field border" -> "theme-test-implementation.json"
             "behaviors disabled" -> "theme-behavior-disabled.json"
             else -> "themeDefault.json"
