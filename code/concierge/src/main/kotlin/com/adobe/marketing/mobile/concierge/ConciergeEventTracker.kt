@@ -54,9 +54,9 @@ internal object ConciergeEventTracker {
     private const val CARD_KEY_PRODUCT_PAGE_URL = "productPageURL"
 
     internal var trackingEnabled = false
-    internal fun enableTracking() {
-        trackingEnabled = true
-        android.util.Log.d(ConciergeConstants.LOG_TAG, "Concierge tracking enabled.")
+    internal fun enableTracking(enabled: Boolean) {
+        trackingEnabled = enabled
+        android.util.Log.d(ConciergeConstants.LOG_TAG, "Concierge tracking ${if(enabled) "enabled" else "disabled"}.")
     }
 
     /**
