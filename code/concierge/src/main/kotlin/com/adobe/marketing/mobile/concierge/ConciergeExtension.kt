@@ -50,6 +50,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
             EventType.CONFIGURATION,
             EventSource.RESPONSE_CONTENT,
             this::processEvent)
+        api.registerEventListener(
+            ConciergeConstants.EventType.CONCIERGE,
+            ConciergeConstants.EventSource.NOTIFICATION,
+            this::processEvent
+        )
     }
 
     override fun readyForEvent(event: Event): Boolean {
@@ -88,6 +93,13 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
                 event
             )
             ConciergeStateRepository.instance.updateConfiguration(configState)
+        } else if(event.isConciergeNotification()) {
+            Log.trace(
+                EXTENSION_NAME,
+                SELF_TAG,
+                "Concierge notification event received."
+            )
+            ConciergeEventTracker.trackEvent(event)
         }
     }
 
@@ -116,6 +128,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
             SharedStateResolution.LAST_SET
         )?.value
         return sharedState != null && sharedState.isNotEmpty()
+    }
+
+    internal fun Event.isConciergeNotification(): Boolean {
+        return this.type == ConciergeConstants.EventType.CONCIERGE &&
+                this.source == ConciergeConstants.EventSource.NOTIFICATION
     }
 
     private fun getSharedState(extensionName: String, event: Event): SharedStateResult? {

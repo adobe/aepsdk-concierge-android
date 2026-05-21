@@ -23,4 +23,13 @@ object Concierge {
     /** Returns the version of the Brand Concierge extension. */
     @JvmStatic
     fun extensionVersion(): String = ConciergeConstants.VERSION
+
+    /**
+     * Enables tracking of user interactions with the concierge chat interface. This allows the extension to collect data on user behavior and interactions, which can be used for analytics and improving the concierge experience.
+     *
+     */
+    @JvmStatic
+    fun enableTracking() {
+        ConciergeEventTracker.enableTracking()
+    }
 }

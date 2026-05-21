@@ -66,6 +66,11 @@ internal sealed class ConciergeTrackingEvent {
         val linkUrl: String
     ) : ConciergeTrackingEvent()
 
+    data class CtaButtonClicked(
+        val label: String,
+        val linkUrl: String
+    ) : ConciergeTrackingEvent()
+
     data class ErrorOccurred(val errorMessage: String) : ConciergeTrackingEvent()
 
     // MARK: - Event factory
@@ -90,7 +95,7 @@ internal sealed class ConciergeTrackingEvent {
             is ErrorOccurred           -> ConciergeConstants.TrackingEvent.Name.ERROR_OCCURRED
             is WelcomePromptSuggestionClicked -> ConciergeConstants.TrackingEvent.Name.WELCOME_PROMPT_SUGGESTION_CLICKED
             is DisclaimerLinkClicked -> ConciergeConstants.TrackingEvent.Name.DISCLAIMER_LINK_CLICKED
-
+            is CtaButtonClicked -> ConciergeConstants.TrackingEvent.Name.CTA_BUTTON_CLICKED
         }
 
     private val xdmType: String
@@ -109,7 +114,7 @@ internal sealed class ConciergeTrackingEvent {
             is ErrorOccurred           -> ConciergeConstants.TrackingEvent.XDMType.ERROR_OCCURRED
             is WelcomePromptSuggestionClicked -> ConciergeConstants.TrackingEvent.XDMType.WELCOME_PROMPT_SUGGESTION_CLICKED
             is DisclaimerLinkClicked -> ConciergeConstants.TrackingEvent.XDMType.DISCLAIMER_LINK_CLICKED
-
+            is CtaButtonClicked -> ConciergeConstants.TrackingEvent.XDMType.CTA_BUTTON_CLICKED
         }
 
     private val eventData: Map<String, Any>
@@ -165,6 +170,11 @@ internal sealed class ConciergeTrackingEvent {
                 is ChatClosed -> {
                     data[keys.EPOCH_TIME] = epochTime
                     data[keys.DURATION_MILLIS] = durationMillis
+                }
+
+                is CtaButtonClicked -> {
+                    data[keys.URL] = linkUrl
+                    data[keys.LABEL] = label
                 }
             }
 

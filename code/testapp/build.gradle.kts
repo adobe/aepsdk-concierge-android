@@ -17,6 +17,7 @@ plugins {
 }
 
 val mavenCoreVersion: String by project
+val mavenEdgeVersion: String by project
 val mavenEdgeIdentityVersion: String by project
 val mavenEdgeConsentVersion: String by project
 
