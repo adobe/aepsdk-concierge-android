@@ -22,7 +22,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -74,8 +73,7 @@ internal fun InputActionButtons(
 ) {
     val micButtonStyle = ConciergeStyles.micButtonStyle
     val sendButtonStyle = ConciergeStyles.sendButtonStyle
-    val panelStyle = ConciergeStyles.inputPanelStyle
-    
+
     // Check if voice input is enabled from theme behavior
     val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
 
@@ -86,7 +84,10 @@ internal fun InputActionButtons(
         ,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val micContainerSize = micButtonStyle.size * micButtonStyle.pulseScaleRange.second
+        // Tap-area size for mic / clear / stop buttons. Sized to match the OutlinedTextField's
+        // minimum height so the row stays a uniform 56dp when the field is empty/single-line —
+        // this eliminates the vertical gap that appeared with Alignment.Bottom.
+        val micContainerSize = 56.dp
         val hasText = text.isNotBlank()
 
         if (enableVoiceInput) {
@@ -100,7 +101,6 @@ internal fun InputActionButtons(
                         Icon(
                             painter = painterResource(R.drawable.close),
                             contentDescription = "Clear input",
-                            modifier = Modifier.size(16.dp),
                             tint = sendButtonStyle.enabledIconColor.copy(alpha = 0.5f)
                         )
                     }
@@ -113,7 +113,6 @@ internal fun InputActionButtons(
                         isEnabled = true,
                         onClick = {} // animation tap no longer stops recording — stop button does
                     )
-                    Spacer(modifier = Modifier.width(panelStyle.buttonSpacing))
                     StopRecordingButton(
                         modifier = Modifier.size(micContainerSize),
                         onClick = onVoiceCancel
@@ -146,10 +145,6 @@ internal fun InputActionButtons(
                     )
         ) {
             Row {
-                if (enableVoiceInput) {
-                    Spacer(modifier = Modifier.width(panelStyle.buttonSpacing))
-                }
-
                 SendButton(
                     modifier = Modifier.size(sendButtonStyle.size),
                     isEnabled = text.isNotBlank() && !isProcessing,
@@ -182,6 +177,9 @@ private fun StopRecordingButton(
         onClick = onClick,
         modifier = modifier
     ) {
+        // Center the glyph inside the 56dp tap area — keeps the stop visually close to the
+        // adjacent mic-wave (also centered in its 56dp container) rather than pushing it to
+        // the panel's right edge, which would leave a large gap between wave and stop.
         if (themedBitmap != null) {
             Image(
                 bitmap = themedBitmap,

@@ -70,9 +70,18 @@ internal fun MicButton(
         label = "mic_pulse_anim"
     )
 
+    // When idle, push the mic glyph to the right edge of the 56dp tap area so the visible icon
+    // hugs the panel's right edge (matches the visual rhythm of the typing-state send button).
+    // While recording we keep it centered so the pulse animation stays radially symmetric.
+    val contentAlignment = if (userInputState is UserInputState.Recording) {
+        Alignment.Center
+    } else {
+        Alignment.CenterEnd
+    }
+
     Box(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        contentAlignment = contentAlignment
     ) {
         // Two filled circles while recording: inner static disc and outer pulsing disc
         if (userInputState is UserInputState.Recording) {
