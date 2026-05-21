@@ -144,6 +144,11 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
      * User clicked on a welcome prompt suggestion.
      */
     data class WelcomePromptSuggestionClick(val suggestion: String) : MessageInteractionEvent()
+
+    /*
+     * User clicked on a ctaButton in the message.
+     */
+    data class CtaButtonClick(val ctaButton: NetworkCtaButton) : MessageInteractionEvent()
 }
 
 /**

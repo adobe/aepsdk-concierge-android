@@ -53,11 +53,24 @@ internal object ConciergeEventTracker {
     private const val CARD_KEY_PRODUCT_NAME = "productName"
     private const val CARD_KEY_PRODUCT_PAGE_URL = "productPageURL"
 
+    internal var trackingEnabled = false
+    internal fun enableTracking() {
+        trackingEnabled = true
+        android.util.Log.d(ConciergeConstants.LOG_TAG, "Concierge tracking enabled.")
+    }
+
     /**
      * Builds and dispatches an Edge request event for the given Concierge notification.
      * No-ops if event data is missing, the routing key is absent, or the xdmType is unrecognized.
      */
     fun trackEvent(event: Event) {
+        if(trackingEnabled.not()) {
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME, SELF_TAG,
+                "Ignoring track event. Call Concierge.enableTracking() to enable tracking."
+            )
+            return
+        }
         val data = event.eventData
         if (data == null) {
             Log.debug(
@@ -186,6 +199,15 @@ internal object ConciergeEventTracker {
                 val errorMessage = data[keys.ERROR_MESSAGE] as? String
                 val payload = mutableMapOf<String, Any>().apply {
                     errorMessage?.let { put(keys.ERROR_MESSAGE, it) }
+                }
+                dispatchEdge(xdmType, payload)
+            }
+            types.CTA_BUTTON_CLICKED -> {
+                val label = data[keys.LABEL] as? String
+                val url = data[keys.URL] as? String
+                val payload = mutableMapOf<String, Any>().apply {
+                    label?.let { put(keys.LABEL, it) }
+                    url?.let { put(keys.URL, it) }
                 }
                 dispatchEdge(xdmType, payload)
             }

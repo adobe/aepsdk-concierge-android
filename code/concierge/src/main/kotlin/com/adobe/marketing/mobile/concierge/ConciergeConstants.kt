@@ -101,6 +101,7 @@ object ConciergeConstants {
             const val FEEDBACK_SUBMITTED             = "Brand Concierge Feedback Submitted"
             const val ERROR_OCCURRED                 = "Brand Concierge Error Occurred"
             const val DISCLAIMER_LINK_CLICKED        = "Brand Concierge Disclaimer Link Clicked"
+            const val CTA_BUTTON_CLICKED             = "Brand Concierge CTA Button Clicked"
         }
 
         object XDMType {
@@ -118,6 +119,7 @@ object ConciergeConstants {
             const val FEEDBACK_SUBMITTED             = "concierge:feedback:submitted"
             const val ERROR_OCCURRED                 = "concierge:error:occurred"
             const val DISCLAIMER_LINK_CLICKED        = "concierge:disclaimerLink:clicked"
+            const val CTA_BUTTON_CLICKED             = "concierge:ctaButton:clicked"
         }
 
         object EventData {
@@ -137,6 +139,7 @@ object ConciergeConstants {
                 const val NOTES             = "notes"
                 const val URL               = "url"
                 const val ERROR_MESSAGE     = "errorMessage"
+                const val LABEL             = "label"
             }
         }
     }

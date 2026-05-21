@@ -25,6 +25,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
@@ -392,6 +393,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             is MessageInteractionEvent.PromptSuggestionClick -> handlePromptSuggestionClick(event.suggestion)
             is MessageInteractionEvent.WelcomePromptSuggestionClick -> handleWelcomePromptSuggestionClick(event.suggestion)
             is DisclaimerClickedEvent -> handleDisclaimerLinkClickedEvent(event.url)
+            is MessageInteractionEvent.CtaButtonClick -> handleCtaClicked(event.ctaButton)
         }
     }
 
@@ -456,6 +458,15 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleDisclaimerLinkClickedEvent(url: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Disclaimer Link clicked: $url")
         dispatchTrackingEvent(ConciergeTrackingEvent.DisclaimerLinkClicked(url))
+    }
+
+    /**
+     * Handle cta click tracking
+     * @param cta The suggestion text that was clicked
+     */
+    private fun handleCtaClicked(cta: CtaButton) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "CTA Button Clicked Link clicked {label: ${cta.label}, url: ${cta.url}}")
+        dispatchTrackingEvent(ConciergeTrackingEvent.CtaButtonClicked(label = cta.label, linkUrl = cta.url))
     }
 
     /**

@@ -71,6 +71,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductActionClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.ProductImageClick
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.PromptSuggestionClick
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent.CtaButtonClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
@@ -275,9 +276,7 @@ fun ConciergeChat(
             onTextChanged = viewModel::onTextStateChanged,
             onEvent = resolvedEvent,
             handleLink = resolvedLinkClick,
-            onPermissionResult = { granted ->
-                viewModel.refreshPermissionStatus()
-            },
+            onPermissionResult = { viewModel.refreshPermissionStatus() },
             onClose = onClose,
             modifier = modifier
         )
@@ -301,6 +300,7 @@ fun ConciergeChat(
 
 @Composable
 internal fun ConciergeChat(
+    modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
     chatState: ChatScreenState,
     inputState: UserInputState,
@@ -313,7 +313,6 @@ internal fun ConciergeChat(
     handleLink: (String) -> Unit = {},
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
@@ -323,7 +322,7 @@ internal fun ConciergeChat(
     val isProcessing = chatState is ChatScreenState.Processing
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(style.backgroundColor)
             .statusBarsPadding()
@@ -357,7 +356,10 @@ internal fun ConciergeChat(
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
-                    onCtaButtonClick = handleLink,
+                    onCtaButtonClick = { cta ->
+                        onEvent(CtaButtonClick(cta))
+                        handleLink(cta.url)
+                                       },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)

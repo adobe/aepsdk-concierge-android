@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCards
@@ -68,7 +69,7 @@ internal fun ChatMessageItem(
     onSuggestionClick: (String) -> Unit = {},
     handleLink: (String) -> Unit = {},
     feedbackState: FeedbackState = FeedbackState.None,
-    onCtaButtonClick: (String) -> Unit = {}
+    onCtaButtonClick: (CtaButton) -> Unit = {}
 ) {
     when (message.content) {
         is MessageContent.Text -> {
@@ -89,7 +90,10 @@ internal fun ChatMessageItem(
         }
 
         is MessageContent.CtaButton -> {
-            RenderCtaButton(content = message.content, handleLink = handleLink)
+            RenderCtaButton(
+                content = message.content,
+                onCtaButtonClick = onCtaButtonClick
+            )
         }
     }
 }
@@ -97,11 +101,11 @@ internal fun ChatMessageItem(
 @Composable
 private fun RenderCtaButton(
     content: MessageContent.CtaButton,
-    handleLink: (String) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     CtaButton(
         cta = content.button,
-        onClick = handleLink,
+        onClick = onCtaButtonClick,
         applyContainerPadding = false
     )
 }
@@ -113,7 +117,7 @@ private fun RenderTextMessage(
     onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
     feedbackState: FeedbackState,
-    onCtaButtonClick: (String) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
@@ -218,7 +222,7 @@ private fun RenderTextMessageWithIcon(
     onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
     feedbackState: FeedbackState,
-    onCtaButtonClick: (String) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -305,7 +309,7 @@ private fun RenderMixedMessage(
     onSuggestionClick: (String) -> Unit,
     handleLink: (String) -> Unit,
     feedbackState: FeedbackState,
-    onCtaButtonClick: (String) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
@@ -487,7 +491,7 @@ private fun AgentResponseContent(
 private fun BotMessageSuffix(
     message: ChatMessage,
     onSuggestionClick: (String) -> Unit,
-    onCtaButtonClick: (String) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit
 ) {
     if (message.promptSuggestions.isNotEmpty()) {
         PromptSuggestions(
