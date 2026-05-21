@@ -142,7 +142,7 @@ internal fun InputActionButtons(
 
         // Send button - only visible when there is text or a response is processing.
         AnimatedVisibility(
-            visible = inputState !is UserInputState.Recording && (hasText || isProcessing),
+            visible = inputState !is UserInputState.Recording && hasText,
             enter = fadeIn(animationSpec = tween(durationMillis = 200)) +
                     slideInHorizontally(
                         animationSpec = tween(durationMillis = 200),
