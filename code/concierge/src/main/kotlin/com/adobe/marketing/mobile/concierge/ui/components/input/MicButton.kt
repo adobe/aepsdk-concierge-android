@@ -37,6 +37,9 @@ import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
+/** Inner pulsing disc is 30% larger than the mic icon. Reused for the stop icon so both visually align during recording. */
+internal const val MIC_INNER_DISC_SCALE = 1.3f
+
 /**
  * A voice input button that supports recording, transcribing, and idle states.
  * Shows a subtle pulsing background during recording.
@@ -57,9 +60,8 @@ internal fun MicButton(
 
     // Drive the pulse when recording
     val infiniteTransition = rememberInfiniteTransition(label = "mic_pulse")
-    val innerBaseScale = 1.3f // inner disc is 30% larger than mic
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = innerBaseScale,
+        initialValue = MIC_INNER_DISC_SCALE,
         targetValue = style.pulseScaleRange.second,
         animationSpec = infiniteRepeatable(
             animation = tween(style.pulseAnimationDuration),
@@ -76,7 +78,7 @@ internal fun MicButton(
         if (userInputState is UserInputState.Recording) {
             Box(
                 modifier = Modifier
-                    .size(style.size * innerBaseScale)
+                    .size(style.size * MIC_INNER_DISC_SCALE)
                     .clip(CircleShape)
                     .background(style.pulsingBackgroundColor)
             )

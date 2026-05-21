@@ -516,6 +516,7 @@ internal object ThemeParser {
             enableVoiceInput = enableVoiceInput,
             disableMultiline = disableMultiline,
             sendButtonStyle = DataReader.optString(inputTypedMap, "sendButtonStyle", "default") ?: "default",
+            stopRecordingIcon = DataReader.optString(inputTypedMap, "stopRecordingIcon", null),
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
             feedback = feedback,

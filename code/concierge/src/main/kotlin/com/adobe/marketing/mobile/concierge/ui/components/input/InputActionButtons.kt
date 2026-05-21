@@ -20,22 +20,33 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.components.image.assetBitmapCache
+import com.adobe.marketing.mobile.concierge.ui.components.image.loadAssetBitmap
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Composable that manages the mic and send button states and animations.
@@ -79,32 +90,44 @@ internal fun InputActionButtons(
         val hasText = text.isNotBlank()
 
         if (enableVoiceInput) {
-            // Show clear button OR mic button
-            if (hasText && inputState !is UserInputState.Recording) {
-                IconButton(
-                    onClick = onClear,
-                    modifier = Modifier.size(micContainerSize)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.close),
-                        contentDescription = "Clear input",
-                        modifier = Modifier.size(16.dp),
-                        tint = sendButtonStyle.enabledIconColor.copy(alpha = 0.5f)
+            when {
+                // Clear button (X) — only shown when typing
+                hasText && inputState !is UserInputState.Recording -> {
+                    IconButton(
+                        onClick = onClear,
+                        modifier = Modifier.size(micContainerSize)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.close),
+                            contentDescription = "Clear input",
+                            modifier = Modifier.size(16.dp),
+                            tint = sendButtonStyle.enabledIconColor.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+                // Recording state — animated mic + stop button, both visible together
+                inputState is UserInputState.Recording -> {
+                    MicButton(
+                        modifier = Modifier.size(micContainerSize),
+                        userInputState = inputState,
+                        isEnabled = true,
+                        onClick = {} // animation tap no longer stops recording — stop button does
+                    )
+                    Spacer(modifier = Modifier.width(panelStyle.buttonSpacing))
+                    StopRecordingButton(
+                        modifier = Modifier.size(micContainerSize),
+                        onClick = onVoiceCancel
                     )
                 }
-            } else {
-                MicButton(
-                    modifier = Modifier.size(micContainerSize),
-                    userInputState = inputState,
-                    isEnabled = true,
-                    onClick = {
-                        if (inputState is UserInputState.Recording) {
-                            onVoiceCancel()
-                        } else {
-                            onMicPressed()
-                        }
-                    }
-                )
+                // Idle — mic icon, tap to start recording
+                else -> {
+                    MicButton(
+                        modifier = Modifier.size(micContainerSize),
+                        userInputState = inputState,
+                        isEnabled = true,
+                        onClick = onMicPressed
+                    )
+                }
             }
         }
 
@@ -141,3 +164,60 @@ internal fun InputActionButtons(
     }
 }
 
+/**
+ * Stop-recording button shown alongside the animated mic during voice recording.
+ * Renders the bitmap configured via `behavior.input.stopRecordingIcon` in its original
+ * colors when available; otherwise falls back to a tinted Material `Icons.Filled.StopCircle`.
+ */
+@Composable
+private fun StopRecordingButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val style = ConciergeStyles.micButtonStyle
+    val assetName = ConciergeTheme.behavior?.stopRecordingIcon
+    val themedBitmap = rememberStopRecordingBitmap(assetName)
+
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        if (themedBitmap != null) {
+            Image(
+                bitmap = themedBitmap,
+                contentDescription = "Stop recording",
+                modifier = Modifier.size(style.size * MIC_INNER_DISC_SCALE)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.StopCircle,
+                contentDescription = "Stop recording",
+                modifier = Modifier.size(style.size * MIC_INNER_DISC_SCALE),
+                tint = style.iconColor
+            )
+        }
+    }
+}
+
+/**
+ * Loads the stop-recording bitmap from `assets/icons/[assetName].{png,webp,jpg,jpeg}`.
+ * Returns null while loading or when the asset name is blank/unresolved — callers should
+ * fall back to a default vector icon in that case.
+ */
+@Composable
+private fun rememberStopRecordingBitmap(assetName: String?): ImageBitmap? {
+    if (assetName.isNullOrBlank()) return null
+    val context = LocalContext.current
+    return produceState<ImageBitmap?>(
+        initialValue = assetBitmapCache[assetName],
+        key1 = assetName
+    ) {
+        if (!assetBitmapCache.containsKey(assetName)) {
+            val loaded = withContext(Dispatchers.IO) {
+                loadAssetBitmap(context, assetName)?.asImageBitmap()
+            }
+            assetBitmapCache[assetName] = loaded
+            value = loaded
+        }
+    }.value
+}
