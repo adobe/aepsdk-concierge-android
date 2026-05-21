@@ -41,6 +41,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCar
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberLocalAssetBitmap
 import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -122,7 +123,9 @@ private fun RenderTextMessage(
     val style = ConciergeStyles.messageBubbleStyle
     val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
     val isThinking = message.isThinking
-    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
+    val companyIconName = if (iconBitmap != null) rawIconName else null
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     if (companyIconName != null) {
@@ -313,7 +316,9 @@ private fun RenderMixedMessage(
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
-    val companyIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
+    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
+    val companyIconName = if (iconBitmap != null) rawIconName else null
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     val hasText = content.text.isNotEmpty()
