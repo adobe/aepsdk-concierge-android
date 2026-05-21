@@ -18,9 +18,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.CardsAlignment
@@ -39,7 +42,8 @@ internal fun RecommendationCards(
     elements: List<MultimodalElement>,
     modifier: Modifier = Modifier,
     onImageClick: (MultimodalElement) -> Unit = {},
-    onActionClick: (ProductActionButton) -> Unit = {}
+    onActionClick: (ProductActionButton) -> Unit = {},
+    leadingInset: Dp = 0.dp
 ) {
     if (elements.isEmpty()) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No elements to display, returning early")
@@ -62,12 +66,14 @@ internal fun RecommendationCards(
             CardsAlignment.END -> Alignment.End
             else -> Alignment.Start
         }
+        val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
+        val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
         Column(
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier
+                .fillMaxWidth()
+                .then(if (elements.size == 1) Modifier.padding(start = leadingInset) else Modifier),
             horizontalAlignment = horizontalAlignment
         ) {
-            val cardStyle = ConciergeTheme.behavior?.productCard?.cardStyle ?: ProductCardStyle.ACTION_BUTTON
-            val useExtendedProductCards = cardStyle == ProductCardStyle.PRODUCT_DETAIL
             if (elements.size == 1) {
                 if (useExtendedProductCards) {
                     ExtendedProductCard(
@@ -85,7 +91,8 @@ internal fun RecommendationCards(
                 ProductCarousel(
                     elements = elements,
                     onImageClick = onImageClick,
-                    useExtendedProductCards = useExtendedProductCards
+                    useExtendedProductCards = useExtendedProductCards,
+                    leadingInset = leadingInset
                 )
             }
         }

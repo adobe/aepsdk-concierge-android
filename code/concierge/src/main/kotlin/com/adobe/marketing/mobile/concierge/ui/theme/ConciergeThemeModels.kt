@@ -25,12 +25,35 @@ data class ConciergeThemeConfig(
     val name: String? = null,
     val colors: ConciergeThemeColors? = null,
     val styles: ConciergeThemeStyles? = null,
+    val header: HeaderConfig? = null,
     val text: ConciergeTextStrings? = null,
     val disclaimer: DisclaimerConfig? = null,
     val welcomeExamples: List<ConciergeWelcomeExample>? = null,
     val feedbackPositiveOptions: List<String>? = null,
     val feedbackNegativeOptions: List<String>? = null,
     val typography: ConciergeTypographyConfig? = null
+)
+
+/**
+ * Header configuration parsed from the root-level `header` block in the theme JSON.
+ */
+data class HeaderConfig(
+    val title: String? = null,
+    val subtitle: String? = null,
+    /** Basename (no extension) of an asset under `assets/icons/`, or an absolute http(s) URL. */
+    val image: String? = null,
+    /**
+     * Header layout mode. Supported values:
+     * - `"imageOnly"` — render only the image, hide title and subtitle
+     * - `"textOnly"` — render only the title and subtitle, ignore image
+     * - `null` or unknown — defaults to text-only (title and subtitle only)
+     */
+    val layoutType: String? = null,
+    /**
+     * Height of the header image / fallback chat icon. Parsed from a CSS pixel value
+     * (e.g. `"48px"`) and applied as `dp`. `null` falls back to the default in `headerStyle`.
+     */
+    val imageHeight: Double? = null
 )
 
 /**
@@ -80,10 +103,6 @@ internal fun ConciergeThemeConfig.toWelcomeConfig(
 data class ConciergeTextStrings(
     // Input
     val inputPlaceholder: String? = null,
-
-    // Header
-    val headerTitle: String? = null,
-    val headerSubtitle: String? = null,
 
     // Welcome
     val welcomeHeading: String? = null,

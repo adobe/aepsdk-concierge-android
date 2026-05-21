@@ -915,6 +915,24 @@ internal object CSSKeyMapper {
                 layout?.copy(productCardTextSpacing = spacing) ?: ConciergeLayout(productCardTextSpacing = spacing)
             }
         },
+        "product-card-title-subtitle-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(productCardTitleSubtitleSpacing = spacing) ?: ConciergeLayout(productCardTitleSubtitleSpacing = spacing)
+            }
+        },
+        "product-card-section-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(productCardSectionSpacing = spacing) ?: ConciergeLayout(productCardSectionSpacing = spacing)
+            }
+        },
+        "product-card-price-spacing" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val spacing = CSSValueConverter.parsePxValue(cssValue) ?: 8.0
+                layout?.copy(productCardPriceSpacing = spacing) ?: ConciergeLayout(productCardPriceSpacing = spacing)
+            }
+        },
         "product-card-text-top-padding" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val padding = CSSValueConverter.parsePxValue(cssValue) ?: 24.0

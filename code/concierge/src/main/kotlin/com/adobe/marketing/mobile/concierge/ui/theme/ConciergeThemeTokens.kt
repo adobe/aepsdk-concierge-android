@@ -133,6 +133,9 @@ data class ConciergeLayout(
     val productCardWasPriceFontWeight: Int? = null,
     val productCardWasPriceTextPrefix: String? = null,
     val productCardTextSpacing: Double? = null,
+    val productCardTitleSubtitleSpacing: Double? = null,
+    val productCardSectionSpacing: Double? = null,
+    val productCardPriceSpacing: Double? = null,
     val productCardTextTopPadding: Double? = null,
     val productCardTextBottomPadding: Double? = null,
     val productCardTextHorizontalPadding: Double? = null,
@@ -203,6 +206,8 @@ data class ConciergeThemeBehavior(
     val enableVoiceInput: Boolean = true,
     val disableMultiline: Boolean = true,
     val sendButtonStyle: String = "default",
+    /** Basename (no extension) of the stop-recording icon under `assets/icons/`. Falls back to Material `Icons.Filled.StopCircle` when null/blank or unresolved. */
+    val stopRecordingIcon: String? = null,
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
     val feedback: ConciergeFeedbackBehavior? = null,
@@ -339,7 +344,9 @@ data class ConciergeFeedbackBehavior(
     /** Overrides the close (X) button visibility. `null` defaults to `true` for `"action"`, `false` for `"modal"`. */
     val showCloseButton: Boolean? = null,
     /** Overrides the Cancel button visibility. `null` defaults to `true` for `"modal"`, `false` for `"action"`. */
-    val showCancelButton: Boolean? = null
+    val showCancelButton: Boolean? = null,
+    /** When `true`, feedback thumbs are shown on every message regardless of server eligibility. */
+    val alwaysDisplay: Boolean = false
 ) {
     /** Effective close button visibility: `showCloseButton` when set, otherwise `displayMode == ACTION`. */
     fun resolvedShowCloseButton(): Boolean = showCloseButton ?: (displayMode == FeedbackDisplayMode.ACTION)
@@ -350,12 +357,14 @@ data class ConciergeFeedbackBehavior(
 
 /**
  * Placement of the feedback thumbs relative to the sources accordion.
- * INLINE renders thumbs on the same row as the sources label (default).
- * BELOW renders thumbs on a separate row beneath the sources accordion with the feedback helpful label.
+ * - INLINE: Thumbs sit in the sources header row (default). Falls back to standalone when there are no sources.
+ * - BELOW: Thumbs appear below the expanded sources list with a helpful label. Falls back to standalone without sources.
+ * - STANDALONE: Always a separate block below the bubble, regardless of whether sources are present.
  */
 enum class FeedbackThumbsPlacement(val value: String) {
     INLINE("inline"),
-    BELOW("below");
+    BELOW("below"),
+    STANDALONE("standalone");
 
     companion object {
         fun fromString(value: String): FeedbackThumbsPlacement =
@@ -363,8 +372,18 @@ enum class FeedbackThumbsPlacement(val value: String) {
     }
 }
 
+data class ConciergeLinkIconStyle(
+    val size: Float? = null,      // icon size in dp; null → 16 dp
+    val spacing: Float? = null,   // gap between link text and icon in dp; null → 2 dp
+    val color: String? = null     // hex color string; null → falls back to link color
+)
+
 data class ConciergeCitationsBehavior(
-    val showLinkIcon: Boolean = false
+    val showLinkIcon: Boolean = false,
+    val phoneIcon: String? = null,
+    val storeIcon: String? = null,
+    val defaultLinkIcon: String? = null,
+    val linkIconStyle: ConciergeLinkIconStyle? = null
 )
 
 /**

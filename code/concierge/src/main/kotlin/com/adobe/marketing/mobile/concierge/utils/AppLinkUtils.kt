@@ -31,7 +31,7 @@ private val BLOCKED_URL_SCHEMES = setOf("javascript", "file", "content", "intent
  */
 internal fun isAllowedUrlScheme(url: String?): Boolean {
     if (url.isNullOrBlank()) return false
-    return Uri.parse(url).scheme?.lowercase() in ALLOWED_URL_SCHEMES
+    return Uri.parse(url)?.scheme?.lowercase() in ALLOWED_URL_SCHEMES
 }
 
 /**
@@ -40,7 +40,7 @@ internal fun isAllowedUrlScheme(url: String?): Boolean {
  */
 internal fun isBlockedUrlScheme(url: String?): Boolean {
     if (url.isNullOrBlank()) return false
-    return Uri.parse(url).scheme?.lowercase() in BLOCKED_URL_SCHEMES
+    return Uri.parse(url)?.scheme?.lowercase() in BLOCKED_URL_SCHEMES
 }
 
 /**
@@ -69,9 +69,9 @@ internal fun tryOpenWithSystemHandler(context: Context, url: String) {
  */
 internal fun tryOpenAsAppLink(context: Context, url: String): Boolean {
     if (url.isBlank()) return false
-    val host = Uri.parse(url).host ?: return false
 
     return try {
+        val host = Uri.parse(url).host ?: return false
         val wouldHandle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.isDomainVerifiedOrSelected(host)
         } else {

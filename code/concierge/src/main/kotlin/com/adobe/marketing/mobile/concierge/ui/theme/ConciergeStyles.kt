@@ -72,6 +72,9 @@ internal object ConciergeStyles {
         val subtitleColor: Color,
         val iconSize: Dp,
         val iconColor: Color,
+        /** Fixed height for the header logo; width follows aspect ratio (wrap content). */
+        val imageHeight: Dp,
+        val imageSpacing: Dp,
         val dividerColor: Color,
         val dividerThickness: Dp
     )
@@ -86,6 +89,10 @@ internal object ConciergeStyles {
                 MaterialTheme.typography.bodyLarge.copy(fontSize = size.sp)
             } ?: MaterialTheme.typography.headlineSmall
 
+            // Image height: theme-configurable via `header.imageHeight` (e.g. "48px") in JSON,
+            // falls back to 48dp when not set.
+            val imageHeight = ConciergeTheme.header?.imageHeight?.dp ?: 48.dp
+
             return HeaderStyle(
                 horizontalPadding = 12.dp,
                 verticalPadding = 8.dp,
@@ -96,6 +103,8 @@ internal object ConciergeStyles {
                 subtitleColor = textColor.copy(alpha = 0.8f),
                 iconSize = 24.dp,
                 iconColor = textColor,
+                imageHeight = imageHeight,
+                imageSpacing = 8.dp,
                 dividerColor = textColor.copy(alpha = 0.12f),
                 dividerThickness = 0.5.dp
             )
@@ -234,7 +243,7 @@ internal object ConciergeStyles {
             
             return MessageBubbleStyle(
                 padding = 8.dp,
-                innerPadding = 16.dp,
+                innerPadding = 12.dp,
                 shape = defaultShape,
                 userMessageShape = userMessageShape,
                 elevation = 0.dp,
@@ -412,7 +421,7 @@ internal object ConciergeStyles {
     @Immutable
     data class ProductCarouselStyle(
         val itemSpacing: Dp,
-        val horizontalPadding: Dp,
+        val trailingContentPadding: Dp,
         val verticalPadding: Dp,
         val imageWidth: Dp,
         val imageHeight: Dp,
@@ -431,7 +440,7 @@ internal object ConciergeStyles {
         @Composable get() {
             val themeColors = ConciergeTheme.colors
             val layout = ConciergeTheme.tokens?.cssLayout
-            val carouselHorizontalPadding = (
+            val carouselTrailingPadding = (
                 layout?.productCardCarouselHorizontalPadding
                     ?: layout?.chatHistoryPadding
                     ?: 4.0
@@ -439,7 +448,7 @@ internal object ConciergeStyles {
             val carouselItemSpacing = (layout?.productCardCarouselSpacing ?: 12.0).toFloat().dp
             return ProductCarouselStyle(
                 itemSpacing = carouselItemSpacing,
-                horizontalPadding = carouselHorizontalPadding,
+                trailingContentPadding = carouselTrailingPadding,
                 verticalPadding = 8.dp,
                 imageWidth = 200.dp,
                 imageHeight = 150.dp,
@@ -464,7 +473,7 @@ internal object ConciergeStyles {
         val cardBackgroundColor: Color,
         val cardOutlineColor: Color,
         val cardWidth: Dp,
-        val cardHeight: Dp,
+        val cardHeight: Dp?,
         val cardElevation: Dp,
         val imageWidth: Dp,
         val imageHeight: Dp,
@@ -497,7 +506,9 @@ internal object ConciergeStyles {
         val wasPriceTextPrefix: String,
         val contentPadding: Dp,
         val contentPaddingBottom: Dp,
-        val headlineGap: Dp
+        val titleSubtitleSpacing: Dp,
+        val sectionSpacing: Dp,
+        val priceSpacing: Dp
     )
 
     val extendedProductCardStyle: ExtendedProductCardStyle
@@ -528,7 +539,7 @@ internal object ConciergeStyles {
             val cardBorderRadius = (ConciergeTheme.tokens?.cssLayout?.productCardBorderRadius ?: 8.0).toFloat().dp
             val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
             val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
-            val cardHeightDp = (maxOf(layout?.productCardHeight ?: 359.0, 359.0)).toFloat().dp
+            val cardHeightDp = layout?.productCardHeight?.toFloat()?.dp
             val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF4F4F4F))
             val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
             val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
@@ -570,7 +581,9 @@ internal object ConciergeStyles {
                 contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,
                 contentPaddingTop = (layout?.productCardTextTopPadding ?: 24.0).toFloat().dp,
                 contentPaddingBottom = (layout?.productCardTextBottomPadding ?: 16.0).toFloat().dp,
-                headlineGap = (layout?.productCardTextSpacing ?: 8.0).toFloat().dp
+                titleSubtitleSpacing = ((layout?.productCardTitleSubtitleSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp,
+                sectionSpacing = ((layout?.productCardSectionSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp,
+                priceSpacing = ((layout?.productCardPriceSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp
             )
         }
 
@@ -1026,7 +1039,7 @@ internal object ConciergeStyles {
             val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
                 horizontalPadding = 8.dp,
-                maxLines = 15,
+                maxLines = 10,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,
                     fontSize = fontSize ?: MaterialTheme.typography.bodyLarge.fontSize

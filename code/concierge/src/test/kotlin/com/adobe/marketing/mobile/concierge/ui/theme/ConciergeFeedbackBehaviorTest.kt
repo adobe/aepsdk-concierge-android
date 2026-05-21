@@ -127,6 +127,35 @@ class ConciergeFeedbackBehaviorTest {
         assertTrue(negativeOnly.negativeNotesEnabled)
     }
 
+    // ========== FeedbackThumbsPlacement.fromString Tests ==========
+
+    @Test
+    fun `FeedbackThumbsPlacement fromString returns INLINE for inline`() {
+        assertEquals(FeedbackThumbsPlacement.INLINE, FeedbackThumbsPlacement.fromString("inline"))
+    }
+
+    @Test
+    fun `FeedbackThumbsPlacement fromString returns BELOW for below`() {
+        assertEquals(FeedbackThumbsPlacement.BELOW, FeedbackThumbsPlacement.fromString("below"))
+    }
+
+    @Test
+    fun `FeedbackThumbsPlacement fromString returns STANDALONE for standalone`() {
+        assertEquals(FeedbackThumbsPlacement.STANDALONE, FeedbackThumbsPlacement.fromString("standalone"))
+    }
+
+    @Test
+    fun `FeedbackThumbsPlacement fromString is case insensitive`() {
+        assertEquals(FeedbackThumbsPlacement.STANDALONE, FeedbackThumbsPlacement.fromString("STANDALONE"))
+        assertEquals(FeedbackThumbsPlacement.STANDALONE, FeedbackThumbsPlacement.fromString("Standalone"))
+    }
+
+    @Test
+    fun `FeedbackThumbsPlacement fromString defaults to INLINE for unknown value`() {
+        assertEquals(FeedbackThumbsPlacement.INLINE, FeedbackThumbsPlacement.fromString("standaloneTrailing"))
+        assertEquals(FeedbackThumbsPlacement.INLINE, FeedbackThumbsPlacement.fromString("unknown"))
+    }
+
     @Test
     fun `copy preserves feedback behavior overrides`() {
         val original = ConciergeFeedbackBehavior(

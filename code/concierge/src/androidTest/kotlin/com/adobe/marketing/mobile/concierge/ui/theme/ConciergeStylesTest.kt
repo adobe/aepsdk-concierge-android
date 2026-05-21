@@ -440,4 +440,100 @@ class ConciergeStylesTest {
         composeTestRule.waitForIdle()
         assertEquals(Color(0xFFFF0000), style!!.dotColor)
     }
+
+    // -----------------------------------------------------------------------
+    // productCarouselStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun productCarouselStyle_noTokens_trailingContentPaddingFallsBackTo4dp() {
+        var style: ConciergeStyles.ProductCarouselStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.productCarouselStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(4.dp, style!!.trailingContentPadding)
+    }
+
+    @Test
+    fun productCarouselStyle_trailingContentPadding_usesChatHistoryPaddingWhenCarouselPaddingUnset() {
+        var style: ConciergeStyles.ProductCarouselStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(chatHistoryPadding = 20.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.productCarouselStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(20.dp, style!!.trailingContentPadding)
+    }
+
+    @Test
+    fun productCarouselStyle_trailingContentPadding_usesCarouselHorizontalPaddingOverChatHistoryPadding() {
+        var style: ConciergeStyles.ProductCarouselStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    productCardCarouselHorizontalPadding = 8.0,
+                    chatHistoryPadding = 20.0
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.productCarouselStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(8.dp, style!!.trailingContentPadding)
+    }
+
+    @Test
+    fun productCarouselStyle_itemSpacing_readsFromProductCardCarouselSpacing() {
+        var style: ConciergeStyles.ProductCarouselStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardCarouselSpacing = 16.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.productCarouselStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(16.dp, style!!.itemSpacing)
+    }
+
+    @Test
+    fun productCarouselStyle_noTokens_itemSpacingDefaultsTo12dp() {
+        var style: ConciergeStyles.ProductCarouselStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.productCarouselStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(12.dp, style!!.itemSpacing)
+    }
 }

@@ -1301,6 +1301,28 @@ class ChatScreenStateTest {
     }
 
     @Test
+    fun `ChatMessage hasFooterContent returns true for bot message with feedbackEligible`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            feedbackEligible = true
+        )
+        assertTrue(message.hasFooterContent)
+    }
+
+    @Test
+    fun `ChatMessage hasFooterContent returns false for bot message when feedbackEligible is false and no citations or interactionId`() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Response"),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            feedbackEligible = false
+        )
+        assertFalse(message.hasFooterContent)
+    }
+
+    @Test
     fun `ChatMessage hasFooterContent returns false for user message even with citations`() {
         val message = ChatMessage(
             content = MessageContent.Text("User message"),

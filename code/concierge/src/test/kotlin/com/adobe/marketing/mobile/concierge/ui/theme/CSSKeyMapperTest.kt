@@ -698,6 +698,28 @@ class CSSKeyMapperTest {
     }
 
     // -----------------------------------------------------------------------
+    // Product card — granular text spacing
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-title-subtitle-spacing`() {
+        val result = CSSKeyMapper.apply("--product-card-title-subtitle-spacing", "6px", emptyTheme)
+        assertEquals(6.0, result.cssLayout?.productCardTitleSubtitleSpacing)
+    }
+
+    @Test
+    fun `apply maps product-card-section-spacing`() {
+        val result = CSSKeyMapper.apply("--product-card-section-spacing", "12px", emptyTheme)
+        assertEquals(12.0, result.cssLayout?.productCardSectionSpacing)
+    }
+
+    @Test
+    fun `apply maps product-card-price-spacing`() {
+        val result = CSSKeyMapper.apply("--product-card-price-spacing", "4px", emptyTheme)
+        assertEquals(4.0, result.cssLayout?.productCardPriceSpacing)
+    }
+
+    // -----------------------------------------------------------------------
     // Components - Feedback button size
     // -----------------------------------------------------------------------
 

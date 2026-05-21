@@ -16,6 +16,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.services.Log
@@ -35,7 +36,7 @@ internal object MarkdownParser {
      * @return An [AnnotatedString] with the appropriate styling applied.
      */
     @Composable
-    fun parse(markdown: String): AnnotatedString {
+    fun parse(markdown: String, linkHints: List<LinkHint> = emptyList()): AnnotatedString {
         val tokens = remember(markdown) { MarkdownTokenizer.tokenize(markdown) }
         val colorScheme = ConciergeTheme.colorScheme
         val messageBubbleStyle = ConciergeStyles.messageBubbleStyle
@@ -47,7 +48,7 @@ internal object MarkdownParser {
             "Parsed ${tokens.size} tokens, starting rendering."
         )
 
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle)
+        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints)
         return result
     }
 }

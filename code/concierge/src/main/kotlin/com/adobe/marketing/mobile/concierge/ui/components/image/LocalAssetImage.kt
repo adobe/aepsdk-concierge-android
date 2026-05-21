@@ -28,8 +28,8 @@ import java.util.Collections
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private const val ASSET_ICONS_FOLDER = "icons"
-private val SUPPORTED_EXTENSIONS = listOf(".png", ".webp", ".jpg", ".jpeg")
+internal const val ASSET_ICONS_FOLDER = "icons"
+internal val SUPPORTED_EXTENSIONS = listOf(".png", ".webp", ".jpg", ".jpeg")
 
 @VisibleForTesting
 internal val assetBitmapCache: MutableMap<String, ImageBitmap?> = Collections.synchronizedMap(HashMap())
@@ -49,6 +49,7 @@ internal fun LocalAssetImage(
     source: String,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    fallback: String? = null,
     contentScale: ContentScale = ContentScale.Fit
 ) {
     if (source.startsWith("http://") || source.startsWith("https://")) {
@@ -56,7 +57,17 @@ internal fun LocalAssetImage(
             url = source,
             contentDescription = contentDescription,
             modifier = modifier,
-            contentScale = contentScale
+            contentScale = contentScale,
+            error = if (fallback != null) {
+                {
+                    AsyncImage(
+                        url = fallback,
+                        contentDescription = contentDescription,
+                        modifier = modifier,
+                        contentScale = contentScale
+                    )
+                }
+            } else null
         )
     } else {
         LocalFileImage(
@@ -68,21 +79,46 @@ internal fun LocalAssetImage(
     }
 }
 
+/**
+ * Returns the loaded [ImageBitmap] for a local asset, or null if the asset does not exist or
+ * has not finished loading yet. Results are cached so subsequent calls are synchronous.
+ */
 @Composable
-private fun LocalFileImage(
-    assetName: String,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit
-) {
+internal fun rememberLocalAssetBitmap(assetName: String): ImageBitmap? {
     val context = LocalContext.current
-    val bitmap = produceState<ImageBitmap?>(initialValue = assetBitmapCache[assetName], key1 = assetName) {
+    return produceState(initialValue = assetBitmapCache[assetName], key1 = assetName) {
         if (!assetBitmapCache.containsKey(assetName)) {
             val loaded = withContext(Dispatchers.IO) {
                 loadAssetBitmap(context, assetName)?.asImageBitmap()
             }
             assetBitmapCache[assetName] = loaded
             value = loaded
+        }
+    }.value
+}
+
+@Composable
+private fun LocalFileImage(
+    assetName: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    fallback: String? = null,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    val context = LocalContext.current
+    val bitmap = produceState(initialValue = assetBitmapCache[assetName], key1 = assetName) {
+        if (!assetBitmapCache.containsKey(assetName)) {
+            val loaded = withContext(Dispatchers.IO) {
+                loadAssetBitmap(context, assetName)?.asImageBitmap()
+            }
+            assetBitmapCache[assetName] = loaded
+            value = loaded
+        } else if (assetBitmapCache[assetName] == null && !fallback.isNullOrBlank()) {
+            val fallbackImage = withContext(Dispatchers.IO) {
+                loadAssetBitmap(context, fallback)?.asImageBitmap()
+            }
+            assetBitmapCache[fallback] = fallbackImage
+            value = fallbackImage
         }
     }.value
 
@@ -96,7 +132,7 @@ private fun LocalFileImage(
     }
 }
 
-private fun loadAssetBitmap(context: Context, name: String): Bitmap? {
+internal fun loadAssetBitmap(context: Context, name: String): Bitmap? {
     for (ext in SUPPORTED_EXTENSIONS) {
         try {
             val path = "$ASSET_ICONS_FOLDER/$name$ext"

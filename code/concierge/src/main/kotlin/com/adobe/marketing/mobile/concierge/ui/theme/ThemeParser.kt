@@ -61,13 +61,23 @@ internal object ThemeParser {
             // Parse the full theme (which includes CSS theme parsing)
             val themeTokens = parseThemeTokensFromMap(json)
             
-            // Parse text strings
+            // Parse header config from root-level "header" block
+            val headerConfig = DataReader.optTypedMap(Any::class.java, json, "header", null)?.let {
+                HeaderConfig(
+                    title = DataReader.optString(it, "title", null),
+                    subtitle = DataReader.optString(it, "subtitle", null),
+                    image = DataReader.optString(it, "image", null),
+                    layoutType = DataReader.optString(it, "layoutType", null),
+                    imageHeight = DataReader.optString(it, "imageHeight", null)
+                        ?.let(CSSValueConverter::parsePxValue)
+                )
+            }
+
+            // Parse text strings from "text" block
             val textMap = DataReader.optTypedMap(Any::class.java, json, "text", null)
             val textStrings = textMap?.let {
                 ConciergeTextStrings(
                     inputPlaceholder = DataReader.optString(it, "input.placeholder", null),
-                    headerTitle = DataReader.optString(it, "header.title", null),
-                    headerSubtitle = DataReader.optString(it, "header.subtitle", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),
@@ -120,6 +130,7 @@ internal object ThemeParser {
                 name = themeTokens.metadata.name,
                 colors = themeTokens.colors,
                 styles = null,
+                header = headerConfig,
                 text = textStrings,
                 disclaimer = disclaimer,
                 welcomeExamples = welcomeExamples,
@@ -443,16 +454,32 @@ internal object ThemeParser {
                 displayMode = FeedbackDisplayMode.fromString(DataReader.optString(it, "displayMode", "modal")),
                 thumbsPlacement = FeedbackThumbsPlacement.fromString(DataReader.optString(it, "thumbsPlacement", "inline")),
                 showCloseButton = it["showCloseButton"] as? Boolean,
-                showCancelButton = it["showCancelButton"] as? Boolean
+                showCancelButton = it["showCancelButton"] as? Boolean,
+                alwaysDisplay = DataReader.optBoolean(it, "alwaysDisplay", false)
             )
         }
 
         val citationsMap = typedMap?.get("citations") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
         val citationsTyped = citationsMap as? MutableMap<String?, Any?>
+        val styleMap = citationsTyped?.get("linkIconStyle") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val styleTyped = styleMap as? MutableMap<String?, Any?>
+        val linkIconStyle = styleTyped?.let {
+            ConciergeLinkIconStyle(
+                size = DataReader.optDouble(it, "size", 0.0).takeIf { v -> v > 0.0 }?.toFloat(),
+                spacing = DataReader.optDouble(it, "spacing", 0.0).takeIf { v -> v > 0.0 }?.toFloat(),
+                color = DataReader.optString(it, "color", null)
+            )
+        }
+
         val citations = citationsTyped?.let {
             ConciergeCitationsBehavior(
-                showLinkIcon = DataReader.optBoolean(it, "showLinkIcon", false)
+                showLinkIcon = DataReader.optBoolean(it, "showLinkIcon", false),
+                phoneIcon = DataReader.optString(it, "phoneIcon", null),
+                storeIcon = DataReader.optString(it, "storeIcon", null),
+                defaultLinkIcon = DataReader.optString(it, "defaultLinkIcon", null),
+                linkIconStyle = linkIconStyle
             )
         }
 
@@ -500,6 +527,7 @@ internal object ThemeParser {
             enableVoiceInput = enableVoiceInput,
             disableMultiline = disableMultiline,
             sendButtonStyle = DataReader.optString(inputTypedMap, "sendButtonStyle", "default") ?: "default",
+            stopRecordingIcon = DataReader.optString(inputTypedMap, "stopRecordingIcon", null),
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
             feedback = feedback,

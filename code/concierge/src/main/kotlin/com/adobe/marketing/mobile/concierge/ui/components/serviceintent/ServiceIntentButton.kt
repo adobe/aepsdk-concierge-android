@@ -41,7 +41,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 @Composable
 internal fun CtaButton(
     cta: CtaButton,
-    onClick: (String) -> Unit,
+    onClick: (CtaButton) -> Unit,
     modifier: Modifier = Modifier,
     applyContainerPadding: Boolean = true
 ) {
@@ -55,7 +55,7 @@ internal fun CtaButton(
                     start = style.containerStartPadding
                 ) else Modifier
             )
-            .clickable { onClick(cta.url) },
+            .clickable { onClick(cta) },
         colors = CardDefaults.cardColors(
             containerColor = style.backgroundColor
         ),
