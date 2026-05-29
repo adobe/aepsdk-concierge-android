@@ -102,6 +102,7 @@ object ConciergeConstants {
             const val ERROR_OCCURRED                 = "Brand Concierge Error Occurred"
             const val DISCLAIMER_LINK_CLICKED        = "Brand Concierge Disclaimer Link Clicked"
             const val CTA_BUTTON_CLICKED             = "Brand Concierge CTA Button Clicked"
+            const val LINK_CLICKED                   = "Brand Concierge Link Clicked"
         }
 
         object XDMType {
@@ -120,6 +121,7 @@ object ConciergeConstants {
             const val ERROR_OCCURRED                 = "concierge:error:occurred"
             const val DISCLAIMER_LINK_CLICKED        = "concierge:disclaimerLink:clicked"
             const val CTA_BUTTON_CLICKED             = "concierge:ctaButton:clicked"
+            const val LINK_CLICKED                   = "concierge:link:clicked"
         }
 
         object EventData {
@@ -140,7 +142,17 @@ object ConciergeConstants {
                 const val URL               = "url"
                 const val ERROR_MESSAGE     = "errorMessage"
                 const val LABEL             = "label"
+                const val ORIGIN            = "origin"
             }
+        }
+
+        internal object LinkClickOrigin {
+            const val CITATION     = "citation"
+            const val LINK_HINT    = "linkHint"
+            const val INLINE       = "inline"
+            const val PRODUCT_CARD = "productCard"
+            const val DISCLAIMER   = "disclaimer"
+            const val CTA          = "cta"
         }
     }
 }

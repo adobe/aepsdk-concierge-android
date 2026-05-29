@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
@@ -256,8 +257,8 @@ fun ConciergeChat(
         }
     }
 
-    val resolvedLinkClick: (String) -> Unit = remember(handleLink) {
-        { url -> viewModel.handleLinkClick(url, handleLink) }
+    val resolvedLinkClick: (String, String) -> Unit = remember(handleLink) {
+        { url, origin -> viewModel.handleLinkClick(url, origin, handleLink) }
     }
 
     val resolvedEvent: (ChatEvent) -> Unit = remember(handleLink) {
@@ -310,7 +311,7 @@ internal fun ConciergeChat(
     isReturningUser: Boolean,
     onTextChanged: (String) -> Unit,
     onEvent: (ChatEvent) -> Unit,
-    handleLink: (String) -> Unit = {},
+    handleLink: (String, String) -> Unit = { _, _ -> },
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -358,7 +359,7 @@ internal fun ConciergeChat(
                     handleLink = handleLink,
                     onCtaButtonClick = { cta ->
                         onEvent(CtaButtonClick(cta))
-                        handleLink(cta.url)
+                        handleLink(cta.url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)
                                        },
                     modifier = Modifier
                         .fillMaxSize()

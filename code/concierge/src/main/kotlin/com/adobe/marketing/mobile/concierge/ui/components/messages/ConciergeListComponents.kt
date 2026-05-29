@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +45,7 @@ import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownToken
 @Composable
 internal fun ConciergeResponseList(
     listTokens: List<MarkdownToken>,
-    handleLink: (String) -> Unit,
+    handleLink: (String, String) -> Unit,
     modifier: Modifier = Modifier,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
@@ -77,7 +78,7 @@ internal fun ConciergeResponseList(
 @Composable
 private fun ListItem(
     token: MarkdownToken,
-    handleLink: (String) -> Unit,
+    handleLink: (String, String) -> Unit,
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     linkHints: List<LinkHint> = emptyList()
@@ -119,7 +120,9 @@ private fun ListItem(
         ClickableText(
             text = annotatedString,
             inlineContent = finalInlineContentMap,
-            handleLink = handleLink,
+            handleLink = { url ->
+                handleLink(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE)
+            },
             modifier = Modifier
                 .weight(1f, fill = true)
                 .wrapContentHeight()

@@ -211,6 +211,15 @@ internal object ConciergeEventTracker {
                 }
                 dispatchEdge(xdmType, payload)
             }
+            types.LINK_CLICKED -> {
+                val url = data[keys.URL] as? String
+                val origin = data[keys.ORIGIN] as? String
+                val payload = mutableMapOf<String, Any>().apply {
+                    url?.let { put(keys.URL, it) }
+                    origin?.let { put(keys.ORIGIN, it) }
+                }
+                dispatchEdge(xdmType, payload)
+            }
             else -> {
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME, SELF_TAG,

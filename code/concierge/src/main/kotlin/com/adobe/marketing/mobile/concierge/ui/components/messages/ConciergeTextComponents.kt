@@ -37,6 +37,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.LinkHint
@@ -53,7 +54,7 @@ internal fun ConciergeResponseText(
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     linkHints: List<LinkHint> = emptyList(),
-    handleLink: ((String) -> Unit)? = null,
+    handleLink: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -97,7 +98,7 @@ internal fun ConciergeResponseText(
             text = animatedText,
             inlineContent = finalInlineContentMap,
             handleLink = { url ->
-                handleLink?.invoke(url)
+                handleLink?.invoke(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE)
                     ?: run {
                         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                         context.startActivity(intent)

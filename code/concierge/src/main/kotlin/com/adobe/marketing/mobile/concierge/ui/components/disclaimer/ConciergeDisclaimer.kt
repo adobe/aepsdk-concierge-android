@@ -22,6 +22,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.components.messages.ClickableText
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.DisclaimerClickedEvent
@@ -39,7 +40,7 @@ import com.adobe.marketing.mobile.services.ServiceProvider
 internal fun ConciergeDisclaimer(
     modifier: Modifier = Modifier,
     disclaimerConfig: DisclaimerConfig?,
-    handleLink: ((String) -> Unit)? = null,
+    handleLink: ((String, String) -> Unit)? = null,
     onEvent: (ChatEvent) -> Unit
 ) {
     if (disclaimerConfig == null || disclaimerConfig.text.isNullOrBlank()) return
@@ -56,7 +57,7 @@ internal fun ConciergeDisclaimer(
         if(handleLink == null) {
             ServiceProvider.getInstance().uriService.openUri(url)
         } else {
-            handleLink(url)
+            handleLink(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.DISCLAIMER)
         }
     }
 

@@ -228,6 +228,30 @@ class ConciergeTrackingEventTest {
         )
     }
 
+    // MARK: - linkClicked
+
+    @Test
+    fun `linkClicked carries url and origin`() {
+        val event = ConciergeTrackingEvent.LinkClicked(
+            linkUrl = "https://adobe.com/photoshop",
+            origin = ConciergeConstants.TrackingEvent.LinkClickOrigin.CITATION
+        ).toEvent()
+
+        assertCommonEventProperties(
+            event,
+            ConciergeConstants.TrackingEvent.Name.LINK_CLICKED,
+            ConciergeConstants.TrackingEvent.XDMType.LINK_CLICKED
+        )
+        assertEquals(
+            "https://adobe.com/photoshop",
+            event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.URL)
+        )
+        assertEquals(
+            "citation",
+            event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ORIGIN)
+        )
+    }
+
     // MARK: - errorOccurred
 
     @Test
@@ -258,6 +282,7 @@ class ConciergeTrackingEventTest {
             ConciergeTrackingEvent.ResponseCompleted("c", "i"),
             ConciergeTrackingEvent.CardsRendered("single", emptyList()),
             ConciergeTrackingEvent.FeedbackSubmitted("c", "i", "positive", emptyList(), ""),
+            ConciergeTrackingEvent.LinkClicked("https://adobe.com", "citation"),
             ConciergeTrackingEvent.ErrorOccurred("err")
         ).map { it.toEvent() }
 
