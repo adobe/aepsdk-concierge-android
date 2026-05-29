@@ -22,6 +22,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -473,10 +474,12 @@ internal object ConciergeStyles {
         val cardBackgroundColor: Color,
         val cardOutlineColor: Color,
         val cardWidth: Dp,
-        val cardHeight: Dp?,
+        val cardMinHeight: Dp,
+        val cardMaxHeight: Dp,
         val cardElevation: Dp,
         val imageWidth: Dp,
         val imageHeight: Dp,
+        val imageContentScale: ContentScale,
         val imageTopPadding: Dp,
         val contentPaddingTop: Dp,
         val badgeBackgroundColor: Color,
@@ -538,20 +541,37 @@ internal object ConciergeStyles {
             val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 400)
             val cardBorderRadius = (ConciergeTheme.tokens?.cssLayout?.productCardBorderRadius ?: 8.0).toFloat().dp
             val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
-            val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
-            val cardHeightDp = layout?.productCardHeight?.toFloat()?.dp
+            val cardWidthDp = (layout?.productCardWidth ?: 250.0).toFloat().dp
+            val cardMinHeightDp = (layout?.productCardMinHeight ?: 240.0).toFloat().dp
+            val cardMaxHeightDp = (layout?.productCardMaxHeight ?: 360.0).toFloat().dp
+                .coerceAtLeast(cardMinHeightDp)
+            val imageWidthDp = (layout?.productImageWidth ?: 190.0).toFloat().dp
+            val imageHeightDp = (layout?.productImageHeight ?: 190.0).toFloat().dp
+            // Image scaling: "fit" fits the whole image inside the slot (no cropping); "fill"
+            // (default) scales to fill the slot and crops the overflow.
+            val imageContentScale = when (layout?.productImageScale?.lowercase()) {
+                "fit" -> ContentScale.Fit
+                else -> ContentScale.Crop
+            }
             val wasPriceColor = parseColor(layout?.productCardWasPriceColor, Color(0xFF4F4F4F))
             val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
             val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
+            val wasPriceSize = (layout?.productCardWasPriceFontSize ?: 12.0).toFloat().sp
+            // Compose `lineHeight` is the absolute line box height, so it must exceed the font size to
+            // leave readable spacing between wrapped lines. Derive it proportionally from the font size
+            // (~1.4x) so cards stay legible and match the airier iOS spacing regardless of theme fonts.
+            val lineHeightFactor = 1.4f
             return ExtendedProductCardStyle(
                 cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
                 cardOutlineColor = outlineColor,
                 cardWidth = cardWidthDp,
-                cardHeight = cardHeightDp,
-                cardElevation = 1.dp,
-                imageWidth = 190.dp,
-                imageHeight = 190.dp,
+                cardMinHeight = cardMinHeightDp,
+                cardMaxHeight = cardMaxHeightDp,
+                cardElevation = 4.dp,
+                imageWidth = imageWidthDp,
+                imageHeight = imageHeightDp,
+                imageContentScale = imageContentScale,
                 imageTopPadding = 16.dp,
                 badgeBackgroundColor = badgeBg,
                 badgeTextColor = badgeText,
@@ -562,20 +582,20 @@ internal object ConciergeStyles {
                 titleColor = titleColor,
                 titleFontSize = titleSize,
                 titleFontWeight = titleWeight,
-                titleLineHeight = 17.sp,
+                titleLineHeight = (titleSize.value * lineHeightFactor).sp,
                 subtitleColor = subtitleColor,
                 subtitleFontSize = subtitleSize,
                 subtitleFontWeight = subtitleWeight,
-                subtitleLineHeight = 14.sp,
-                subtitleLetterSpacing = (-0.5).sp,
+                subtitleLineHeight = (subtitleSize.value * lineHeightFactor).sp,
+                subtitleLetterSpacing = 0.sp,
                 priceColor = priceColor,
                 priceFontSize = priceSize,
                 priceFontWeight = priceWeight,
-                priceLineHeight = 17.sp,
-                priceLetterSpacing = (-0.5).sp,
-                wasPriceFontSize = (layout?.productCardWasPriceFontSize ?: 12.0).toFloat().sp,
+                priceLineHeight = (priceSize.value * lineHeightFactor).sp,
+                priceLetterSpacing = 0.sp,
+                wasPriceFontSize = wasPriceSize,
                 wasPriceFontWeight = wasPriceWeight,
-                wasPriceLineHeight = 14.sp,
+                wasPriceLineHeight = (wasPriceSize.value * lineHeightFactor).sp,
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
                 contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,

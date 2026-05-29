@@ -20,6 +20,7 @@ import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.Citation
 
 /**
@@ -40,7 +41,7 @@ internal object CitationUiUtils {
         uniqueSources: List<Citation>,
         badgeSize: Dp,
         context: Context,
-        handleLink: ((String) -> Unit)? = null
+        handleLink: ((String, String) -> Unit)? = null
     ): Map<String, InlineTextContent> {
         val inlineContentMap = mutableMapOf<String, InlineTextContent>()
 
@@ -61,7 +62,7 @@ internal object CitationUiUtils {
                     citationNumber = citationNumber,
                     onClick = {
                         source.url?.let { url ->
-                            handleLink?.invoke(url)
+                            handleLink?.invoke(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CITATION)
                                 ?: run {
                                     val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                                     context.startActivity(intent)

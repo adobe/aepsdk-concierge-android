@@ -37,6 +37,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -58,7 +59,7 @@ internal fun ExpandedCitations(
     citations: List<Citation>,
     uniqueCitations: List<Citation>? = null,
     expanded: Boolean,
-    handleLink: (String) -> Unit = {},
+    handleLink: (String, String) -> Unit = { _, _ -> },
     footerContent: @Composable (() -> Unit)? = null
 ) {
     // Use pre-computed unique sources if available, otherwise compute them
@@ -108,7 +109,7 @@ internal fun CitationItem(
     modifier: Modifier = Modifier,
     citation: Citation,
     index: Int,
-    handleLink: (String) -> Unit = {}
+    handleLink: (String, String) -> Unit = { _, _ -> }
 ) {
     val style = ConciergeStyles.citationStyle
 
@@ -121,7 +122,9 @@ internal fun CitationItem(
             .then(
                 if (hasUrl) {
                     Modifier.clickable {
-                        citation.url?.let { url -> handleLink(url) }
+                        citation.url?.let { url ->
+                            handleLink(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CITATION)
+                        }
                     }
                 } else {
                     Modifier
