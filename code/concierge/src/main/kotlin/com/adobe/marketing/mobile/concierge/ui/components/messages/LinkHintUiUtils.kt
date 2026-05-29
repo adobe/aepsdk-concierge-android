@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownRenderer
@@ -95,7 +96,7 @@ internal object LinkHintUiUtils {
         context: Context,
         iconSize: Dp = 16.dp,
         iconSpacing: Dp = 2.dp,
-        handleLink: ((String) -> Unit)? = null
+        handleLink: ((String, String) -> Unit)? = null
     ): Map<String, InlineTextContent> {
         if (linkHints.isEmpty()) return emptyMap()
 
@@ -135,7 +136,7 @@ internal object LinkHintUiUtils {
                         .size(iconSize)
                         .clickable {
                             if (handleLink != null) {
-                                handleLink(hint.href)
+                                handleLink(hint.href, ConciergeConstants.TrackingEvent.LinkClickOrigin.LINK_HINT)
                             } else {
                                 val intent = Intent(Intent.ACTION_VIEW, hint.href.toUri())
                                 context.startActivity(intent)

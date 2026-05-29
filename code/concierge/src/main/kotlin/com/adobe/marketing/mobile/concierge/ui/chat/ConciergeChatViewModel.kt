@@ -209,13 +209,15 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Handles a link click: host callback first, then App Link if host app is verified handler,
-     * else WebView overlay.
+     * else WebView overlay. Dispatches a `LinkClicked` tracking event tagged with the [origin].
      *
      * @param url The URL to open
+     * @param origin The surface that produced the click (see [ConciergeConstants.TrackingEvent.LinkClickOrigin])
      * @param handleLink Optional host callback; return true if handled
      */
-    internal fun handleLinkClick(url: String, handleLink: ((String) -> Boolean)?) {
+    internal fun handleLinkClick(url: String, origin: String, handleLink: ((String) -> Boolean)?) {
         if (url.isBlank()) return
+        dispatchTrackingEvent(ConciergeTrackingEvent.LinkClicked(linkUrl = url, origin = origin))
         when {
             handleLink?.invoke(url) == true -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: handled by host callback")
@@ -402,6 +404,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param button The [ProductActionButton] that was pressed
      */
     private fun handleProductActionClick(button: ProductActionButton, handleLink: ((String) -> Boolean)?) {
+        val origin = ConciergeConstants.TrackingEvent.LinkClickOrigin.PRODUCT_CARD
         val element = mutableMapOf<String, Any>("productName" to button.text)
         button.url?.let { element["productPageURL"] = it }
         dispatchTrackingEvent(ConciergeTrackingEvent.CardClicked(element))
@@ -411,7 +414,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             return
         }
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Button pressed: ${button.text}, opening URL: ${button.url}")
-        handleLinkClick(button.url, handleLink)
+        handleLinkClick(button.url, origin, handleLink)
     }
 
     /**
@@ -427,7 +430,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             return
         }
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Multimodal element image clicked: ${element.id}, opening URL: $url")
-        handleLinkClick(url, handleLink)
+        handleLinkClick(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.PRODUCT_CARD, handleLink)
     }
 
     private fun buildCardElementDict(content: Map<String, Any>): Map<String, Any> {

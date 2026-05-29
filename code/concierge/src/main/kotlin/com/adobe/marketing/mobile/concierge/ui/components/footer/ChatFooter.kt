@@ -61,7 +61,7 @@ internal fun ChatFooter(
     sseComplete: Boolean = false,
     feedbackEligible: Boolean = false,
     onFeedback: (FeedbackEvent) -> Unit,
-    handleLink: (String) -> Unit = {},
+    handleLink: (String, String) -> Unit = { _, _ -> },
     feedbackState: FeedbackState = FeedbackState.None
 ) {
     val hasCitations = !citations.isNullOrEmpty()

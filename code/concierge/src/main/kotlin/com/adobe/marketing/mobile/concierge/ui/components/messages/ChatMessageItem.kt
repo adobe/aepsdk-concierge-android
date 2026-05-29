@@ -68,7 +68,7 @@ internal fun ChatMessageItem(
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
-    handleLink: (String) -> Unit = {},
+    handleLink: (String, String) -> Unit = { _, _ -> },
     feedbackState: FeedbackState = FeedbackState.None,
     onCtaButtonClick: (CtaButton) -> Unit = {}
 ) {
@@ -116,7 +116,7 @@ private fun RenderTextMessage(
     message: ChatMessage,
     onFeedback: (FeedbackEvent) -> Unit,
     onSuggestionClick: (String) -> Unit,
-    handleLink: (String) -> Unit,
+    handleLink: (String, String) -> Unit,
     feedbackState: FeedbackState,
     onCtaButtonClick: (CtaButton) -> Unit
 ) {
@@ -223,7 +223,7 @@ private fun RenderTextMessageWithIcon(
     thinkingStyle: ConciergeStyles.ThinkingAnimationStyle,
     onFeedback: (FeedbackEvent) -> Unit,
     onSuggestionClick: (String) -> Unit,
-    handleLink: (String) -> Unit,
+    handleLink: (String, String) -> Unit,
     feedbackState: FeedbackState,
     onCtaButtonClick: (CtaButton) -> Unit
 ) {
@@ -310,7 +310,7 @@ private fun RenderMixedMessage(
     onActionClick: (ProductActionButton) -> Unit,
     onImageClick: (MultimodalElement) -> Unit,
     onSuggestionClick: (String) -> Unit,
-    handleLink: (String) -> Unit,
+    handleLink: (String, String) -> Unit,
     feedbackState: FeedbackState,
     onCtaButtonClick: (CtaButton) -> Unit
 ) {
@@ -462,7 +462,7 @@ private fun RenderMixedMessage(
 @Composable
 private fun AgentResponseContent(
     message: ChatMessage,
-    handleLink: (String) -> Unit,
+    handleLink: (String, String) -> Unit,
     onFeedback: (FeedbackEvent) -> Unit,
     feedbackState: FeedbackState
 ) {

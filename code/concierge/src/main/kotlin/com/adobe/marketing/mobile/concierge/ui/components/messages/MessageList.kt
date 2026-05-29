@@ -45,7 +45,7 @@ internal fun MessageList(
     onActionClick: (ProductActionButton) -> Unit = {},
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
-    handleLink: (String) -> Unit = {},
+    handleLink: (String, String) -> Unit = { _, _ -> },
     onCtaButtonClick: (CtaButton) -> Unit = {}
 ) {
     val style = ConciergeStyles.messageListStyle

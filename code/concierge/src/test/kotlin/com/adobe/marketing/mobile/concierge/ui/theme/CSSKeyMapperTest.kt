@@ -652,9 +652,33 @@ class CSSKeyMapperTest {
     }
 
     @Test
-    fun `apply maps product-card-height`() {
-        val result = CSSKeyMapper.apply("--product-card-height", "359px", emptyTheme)
-        assertEquals(359.0, result.cssLayout?.productCardHeight)
+    fun `apply maps product-card-min-height`() {
+        val result = CSSKeyMapper.apply("--product-card-min-height", "240px", emptyTheme)
+        assertEquals(240.0, result.cssLayout?.productCardMinHeight)
+    }
+
+    @Test
+    fun `apply maps product-card-max-height`() {
+        val result = CSSKeyMapper.apply("--product-card-max-height", "360px", emptyTheme)
+        assertEquals(360.0, result.cssLayout?.productCardMaxHeight)
+    }
+
+    @Test
+    fun `apply maps product-image-width`() {
+        val result = CSSKeyMapper.apply("--product-image-width", "190px", emptyTheme)
+        assertEquals(190.0, result.cssLayout?.productImageWidth)
+    }
+
+    @Test
+    fun `apply maps product-image-height`() {
+        val result = CSSKeyMapper.apply("--product-image-height", "190px", emptyTheme)
+        assertEquals(190.0, result.cssLayout?.productImageHeight)
+    }
+
+    @Test
+    fun `apply maps product-image-scale`() {
+        val result = CSSKeyMapper.apply("--product-image-scale", "fit", emptyTheme)
+        assertEquals("fit", result.cssLayout?.productImageScale)
     }
 
     // -----------------------------------------------------------------------

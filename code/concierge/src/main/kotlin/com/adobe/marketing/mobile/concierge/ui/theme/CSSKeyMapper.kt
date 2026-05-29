@@ -863,14 +863,38 @@ internal object CSSKeyMapper {
         },
         "product-card-width" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val width = CSSValueConverter.parsePxValue(cssValue) ?: 222.0
+                val width = CSSValueConverter.parsePxValue(cssValue) ?: 250.0
                 layout?.copy(productCardWidth = width) ?: ConciergeLayout(productCardWidth = width)
             }
         },
-        "product-card-height" to { cssValue, theme ->
+        "product-card-min-height" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val height = CSSValueConverter.parsePxValue(cssValue) ?: 285.0
-                layout?.copy(productCardHeight = height) ?: ConciergeLayout(productCardHeight = height)
+                val height = CSSValueConverter.parsePxValue(cssValue) ?: 240.0
+                layout?.copy(productCardMinHeight = height) ?: ConciergeLayout(productCardMinHeight = height)
+            }
+        },
+        "product-card-max-height" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val height = CSSValueConverter.parsePxValue(cssValue) ?: 360.0
+                layout?.copy(productCardMaxHeight = height) ?: ConciergeLayout(productCardMaxHeight = height)
+            }
+        },
+        "product-image-width" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val width = CSSValueConverter.parsePxValue(cssValue) ?: 190.0
+                layout?.copy(productImageWidth = width) ?: ConciergeLayout(productImageWidth = width)
+            }
+        },
+        "product-image-height" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val height = CSSValueConverter.parsePxValue(cssValue) ?: 190.0
+                layout?.copy(productImageHeight = height) ?: ConciergeLayout(productImageHeight = height)
+            }
+        },
+        "product-image-scale" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val scale = cssValue.trim().lowercase()
+                layout?.copy(productImageScale = scale) ?: ConciergeLayout(productImageScale = scale)
             }
         },
         "product-card-border-radius" to { cssValue, theme ->

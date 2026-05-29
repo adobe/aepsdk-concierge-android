@@ -56,7 +56,7 @@ internal fun ConciergeResponse(
     modifier: Modifier = Modifier,
     sources: List<Citation> = emptyList(),
     linkHints: List<LinkHint> = emptyList(),
-    handleLink: ((String) -> Unit)? = null,
+    handleLink: ((String, String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
@@ -154,7 +154,7 @@ private fun ConciergeResponseWithLists(
     uniqueSources: List<Citation> = emptyList(),
     inlineContentMap: Map<String, InlineTextContent> = emptyMap(),
     linkHints: List<LinkHint> = emptyList(),
-    handleLink: ((String) -> Unit)? = null,
+    handleLink: ((String, String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val style = ConciergeStyles.messageBubbleStyle
@@ -162,7 +162,7 @@ private fun ConciergeResponseWithLists(
     val contentSegments = remember(text, listTokens) {
         ContentSegmentParser.createSegments(text, listTokens)
     }
-    val linkHandler = handleLink ?: { url ->
+    val linkHandler: (String, String) -> Unit = handleLink ?: { url, _ ->
         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         context.startActivity(intent)
     }

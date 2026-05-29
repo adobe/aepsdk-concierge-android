@@ -20,13 +20,14 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
@@ -34,7 +35,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,13 +43,24 @@ import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
 /**
- * Composable that displays a single product card containing a large image, badge,
+ * Composable that displays a single product card containing a fixed-size image, badge,
  * product name, subtitle/description, and price.
+ *
+ * The image is always rendered at a fixed [ExtendedProductCardStyle.imageWidth] x
+ * [ExtendedProductCardStyle.imageHeight]; every other element renders only when present.
+ * The card height grows with its content, clamped between [ExtendedProductCardStyle.cardMinHeight]
+ * and [ExtendedProductCardStyle.cardMaxHeight]; content that exceeds the available height
+ * scrolls internally.
+ *
+ * When placed in a carousel, the caller passes a fixed height via [modifier] so every card
+ * shares the tallest card's height. [measureOnly] lets the carousel's measurement pass skip
+ * the network image load (image height is fixed, so the image is not needed to measure height).
  */
 @Composable
 internal fun ExtendedProductCard(
     element: MultimodalElement,
     modifier: Modifier = Modifier,
+    measureOnly: Boolean = false,
     onCardClick: (MultimodalElement) -> Unit = {}
 ) {
     val style = ConciergeStyles.extendedProductCardStyle
@@ -62,18 +73,12 @@ internal fun ExtendedProductCard(
         ?: element.content["learningResource"] as? String
     val imageUrl = element.url ?: element.thumbnailUrl
     val imageWidth = style.imageWidth
-    val imageHeight: Dp = if (element.thumbnailWidth != null && element.thumbnailHeight != null && element.thumbnailWidth > 0) {
-        style.imageWidth * (element.thumbnailHeight.toFloat() / element.thumbnailWidth.toFloat())
-    } else {
-        style.imageHeight
-    }
-
-    val hasExactHeight = style.cardHeight != null
+    val imageHeight = style.imageHeight
 
     Card(
         modifier = modifier
             .width(style.cardWidth)
-            .then(style.cardHeight?.let { Modifier.height(it) } ?: Modifier)
+            .heightIn(min = style.cardMinHeight, max = style.cardMaxHeight)
             .clip(style.cardShape)
             .then(
                 if (style.cardOutlineColor != Color.Transparent) {
@@ -86,50 +91,35 @@ internal fun ExtendedProductCard(
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
         Column(
-            modifier = if (hasExactHeight) Modifier.fillMaxSize() else Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            // Image section: flexible (fills remaining space) when card has exact height,
-            // fixed natural height otherwise.
+            // Image section: always a fixed imageWidth x imageHeight slot. Missing or
+            // failed images fall back to AsyncImage's surface-colored placeholder.
             Box(
-                modifier = if (hasExactHeight) {
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = style.imageTopPadding)
-                        .weight(1f)
-                } else {
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = style.imageTopPadding)
-                        .height(imageHeight)
-                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = style.imageTopPadding)
+                    .height(imageHeight),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
-                    modifier = if (hasExactHeight) {
-                        Modifier
-                            .width(imageWidth)
-                            .fillMaxHeight()
-                    } else {
-                        Modifier
-                            .width(imageWidth)
-                            .height(imageHeight)
-                    },
+                    modifier = Modifier
+                        .width(imageWidth)
+                        .height(imageHeight),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (imageUrl != null) {
+                    if (!measureOnly && imageUrl != null) {
                         AsyncImage(
                             url = imageUrl,
                             contentDescription = productName,
-                            contentScale = ContentScale.Crop,
-                            modifier = if (hasExactHeight) {
-                                Modifier.fillMaxSize()
-                            } else {
-                                Modifier
-                                    .width(imageWidth)
-                                    .height(imageHeight)
-                            }
+                            contentScale = style.imageContentScale,
+                            modifier = Modifier
+                                .width(imageWidth)
+                                .height(imageHeight)
                         )
                     }
                 }
