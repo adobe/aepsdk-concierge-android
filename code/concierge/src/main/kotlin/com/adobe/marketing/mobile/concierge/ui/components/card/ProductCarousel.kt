@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -59,10 +60,68 @@ internal fun ProductCarousel(
     val style = ConciergeStyles.productCarouselStyle
     val extendedProductCardStyle = ConciergeStyles.extendedProductCardStyle
     val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else style.imageWidth
-    val extendedCardHeight = extendedProductCardStyle.cardHeight
-    val itemHeight = if (useExtendedProductCards) extendedCardHeight else style.imageHeight
     val carouselMode = ConciergeTheme.behavior?.multimodalCarousel?.carouselStyle ?: CarouselStyle.PAGED
     val isPaged = carouselMode == CarouselStyle.PAGED
+
+    if (useExtendedProductCards) {
+        // Extended cards have dynamic heights; equalize every card to the tallest one so the
+        // carousel has a single, consistent height with minimal blank space.
+        EqualHeightCarousel(
+            itemCount = elements.size,
+            itemWidth = itemWidth,
+            minHeight = extendedProductCardStyle.cardMinHeight,
+            maxHeight = extendedProductCardStyle.cardMaxHeight,
+            measureItem = { index ->
+                ExtendedProductCard(element = elements[index], measureOnly = true)
+            }
+        ) { cardHeight ->
+            CarouselContent(
+                elements = elements,
+                isPaged = isPaged,
+                leadingInset = leadingInset,
+                itemWidth = itemWidth,
+                style = style
+            ) { index ->
+                ExtendedProductCard(
+                    element = elements[index],
+                    modifier = Modifier.width(itemWidth).height(cardHeight),
+                    onCardClick = onImageClick
+                )
+            }
+        }
+    } else {
+        CarouselContent(
+            elements = elements,
+            isPaged = isPaged,
+            leadingInset = leadingInset,
+            itemWidth = itemWidth,
+            style = style
+        ) { index ->
+            ProductImage(
+                element = elements[index],
+                modifier = Modifier
+                    .width(itemWidth)
+                    .height(style.imageHeight),
+                onImageClick = onImageClick,
+                isMultiElement = true
+            )
+        }
+    }
+}
+
+/**
+ * Renders the scrollable row of carousel items plus, in paged mode, the navigation controls.
+ * [item] supplies the composable for the element at a given index.
+ */
+@Composable
+private fun CarouselContent(
+    elements: List<MultimodalElement>,
+    isPaged: Boolean,
+    leadingInset: Dp,
+    itemWidth: Dp,
+    style: ConciergeStyles.ProductCarouselStyle,
+    item: @Composable (index: Int) -> Unit
+) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val currentPage = listState.firstVisibleItemIndex
@@ -83,23 +142,7 @@ internal fun ProductCarousel(
             modifier = Modifier.fillMaxWidth()
         ) {
             items(elements.size) { index ->
-                if (useExtendedProductCards) {
-                    ExtendedProductCard(
-                        element = elements[index],
-                        modifier = Modifier.width(itemWidth)
-                            .then(extendedCardHeight?.let { Modifier.height(it) } ?: Modifier),
-                        onCardClick = onImageClick
-                    )
-                } else {
-                    ProductImage(
-                        element = elements[index],
-                        modifier = Modifier
-                            .width(itemWidth)
-                            .height(itemHeight ?: style.imageHeight),
-                        onImageClick = onImageClick,
-                        isMultiElement = true
-                    )
-                }
+                item(index)
             }
         }
 
@@ -132,6 +175,47 @@ internal fun ProductCarousel(
         }
     }
 }
+
+/**
+ * Layout that measures the natural (clamped) height of every carousel card, takes the tallest,
+ * and renders [content] with that single height so all cards match. [measureItem] is composed
+ * only to measure intrinsic heights — it should skip expensive work like network image loads.
+ */
+@Composable
+private fun EqualHeightCarousel(
+    itemCount: Int,
+    itemWidth: Dp,
+    minHeight: Dp,
+    maxHeight: Dp,
+    measureItem: @Composable (index: Int) -> Unit,
+    content: @Composable (cardHeight: Dp) -> Unit
+) {
+    SubcomposeLayout(modifier = Modifier.fillMaxWidth()) { constraints ->
+        val itemWidthPx = itemWidth.roundToPx()
+        val minPx = minHeight.roundToPx()
+        val maxPx = maxHeight.roundToPx()
+
+        // Pass 1: measure-only composition to find the tallest clamped card height.
+        val resolvedPx = subcompose(CarouselSlot.Measure) {
+            repeat(itemCount) { measureItem(it) }
+        }.maxOfOrNull { it.maxIntrinsicHeight(itemWidthPx) }
+            ?.coerceIn(minPx, maxPx)
+            ?: minPx
+        val cardHeight = resolvedPx.toDp()
+
+        // Pass 2: render the real carousel with every card fixed to that height.
+        val placeables = subcompose(CarouselSlot.Content) {
+            content(cardHeight)
+        }.map { it.measure(constraints) }
+
+        val height = placeables.maxOfOrNull { it.height } ?: 0
+        layout(constraints.maxWidth, height) {
+            placeables.forEach { it.placeRelative(0, 0) }
+        }
+    }
+}
+
+private enum class CarouselSlot { Measure, Content }
 
 /**
  * Composable that displays carousel navigation controls with arrows and page indicators.
