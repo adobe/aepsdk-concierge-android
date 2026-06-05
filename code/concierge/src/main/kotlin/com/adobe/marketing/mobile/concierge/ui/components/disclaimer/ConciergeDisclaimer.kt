@@ -109,6 +109,7 @@ internal fun buildDisclaimerAnnotatedString(
                 pushStyle(SpanStyle(textDecoration = style.linkTextDecoration))
                 append(link.text)
                 pop()
+                pop()
                 pushStyle(baseSpanStyle)
                 remaining = remaining.substring(index + placeholder.length)
             }
