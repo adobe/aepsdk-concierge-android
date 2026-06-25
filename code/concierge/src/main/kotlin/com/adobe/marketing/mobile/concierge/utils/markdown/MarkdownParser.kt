@@ -42,13 +42,18 @@ internal object MarkdownParser {
         val messageBubbleStyle = ConciergeStyles.messageBubbleStyle
         val messageTextStyle = messageBubbleStyle.textStyle.copy(color = messageBubbleStyle.botMessageTextColor)
 
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            TAG,
-            "Parsed ${tokens.size} tokens, starting rendering."
-        )
-
-        val result = MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints)
-        return result
+        // Memoize the rendered AnnotatedString. Without this, MarkdownRenderer.render() re-runs on
+        // every recomposition for every visible message, rebuilding the full AnnotatedString. During
+        // a streaming response the message list is re-emitted on every chunk, so the cost scales as
+        // O(messages x chunks) and pins the main thread / churns the heap as the conversation grows.
+        // Keyed on every input that affects the output so styling/theme changes still re-render.
+        return remember(markdown, tokens, colorScheme, messageTextStyle, linkHints) {
+            Log.debug(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Parsed ${tokens.size} tokens, starting rendering."
+            )
+            MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints)
+        }
     }
 }
