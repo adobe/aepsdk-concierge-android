@@ -61,8 +61,12 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -133,6 +137,15 @@ class ConciergeChatViewModel : AndroidViewModel {
         UserInputState.Empty
     )
     internal val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
+
+    /**
+     * Flips only when the input transitions between empty and non-empty.
+     * Collected by the screen-level composable so it doesn't recompose on every character typed.
+     */
+    internal val isInputEmpty: StateFlow<Boolean> = _inputState
+        .map { it is UserInputState.Empty || it is UserInputState.Error }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /**
      * List of chat messages in the conversation

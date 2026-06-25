@@ -60,6 +60,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
+import kotlinx.coroutines.flow.StateFlow
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -216,15 +217,14 @@ fun ConciergeChat(
     handleLink: LinkHandler? = null
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val inputState by viewModel.inputState.collectAsStateWithLifecycle()
+    val isInputEmpty by viewModel.isInputEmpty.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val webviewOverlay by viewModel.webviewOverlay.collectAsStateWithLifecycle(initialValue = null)
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
     val welcomeConfig by viewModel.welcomeConfig.collectAsStateWithLifecycle()
     
-    // Determine if user is returning
-    val isReturningUser = viewModel.isReturningUser()
+    val isReturningUser = remember { viewModel.isReturningUser() }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Capture the current theme to update welcome card config
@@ -269,7 +269,8 @@ fun ConciergeChat(
         ConciergeChat(
             messages = messages,
             chatState = state,
-            inputState = inputState,
+            isInputEmpty = isInputEmpty,
+            inputStateFlow = viewModel.inputState,
             hasAudioPermission = hasAudioPermission,
             showWelcomeCard = showWelcomeCard,
             welcomeConfig = welcomeConfig,
@@ -304,7 +305,8 @@ internal fun ConciergeChat(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
     chatState: ChatScreenState,
-    inputState: UserInputState,
+    isInputEmpty: Boolean,
+    inputStateFlow: StateFlow<UserInputState>,
     hasAudioPermission: Boolean,
     showWelcomeCard: Boolean,
     welcomeConfig: WelcomeConfig,
@@ -367,7 +369,6 @@ internal fun ConciergeChat(
                 )
                 
                 // Welcome card, shown when no chat messages have been sent and text input is empty
-                val isInputEmpty = inputState is UserInputState.Empty || inputState is UserInputState.Error
                 val shouldShowWelcome = showWelcomeCard && messages.isEmpty() && isInputEmpty
 
                 androidx.compose.animation.AnimatedVisibility(
@@ -400,16 +401,14 @@ internal fun ConciergeChat(
                 }
             }
 
-            // User input
-            UserInput(
-                inputState = inputState,
+            // User input — collects inputState internally so only this subtree recomposes per keystroke
+            UserInputSection(
+                inputStateFlow = inputStateFlow,
                 onTextChange = onTextChanged,
                 isProcessing = isProcessing,
                 hasAudioPermission = hasAudioPermission,
                 placeholder = ConciergeTheme.text?.inputPlaceholder,
-                onSend = { text ->
-                    onEvent(ChatEvent.SendMessage(text))
-                },
+                onSend = { text -> onEvent(ChatEvent.SendMessage(text)) },
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
                 modifier = Modifier.fillMaxWidth()
@@ -442,6 +441,36 @@ internal fun ConciergeChat(
             }
         }
     }
+}
+
+/**
+ * Leaf composable that self-collects [inputStateFlow] so only the input row recomposes
+ * per keystroke, keeping [MessageList] and other siblings fully skipped while typing.
+ */
+@Composable
+private fun UserInputSection(
+    inputStateFlow: StateFlow<UserInputState>,
+    onTextChange: (String) -> Unit,
+    isProcessing: Boolean,
+    hasAudioPermission: Boolean,
+    placeholder: String?,
+    onSend: (String) -> Unit,
+    onMicEvent: (ChatEvent) -> Unit,
+    onPermissionResult: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val inputState by inputStateFlow.collectAsStateWithLifecycle()
+    UserInput(
+        inputState = inputState,
+        onTextChange = onTextChange,
+        isProcessing = isProcessing,
+        hasAudioPermission = hasAudioPermission,
+        placeholder = placeholder,
+        onSend = onSend,
+        onMicEvent = onMicEvent,
+        onPermissionResult = onPermissionResult,
+        modifier = modifier
+    )
 }
 
 /**
