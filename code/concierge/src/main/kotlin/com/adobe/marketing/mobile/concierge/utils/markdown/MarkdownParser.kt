@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.utils.markdown
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -41,13 +42,20 @@ internal object MarkdownParser {
         val colorScheme = ConciergeTheme.colorScheme
         val messageBubbleStyle = ConciergeStyles.messageBubbleStyle
         val messageTextStyle = messageBubbleStyle.textStyle.copy(color = messageBubbleStyle.botMessageTextColor)
+        val darkTheme = isSystemInDarkTheme()
 
         // Memoize the rendered AnnotatedString. Without this, MarkdownRenderer.render() re-runs on
         // every recomposition for every visible message, rebuilding the full AnnotatedString. During
         // a streaming response the message list is re-emitted on every chunk, so the cost scales as
         // O(messages x chunks) and pins the main thread / churns the heap as the conversation grows.
-        // Keyed on every input that affects the output so styling/theme changes still re-render.
-        return remember(markdown, tokens, colorScheme, messageTextStyle, linkHints) {
+        //
+        // Keys must be value-comparable for the cache to hold across recompositions: `markdown` and
+        // `linkHints` cover the content; `messageTextStyle` (TextStyle has structural equality) covers
+        // typography and text color; `darkTheme` covers the derived `colorScheme`. `colorScheme`
+        // itself is NOT used as a key — ConciergeTheme.colorScheme builds a fresh ColorScheme on every
+        // read and ColorScheme has only reference equality, so keying on it would invalidate the cache
+        // every recomposition and defeat the memoization entirely.
+        return remember(markdown, linkHints, messageTextStyle, darkTheme) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
