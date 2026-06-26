@@ -349,13 +349,12 @@ class ConciergeChatViewModelTest {
         assertTrue(vm.inputState.value is UserInputState.Empty)
     }
 
-    // TODO: Need to revisit tests oncce we finalize how to surface errors
     @Test
-    fun `stream ERROR state adds error chat message and returns Idle`() = runTest {
+    fun `stream ERROR state shows generic copy and returns Idle`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         every { chatClient.chat("Hi") } returns flow {
-            emit(ParsedConversationMessage("oops", ConversationState.ERROR))
+            emit(ParsedConversationMessage("oops-raw-server-detail", ConversationState.ERROR))
         }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
@@ -364,17 +363,18 @@ class ConciergeChatViewModelTest {
 
         val last = vm.messages.value.last()
         assertTrue(!last.isFromUser)
-        assertTrue(last.text.startsWith("Sorry, I encountered an error:"))
+        // User sees the generic, themeable message.
+        assertEquals("Sorry I encountered an error, please try again.", last.text)
+        assertTrue(!last.text.contains("oops-raw-server-detail"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
-    
-    // TODO: Need to revisit tests oncce we finalize how to surface errors
+
     @Test
-    fun `exception from chat flow handled as conversation error`() = runTest {
+    fun `exception from chat flow shows generic copy`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         every { chatClient.chat("Hi") } returns flow {
-            throw RuntimeException("boom")
+            throw RuntimeException("HTTP error: -1 null")
         }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
@@ -382,7 +382,9 @@ class ConciergeChatViewModelTest {
         advanceUntilIdle()
 
         val last = vm.messages.value.last()
-        assertTrue(last.text.startsWith("Sorry, I encountered an error:"))
+        // The raw exception text is not shown.
+        assertEquals("Sorry I encountered an error, please try again.", last.text)
+        assertTrue(!last.text.contains("HTTP error"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
 

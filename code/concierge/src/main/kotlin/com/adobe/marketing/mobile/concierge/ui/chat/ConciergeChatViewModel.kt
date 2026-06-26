@@ -73,7 +73,15 @@ import kotlinx.coroutines.launch
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
-        
+
+        /**
+         * User-facing fallback shown in the chat when a conversation cannot be completed
+         * (for example, due to a network, server, or parsing error). Intentionally generic —
+         * the underlying technical detail is sent to logs and telemetry, never to the user.
+         */
+        private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
+            "Sorry I encountered an error, please try again."
+
         /**
          * Initializes the welcome config using the parser example
          * In the finalized implementation, the config contained in the mock response would
@@ -989,10 +997,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
+        // Keep the raw technical detail for diagnostics (logs + telemetry only)...
+        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
+        // ...but never surface the raw exception to the user. Show generic, themeable copy instead.
         replaceAssistantMessageContent(
             ParsedConversationMessage(
-                messageContent = "Sorry, I encountered an error: $errorMessage",
+                messageContent = DEFAULT_CONVERSATION_ERROR_MESSAGE,
                 state = ConversationState.COMPLETED,
             )
         )
