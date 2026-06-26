@@ -28,6 +28,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerConfig
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 
@@ -48,7 +49,8 @@ class ConciergeChatTest {
                     ConciergeChat(
                         messages = emptyList(),
                         chatState = ChatScreenState.Idle(),
-                        inputState = UserInputState.Empty,
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
                         showWelcomeCard = true,
                         welcomeConfig = WelcomeConfig(
@@ -81,7 +83,8 @@ class ConciergeChatTest {
                     ConciergeChat(
                         messages = emptyList(),
                         chatState = ChatScreenState.Idle(),
-                        inputState = UserInputState.Empty,
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
                         showWelcomeCard = true,
                         welcomeConfig = WelcomeConfig(),
@@ -112,7 +115,8 @@ class ConciergeChatTest {
                     ConciergeChat(
                         messages = messages,
                         chatState = ChatScreenState.Idle(),
-                        inputState = UserInputState.Empty,
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
                         showWelcomeCard = false,
                         welcomeConfig = WelcomeConfig(),
@@ -139,7 +143,8 @@ class ConciergeChatTest {
                     ConciergeChat(
                         messages = emptyList(),
                         chatState = ChatScreenState.Processing(),
-                        inputState = UserInputState.Empty,
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
                         showWelcomeCard = false,
                         welcomeConfig = WelcomeConfig(),
@@ -165,7 +170,8 @@ class ConciergeChatTest {
                     ConciergeChat(
                         messages = emptyList(),
                         chatState = ChatScreenState.Idle(),
-                        inputState = UserInputState.Empty,
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
                         showWelcomeCard = true,
                         welcomeConfig = WelcomeConfig(),
@@ -200,7 +206,8 @@ class ConciergeChatTest {
                     ConciergeChat(
                         messages = emptyList(),
                         chatState = ChatScreenState.Idle(),
-                        inputState = UserInputState.Empty,
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
                         showWelcomeCard = false,
                         welcomeConfig = WelcomeConfig(),

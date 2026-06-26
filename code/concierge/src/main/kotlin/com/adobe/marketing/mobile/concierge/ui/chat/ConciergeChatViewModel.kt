@@ -61,15 +61,27 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
-        
+
+        /**
+         * User-facing fallback shown in the chat when a conversation cannot be completed
+         * (for example, due to a network, server, or parsing error). Intentionally generic —
+         * the underlying technical detail is sent to logs and telemetry, never to the user.
+         */
+        private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
+            "Sorry, I encountered an error. Please try again."
+
         /**
          * Initializes the welcome config using the parser example
          * In the finalized implementation, the config contained in the mock response would
@@ -133,6 +145,15 @@ class ConciergeChatViewModel : AndroidViewModel {
         UserInputState.Empty
     )
     internal val inputState: StateFlow<UserInputState> = _inputState.asStateFlow()
+
+    /**
+     * Flips only when the input transitions between empty and non-empty.
+     * Collected by the screen-level composable so it doesn't recompose on every character typed.
+     */
+    internal val isInputEmpty: StateFlow<Boolean> = _inputState
+        .map { it is UserInputState.Empty || it is UserInputState.Error }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /**
      * List of chat messages in the conversation
@@ -594,8 +615,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param message The error message to display
      */
     private fun handleProcessingError(message: String) {
+        Log.error(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Processing error: $message"
+        )
         _state.update { currentState ->
-            ChatScreenState.Error(message)
+            ChatScreenState.Error(DEFAULT_CONVERSATION_ERROR_MESSAGE)
         }
     }
 
@@ -976,10 +1002,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param errorMessage The error message to display
      */
     private fun handleConversationError(errorMessage: String) {
+        // Keep the raw technical detail for diagnostics (logs + telemetry only)...
+        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
+        // ...but never surface the raw exception to the user. Show generic copy instead.
         replaceAssistantMessageContent(
             ParsedConversationMessage(
-                messageContent = "Sorry, I encountered an error: $errorMessage",
+                messageContent = DEFAULT_CONVERSATION_ERROR_MESSAGE,
                 state = ConversationState.COMPLETED,
             )
         )
