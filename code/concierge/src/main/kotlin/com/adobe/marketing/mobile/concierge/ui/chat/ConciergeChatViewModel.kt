@@ -80,7 +80,7 @@ class ConciergeChatViewModel : AndroidViewModel {
          * the underlying technical detail is sent to logs and telemetry, never to the user.
          */
         private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
-            "Sorry I encountered an error, please try again."
+            "Sorry, I encountered an error. Please try again."
 
         /**
          * Initializes the welcome config using the parser example

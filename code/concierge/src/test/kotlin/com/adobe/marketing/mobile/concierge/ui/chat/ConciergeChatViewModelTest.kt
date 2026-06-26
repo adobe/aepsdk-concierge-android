@@ -364,7 +364,7 @@ class ConciergeChatViewModelTest {
         val last = vm.messages.value.last()
         assertTrue(!last.isFromUser)
         // User sees the generic, themeable message.
-        assertEquals("Sorry I encountered an error, please try again.", last.text)
+        assertEquals("Sorry, I encountered an error. Please try again.", last.text)
         assertTrue(!last.text.contains("oops-raw-server-detail"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
@@ -383,7 +383,7 @@ class ConciergeChatViewModelTest {
 
         val last = vm.messages.value.last()
         // The raw exception text is not shown.
-        assertEquals("Sorry I encountered an error, please try again.", last.text)
+        assertEquals("Sorry, I encountered an error. Please try again.", last.text)
         assertTrue(!last.text.contains("HTTP error"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
