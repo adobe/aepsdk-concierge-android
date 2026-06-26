@@ -311,7 +311,7 @@ class ConciergeChatViewModelTest {
 
         vm.processEvent(ChatEvent.Error("bad"))
         val err = vm.state.value as ChatScreenState.Error
-        assertEquals("bad", err.error)
+        assertEquals("Sorry, I encountered an error. Please try again.", err.error)
 
         vm.processEvent(ChatEvent.Reset)
         assertTrue(vm.state.value is ChatScreenState.Idle)

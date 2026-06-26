@@ -615,8 +615,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param message The error message to display
      */
     private fun handleProcessingError(message: String) {
+        Log.error(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Processing error: $message"
+        )
         _state.update { currentState ->
-            ChatScreenState.Error(message)
+            ChatScreenState.Error(DEFAULT_CONVERSATION_ERROR_MESSAGE)
         }
     }
 
@@ -1000,7 +1005,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         // Keep the raw technical detail for diagnostics (logs + telemetry only)...
         Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
-        // ...but never surface the raw exception to the user. Show generic, themeable copy instead.
+        // ...but never surface the raw exception to the user. Show generic copy instead.
         replaceAssistantMessageContent(
             ParsedConversationMessage(
                 messageContent = DEFAULT_CONVERSATION_ERROR_MESSAGE,
