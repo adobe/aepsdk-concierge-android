@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.state
 
+import androidx.compose.runtime.Immutable
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -155,6 +156,7 @@ internal sealed class MessageInteractionEvent : ChatEvent() {
  * Represents different types of content in a chat message
  */
 // TODO: Find a better place for this, e.g. ChatMessage.MessageContent
+@Immutable
 internal sealed class MessageContent {
     data class Text(val text: String) : MessageContent()
     data class Mixed(
@@ -166,7 +168,13 @@ internal sealed class MessageContent {
 
 /**
  * A chat message data class that supports different content types.
+ *
+ * Marked [Immutable] so Compose can skip recomposition of unchanged message rows. The plain
+ * `List` properties below are otherwise inferred as unstable, which makes every message item
+ * recompose (and re-render its markdown) on every streaming update. Instances are only ever
+ * replaced via `copy(...)`, never mutated in place, so the immutability promise holds.
  */
+@Immutable
 internal data class ChatMessage(
     val content: MessageContent,
     val isFromUser: Boolean,
