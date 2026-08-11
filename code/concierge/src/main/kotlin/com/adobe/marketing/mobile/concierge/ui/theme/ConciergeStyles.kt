@@ -541,7 +541,7 @@ internal object ConciergeStyles {
             val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 400)
             val cardBorderRadius = (ConciergeTheme.tokens?.cssLayout?.productCardBorderRadius ?: 8.0).toFloat().dp
             val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
-            val cardWidthDp = (layout?.productCardWidth ?: 250.0).toFloat().dp
+            val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
             val cardMinHeightDp = (layout?.productCardMinHeight ?: 240.0).toFloat().dp
             val cardMaxHeightDp = (layout?.productCardMaxHeight ?: 360.0).toFloat().dp
                 .coerceAtLeast(cardMinHeightDp)
@@ -557,10 +557,11 @@ internal object ConciergeStyles {
             val wasPriceWeight = FontWeight(layout?.productCardWasPriceFontWeight ?: 400)
             val wasPriceTextPrefix = layout?.productCardWasPriceTextPrefix ?: "was "
             val wasPriceSize = (layout?.productCardWasPriceFontSize ?: 12.0).toFloat().sp
-            // Compose `lineHeight` is the absolute line box height, so it must exceed the font size to
-            // leave readable spacing between wrapped lines. Derive it proportionally from the font size
-            // (~1.4x) so cards stay legible and match the airier iOS spacing regardless of theme fonts.
-            val lineHeightFactor = 1.4f
+            // Compose `lineHeight` is the absolute line box height. Ratios are derived from the
+            // spec's exact px line-heights at the default font sizes (14px/17px headline, 12px/14px
+            // caption) so cards reproduce the design's line spacing instead of an arbitrary multiplier.
+            val headlineLineHeightFactor = 17f / 14f
+            val captionLineHeightFactor = 14f / 12f
             return ExtendedProductCardStyle(
                 cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
@@ -582,28 +583,28 @@ internal object ConciergeStyles {
                 titleColor = titleColor,
                 titleFontSize = titleSize,
                 titleFontWeight = titleWeight,
-                titleLineHeight = (titleSize.value * lineHeightFactor).sp,
+                titleLineHeight = (titleSize.value * headlineLineHeightFactor).sp,
                 subtitleColor = subtitleColor,
                 subtitleFontSize = subtitleSize,
                 subtitleFontWeight = subtitleWeight,
-                subtitleLineHeight = (subtitleSize.value * lineHeightFactor).sp,
-                subtitleLetterSpacing = 0.sp,
+                subtitleLineHeight = (subtitleSize.value * captionLineHeightFactor).sp,
+                subtitleLetterSpacing = (-0.5).sp,
                 priceColor = priceColor,
                 priceFontSize = priceSize,
                 priceFontWeight = priceWeight,
-                priceLineHeight = (priceSize.value * lineHeightFactor).sp,
-                priceLetterSpacing = 0.sp,
+                priceLineHeight = (priceSize.value * headlineLineHeightFactor).sp,
+                priceLetterSpacing = (-0.5).sp,
                 wasPriceFontSize = wasPriceSize,
                 wasPriceFontWeight = wasPriceWeight,
-                wasPriceLineHeight = (wasPriceSize.value * lineHeightFactor).sp,
+                wasPriceLineHeight = (wasPriceSize.value * captionLineHeightFactor).sp,
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
                 contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,
                 contentPaddingTop = (layout?.productCardTextTopPadding ?: 24.0).toFloat().dp,
                 contentPaddingBottom = (layout?.productCardTextBottomPadding ?: 16.0).toFloat().dp,
                 titleSubtitleSpacing = ((layout?.productCardTitleSubtitleSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp,
-                sectionSpacing = ((layout?.productCardSectionSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp,
-                priceSpacing = ((layout?.productCardPriceSpacing ?: layout?.productCardTextSpacing ?: 8.0)).toFloat().dp
+                sectionSpacing = ((layout?.productCardSectionSpacing ?: layout?.productCardTextSpacing ?: 16.0)).toFloat().dp,
+                priceSpacing = (layout?.productCardPriceSpacing ?: 0.0).toFloat().dp
             )
         }
 
