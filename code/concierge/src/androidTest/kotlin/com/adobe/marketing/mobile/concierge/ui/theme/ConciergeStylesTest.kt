@@ -542,7 +542,7 @@ class ConciergeStylesTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun extendedProductCardStyle_noTokens_cardWidthDefaultsTo222dp() {
+    fun extendedProductCardStyle_noTokens_cardWidthDefaultsTo250dp() {
         var style: ConciergeStyles.ExtendedProductCardStyle? = null
 
         composeTestRule.setContent {
@@ -553,7 +553,8 @@ class ConciergeStylesTest {
 
         composeTestRule.waitForIdle()
         assertNotNull(style)
-        assertEquals(222.dp, style!!.cardWidth)
+        // 250dp was chosen after testing across devices
+        assertEquals(250.dp, style!!.cardWidth)
     }
 
     @Test

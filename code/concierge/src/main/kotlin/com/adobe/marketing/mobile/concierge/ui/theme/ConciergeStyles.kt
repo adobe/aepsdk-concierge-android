@@ -543,7 +543,7 @@ internal object ConciergeStyles {
             val priceWeight = FontWeight(layout?.productCardPriceFontWeight ?: 400)
             val cardBorderRadius = (ConciergeTheme.tokens?.cssLayout?.productCardBorderRadius ?: 8.0).toFloat().dp
             val outlineColor = parseColor(layout?.productCardOutlineColor, Color(0xFFE3E3E3))
-            val cardWidthDp = (layout?.productCardWidth ?: 222.0).toFloat().dp
+            val cardWidthDp = (layout?.productCardWidth ?: 250.0).toFloat().dp
             val cardMinHeightDp = (layout?.productCardMinHeight ?: 240.0).toFloat().dp
             val cardMaxHeightDp = (layout?.productCardMaxHeight ?: 360.0).toFloat().dp
                 .coerceAtLeast(cardMinHeightDp)
