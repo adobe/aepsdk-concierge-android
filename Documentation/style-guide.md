@@ -175,10 +175,24 @@ Shadows use CSS box-shadow syntax:
 
 ```json
 "--input-box-shadow": "0 2px 8px 0 #00000014"
-"--multimodal-card-box-shadow": "none"
+"--multimodal-card-box-shadow": "0 1px 3px 0 #00000014"
 ```
 
-Format: `offsetX offsetY blurRadius spreadRadius color`
+Format: `offsetX offsetY blurRadius spreadRadius color`. Set to `"none"` to disable a shadow entirely.
+
+`--multimodal-card-box-shadow` renders as a drop shadow on `ExtendedProductCard`, but only two of the five values are actually applied — Compose's `Modifier.shadow` is elevation-based, not a literal box-shadow renderer:
+
+| Token | Consumed? | Effect |
+|-------|-----------|--------|
+| `offsetX` | ❌ | Parsed but ignored — no horizontal-offset equivalent in Compose's shadow |
+| `offsetY` | ❌ | Parsed but ignored — no vertical-offset equivalent either |
+| `blurRadius` | ✅ | Becomes the shadow's `elevation` (dp) |
+| `spreadRadius` | ❌ | Parsed but ignored — no spread equivalent |
+| `color` | ✅ | Used as both `ambientColor` and `spotColor` |
+
+Low alpha values (e.g. `#00000014` ≈ 8%) are barely visible against a white background — increase alpha (e.g. `#00000040`+) for a more visible effect.
+
+`--input-box-shadow` is parsed into the same shape but isn't rendered by any composable yet (see status table below).
 
 ### Font Weights
 
@@ -1420,7 +1434,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
 | `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
-| `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--multimodal-card-box-shadow` | ✅ | Card drop shadow (blur radius → elevation, color → ambient/spot shadow color) | `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-height` | ✅ | Extended product card height | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-border-radius` | ✅ | Extended product card corner radius | `ExtendedProductCard` |
