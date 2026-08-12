@@ -687,4 +687,27 @@ class ConciergeStylesTest {
         assertEquals(24.dp, style!!.sectionSpacing)
         assertEquals(4.dp, style!!.priceSpacing)
     }
+
+    @Test
+    fun extendedProductCardStyle_sectionSpacing_fallsBackToGenericTextSpacingWhenUnset() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                // productCardSectionSpacing is intentionally left unset so sectionSpacing
+                // falls through to the generic productCardTextSpacing value.
+                cssLayout = ConciergeLayout(productCardTextSpacing = 12.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(12.dp, style!!.sectionSpacing)
+    }
 }

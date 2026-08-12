@@ -563,7 +563,7 @@ internal object ConciergeStyles {
             // spec's exact px line-heights at the default font sizes (14px/17px headline, 12px/14px
             // caption) so cards reproduce the design's line spacing instead of an arbitrary multiplier.
             val headlineLineHeightFactor = 17f / 14f
-            val captionLineHeightFactor = 14f / 12f
+            val smallTextLineHeightFactor = 14f / 12f
             return ExtendedProductCardStyle(
                 cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
@@ -580,7 +580,7 @@ internal object ConciergeStyles {
                 badgeTextColor = badgeText,
                 badgeFontSize = badgeSize,
                 badgeFontWeight = badgeWeight,
-                badgeLineHeight = (badgeSize.value * captionLineHeightFactor).sp,
+                badgeLineHeight = (badgeSize.value * smallTextLineHeightFactor).sp,
                 badgeLetterSpacing = 0.sp,
                 badgePaddingHorizontal = 12.dp,
                 badgePaddingVertical = 4.dp,
@@ -591,7 +591,7 @@ internal object ConciergeStyles {
                 subtitleColor = subtitleColor,
                 subtitleFontSize = subtitleSize,
                 subtitleFontWeight = subtitleWeight,
-                subtitleLineHeight = (subtitleSize.value * captionLineHeightFactor).sp,
+                subtitleLineHeight = (subtitleSize.value * smallTextLineHeightFactor).sp,
                 subtitleLetterSpacing = (-0.5).sp,
                 priceColor = priceColor,
                 priceFontSize = priceSize,
@@ -600,7 +600,7 @@ internal object ConciergeStyles {
                 priceLetterSpacing = (-0.5).sp,
                 wasPriceFontSize = wasPriceSize,
                 wasPriceFontWeight = wasPriceWeight,
-                wasPriceLineHeight = (wasPriceSize.value * captionLineHeightFactor).sp,
+                wasPriceLineHeight = (wasPriceSize.value * smallTextLineHeightFactor).sp,
                 wasPriceColor = wasPriceColor,
                 wasPriceTextPrefix = wasPriceTextPrefix,
                 contentPadding = (layout?.productCardTextHorizontalPadding ?: 16.0).toFloat().dp,

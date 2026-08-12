@@ -17,6 +17,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -65,5 +68,48 @@ class ExtendedProductCardTest {
             "was-price bottom (${wasPriceBounds.bottom}) exceeded the card height ($cardMaxHeight)",
             wasPriceBounds.bottom <= cardMaxHeight
         )
+    }
+
+    @Test
+    fun extendedProductCard_displaysBadge_whenBadgeIsPresent() {
+        val element = MultimodalElement(
+            id = "with-badge",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Product Name",
+                "productPrice" to "$63.97",
+                "productBadge" to "Extended Sizes"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Extended Sizes").assertIsDisplayed()
+    }
+
+    @Test
+    fun extendedProductCardDemoScreen_rendersLineCountAndContentVariantCards() {
+        composeTestRule.setContent {
+            ExtendedProductCardDemoScreen()
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Title & Description Variants").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Content Variations").assertIsDisplayed()
+        // This title appears on two sample cards, so assert via the first match rather
+        // than a single-node lookup.
+        composeTestRule.onAllNodesWithText("Product Name Goes Here Long Title Two Lines")
+            .onFirst()
+            .assertIsDisplayed()
     }
 }
