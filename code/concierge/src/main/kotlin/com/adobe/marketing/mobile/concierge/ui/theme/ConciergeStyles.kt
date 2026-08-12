@@ -476,7 +476,8 @@ internal object ConciergeStyles {
         val cardWidth: Dp,
         val cardMinHeight: Dp,
         val cardMaxHeight: Dp,
-        val cardElevation: Dp,
+        val shadowElevation: Dp,
+        val shadowColor: Color,
         val imageWidth: Dp,
         val imageHeight: Dp,
         val imageContentScale: ContentScale,
@@ -564,6 +565,11 @@ internal object ConciergeStyles {
             // caption) so cards reproduce the design's line spacing instead of an arbitrary multiplier.
             val headlineLineHeightFactor = 17f / 14f
             val smallTextLineHeightFactor = 14f / 12f
+            // multimodalCardBoxShadow is null for both an unset theme and an explicit CSS
+            // "none", so both cases naturally fall through to no shadow.
+            val boxShadow = layout?.multimodalCardBoxShadow
+            val shadowElevationDp = ((boxShadow?.get("blurRadius") as? Double) ?: 0.0).toFloat().dp
+            val shadowColor = (boxShadow?.get("color") as? Color) ?: Color.Transparent
             return ExtendedProductCardStyle(
                 cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
@@ -571,7 +577,8 @@ internal object ConciergeStyles {
                 cardWidth = cardWidthDp,
                 cardMinHeight = cardMinHeightDp,
                 cardMaxHeight = cardMaxHeightDp,
-                cardElevation = 4.dp,
+                shadowElevation = shadowElevationDp,
+                shadowColor = shadowColor,
                 imageWidth = imageWidthDp,
                 imageHeight = imageHeightDp,
                 imageContentScale = imageContentScale,
