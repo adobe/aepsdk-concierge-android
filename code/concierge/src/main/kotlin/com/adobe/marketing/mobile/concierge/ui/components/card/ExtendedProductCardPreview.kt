@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -29,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
@@ -186,6 +188,7 @@ private val sampleCards = listOf(
 internal fun ExtendedProductCardDemoScreen() {
     CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
         ConciergeTheme(theme = ConciergeThemeLoader.default()) {
+            val cardMaxHeight = ConciergeStyles.extendedProductCardStyle.cardMaxHeight
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -210,7 +213,10 @@ internal fun ExtendedProductCardDemoScreen() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(lineCountVariants.size) { index ->
-                            ExtendedProductCard(element = lineCountVariants[index])
+                            ExtendedProductCard(
+                                element = lineCountVariants[index],
+                                modifier = Modifier.height(cardMaxHeight)
+                            )
                         }
                     }
                 }
@@ -233,7 +239,10 @@ internal fun ExtendedProductCardDemoScreen() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(sampleCards.size) { index ->
-                            ExtendedProductCard(element = sampleCards[index])
+                            ExtendedProductCard(
+                                element = sampleCards[index],
+                                modifier = Modifier.height(cardMaxHeight)
+                            )
                         }
                     }
                 }

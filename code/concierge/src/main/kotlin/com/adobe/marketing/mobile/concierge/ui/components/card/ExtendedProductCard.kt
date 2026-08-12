@@ -146,6 +146,8 @@ internal fun ExtendedProductCard(
                             color = style.badgeTextColor,
                             fontSize = style.badgeFontSize,
                             fontWeight = style.badgeFontWeight,
+                            lineHeight = style.badgeLineHeight,
+                            letterSpacing = style.badgeLetterSpacing,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

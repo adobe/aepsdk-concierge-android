@@ -536,4 +536,178 @@ class ConciergeStylesTest {
         assertNotNull(style)
         assertEquals(12.dp, style!!.itemSpacing)
     }
+
+    // -----------------------------------------------------------------------
+    // extendedProductCardStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun extendedProductCardStyle_noTokens_cardWidthDefaultsTo250dp() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // 250dp was chosen after testing across devices
+        assertEquals(250.dp, style!!.cardWidth)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_sectionAndPriceSpacingMatchSpecDefaults() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // The card spec's gap between the headline/subhead block and the price block is 16px.
+        assertEquals(16.dp, style!!.sectionSpacing)
+        // The card spec's price/was-price stack has no gap between the two lines.
+        assertEquals(0.dp, style!!.priceSpacing)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_headlineLineHeightIs17sp_atDefault14spFontSize() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Title and price are both 14px/700-or-400 "headline" role text; spec line-height is 17px.
+        assertEquals(17f, style!!.titleLineHeight.value, 0.01f)
+        assertEquals(17f, style!!.priceLineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_captionLineHeightIs14sp_atDefault12spFontSize() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Subtitle, was-price, and badge are all 12px "caption" role text; spec line-height is 14px.
+        assertEquals(14f, style!!.subtitleLineHeight.value, 0.01f)
+        assertEquals(14f, style!!.wasPriceLineHeight.value, 0.01f)
+        assertEquals(14f, style!!.badgeLineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_lineHeightRatio_scalesWithCustomFontSize() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardTitleFontSize = 28.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Ratio (17/14) is preserved rather than an absolute px value, so a themed font size
+        // still gets proportional, non-cramped line spacing.
+        assertEquals(28f * (17f / 14f), style!!.titleLineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_subtitleAndPriceLetterSpacingMatchSpec() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(-0.5f, style!!.subtitleLetterSpacing.value, 0.01f)
+        assertEquals(-0.5f, style!!.priceLetterSpacing.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_badgeLetterSpacingIsZero() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Pinned explicitly so the badge can't inherit a host app's ambient letter spacing.
+        assertEquals(0f, style!!.badgeLetterSpacing.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_withThemeOverrides_sectionAndPriceSpacingAreConfigurable() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    productCardSectionSpacing = 24.0,
+                    productCardPriceSpacing = 4.0
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(24.dp, style!!.sectionSpacing)
+        assertEquals(4.dp, style!!.priceSpacing)
+    }
+
+    @Test
+    fun extendedProductCardStyle_sectionSpacing_fallsBackToGenericTextSpacingWhenUnset() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                // productCardSectionSpacing is intentionally left unset so sectionSpacing
+                // falls through to the generic productCardTextSpacing value.
+                cssLayout = ConciergeLayout(productCardTextSpacing = 12.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(12.dp, style!!.sectionSpacing)
+    }
 }
