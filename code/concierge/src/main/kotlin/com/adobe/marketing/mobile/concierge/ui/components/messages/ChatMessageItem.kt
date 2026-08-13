@@ -99,15 +99,30 @@ internal fun ChatMessageItem(
     }
 }
 
+/**
+ * Renders a CTA button that is itself a standalone list item (an ordered element the backend
+ * sent as its own message, rather than attached via [ChatMessage.ctaButton] to a text response).
+ * It has no text bubble of its own to inherit alignment from, so it must independently match the
+ * start inset used by agent text messages: the icon column when a company icon is configured,
+ * otherwise the message bubble's own padding.
+ */
 @Composable
 private fun RenderCtaButton(
     content: MessageContent.CtaButton,
     onCtaButtonClick: (CtaButton) -> Unit
 ) {
+    val style = ConciergeStyles.messageBubbleStyle
+    val rawIconName = ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() }
+    val hasCompanyIcon = rawIconName?.let { rememberLocalAssetBitmap(it) } != null
+
     CtaButton(
         cta = content.button,
         onClick = onCtaButtonClick,
-        applyContainerPadding = false
+        containerStartPadding = if (hasCompanyIcon) {
+            style.agentIconSize + style.agentIconSpacing
+        } else {
+            style.padding + style.innerPadding
+        }
     )
 }
 
@@ -203,7 +218,8 @@ private fun RenderTextMessage(
             BotMessageSuffix(
                 message = message,
                 onSuggestionClick = onSuggestionClick,
-                onCtaButtonClick = onCtaButtonClick
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = style.padding + style.innerPadding
             )
         }
     }
@@ -297,7 +313,8 @@ private fun RenderTextMessageWithIcon(
             BotMessageSuffix(
                 message = message,
                 onSuggestionClick = onSuggestionClick,
-                onCtaButtonClick = onCtaButtonClick
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = 0.dp
             )
         }
     }
@@ -449,7 +466,8 @@ private fun RenderMixedMessage(
             BotMessageSuffix(
                 message = message,
                 onSuggestionClick = onSuggestionClick,
-                onCtaButtonClick = onCtaButtonClick
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = if (companyIconName != null) 0.dp else style.padding + style.innerPadding
             )
         }
     }
@@ -491,12 +509,17 @@ private fun AgentResponseContent(
 /**
  * Prompt suggestions and CTA button shown below the message card for bot responses.
  * Shared across all bot message render functions.
+ *
+ * @param ctaStartPadding Start inset for the CTA button, matching the start inset of the response
+ * text above it so the two stay aligned. Callers that already offset this composable to the text
+ * column (e.g. via a leading Spacer for the agent icon) should pass 0.dp.
  */
 @Composable
 private fun BotMessageSuffix(
     message: ChatMessage,
     onSuggestionClick: (String) -> Unit,
-    onCtaButtonClick: (CtaButton) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit,
+    ctaStartPadding: Dp = ConciergeStyles.ctaButtonStyle.containerStartPadding
 ) {
     if (message.promptSuggestions.isNotEmpty()) {
         PromptSuggestions(
@@ -508,7 +531,8 @@ private fun BotMessageSuffix(
     message.ctaButton?.let { cta ->
         CtaButton(
             cta = cta,
-            onClick = onCtaButtonClick
+            onClick = onCtaButtonClick,
+            containerStartPadding = ctaStartPadding
         )
     }
 }
