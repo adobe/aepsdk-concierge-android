@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -79,6 +80,16 @@ internal fun ExtendedProductCard(
         modifier = modifier
             .width(style.cardWidth)
             .heightIn(min = style.cardMinHeight, max = style.cardMaxHeight)
+            .then(
+                if (style.shadowElevation > 0.dp) {
+                    Modifier.shadow(
+                        elevation = style.shadowElevation,
+                        shape = style.cardShape,
+                        ambientColor = style.shadowColor,
+                        spotColor = style.shadowColor
+                    )
+                } else Modifier
+            )
             .clip(style.cardShape)
             .then(
                 if (style.cardOutlineColor != Color.Transparent) {
@@ -87,7 +98,7 @@ internal fun ExtendedProductCard(
             )
             .clickable { onCardClick(element) },
         shape = style.cardShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = style.cardElevation),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
     ) {
         Column(
