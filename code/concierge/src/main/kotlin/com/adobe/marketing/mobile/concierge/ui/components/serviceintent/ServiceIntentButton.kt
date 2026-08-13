@@ -24,7 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.network.CtaButton
@@ -37,13 +39,17 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * @param cta The CTA button data containing the label and URL
  * @param onClick Callback invoked with the CTA URL when the button is clicked
  * @param modifier Optional modifier for the container
+ * @param containerStartPadding Start padding applied when [applyContainerPadding] is true. Callers
+ * that position this button beneath response text should pass the same start inset used by that
+ * text so the two stay aligned.
  */
 @Composable
 internal fun CtaButton(
     cta: CtaButton,
     onClick: (CtaButton) -> Unit,
     modifier: Modifier = Modifier,
-    applyContainerPadding: Boolean = true
+    applyContainerPadding: Boolean = true,
+    containerStartPadding: Dp = ConciergeStyles.ctaButtonStyle.containerStartPadding
 ) {
     val style = ConciergeStyles.ctaButtonStyle
 
@@ -52,9 +58,10 @@ internal fun CtaButton(
             .then(
                 if (applyContainerPadding) Modifier.padding(
                     top = style.containerTopPadding,
-                    start = style.containerStartPadding
+                    start = containerStartPadding
                 ) else Modifier
             )
+            .testTag("CtaButton")
             .clickable { onClick(cta) },
         colors = CardDefaults.cardColors(
             containerColor = style.backgroundColor
