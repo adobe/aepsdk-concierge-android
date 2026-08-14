@@ -80,6 +80,18 @@ class AndroidSpeechCapturingTest {
     }
 
     @Test
+    fun `onAudioLevelChanged does not throw when no listener is set`() {
+        var attached: SpeechCaptureListener? = null
+        every { manager.setListener(any()) } answers { attached = firstArg() }
+
+        AndroidSpeechCapturing(manager, testScope)
+        // No capturing.setListener(...) call, so the outer listener is null.
+        attached?.onAudioLevelChanged(0.5f)
+
+        testScope.testScheduler.advanceUntilIdle()
+    }
+
+    @Test
     fun `startCapture and endCapture delegate to manager`() {
         val capturing = AndroidSpeechCapturing(manager, testScope)
         every { manager.startListening() } just Runs

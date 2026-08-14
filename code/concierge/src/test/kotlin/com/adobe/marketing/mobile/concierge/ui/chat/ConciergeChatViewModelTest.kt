@@ -204,6 +204,19 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `audio level updates are ignored when not recording`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        // No recording session started; a stray/late level update should have no effect.
+        fakeSpeech.emitAudioLevel(0.9f)
+
+        assertTrue(vm.inputState.value is UserInputState.Empty)
+    }
+
+    @Test
     fun `stop recording transitions to Editing when transcription exists`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)

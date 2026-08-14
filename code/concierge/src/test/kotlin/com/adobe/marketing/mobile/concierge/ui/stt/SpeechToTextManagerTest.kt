@@ -318,6 +318,14 @@ class SpeechToTextManagerTest {
     }
 
     @Test
+    fun `onRmsChanged does not throw when no listener is attached`() {
+        val sttManager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
+        sttManager.startListening()
+
+        internalSpeechListener.captured.onRmsChanged(5f)
+    }
+
+    @Test
     fun `onRmsChanged normalizes and clamps rms into a 0 to 1 audio level`() {
         val sttManager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
         sttManager.setListener(testListener)

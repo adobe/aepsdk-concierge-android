@@ -20,7 +20,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -71,6 +74,97 @@ class ConciergeStylesTest {
         assertNotNull(style)
         assertEquals(14.0, style!!.textStyle.fontSize.value.toDouble(), 0.1)
         assertEquals(700, style!!.textStyle.fontWeight?.weight ?: 0)
+    }
+
+    // -----------------------------------------------------------------------
+    // micButtonStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun micButtonStyle_noTokens_pulsingBackgroundEnabledDefaultsToTrue() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertTrue(style!!.pulsingBackgroundEnabled)
+        assertNull(style!!.waveformGradientStart)
+        assertNull(style!!.waveformGradientEnd)
+    }
+
+    @Test
+    fun micButtonStyle_withPulsingBackgroundDisabled_recordingIconColorFallsBackToMicColor() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(enableMicPulseBackground = false))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertFalse(style!!.pulsingBackgroundEnabled)
+        assertEquals(LightConciergeColors.primary, style!!.recordingIconColor)
+    }
+
+    @Test
+    fun micButtonStyle_withGradientColors_appliesGradientStartAndEnd() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micWaveformGradientStart = "#00F5D4",
+                        micWaveformGradientEnd = "#003D33"
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF00F5D4), style!!.waveformGradientStart)
+        assertEquals(Color(0xFF003D33), style!!.waveformGradientEnd)
+    }
+
+    @Test
+    fun micButtonStyle_withExplicitRecordingIconColor_overridesPulsingBackgroundFallback() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(micRecordingIconColor = "#FF0000")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFFFF0000), style!!.recordingIconColor)
     }
 
     // -----------------------------------------------------------------------
