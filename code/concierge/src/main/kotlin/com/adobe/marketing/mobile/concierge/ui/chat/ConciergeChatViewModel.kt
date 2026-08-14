@@ -385,6 +385,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         override fun onError(error: SpeechCaptureError) {
             handleSpeechError(error)
         }
+
+        override fun onAudioLevelChanged(level: Float) {
+            val current = _inputState.value
+            if (current is UserInputState.Recording) {
+                _inputState.update { current.copy(audioLevel = level) }
+            }
+        }
     }
 
     /**
@@ -1080,8 +1087,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         val current = _inputState.value
         when (current) {
             is UserInputState.Recording -> {
-                // Normal streaming while recording
-                _inputState.update { UserInputState.Recording(partialText) }
+                // Normal streaming while recording (preserve the live audio level)
+                _inputState.update { current.copy(transcription = partialText) }
             }
             is UserInputState.Editing -> {
                 if (current.isPendingTranscription) {

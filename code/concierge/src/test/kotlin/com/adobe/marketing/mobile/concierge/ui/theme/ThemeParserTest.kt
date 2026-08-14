@@ -1798,6 +1798,69 @@ class ThemeParserTest {
         assertEquals(Color.White, colors.sendIconColor)
     }
 
+    @Test
+    fun `parseThemeJson should parse mic waveform gradient colors`() {
+        val json = """
+            {
+                "theme": {
+                    "--input-mic-waveform-gradient-start-color": "#00F5D4",
+                    "--input-mic-waveform-gradient-end-color": "#003D33"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNotNull(tokens)
+        assertNotNull(tokens?.colors?.input?.micWaveformGradientStart)
+        assertNotNull(tokens?.colors?.input?.micWaveformGradientEnd)
+    }
+
+    @Test
+    fun `createColorsFromJson should map mic waveform gradient colors`() {
+        val themeColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                micWaveformGradientStart = "#00F5D4",
+                micWaveformGradientEnd = "#003D33"
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
+        assertNotNull(colors.micWaveformGradientStart)
+        assertNotNull(colors.micWaveformGradientEnd)
+    }
+
+    @Test
+    fun `parseThemeTokens should parse enableMicPulseBackground false`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "enableMicPulseBackground": false
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertEquals(false, tokens?.behavior?.enableMicPulseBackground)
+    }
+
+    @Test
+    fun `parseThemeTokens should default enableMicPulseBackground to true when absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "enableVoiceInput": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertEquals(true, tokens?.behavior?.enableMicPulseBackground)
+    }
+
     // -----------------------------------------------------------------------
     // Welcome card behavior - promptFullWidth, promptMaxLines, contentAlignment
     // -----------------------------------------------------------------------

@@ -298,6 +298,16 @@ internal object CSSKeyMapper {
                 existing?.copy(micRecordingIconColor = color) ?: ConciergeInputColors(micRecordingIconColor = color)
             }
         },
+        "input-mic-waveform-gradient-start-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(micWaveformGradientStart = color) ?: ConciergeInputColors(micWaveformGradientStart = color)
+            }
+        },
+        "input-mic-waveform-gradient-end-color" to { cssValue, theme ->
+            updateInputColors(cssValue, theme) { existing, color ->
+                existing?.copy(micWaveformGradientEnd = color) ?: ConciergeInputColors(micWaveformGradientEnd = color)
+            }
+        },
 
         // Colors - Feedback (using helper)
         "feedback-icon-btn-background" to { cssValue, theme ->

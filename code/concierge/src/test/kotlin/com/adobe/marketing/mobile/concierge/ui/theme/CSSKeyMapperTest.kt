@@ -992,6 +992,18 @@ class CSSKeyMapperTest {
         assertNotNull(result.colors?.input?.micIconColor)
     }
 
+    @Test
+    fun `apply maps input-mic-waveform-gradient-start-color`() {
+        val result = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", emptyTheme)
+        assertNotNull(result.colors?.input?.micWaveformGradientStart)
+    }
+
+    @Test
+    fun `apply maps input-mic-waveform-gradient-end-color`() {
+        val result = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", emptyTheme)
+        assertNotNull(result.colors?.input?.micWaveformGradientEnd)
+    }
+
     // -----------------------------------------------------------------------
     // Welcome Prompt Colors
     // -----------------------------------------------------------------------

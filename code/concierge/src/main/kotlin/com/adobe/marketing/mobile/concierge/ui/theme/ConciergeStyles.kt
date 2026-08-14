@@ -34,6 +34,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
+ * Default mic recording icon color: contrasts against the pulsing disc (onPrimary) when it's
+ * shown, or falls back to the mic's own color when rendering directly on the input background.
+ */
+internal fun defaultRecordingIconColor(pulsingBackgroundEnabled: Boolean, onPrimary: Color, micColor: Color): Color =
+    if (pulsingBackgroundEnabled) onPrimary else micColor
+
+/**
  * Central styling configuration for all Concierge UI composables.
  * Organized by composable-level styles for consistency and maintainability.
  * Fully supports light and dark modes through MaterialTheme and ConciergeTheme.
@@ -164,44 +171,6 @@ internal object ConciergeStyles {
                 buttonSpacing = 8.dp,
                 placeholderText = themeText?.inputPlaceholder ?: "How can I help",
                 listeningPlaceholderText = "Listening..."
-            )
-        }
-
-    /**
-     * Styling for voice recording panel
-     */
-    @Immutable
-    data class VoiceRecordingPanelStyle(
-        val shape: Shape,
-        val elevation: Dp,
-        val backgroundColor: Color,
-        val padding: Dp,
-        val iconSize: Dp,
-        val iconColor: Color,
-        val cancelIconColor: Color,
-        val contentSpacing: Dp,
-        val pulseAnimationDuration: Int,
-        val textStyle: TextStyle,
-        val textColor: Color,
-        val listeningText: String
-    )
-
-    val voiceRecordingPanelStyle: VoiceRecordingPanelStyle
-        @Composable get() {
-            val themeColors = ConciergeTheme.colors
-            return VoiceRecordingPanelStyle(
-                shape = RoundedCornerShape(12.dp),
-                elevation = 0.dp,
-                backgroundColor = themeColors.surface,
-                padding = 16.dp,
-                iconSize = 24.dp,
-                iconColor = themeColors.primary,
-                cancelIconColor = themeColors.onSurface,
-                contentSpacing = 12.dp,
-                pulseAnimationDuration = 1000,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                textColor = themeColors.onSurface,
-                listeningText = "Listening"
             )
         }
 
@@ -916,8 +885,10 @@ internal object ConciergeStyles {
         val size: Dp,
         val iconColor: Color,
         val recordingIconColor: Color,
+        val waveformGradientStart: Color?,
+        val waveformGradientEnd: Color?,
+        val pulsingBackgroundEnabled: Boolean,
         val pulsingBackgroundColor: Color,
-        val pulsingBackgroundAlpha: Float,
         val pulseAnimationDuration: Int,
         val pulseScaleRange: Pair<Float, Float>,
         val ringAlpha: Float
@@ -928,12 +899,16 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             val micColor = themeColors.primary
             val micIconColor = themeColors.micIconColor ?: micColor
+            val pulsingBackgroundEnabled = ConciergeTheme.behavior?.enableMicPulseBackground ?: true
             return MicButtonStyle(
                 size = 24.dp,
                 iconColor = micIconColor,
-                recordingIconColor = themeColors.micRecordingIconColor ?: themeColors.onPrimary,
+                recordingIconColor = themeColors.micRecordingIconColor
+                    ?: defaultRecordingIconColor(pulsingBackgroundEnabled, themeColors.onPrimary, micColor),
+                waveformGradientStart = themeColors.micWaveformGradientStart,
+                waveformGradientEnd = themeColors.micWaveformGradientEnd,
+                pulsingBackgroundEnabled = pulsingBackgroundEnabled,
                 pulsingBackgroundColor = micColor,
-                pulsingBackgroundAlpha = 0.25f,
                 pulseAnimationDuration = 1000,
                 pulseScaleRange = 1.5f to 2.0f,
                 ringAlpha = 0.30f,

@@ -265,6 +265,7 @@ Feature toggles and interaction configuration.
 | `behavior.input.sendButtonStyle` | string | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | boolean | `true` | Disable multiline text input |
 | `behavior.input.showAiChatIcon` | object | `null` | AI chat icon configuration (JSON object). Present in shared theme JSON for web/iOS; ignored by the Android SDK. |
+| `behavior.input.enableMicPulseBackground` | boolean | `true` | Shows a pulsing colored disc behind the mic/waveform icon while recording. Set to `false` for a bare waveform with no disc, rendered directly on the input background. |
 
 ### Chat
 
@@ -674,7 +675,9 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-send-arrow-icon-color` | `colors.input.sendArrowIconColor` | `String?` | `null` | Arrow send button icon (arrow) color (hex). Falls back to `onPrimary`. Only used when `sendButtonStyle` is `"arrow"` |
 | `--input-send-arrow-background-color` | `colors.input.sendArrowBackgroundColor` | `String?` | `null` | Arrow send button circle background color (hex). Falls back to `sendIconColor` then `primary`. Only used when `sendButtonStyle` is `"arrow"` |
 | `--input-mic-icon-color` | `colors.input.micIconColor` | `String?` | `null` | Mic button icon color (hex). Falls back to `primary` |
-| `--input-mic-recording-icon-color` | `colors.input.micRecordingIconColor` | `String?` | `null` | Waveform animation color during voice recording (hex). Falls back to `onPrimary` |
+| `--input-mic-recording-icon-color` | `colors.input.micRecordingIconColor` | `String?` | `null` | Waveform animation color during voice recording (hex). Falls back to `onPrimary` when `enableMicPulseBackground` is `true`, otherwise `primary` |
+| `--input-mic-waveform-gradient-start-color` | `colors.input.micWaveformGradientStart` | `String?` | `null` | Top color of the listening waveform bars' gradient (hex). Requires the end color to also be set; otherwise falls back to `micRecordingIconColor` |
+| `--input-mic-waveform-gradient-end-color` | `colors.input.micWaveformGradientEnd` | `String?` | `null` | Bottom color of the listening waveform bars' gradient (hex). Requires the start color to also be set; otherwise falls back to `micRecordingIconColor` |
 
 ### Colors - Welcome Prompts
 
@@ -1120,6 +1123,8 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "--input-send-arrow-background-color": "#1976D2",
     "--input-mic-icon-color": "#000000",
     "--input-mic-recording-icon-color": "#FFFFFF",
+    "--input-mic-waveform-gradient-start-color": "",
+    "--input-mic-waveform-gradient-end-color": "",
     "--input-font-size": "16px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
@@ -1242,6 +1247,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
 | `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.enableMicPulseBackground` | ✅ | Shows/hides the pulsing colored disc behind the mic/waveform icon while recording | `MicButton` |
 | `behavior.chat.messageAlignment` | ✅ | `"start"` (default, full-width), `"center"`, or `"end"` alignment for agent message bubbles | `ChatMessageItem` |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.userMessageBubbleStyle` | ✅ | `"default"` (all corners rounded) or `"balloon"` (square bottom-right corner) | `ChatMessageItem` |
@@ -1376,6 +1382,8 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-send-arrow-background-color` | ✅ | Arrow send button circle background (arrow style only) | `SendButton` |
 | `--input-mic-icon-color` | ✅ | Mic button icon color | `MicButton` |
 | `--input-mic-recording-icon-color` | ✅ | Waveform animation color during recording | `MicButton`, `AnimatedAudioWave` |
+| `--input-mic-waveform-gradient-start-color` | ✅ | Top color of the listening waveform bars' gradient | `AnimatedAudioWave` |
+| `--input-mic-waveform-gradient-end-color` | ✅ | Bottom color of the listening waveform bars' gradient | `AnimatedAudioWave` |
 | `--welcome-prompt-background-color` | ✅ | Welcome prompt pill background | `SuggestedPromptItem` |
 | `--welcome-prompt-text-color` | ✅ | Welcome prompt pill text | `SuggestedPromptItem` |
 | `--suggestion-background-color` | ✅ | Prompt suggestion chip background | `PromptSuggestions` |
@@ -1543,6 +1551,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--input-send-icon-color` / `--input-mic-icon-color` - Send and mic button icon colors
 - `--input-send-arrow-icon-color` / `--input-send-arrow-background-color` - Arrow send button colors (when `sendButtonStyle` is `"arrow"`)
 - `--input-mic-recording-icon-color` - Waveform animation color during voice recording
+- `--input-mic-waveform-gradient-start-color` / `--input-mic-waveform-gradient-end-color` - Optional vertical gradient for the waveform bars (falls back to `--input-mic-recording-icon-color`)
 - `--submit-button-fill-color` / `--color-button-submit` - Submit button
 - `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
@@ -1560,6 +1569,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 **Essential Behavior:**
 - `behavior.input.enableVoiceInput` - Show/hide microphone button
 - `behavior.input.sendButtonStyle` - `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow)
+- `behavior.input.enableMicPulseBackground` - Show/hide the pulsing colored disc behind the mic/waveform icon while recording (default `true`; set `false` for a bare waveform)
 - `behavior.productCard.cardStyle` - Use `"productDetail"` for extended product cards (image, badge, name, subtitle, price)
 - `behavior.productCard.cardsAlignment` - Horizontal alignment of product cards: `"start"` (left), `"center"` (default), or `"end"` (right)
 - `behavior.multimodalCarousel.carouselStyle` - Use `"paged"` for prev/next/dots or `"scroll"` for continuous scroll

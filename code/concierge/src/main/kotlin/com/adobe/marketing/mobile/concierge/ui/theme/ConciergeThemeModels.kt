@@ -221,7 +221,9 @@ data class ConciergeInputColors(
     val sendArrowIconColor: String? = null,
     val sendArrowBackgroundColor: String? = null,
     val micIconColor: String? = null,
-    val micRecordingIconColor: String? = null
+    val micRecordingIconColor: String? = null,
+    val micWaveformGradientStart: String? = null,
+    val micWaveformGradientEnd: String? = null
 )
 
 data class ConciergeFeedbackColors(
@@ -277,7 +279,6 @@ data class ConciergeThinkingColors(
 data class ConciergeThemeStyles(
     val header: ConciergeHeaderStyle? = null,
     val inputPanel: ConciergeInputPanelStyle? = null,
-    val voiceRecordingPanel: ConciergeVoiceRecordingPanelStyle? = null,
     val messageBubble: ConciergeMessageBubbleStyle? = null,
     val thinkingAnimation: ConciergeThinkingAnimationStyle? = null,
     val productCard: ConciergeProductCardStyle? = null,
@@ -316,16 +317,6 @@ data class ConciergeInputPanelStyle(
     val buttonSpacing: Double? = null,
     val placeholderText: String? = null,
     val listeningPlaceholderText: String? = null
-)
-
-data class ConciergeVoiceRecordingPanelStyle(
-    val cornerRadius: Double? = null,
-    val elevation: Double? = null,
-    val padding: Double? = null,
-    val iconSize: Double? = null,
-    val contentSpacing: Double? = null,
-    val pulseAnimationDuration: Int? = null,
-    val listeningText: String? = null
 )
 
 data class ConciergeMessageBubbleStyle(
