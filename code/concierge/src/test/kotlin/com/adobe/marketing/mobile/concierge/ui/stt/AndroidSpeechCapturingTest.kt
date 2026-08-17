@@ -66,6 +66,7 @@ class AndroidSpeechCapturingTest {
         attached?.onTranscriptionResult("hello")
         attached?.onSpeechEnded()
         attached?.onError(SpeechCaptureError.NoMatch)
+        attached?.onAudioLevelChanged(0.5f)
 
         // Run dispatched coroutines posted to the provided scope
         testScope.testScheduler.advanceUntilIdle()
@@ -75,6 +76,19 @@ class AndroidSpeechCapturingTest {
         assertEquals(listOf("hi"), recorder.partialResults)
         assertEquals(listOf("hello"), recorder.finalResults)
         assertEquals(1, recorder.errors.size)
+        assertEquals(listOf(0.5f), recorder.audioLevels)
+    }
+
+    @Test
+    fun `onAudioLevelChanged does not throw when no listener is set`() {
+        var attached: SpeechCaptureListener? = null
+        every { manager.setListener(any()) } answers { attached = firstArg() }
+
+        AndroidSpeechCapturing(manager, testScope)
+        // No capturing.setListener(...) call, so the outer listener is null.
+        attached?.onAudioLevelChanged(0.5f)
+
+        testScope.testScheduler.advanceUntilIdle()
     }
 
     @Test
@@ -108,12 +122,14 @@ class AndroidSpeechCapturingTest {
         val partialResults = mutableListOf<String>()
         val finalResults = mutableListOf<String>()
         val errors = mutableListOf<SpeechCaptureError>()
+        val audioLevels = mutableListOf<Float>()
 
         override fun onSpeechStarted() { startedCount++ }
         override fun onSpeechEnded() { endedCount++ }
         override fun onPartialTranscription(text: String) { partialResults.add(text) }
         override fun onTranscriptionResult(text: String) { finalResults.add(text) }
         override fun onError(error: SpeechCaptureError) { errors.add(error) }
+        override fun onAudioLevelChanged(level: Float) { audioLevels.add(level) }
     }
 }
 

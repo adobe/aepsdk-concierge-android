@@ -18,6 +18,8 @@ interface SpeechCaptureListener {
     fun onPartialTranscription(text: String)
     fun onTranscriptionResult(text: String)
     fun onError(error: SpeechCaptureError)
+    /** Reports the current input level, normalized to 0f (silence) .. 1f (loud). */
+    fun onAudioLevelChanged(level: Float)
 }
 
 /**

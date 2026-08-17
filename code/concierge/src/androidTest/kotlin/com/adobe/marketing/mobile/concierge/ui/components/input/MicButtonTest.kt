@@ -17,7 +17,13 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeInputColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import org.junit.Rule
 import org.junit.Test
 
@@ -202,6 +208,71 @@ class MicButtonTest {
                 MicButton(
                     userInputState = UserInputState.Recording(transcription = "Hello world..."),
                     isEnabled = true,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun micButton_recordingWithPulsingBackgroundDisabled_displaysRecordingInProgress() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(enableMicPulseBackground = false))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                MicButton(
+                    userInputState = UserInputState.Recording(transcription = ""),
+                    isEnabled = true,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun micButton_recordingWithGradientColors_displaysRecordingInProgress() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micWaveformGradientStart = "#00F5D4",
+                        micWaveformGradientEnd = "#003D33"
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                MicButton(
+                    userInputState = UserInputState.Recording(transcription = ""),
+                    isEnabled = true,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun micButton_disabledWhileRecording_stillDisplaysRecordingInProgress() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                MicButton(
+                    userInputState = UserInputState.Recording(transcription = ""),
+                    isEnabled = false,
                     onClick = {}
                 )
             }

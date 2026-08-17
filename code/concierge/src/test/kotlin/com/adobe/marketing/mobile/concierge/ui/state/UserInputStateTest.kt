@@ -61,8 +61,47 @@ class UserInputStateTest {
     @Test
     fun `Recording creates with custom transcription`() {
         val state = UserInputState.Recording("Hello world")
-        
+
         assertEquals("Hello world", state.transcription)
+    }
+
+    @Test
+    fun `Recording creates with default silent audioLevel`() {
+        val state = UserInputState.Recording()
+
+        assertEquals(0f, state.audioLevel)
+    }
+
+    @Test
+    fun `Recording creates with custom audioLevel`() {
+        val state = UserInputState.Recording(transcription = "Hello", audioLevel = 0.6f)
+
+        assertEquals(0.6f, state.audioLevel)
+    }
+
+    @Test
+    fun `Recording copy preserves audioLevel when only transcription changes`() {
+        val original = UserInputState.Recording(transcription = "Hello", audioLevel = 0.6f)
+        val updated = original.copy(transcription = "Hello world")
+
+        assertEquals(0.6f, updated.audioLevel)
+    }
+
+    @Test
+    fun `Recording copy overrides audioLevel when specified`() {
+        val original = UserInputState.Recording(transcription = "Hello", audioLevel = 0.6f)
+        val updated = original.copy(audioLevel = 0.9f)
+
+        assertEquals("Hello", updated.transcription)
+        assertEquals(0.9f, updated.audioLevel)
+    }
+
+    @Test
+    fun `Recording with same transcription but different audioLevel are not equal`() {
+        val state1 = UserInputState.Recording(transcription = "test", audioLevel = 0.1f)
+        val state2 = UserInputState.Recording(transcription = "test", audioLevel = 0.9f)
+
+        assertNotEquals(state1, state2)
     }
 
     @Test

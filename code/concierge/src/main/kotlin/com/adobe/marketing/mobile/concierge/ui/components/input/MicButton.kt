@@ -29,20 +29,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
-/** Inner pulsing disc is 30% larger than the mic icon. Reused for the stop icon so both visually align during recording. */
+/** Matches the stop-recording icon's enlarged size. Also used to size the pulsing disc when it's enabled. */
 internal const val MIC_INNER_DISC_SCALE = 1.3f
+
+/** The pulsing disc is only relevant while actively recording, and only when the theme enables it. */
+internal fun shouldShowMicPulsingBackground(isRecording: Boolean, pulsingBackgroundEnabled: Boolean): Boolean =
+    isRecording && pulsingBackgroundEnabled
+
+/**
+ * Without the pulsing disc providing visual weight, the icon itself is enlarged to match the
+ * neighboring stop button's size. With the disc (or when idle), the icon stays at [baseSize].
+ */
+internal fun micIconSize(baseSize: Dp, isRecording: Boolean, showPulsingBackground: Boolean): Dp =
+    if (isRecording && !showPulsingBackground) baseSize * MIC_INNER_DISC_SCALE else baseSize
+
+/** Returns [color] unchanged when [isEnabled], otherwise dimmed to match the disabled icon's alpha. */
+internal fun dimIfDisabled(color: Color?, isEnabled: Boolean): Color? =
+    if (isEnabled) color else color?.copy(alpha = 0.38f)
 
 /**
  * A voice input button that supports recording, transcribing, and idle states.
- * Shows a subtle pulsing background during recording.
+ * When `behavior.input.enableMicPulseBackground` is true (the default), shows a pulsing colored
+ * disc behind the icon while recording; otherwise the icon renders directly on the input
+ * background, enlarged to match the neighboring stop button.
  *
  * @param modifier Modifier for the composable
  * @param userInputState The current state of the input stream
@@ -57,8 +76,10 @@ internal fun MicButton(
     onClick: () -> Unit = {},
 ) {
     val style = ConciergeStyles.micButtonStyle
+    val isRecording = userInputState is UserInputState.Recording
+    val showPulsingBackground = shouldShowMicPulsingBackground(isRecording, style.pulsingBackgroundEnabled)
 
-    // Drive the pulse when recording
+    // Drive the outer ring pulse (only visible/relevant while the disc is shown)
     val infiniteTransition = rememberInfiniteTransition(label = "mic_pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = MIC_INNER_DISC_SCALE,
@@ -72,19 +93,17 @@ internal fun MicButton(
 
     // When idle, push the mic glyph to the right edge of the 56dp tap area so the visible icon
     // hugs the panel's right edge (matches the visual rhythm of the typing-state send button).
-    // While recording we keep it centered so the pulse animation stays radially symmetric.
-    val contentAlignment = if (userInputState is UserInputState.Recording) {
-        Alignment.Center
-    } else {
-        Alignment.CenterEnd
-    }
+    // While recording we keep it centered in its slot next to the stop button.
+    val contentAlignment = if (isRecording) Alignment.Center else Alignment.CenterEnd
+
+    val iconSize = micIconSize(style.size, isRecording, showPulsingBackground)
 
     Box(
         modifier = modifier,
         contentAlignment = contentAlignment
     ) {
         // Two filled circles while recording: inner static disc and outer pulsing disc
-        if (userInputState is UserInputState.Recording) {
+        if (showPulsingBackground) {
             Box(
                 modifier = Modifier
                     .size(style.size * MIC_INNER_DISC_SCALE)
@@ -102,7 +121,6 @@ internal fun MicButton(
             )
         }
 
-        val isRecording = userInputState is UserInputState.Recording
         IconButton(
             onClick = {
                 if (isEnabled) {
@@ -110,7 +128,7 @@ internal fun MicButton(
                 }
             },
             modifier = Modifier
-                .size(style.size)
+                .size(iconSize)
                 .semantics { contentDescription = if (isRecording) "Recording in progress" else "Start voice input" }
         ) {
             // Choose icon tint based on state and enabled flag
@@ -119,8 +137,11 @@ internal fun MicButton(
 
             if (isRecording) {
                 AnimatedAudioWave(
-                    modifier = Modifier.size(style.size),
-                    color = tintColor
+                    modifier = Modifier.size(iconSize),
+                    color = tintColor,
+                    gradientStart = dimIfDisabled(style.waveformGradientStart, isEnabled),
+                    gradientEnd = dimIfDisabled(style.waveformGradientEnd, isEnabled),
+                    audioLevel = (userInputState as? UserInputState.Recording)?.audioLevel ?: 0f
                 )
             } else {
                 Image(

@@ -57,6 +57,10 @@ internal class AndroidSpeechCapturing(
             override fun onError(error: SpeechCaptureError) {
                 dispatchOnMain { listener?.onError(error) }
             }
+
+            override fun onAudioLevelChanged(level: Float) {
+                dispatchOnMain { listener?.onAudioLevelChanged(level) }
+            }
         })
     }
 

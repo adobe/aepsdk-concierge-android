@@ -35,6 +35,14 @@ internal class SpeechToTextManager(
 ) {
     companion object {
         private const val TAG = "SpeechToTextManager"
+
+        // SpeechRecognizer's onRmsChanged reports an unbounded, roughly-dB-scaled loudness with
+        // no documented range; it's empirically observed to span roughly -2..10. Ambient/mic
+        // self-noise sits in the low end of that range, so the floor is set above it (rather
+        // than at the range's true minimum) to avoid treating background noise as speech. Tune
+        // against real devices if the waveform still reads too flat or too twitchy.
+        private const val RMS_SILENCE_FLOOR = 2f
+        private const val RMS_LOUD_CEILING = 10f
     }
 
     private var speechRecognizer: SpeechRecognizer? = null
@@ -63,7 +71,10 @@ internal class SpeechToTextManager(
     private fun createRecognitionListener() = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {}
         override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onRmsChanged(rmsdB: Float) {
+            val normalized = (rmsdB - RMS_SILENCE_FLOOR) / (RMS_LOUD_CEILING - RMS_SILENCE_FLOOR)
+            listener?.onAudioLevelChanged(normalized.coerceIn(0f, 1f))
+        }
         override fun onBufferReceived(buffer: ByteArray?) {}
         override fun onEndOfSpeech() {
             listener?.onSpeechEnded()
