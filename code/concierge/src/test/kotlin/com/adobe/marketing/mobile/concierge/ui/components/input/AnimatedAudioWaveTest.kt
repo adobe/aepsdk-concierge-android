@@ -12,9 +12,12 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,27 +67,28 @@ class AnimatedAudioWaveTest {
     }
 
     @Test
-    fun `brush falls back to solid color when neither gradient color is set`() {
-        val brush = audioWaveBarBrush(color = Color.Red, gradientStart = null, gradientEnd = null)
+    fun `brush falls back to solid color when no gradient is set`() {
+        val brush = audioWaveBarBrush(color = Color.Red, gradient = null, size = Size(100f, 100f))
         assertEquals(SolidColor(Color.Red), brush)
     }
 
     @Test
-    fun `brush falls back to solid color when only gradientEnd is set`() {
-        val brush = audioWaveBarBrush(color = Color.Red, gradientStart = null, gradientEnd = Color.Blue)
+    fun `brush falls back to solid color when the gradient is not renderable`() {
+        val gradient = ConciergeGradient(startColor = Color.Cyan, endColor = Color.Transparent)
+        val brush = audioWaveBarBrush(color = Color.Red, gradient = gradient, size = Size(100f, 100f))
         assertEquals(SolidColor(Color.Red), brush)
     }
 
     @Test
-    fun `brush falls back to solid color when only gradientStart is set`() {
-        val brush = audioWaveBarBrush(color = Color.Red, gradientStart = Color.Cyan, gradientEnd = null)
-        assertEquals(SolidColor(Color.Red), brush)
-    }
-
-    @Test
-    fun `brush is the exact vertical gradient when both gradient colors are set`() {
-        val brush = audioWaveBarBrush(color = Color.Red, gradientStart = Color.Cyan, gradientEnd = Color.Black)
-        val expected: Brush = Brush.verticalGradient(listOf(Color.Cyan, Color.Black))
+    fun `brush is the gradient's linear-gradient brush when it is renderable`() {
+        val gradient = ConciergeGradient(startColor = Color.Cyan, endColor = Color.Black, angle = 180f)
+        val size = Size(20f, 40f)
+        val brush = audioWaveBarBrush(color = Color.Red, gradient = gradient, size = size)
+        val expected: Brush = Brush.linearGradient(
+            colors = listOf(Color.Cyan, Color.Black),
+            start = Offset(10f, 0f),
+            end = Offset(10f, 40f)
+        )
         assertEquals(expected, brush)
         assertTrue(brush !is SolidColor)
     }

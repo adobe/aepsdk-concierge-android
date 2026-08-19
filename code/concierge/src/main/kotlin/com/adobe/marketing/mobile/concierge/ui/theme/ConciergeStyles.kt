@@ -129,6 +129,7 @@ internal object ConciergeStyles {
         val innerPadding: Dp,
         val backgroundColor: Color,
         val borderColor: Color?,
+        val borderGradient: ConciergeGradient?,
         val borderWidth: Dp,
         val focusBorderColor: Color?,
         val focusBorderWidth: Dp,
@@ -158,6 +159,7 @@ internal object ConciergeStyles {
                 innerPadding = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
                 borderColor = themeColors.inputOutline ?: themeColors.outline,
+                borderGradient = themeColors.inputOutlineGradient,
                 borderWidth = borderWidth,
                 focusBorderColor = themeColors.inputOutlineFocus ?: themeColors.primary,
                 focusBorderWidth = focusBorderWidth,
@@ -884,9 +886,9 @@ internal object ConciergeStyles {
     data class MicButtonStyle(
         val size: Dp,
         val iconColor: Color,
+        val iconGradient: ConciergeGradient?,
         val recordingIconColor: Color,
-        val waveformGradientStart: Color?,
-        val waveformGradientEnd: Color?,
+        val waveformGradient: ConciergeGradient?,
         val pulsingBackgroundEnabled: Boolean,
         val pulsingBackgroundColor: Color,
         val pulseAnimationDuration: Int,
@@ -903,10 +905,10 @@ internal object ConciergeStyles {
             return MicButtonStyle(
                 size = 24.dp,
                 iconColor = micIconColor,
+                iconGradient = themeColors.micIconGradient,
                 recordingIconColor = themeColors.micRecordingIconColor
                     ?: defaultRecordingIconColor(pulsingBackgroundEnabled, themeColors.onPrimary, micColor),
-                waveformGradientStart = themeColors.micWaveformGradientStart,
-                waveformGradientEnd = themeColors.micWaveformGradientEnd,
+                waveformGradient = themeColors.micWaveformGradient,
                 pulsingBackgroundEnabled = pulsingBackgroundEnabled,
                 pulsingBackgroundColor = micColor,
                 pulseAnimationDuration = 1000,
@@ -923,6 +925,7 @@ internal object ConciergeStyles {
         val size: Dp,
         val enabledIconColor: Color,
         val arrowCircleColor: Color,
+        val arrowCircleGradient: ConciergeGradient?,
         val arrowIconColor: Color,
         val disabledIconAlpha: Float,
         val useArrowStyle: Boolean
@@ -936,6 +939,7 @@ internal object ConciergeStyles {
                 size = 24.dp,
                 enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
                 arrowCircleColor = themeColors.sendArrowBackgroundColor ?: themeColors.sendIconColor ?: themeColors.primary,
+                arrowCircleGradient = themeColors.sendArrowBackgroundGradient,
                 arrowIconColor = themeColors.sendArrowIconColor ?: themeColors.onPrimary,
                 disabledIconAlpha = 0.3f,
                 useArrowStyle = sendButtonStyleName == "arrow"

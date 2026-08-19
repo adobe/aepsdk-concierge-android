@@ -72,6 +72,28 @@ internal object CSSKeyMapper {
     private fun updateInputColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeInputColors?, String) -> ConciergeInputColors) =
         updateNestedColors(cssValue, theme, { it?.input }, { c, v -> c?.copy(input = v) ?: ConciergeThemeColors(input = v) }, updater)
 
+    /**
+     * Applies one field-mutation on top of whatever gradient (if any) prior CSS keys for the same
+     * gradient-capable input token (border outline, mic icon, send-arrow background, mic waveform)
+     * already built. Each of those tokens is configured via 3 independent CSS keys (start color,
+     * end color, angle) that may arrive in any order, so the existing partially-built gradient is
+     * preserved and only the touched field is updated -- see [ConciergeGradientColors.toConciergeGradient]
+     * for how an unset side/angle is defaulted at runtime.
+     */
+    private fun updateInputGradient(
+        theme: ConciergeThemeTokens,
+        getGradient: (ConciergeInputColors) -> ConciergeGradientColors?,
+        setGradient: (ConciergeInputColors, ConciergeGradientColors) -> ConciergeInputColors,
+        mutate: (ConciergeGradientColors) -> ConciergeGradientColors
+    ): ConciergeThemeTokens {
+        return updateColors(theme) { colors ->
+            val existingInput = colors?.input ?: ConciergeInputColors()
+            val updatedGradient = mutate(getGradient(existingInput) ?: ConciergeGradientColors())
+            val updatedInput = setGradient(existingInput, updatedGradient)
+            colors?.copy(input = updatedInput) ?: ConciergeThemeColors(input = updatedInput)
+        }
+    }
+
     private fun updateFeedbackColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeFeedbackColors?, String) -> ConciergeFeedbackColors) =
         updateNestedColors(cssValue, theme, { it?.feedback }, { c, v -> c?.copy(feedback = v) ?: ConciergeThemeColors(feedback = v) }, updater)
 
@@ -268,6 +290,21 @@ internal object CSSKeyMapper {
                 }
             }
         },
+        "input-outline-gradient-start-color" to { cssValue, theme ->
+            updateInputGradient(theme, { it.outlineGradient }, { input, g -> input.copy(outlineGradient = g) }) {
+                it.copy(startColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-outline-gradient-end-color" to { cssValue, theme ->
+            updateInputGradient(theme, { it.outlineGradient }, { input, g -> input.copy(outlineGradient = g) }) {
+                it.copy(endColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-outline-gradient-angle" to { cssValue, theme ->
+            updateInputGradient(theme, { it.outlineGradient }, { input, g -> input.copy(outlineGradient = g) }) {
+                it.copy(angle = CSSValueConverter.parseGradientAngle(cssValue).toDouble())
+            }
+        },
         "input-focus-outline-color" to { cssValue, theme ->
             updateInputColors(cssValue, theme) { existing, color ->
                 existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color)
@@ -288,9 +325,39 @@ internal object CSSKeyMapper {
                 existing?.copy(sendArrowBackgroundColor = color) ?: ConciergeInputColors(sendArrowBackgroundColor = color)
             }
         },
+        "input-send-arrow-background-gradient-start-color" to { cssValue, theme ->
+            updateInputGradient(theme, { it.sendArrowBackgroundGradient }, { input, g -> input.copy(sendArrowBackgroundGradient = g) }) {
+                it.copy(startColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-send-arrow-background-gradient-end-color" to { cssValue, theme ->
+            updateInputGradient(theme, { it.sendArrowBackgroundGradient }, { input, g -> input.copy(sendArrowBackgroundGradient = g) }) {
+                it.copy(endColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-send-arrow-background-gradient-angle" to { cssValue, theme ->
+            updateInputGradient(theme, { it.sendArrowBackgroundGradient }, { input, g -> input.copy(sendArrowBackgroundGradient = g) }) {
+                it.copy(angle = CSSValueConverter.parseGradientAngle(cssValue).toDouble())
+            }
+        },
         "input-mic-icon-color" to { cssValue, theme ->
             updateInputColors(cssValue, theme) { existing, color ->
                 existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
+            }
+        },
+        "input-mic-icon-gradient-start-color" to { cssValue, theme ->
+            updateInputGradient(theme, { it.micIconGradient }, { input, g -> input.copy(micIconGradient = g) }) {
+                it.copy(startColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-mic-icon-gradient-end-color" to { cssValue, theme ->
+            updateInputGradient(theme, { it.micIconGradient }, { input, g -> input.copy(micIconGradient = g) }) {
+                it.copy(endColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-mic-icon-gradient-angle" to { cssValue, theme ->
+            updateInputGradient(theme, { it.micIconGradient }, { input, g -> input.copy(micIconGradient = g) }) {
+                it.copy(angle = CSSValueConverter.parseGradientAngle(cssValue).toDouble())
             }
         },
         "input-mic-recording-icon-color" to { cssValue, theme ->
@@ -299,13 +366,18 @@ internal object CSSKeyMapper {
             }
         },
         "input-mic-waveform-gradient-start-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(micWaveformGradientStart = color) ?: ConciergeInputColors(micWaveformGradientStart = color)
+            updateInputGradient(theme, { it.micWaveformGradient }, { input, g -> input.copy(micWaveformGradient = g) }) {
+                it.copy(startColor = CSSValueConverter.parseColor(cssValue).toHexString())
             }
         },
         "input-mic-waveform-gradient-end-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(micWaveformGradientEnd = color) ?: ConciergeInputColors(micWaveformGradientEnd = color)
+            updateInputGradient(theme, { it.micWaveformGradient }, { input, g -> input.copy(micWaveformGradient = g) }) {
+                it.copy(endColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "input-mic-waveform-gradient-angle" to { cssValue, theme ->
+            updateInputGradient(theme, { it.micWaveformGradient }, { input, g -> input.copy(micWaveformGradient = g) }) {
+                it.copy(angle = CSSValueConverter.parseGradientAngle(cssValue).toDouble())
             }
         },
 

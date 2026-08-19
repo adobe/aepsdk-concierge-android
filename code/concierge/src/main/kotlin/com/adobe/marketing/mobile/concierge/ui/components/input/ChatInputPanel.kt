@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
 
 /**
  * Chat input panel with text field, microphone button, and send button.
@@ -63,6 +64,13 @@ internal fun ChatInputPanel(
             Modifier.border(
                 width = style.focusBorderWidth,
                 color = style.focusBorderColor,
+                shape = style.innerShape
+            )
+        }
+        !isFocused && style.borderWidth > 0.dp && style.borderGradient?.isRenderable == true -> {
+            Modifier.conciergeGradientBorder(
+                width = style.borderWidth,
+                gradient = style.borderGradient,
                 shape = style.innerShape
             )
         }

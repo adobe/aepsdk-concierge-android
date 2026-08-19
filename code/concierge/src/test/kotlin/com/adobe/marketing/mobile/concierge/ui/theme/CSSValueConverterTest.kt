@@ -288,6 +288,70 @@ class CSSValueConverterTest {
         assertEquals(-10.0, result!!, 0.001)
     }
 
+    // ========== parseGradientAngle() Tests ==========
+
+    @Test
+    fun `parseGradientAngle handles degrees value`() {
+        assertEquals(90f, CSSValueConverter.parseGradientAngle("90deg"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle handles to top keyword`() {
+        assertEquals(0f, CSSValueConverter.parseGradientAngle("to top"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle handles to right keyword`() {
+        assertEquals(90f, CSSValueConverter.parseGradientAngle("to right"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle handles to bottom keyword`() {
+        assertEquals(180f, CSSValueConverter.parseGradientAngle("to bottom"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle handles to left keyword`() {
+        assertEquals(270f, CSSValueConverter.parseGradientAngle("to left"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle handles corner keywords`() {
+        assertEquals(45f, CSSValueConverter.parseGradientAngle("to top right"), 0.001f)
+        assertEquals(45f, CSSValueConverter.parseGradientAngle("to right top"), 0.001f)
+        assertEquals(135f, CSSValueConverter.parseGradientAngle("to bottom right"), 0.001f)
+        assertEquals(225f, CSSValueConverter.parseGradientAngle("to bottom left"), 0.001f)
+        assertEquals(315f, CSSValueConverter.parseGradientAngle("to top left"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle is case-insensitive and trims whitespace`() {
+        assertEquals(90f, CSSValueConverter.parseGradientAngle("  TO RIGHT  "), 0.001f)
+        assertEquals(45f, CSSValueConverter.parseGradientAngle(" 45DEG "), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle defaults to 180 for unrecognized value`() {
+        assertEquals(180f, CSSValueConverter.parseGradientAngle("sideways"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle defaults to 180 for NaN degrees`() {
+        // Regression test: Double.parseDouble follows strtod-like conventions for the "NaN"/
+        // "Infinity" literals -- must not propagate a non-finite value into gradient angle math.
+        assertEquals(180f, CSSValueConverter.parseGradientAngle("nandeg"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle defaults to 180 for Infinity degrees`() {
+        assertEquals(180f, CSSValueConverter.parseGradientAngle("infinitydeg"), 0.001f)
+    }
+
+    @Test
+    fun `parseGradientAngle defaults to 180 for a huge exponent that overflows to infinity`() {
+        assertEquals(180f, CSSValueConverter.parseGradientAngle("1e400deg"), 0.001f)
+    }
+
     // ========== parseFontFamily() Tests ==========
 
     @Test

@@ -28,16 +28,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.toBrush
 
 /** Matches the stop-recording icon's enlarged size. Also used to size the pulsing disc when it's enabled. */
 internal const val MIC_INNER_DISC_SCALE = 1.3f
@@ -56,6 +62,22 @@ internal fun micIconSize(baseSize: Dp, isRecording: Boolean, showPulsingBackgrou
 /** Returns [color] unchanged when [isEnabled], otherwise dimmed to match the disabled icon's alpha. */
 internal fun dimIfDisabled(color: Color?, isEnabled: Boolean): Color? =
     if (isEnabled) color else color?.copy(alpha = 0.38f)
+
+/**
+ * Returns [gradient] unchanged when [isEnabled] or not yet renderable (see
+ * [ConciergeGradient.isRenderable] -- a not-yet-renderable gradient must not have its placeholder
+ * transparent side dimmed into a visible one), otherwise both colors are dimmed to match the
+ * disabled icon's alpha.
+ */
+internal fun dimIfDisabled(gradient: ConciergeGradient?, isEnabled: Boolean): ConciergeGradient? =
+    if (isEnabled || gradient == null || !gradient.isRenderable) {
+        gradient
+    } else {
+        gradient.copy(
+            startColor = gradient.startColor.copy(alpha = 0.38f),
+            endColor = gradient.endColor.copy(alpha = 0.38f)
+        )
+    }
 
 /**
  * A voice input button that supports recording, transcribing, and idle states.
@@ -139,17 +161,48 @@ internal fun MicButton(
                 AnimatedAudioWave(
                     modifier = Modifier.size(iconSize),
                     color = tintColor,
-                    gradientStart = dimIfDisabled(style.waveformGradientStart, isEnabled),
-                    gradientEnd = dimIfDisabled(style.waveformGradientEnd, isEnabled),
+                    gradient = dimIfDisabled(style.waveformGradient, isEnabled),
                     audioLevel = (userInputState as? UserInputState.Recording)?.audioLevel ?: 0f
                 )
             } else {
-                Image(
-                    painter = painterResource(R.drawable.microphone),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(tintColor)
+                GradientTintableIcon(
+                    tint = tintColor,
+                    gradient = dimIfDisabled(style.iconGradient, isEnabled)
                 )
             }
         }
+    }
+}
+
+/**
+ * Renders the microphone glyph with a solid [tint], or -- when [gradient] is renderable (see
+ * [ConciergeGradient.isRenderable]) -- with the gradient instead. `Image`'s `colorFilter` only
+ * accepts a solid [Color], so the gradient path first masks the glyph to opaque white, then
+ * composites the gradient brush over it with [BlendMode.SrcAtop] in an offscreen layer (so the
+ * blend is confined to the glyph's own alpha instead of the whole draw surface).
+ */
+@Composable
+private fun GradientTintableIcon(tint: Color, gradient: ConciergeGradient?) {
+    if (gradient?.isRenderable == true) {
+        Image(
+            painter = painterResource(R.drawable.microphone),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(Color.White),
+            modifier = Modifier
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .drawWithCache {
+                    val brush = gradient.toBrush(size)
+                    onDrawWithContent {
+                        drawContent()
+                        drawRect(brush = brush, blendMode = BlendMode.SrcAtop)
+                    }
+                }
+        )
+    } else {
+        Image(
+            painter = painterResource(R.drawable.microphone),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(tint)
+        )
     }
 }

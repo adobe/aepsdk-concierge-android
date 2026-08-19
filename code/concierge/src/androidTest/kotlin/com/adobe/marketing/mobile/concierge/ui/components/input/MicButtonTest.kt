@@ -17,6 +17,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradientColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeInputColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
@@ -245,8 +246,7 @@ class MicButtonTest {
             tokens = ConciergeThemeTokens(
                 colors = ConciergeThemeColors(
                     input = ConciergeInputColors(
-                        micWaveformGradientStart = "#00F5D4",
-                        micWaveformGradientEnd = "#003D33"
+                        micWaveformGradient = ConciergeGradientColors(startColor = "#00F5D4", endColor = "#003D33")
                     )
                 )
             )
@@ -263,6 +263,61 @@ class MicButtonTest {
         }
 
         composeTestRule.onNode(hasContentDescription("Recording in progress"))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun micButton_idleWithIconGradient_displaysStartVoiceInput() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micIconGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                MicButton(
+                    userInputState = UserInputState.Empty,
+                    isEnabled = true,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Start voice input"))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun micButton_idleDisabledWithIconGradient_displaysStartVoiceInput() {
+        // Exercises the dimIfDisabled(ConciergeGradient?, ...) path alongside the gradient-tint icon.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micIconGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                MicButton(
+                    userInputState = UserInputState.Empty,
+                    isEnabled = false,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Start voice input"))
             .assertIsDisplayed()
     }
 

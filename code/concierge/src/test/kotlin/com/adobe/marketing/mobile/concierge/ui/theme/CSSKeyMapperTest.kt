@@ -993,15 +993,20 @@ class CSSKeyMapperTest {
     }
 
     @Test
-    fun `apply maps input-mic-waveform-gradient-start-color`() {
-        val result = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", emptyTheme)
-        assertNotNull(result.colors?.input?.micWaveformGradientStart)
+    fun `apply maps input-mic-waveform-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", theme)
+        theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-angle", "90deg", theme)
+        assertEquals("#00F5D4", theme.colors?.input?.micWaveformGradient?.startColor)
+        assertEquals("#003D33", theme.colors?.input?.micWaveformGradient?.endColor)
+        assertEquals(90.0, theme.colors?.input?.micWaveformGradient?.angle)
     }
 
     @Test
-    fun `apply maps input-mic-waveform-gradient-end-color`() {
-        val result = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", emptyTheme)
-        assertNotNull(result.colors?.input?.micWaveformGradientEnd)
+    fun `apply defaults input-mic-waveform-gradient angle to null when omitted`() {
+        var theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", theme)
+        assertNull(theme.colors?.input?.micWaveformGradient?.angle)
     }
 
     @Test
@@ -1009,7 +1014,7 @@ class CSSKeyMapperTest {
         val withIcon = CSSKeyMapper.apply("--input-mic-icon-color", "#FF0000", emptyTheme)
         val withBoth = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", withIcon)
         assertEquals("#FF0000", withBoth.colors?.input?.micIconColor)
-        assertNotNull(withBoth.colors?.input?.micWaveformGradientStart)
+        assertNotNull(withBoth.colors?.input?.micWaveformGradient)
     }
 
     @Test
@@ -1017,7 +1022,87 @@ class CSSKeyMapperTest {
         val withIcon = CSSKeyMapper.apply("--input-mic-icon-color", "#FF0000", emptyTheme)
         val withBoth = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", withIcon)
         assertEquals("#FF0000", withBoth.colors?.input?.micIconColor)
-        assertNotNull(withBoth.colors?.input?.micWaveformGradientEnd)
+        assertNotNull(withBoth.colors?.input?.micWaveformGradient)
+    }
+
+    @Test
+    fun `apply maps input-outline-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-outline-gradient-start-color", "#12B0A0", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-outline-gradient-end-color", "#6DD3C4", theme)
+        theme = CSSKeyMapper.apply("--input-outline-gradient-angle", "to right", theme)
+        assertEquals("#12B0A0", theme.colors?.input?.outlineGradient?.startColor)
+        assertEquals("#6DD3C4", theme.colors?.input?.outlineGradient?.endColor)
+        assertEquals(90.0, theme.colors?.input?.outlineGradient?.angle)
+    }
+
+    @Test
+    fun `apply maps input-mic-icon-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-mic-icon-gradient-start-color", "#12B0A0", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-mic-icon-gradient-end-color", "#6DD3C4", theme)
+        theme = CSSKeyMapper.apply("--input-mic-icon-gradient-angle", "45deg", theme)
+        assertEquals("#12B0A0", theme.colors?.input?.micIconGradient?.startColor)
+        assertEquals("#6DD3C4", theme.colors?.input?.micIconGradient?.endColor)
+        assertEquals(45.0, theme.colors?.input?.micIconGradient?.angle)
+    }
+
+    @Test
+    fun `apply maps input-send-arrow-background-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-start-color", "#12B0A0", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-end-color", "#6DD3C4", theme)
+        theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-angle", "to left", theme)
+        assertEquals("#12B0A0", theme.colors?.input?.sendArrowBackgroundGradient?.startColor)
+        assertEquals("#6DD3C4", theme.colors?.input?.sendArrowBackgroundGradient?.endColor)
+        assertEquals(270.0, theme.colors?.input?.sendArrowBackgroundGradient?.angle)
+    }
+
+    @Test
+    fun `apply setting only input-outline-gradient-angle creates a gradient with no colors set yet`() {
+        // Regression test: a theme that only sets the angle key (ex: JSON key ordering happens to
+        // put it first) must still build a placeholder gradient rather than losing the angle.
+        val theme = CSSKeyMapper.apply("--input-outline-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.outlineGradient?.angle)
+        assertNull(theme.colors?.input?.outlineGradient?.startColor)
+        assertNull(theme.colors?.input?.outlineGradient?.endColor)
+    }
+
+    @Test
+    fun `apply setting only input-mic-icon-gradient-angle creates a gradient with no colors set yet`() {
+        val theme = CSSKeyMapper.apply("--input-mic-icon-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.micIconGradient?.angle)
+        assertNull(theme.colors?.input?.micIconGradient?.startColor)
+        assertNull(theme.colors?.input?.micIconGradient?.endColor)
+    }
+
+    @Test
+    fun `apply setting only input-send-arrow-background-gradient-angle creates a gradient with no colors set yet`() {
+        val theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.sendArrowBackgroundGradient?.angle)
+        assertNull(theme.colors?.input?.sendArrowBackgroundGradient?.startColor)
+        assertNull(theme.colors?.input?.sendArrowBackgroundGradient?.endColor)
+    }
+
+    @Test
+    fun `apply setting only input-mic-waveform-gradient-angle creates a gradient with no colors set yet`() {
+        val theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.micWaveformGradient?.angle)
+        assertNull(theme.colors?.input?.micWaveformGradient?.startColor)
+        assertNull(theme.colors?.input?.micWaveformGradient?.endColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains all 12 gradient keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        val prefixes = listOf(
+            "input-outline-gradient",
+            "input-mic-icon-gradient",
+            "input-send-arrow-background-gradient",
+            "input-mic-waveform-gradient"
+        )
+        for (prefix in prefixes) {
+            assertTrue("supportedCSSKeys should contain $prefix-start-color", keys.contains("$prefix-start-color"))
+            assertTrue("supportedCSSKeys should contain $prefix-end-color", keys.contains("$prefix-end-color"))
+            assertTrue("supportedCSSKeys should contain $prefix-angle", keys.contains("$prefix-angle"))
+        }
     }
 
     // -----------------------------------------------------------------------

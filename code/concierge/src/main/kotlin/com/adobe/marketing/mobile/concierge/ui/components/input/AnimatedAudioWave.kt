@@ -29,6 +29,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
+import com.adobe.marketing.mobile.concierge.ui.theme.toBrush
 import kotlin.math.sin
 
 private const val BAR_HEIGHT_FLOOR = 0.12
@@ -50,12 +52,12 @@ internal fun audioWaveBarScale(index: Int, timeSeconds: Double, audioLevel: Floa
 }
 
 /**
- * Returns a vertical gradient brush when both [gradientStart] and [gradientEnd] are provided,
- * otherwise falls back to a solid [color] fill.
+ * Returns [gradient]'s angle-aware linear-gradient brush when it's renderable (see
+ * [ConciergeGradient.isRenderable]), otherwise falls back to a solid [color] fill.
  */
-internal fun audioWaveBarBrush(color: Color, gradientStart: Color?, gradientEnd: Color?): Brush {
-    return if (gradientStart != null && gradientEnd != null) {
-        Brush.verticalGradient(listOf(gradientStart, gradientEnd))
+internal fun audioWaveBarBrush(color: Color, gradient: ConciergeGradient?, size: Size): Brush {
+    return if (gradient != null && gradient.isRenderable) {
+        gradient.toBrush(size)
     } else {
         SolidColor(color)
     }
@@ -67,8 +69,7 @@ internal fun audioWaveBarBrush(color: Color, gradientStart: Color?, gradientEnd:
  *
  * @param modifier Modifier for the composable
  * @param color The color of the waveform bars, used when no gradient is configured
- * @param gradientStart Optional top color of a vertical gradient fill for the bars
- * @param gradientEnd Optional bottom color of a vertical gradient fill for the bars
+ * @param gradient Optional gradient fill for the bars, used instead of [color] when renderable
  * @param barCount Number of bars to render
  * @param audioLevel Normalized 0f..1f input level. Defaults to full amplitude; pass the live
  * level from [com.adobe.marketing.mobile.concierge.ui.state.UserInputState.Recording] so the
@@ -78,8 +79,7 @@ internal fun audioWaveBarBrush(color: Color, gradientStart: Color?, gradientEnd:
 internal fun AnimatedAudioWave(
     modifier: Modifier = Modifier,
     color: Color,
-    gradientStart: Color? = null,
-    gradientEnd: Color? = null,
+    gradient: ConciergeGradient? = null,
     barCount: Int = 5,
     audioLevel: Float = 1f
 ) {
@@ -101,9 +101,8 @@ internal fun AnimatedAudioWave(
         label = "audio_level"
     )
 
-    val brush = audioWaveBarBrush(color, gradientStart, gradientEnd)
-
     Canvas(modifier = modifier) {
+        val brush = audioWaveBarBrush(color, gradient, size)
         val totalWidth = size.width
         val totalHeight = size.height
         val barWidth = totalWidth / (barCount * 2f - 1f) // bars + gaps
