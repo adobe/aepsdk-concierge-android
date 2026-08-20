@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.ui.theme
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import androidx.compose.ui.graphics.Color
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertNotNull
 import junit.framework.TestCase.assertNull
 import junit.framework.TestCase.assertTrue
@@ -178,6 +179,93 @@ class ThemeParserTest {
     fun `createColorsFromJson should return defaults when json is null`() {
         val colors = ThemeParser.createColorsFromJson(null, LightConciergeColors)
         assertEquals(LightConciergeColors, colors)
+    }
+
+    @Test
+    fun `createColorsFromJson should convert a fully-specified input gradient`() {
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                outlineGradient = ConciergeGradientColors(startColor = "#FF0000", endColor = "#0000FF", angle = 90.0)
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(Color(0xFFFF0000), colors.inputOutlineGradient?.startColor)
+        assertEquals(Color(0xFF0000FF), colors.inputOutlineGradient?.endColor)
+        assertEquals(90f, colors.inputOutlineGradient?.angle)
+        assertTrue(colors.inputOutlineGradient?.isRenderable ?: false)
+    }
+
+    @Test
+    fun `createColorsFromJson should default a partially-specified gradient's unset side to transparent`() {
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                micIconGradient = ConciergeGradientColors(startColor = "#FF0000")
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(Color(0xFFFF0000), colors.micIconGradient?.startColor)
+        assertEquals(Color.Transparent, colors.micIconGradient?.endColor)
+        assertFalse(colors.micIconGradient?.isRenderable ?: true)
+    }
+
+    @Test
+    fun `createColorsFromJson should default a partially-specified gradient's unset start side to transparent`() {
+        // Counterpart to the unset-end-side case above: only the end color configured.
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                micIconGradient = ConciergeGradientColors(endColor = "#0000FF")
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(Color.Transparent, colors.micIconGradient?.startColor)
+        assertEquals(Color(0xFF0000FF), colors.micIconGradient?.endColor)
+        assertFalse(colors.micIconGradient?.isRenderable ?: true)
+    }
+
+    @Test
+    fun `createColorsFromJson should treat a malformed gradient color string as transparent`() {
+        // Distinct from the "side omitted" cases above: here the field itself is non-null but
+        // isn't valid hex, so toComposeColor() returns null and the same transparent-placeholder
+        // fallback must kick in -- a theme author's typo shouldn't crash or half-render a gradient.
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                micIconGradient = ConciergeGradientColors(startColor = "not-a-color", endColor = "#0000FF")
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(Color.Transparent, colors.micIconGradient?.startColor)
+        assertFalse(colors.micIconGradient?.isRenderable ?: true)
+    }
+
+    @Test
+    fun `createColorsFromJson should default a gradient's angle to 180 when omitted`() {
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                sendArrowBackgroundGradient = ConciergeGradientColors(startColor = "#FF0000", endColor = "#0000FF")
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(180f, colors.sendArrowBackgroundGradient?.angle)
+    }
+
+    @Test
+    fun `createColorsFromJson should leave gradient fields null when not set`() {
+        val colors = ThemeParser.createColorsFromJson(ConciergeThemeColors(), LightConciergeColors)
+
+        assertNull(colors.inputOutlineGradient)
+        assertNull(colors.micIconGradient)
+        assertNull(colors.sendArrowBackgroundGradient)
+        assertNull(colors.micWaveformGradient)
     }
 
     @Test
@@ -1811,22 +1899,21 @@ class ThemeParserTest {
 
         val tokens = ThemeParser.parseThemeTokens(json)
         assertNotNull(tokens)
-        assertNotNull(tokens?.colors?.input?.micWaveformGradientStart)
-        assertNotNull(tokens?.colors?.input?.micWaveformGradientEnd)
+        assertNotNull(tokens?.colors?.input?.micWaveformGradient?.startColor)
+        assertNotNull(tokens?.colors?.input?.micWaveformGradient?.endColor)
     }
 
     @Test
     fun `createColorsFromJson should map mic waveform gradient colors`() {
         val themeColors = ConciergeThemeColors(
             input = ConciergeInputColors(
-                micWaveformGradientStart = "#00F5D4",
-                micWaveformGradientEnd = "#003D33"
+                micWaveformGradient = ConciergeGradientColors(startColor = "#00F5D4", endColor = "#003D33")
             )
         )
 
         val colors = ThemeParser.createColorsFromJson(themeColors, LightConciergeColors)
-        assertNotNull(colors.micWaveformGradientStart)
-        assertNotNull(colors.micWaveformGradientEnd)
+        assertNotNull(colors.micWaveformGradient?.startColor)
+        assertNotNull(colors.micWaveformGradient?.endColor)
     }
 
     @Test

@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -67,6 +68,33 @@ class MicButtonLogicTest {
 
     @Test
     fun `null color stays null when disabled`() {
-        assertNull(dimIfDisabled(null, isEnabled = false))
+        assertNull(dimIfDisabled(color = null, isEnabled = false))
+    }
+
+    @Test
+    fun `gradient is unchanged when enabled`() {
+        val gradient = ConciergeGradient(startColor = Color.Red, endColor = Color.Blue)
+        assertEquals(gradient, dimIfDisabled(gradient, isEnabled = true))
+    }
+
+    @Test
+    fun `null gradient stays null when disabled`() {
+        assertNull(dimIfDisabled(gradient = null, isEnabled = false))
+    }
+
+    @Test
+    fun `renderable gradient is dimmed to disabled alpha on both colors when disabled`() {
+        val gradient = ConciergeGradient(startColor = Color.Red, endColor = Color.Blue)
+        val dimmed = dimIfDisabled(gradient, isEnabled = false)
+        assertEquals(Color.Red.copy(alpha = 0.38f), dimmed?.startColor)
+        assertEquals(Color.Blue.copy(alpha = 0.38f), dimmed?.endColor)
+    }
+
+    @Test
+    fun `not-yet-renderable gradient is left unchanged when disabled`() {
+        // Regression test: a gradient with a still-transparent placeholder side must not have that
+        // side dimmed into a visible color -- see ConciergeGradient.isRenderable.
+        val gradient = ConciergeGradient(startColor = Color.Red, endColor = Color.Transparent)
+        assertEquals(gradient, dimIfDisabled(gradient, isEnabled = false))
     }
 }

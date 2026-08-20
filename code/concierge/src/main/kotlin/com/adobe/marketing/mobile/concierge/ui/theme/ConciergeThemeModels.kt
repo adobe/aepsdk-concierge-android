@@ -216,14 +216,29 @@ data class ConciergeInputColors(
     val background: String? = null,
     val text: String? = null,
     val outline: String? = null,
+    val outlineGradient: ConciergeGradientColors? = null,
     val outlineFocus: String? = null,
     val sendIconColor: String? = null,
     val sendArrowIconColor: String? = null,
     val sendArrowBackgroundColor: String? = null,
+    val sendArrowBackgroundGradient: ConciergeGradientColors? = null,
     val micIconColor: String? = null,
+    val micIconGradient: ConciergeGradientColors? = null,
     val micRecordingIconColor: String? = null,
-    val micWaveformGradientStart: String? = null,
-    val micWaveformGradientEnd: String? = null
+    val micWaveformGradient: ConciergeGradientColors? = null
+)
+
+/**
+ * Two-color linear gradient for input tokens that support either a solid color or a gradient
+ * (input bar border, mic/send icon colors, mic waveform gradient). Built incrementally by
+ * [CSSKeyMapper] from 3 independent CSS keys (start color, end color, angle) that may arrive in
+ * any order -- see [toConciergeGradient] for how an unset side/angle is defaulted at runtime.
+ */
+data class ConciergeGradientColors(
+    val startColor: String? = null,
+    val endColor: String? = null,
+    /** Degrees, CSS `linear-gradient` convention: 0 = "to top", increasing clockwise. */
+    val angle: Double? = null
 )
 
 data class ConciergeFeedbackColors(
@@ -530,6 +545,20 @@ internal fun String.toComposeColor(): Color? {
     } catch (e: Exception) {
         null
     }
+}
+
+/**
+ * Converts a gradient model to a runtime [ConciergeGradient], defaulting an unset color to
+ * transparent (the not-yet-configured placeholder -- see [ConciergeGradient.isRenderable]) and the
+ * angle to 180 degrees (CSS "to bottom" default) when omitted.
+ */
+internal fun ConciergeGradientColors?.toConciergeGradient(): ConciergeGradient? {
+    if (this == null) return null
+    return ConciergeGradient(
+        startColor = startColor?.toComposeColor() ?: Color.Transparent,
+        endColor = endColor?.toComposeColor() ?: Color.Transparent,
+        angle = (angle ?: 180.0).toFloat()
+    )
 }
 
 /**

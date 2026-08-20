@@ -93,8 +93,7 @@ class ConciergeStylesTest {
         composeTestRule.waitForIdle()
         assertNotNull(style)
         assertTrue(style!!.pulsingBackgroundEnabled)
-        assertNull(style!!.waveformGradientStart)
-        assertNull(style!!.waveformGradientEnd)
+        assertNull(style!!.waveformGradient)
     }
 
     @Test
@@ -125,8 +124,7 @@ class ConciergeStylesTest {
             tokens = ConciergeThemeTokens(
                 colors = ConciergeThemeColors(
                     input = ConciergeInputColors(
-                        micWaveformGradientStart = "#00F5D4",
-                        micWaveformGradientEnd = "#003D33"
+                        micWaveformGradient = ConciergeGradientColors(startColor = "#00F5D4", endColor = "#003D33")
                     )
                 )
             )
@@ -140,8 +138,142 @@ class ConciergeStylesTest {
 
         composeTestRule.waitForIdle()
         assertNotNull(style)
-        assertEquals(Color(0xFF00F5D4), style!!.waveformGradientStart)
-        assertEquals(Color(0xFF003D33), style!!.waveformGradientEnd)
+        assertEquals(Color(0xFF00F5D4), style!!.waveformGradient?.startColor)
+        assertEquals(Color(0xFF003D33), style!!.waveformGradient?.endColor)
+    }
+
+    @Test
+    fun micButtonStyle_noTokens_iconGradientIsNull() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNull(style!!.iconGradient)
+    }
+
+    @Test
+    fun micButtonStyle_withIconGradient_appliesGradientStartAndEnd() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micIconGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF12B0A0), style!!.iconGradient?.startColor)
+        assertEquals(Color(0xFF6DD3C4), style!!.iconGradient?.endColor)
+    }
+
+    // -----------------------------------------------------------------------
+    // inputPanelStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun inputPanelStyle_noTokens_borderGradientIsNull() {
+        var style: ConciergeStyles.InputPanelStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.inputPanelStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNull(style!!.borderGradient)
+    }
+
+    @Test
+    fun inputPanelStyle_withOutlineGradient_appliesGradientStartEndAndAngle() {
+        var style: ConciergeStyles.InputPanelStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        outlineGradient = ConciergeGradientColors(
+                            startColor = "#12B0A0",
+                            endColor = "#6DD3C4",
+                            angle = 90.0
+                        )
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.inputPanelStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF12B0A0), style!!.borderGradient?.startColor)
+        assertEquals(Color(0xFF6DD3C4), style!!.borderGradient?.endColor)
+        assertEquals(90f, style!!.borderGradient?.angle)
+        assertTrue(style!!.borderGradient?.isRenderable ?: false)
+    }
+
+    // -----------------------------------------------------------------------
+    // sendButtonStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun sendButtonStyle_noTokens_arrowCircleGradientIsNull() {
+        var style: ConciergeStyles.SendButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.sendButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNull(style!!.arrowCircleGradient)
+    }
+
+    @Test
+    fun sendButtonStyle_withSendArrowBackgroundGradient_appliesGradientStartAndEnd() {
+        var style: ConciergeStyles.SendButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        sendArrowBackgroundGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.sendButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF12B0A0), style!!.arrowCircleGradient?.startColor)
+        assertEquals(Color(0xFF6DD3C4), style!!.arrowCircleGradient?.endColor)
     }
 
     @Test

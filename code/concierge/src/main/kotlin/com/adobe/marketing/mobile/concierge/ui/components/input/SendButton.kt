@@ -26,7 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import com.adobe.marketing.mobile.concierge.R
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBackground
 
 /**
  * A send button for submitting chat messages.
@@ -51,6 +53,7 @@ internal fun SendButton(
             modifier = modifier,
             isEnabled = isEnabled,
             circleColor = style.arrowCircleColor,
+            circleGradient = style.arrowCircleGradient,
             arrowColor = style.arrowIconColor,
             disabledAlpha = style.disabledIconAlpha,
             onSend = onSend
@@ -101,16 +104,22 @@ private fun SendButtonArrow(
     modifier: Modifier,
     isEnabled: Boolean,
     circleColor: Color,
+    circleGradient: ConciergeGradient?,
     arrowColor: Color,
     disabledAlpha: Float,
     onSend: () -> Unit
 ) {
     val bgColor = if (isEnabled) circleColor else circleColor.copy(alpha = disabledAlpha)
+    // Gradient only applies while enabled -- disabled state always renders the plain dimmed fill.
+    val renderableGradient = if (isEnabled) circleGradient?.takeIf { it.isRenderable } else null
 
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(bgColor)
+            .then(
+                if (renderableGradient != null) Modifier.conciergeGradientBackground(renderableGradient, CircleShape)
+                else Modifier.background(bgColor)
+            )
             .then(
                 if (isEnabled) Modifier.clickable { onSend() }
                 else Modifier

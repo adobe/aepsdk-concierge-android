@@ -18,7 +18,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradientColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeInputColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import org.junit.Rule
 import org.junit.Test
 
@@ -116,6 +123,103 @@ class ChatInputPanelTest {
                     inputState = UserInputState.Empty,
                     onMicPressed = {},
                     onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun chatInputPanel_withOutlineGradient_rendersWithoutCrashing() {
+        // borderWidth must be > 0.dp for the border (solid or gradient) to render at all -- see
+        // ConciergeStyles.inputPanelStyle, which falls back to 0.dp when cssLayout is unset.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        outlineGradient = ConciergeGradientColors(
+                            startColor = "#12B0A0",
+                            endColor = "#6DD3C4",
+                            angle = 90.0
+                        )
+                    )
+                ),
+                cssLayout = ConciergeLayout(inputOutlineWidth = 2.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {},
+                    isFocused = false
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun chatInputPanel_withSolidOutlineColorAndNoGradient_rendersWithoutCrashing() {
+        // Exercises the solid-border branch (no renderable gradient set) with a nonzero border
+        // width, the counterpart to the gradient case above.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(outline = "#4B75FF")
+                ),
+                cssLayout = ConciergeLayout(inputOutlineWidth = 2.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {},
+                    isFocused = false
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun chatInputPanel_focusedWithOutlineGradient_prefersFocusBorderOverGradient() {
+        // The focus border always takes priority over the outline gradient -- this just exercises
+        // that branch alongside a configured gradient without crashing.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        outlineGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {},
+                    isFocused = true
                 )
             }
         }
