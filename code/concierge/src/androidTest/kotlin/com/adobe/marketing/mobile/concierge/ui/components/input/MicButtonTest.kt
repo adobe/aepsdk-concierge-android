@@ -322,6 +322,35 @@ class MicButtonTest {
     }
 
     @Test
+    fun micButton_idleWithNonRenderableIconGradient_fallsBackToSolidTint() {
+        // Exercises the "gradient set but only one side configured" path in GradientTintableIcon,
+        // which must fall back to the plain solid-color tint rather than the gradient.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micIconGradient = ConciergeGradientColors(startColor = "#12B0A0")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                MicButton(
+                    userInputState = UserInputState.Empty,
+                    isEnabled = true,
+                    onClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Start voice input"))
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun micButton_disabledWhileRecording_stillDisplaysRecordingInProgress() {
         composeTestRule.setContent {
             ConciergeTheme {

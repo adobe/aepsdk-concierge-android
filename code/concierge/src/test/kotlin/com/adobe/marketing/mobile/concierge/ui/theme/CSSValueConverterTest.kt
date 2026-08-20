@@ -336,6 +336,13 @@ class CSSValueConverterTest {
     }
 
     @Test
+    fun `parseGradientAngle defaults to 180 when the deg prefix is not a number at all`() {
+        // Distinct from the NaN/Infinity guard below: here dropLast(3).toDoubleOrNull() itself
+        // returns null (unparseable), rather than a non-finite Double.
+        assertEquals(180f, CSSValueConverter.parseGradientAngle("abcdeg"), 0.001f)
+    }
+
+    @Test
     fun `parseGradientAngle defaults to 180 for NaN degrees`() {
         // Regression test: Double.parseDouble follows strtod-like conventions for the "NaN"/
         // "Infinity" literals -- must not propagate a non-finite value into gradient angle math.

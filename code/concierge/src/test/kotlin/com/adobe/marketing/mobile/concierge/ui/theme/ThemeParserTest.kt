@@ -213,6 +213,39 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `createColorsFromJson should default a partially-specified gradient's unset start side to transparent`() {
+        // Counterpart to the unset-end-side case above: only the end color configured.
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                micIconGradient = ConciergeGradientColors(endColor = "#0000FF")
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(Color.Transparent, colors.micIconGradient?.startColor)
+        assertEquals(Color(0xFF0000FF), colors.micIconGradient?.endColor)
+        assertFalse(colors.micIconGradient?.isRenderable ?: true)
+    }
+
+    @Test
+    fun `createColorsFromJson should treat a malformed gradient color string as transparent`() {
+        // Distinct from the "side omitted" cases above: here the field itself is non-null but
+        // isn't valid hex, so toComposeColor() returns null and the same transparent-placeholder
+        // fallback must kick in -- a theme author's typo shouldn't crash or half-render a gradient.
+        val jsonColors = ConciergeThemeColors(
+            input = ConciergeInputColors(
+                micIconGradient = ConciergeGradientColors(startColor = "not-a-color", endColor = "#0000FF")
+            )
+        )
+
+        val colors = ThemeParser.createColorsFromJson(jsonColors, LightConciergeColors)
+
+        assertEquals(Color.Transparent, colors.micIconGradient?.startColor)
+        assertFalse(colors.micIconGradient?.isRenderable ?: true)
+    }
+
+    @Test
     fun `createColorsFromJson should default a gradient's angle to 180 when omitted`() {
         val jsonColors = ConciergeThemeColors(
             input = ConciergeInputColors(

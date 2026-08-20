@@ -249,4 +249,57 @@ class SendButtonTest {
         composeTestRule.onNode(hasContentDescription("Send message"))
             .assertIsDisplayed()
     }
+
+    @Test
+    fun sendButton_arrowStyleWithNoGradientConfigured_isDisplayedAndClickable() {
+        // Exercises the arrow style's plain solid-fill path (circleGradient is null).
+        var sendCalled = false
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(sendButtonStyle = "arrow"))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                SendButton(
+                    isEnabled = true,
+                    onSend = { sendCalled = true }
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Send message"))
+            .assertIsDisplayed()
+            .performClick()
+        assert(sendCalled)
+    }
+
+    @Test
+    fun sendButton_arrowStyleWithNonRenderableGradient_fallsBackToSolidFill() {
+        // Exercises the "gradient set but only one side configured" path, which must fall back to
+        // the solid circleColor fill rather than the gradient.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(sendButtonStyle = "arrow"),
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        sendArrowBackgroundGradient = ConciergeGradientColors(startColor = "#12B0A0")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                SendButton(
+                    isEnabled = true,
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Send message"))
+            .assertIsDisplayed()
+    }
 }
