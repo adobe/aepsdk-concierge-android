@@ -13,17 +13,22 @@
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
 
 /**
@@ -98,6 +103,24 @@ internal fun ChatInputPanel(
             // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
             verticalAlignment = Alignment.Bottom
         ) {
+            val leadingIconPath = ConciergeTheme.behavior?.showAiChatIcon
+            if (!leadingIconPath.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .testTag("ChatInputLeadingIcon"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LocalAssetImage(
+                        source = leadingIconPath,
+                        contentDescription = ConciergeTheme.text?.inputAiChatIconTooltip ?: "Ask AI",
+                        modifier = Modifier
+                            .size(ConciergeStyles.inputRowIconSize)
+                            .testTag("ChatInputLeadingIconGlyph")
+                    )
+                }
+            }
+
             ChatTextField(
                 modifier = Modifier.weight(1f),
                 value = text,

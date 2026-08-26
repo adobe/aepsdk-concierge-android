@@ -80,6 +80,21 @@ internal fun LocalAssetImage(
 }
 
 /**
+ * Determines if icon [source] is configured well enough to reserve layout space for it (e.g. an icon
+ * column offset applied before the image itself has loaded). A remote URL always counts -- it
+ * resolves via [AsyncImage] asynchronously and can show a placeholder while loading, so there's
+ * no synchronous signal to wait for. A local asset name must already resolve to a real bundled
+ * file, so a typo'd or missing name correctly falls back to no-icon layout instead of reserving
+ * space for nothing.
+ */
+@Composable
+internal fun rememberIsIconConfigured(source: String?): Boolean {
+    if (source.isNullOrBlank()) return false
+    if (source.startsWith("http://") || source.startsWith("https://")) return true
+    return rememberLocalAssetBitmap(source) != null
+}
+
+/**
  * Returns the loaded [ImageBitmap] for a local asset, or null if the asset does not exist or
  * has not finished loading yet. Results are cached so subsequent calls are synchronous.
  */

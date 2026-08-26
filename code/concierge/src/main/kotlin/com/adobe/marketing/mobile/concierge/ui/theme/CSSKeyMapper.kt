@@ -404,13 +404,13 @@ internal object CSSKeyMapper {
         },
         "input-button-height" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val height = CSSValueConverter.parsePxValue(cssValue) ?: 32.0
+                val height = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
                 layout?.copy(inputButtonHeight = height) ?: ConciergeLayout(inputButtonHeight = height)
             }
         },
         "input-button-width" to { cssValue, theme ->
             updateLayout(theme) { layout ->
-                val width = CSSValueConverter.parsePxValue(cssValue) ?: 32.0
+                val width = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
                 layout?.copy(inputButtonWidth = width) ?: ConciergeLayout(inputButtonWidth = width)
             }
         },

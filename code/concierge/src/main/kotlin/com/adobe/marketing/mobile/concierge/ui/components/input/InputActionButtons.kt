@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
@@ -101,6 +102,9 @@ internal fun InputActionButtons(
                         Icon(
                             painter = painterResource(R.drawable.close),
                             contentDescription = "Clear input",
+                            modifier = Modifier
+                                .size(micButtonStyle.size)
+                                .testTag("ClearIconGlyph")
                         )
                     }
                 }
@@ -136,6 +140,9 @@ internal fun InputActionButtons(
                 Icon(
                     painter = painterResource(R.drawable.close),
                     contentDescription = "Clear input",
+                    modifier = Modifier
+                        .size(micButtonStyle.size)
+                        .testTag("ClearIconGlyph")
                 )
             }
         }

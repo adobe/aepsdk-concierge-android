@@ -12,16 +12,22 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradientColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeInputColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
@@ -225,5 +231,101 @@ class ChatInputPanelTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun chatInputPanel_showAiChatIcon_showsLeadingIconContainer_whenConfigured() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
+            ),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "icon_ai_sparkle")
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatInputPanel_showAiChatIcon_glyphResizesWithInputButtonHeight() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
+            ),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "icon_ai_sparkle"),
+                cssLayout = ConciergeLayout(inputButtonHeight = 50.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChatInputLeadingIconGlyph")
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(50.dp)
+    }
+
+    @Test
+    fun chatInputPanel_showAiChatIcon_hidesLeadingIcon_whenNotConfigured() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertDoesNotExist()
+    }
+
+    @Test
+    fun chatInputPanel_showAiChatIcon_hidesLeadingIcon_whenBlank() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "")
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertDoesNotExist()
     }
 }

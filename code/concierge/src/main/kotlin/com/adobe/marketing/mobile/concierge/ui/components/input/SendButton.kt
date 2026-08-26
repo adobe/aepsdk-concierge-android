@@ -16,6 +16,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -24,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -52,6 +55,7 @@ internal fun SendButton(
         SendButtonArrow(
             modifier = modifier,
             isEnabled = isEnabled,
+            iconSize = style.size,
             circleColor = style.arrowCircleColor,
             circleGradient = style.arrowCircleGradient,
             arrowColor = style.arrowIconColor,
@@ -62,6 +66,7 @@ internal fun SendButton(
         SendButtonDefault(
             modifier = modifier,
             isEnabled = isEnabled,
+            iconSize = style.size,
             iconColor = style.enabledIconColor,
             disabledAlpha = style.disabledIconAlpha,
             onSend = onSend
@@ -76,6 +81,7 @@ internal fun SendButton(
 private fun SendButtonDefault(
     modifier: Modifier,
     isEnabled: Boolean,
+    iconSize: Dp,
     iconColor: Color,
     disabledAlpha: Float,
     onSend: () -> Unit
@@ -88,6 +94,9 @@ private fun SendButtonDefault(
         Image(
             painter = painterResource(R.drawable.send),
             contentDescription = "Send message",
+            modifier = Modifier
+                .size(iconSize)
+                .testTag("SendIconGlyph"),
             colorFilter = ColorFilter.tint(
                 if (isEnabled) iconColor
                 else iconColor.copy(alpha = disabledAlpha)
@@ -103,6 +112,7 @@ private fun SendButtonDefault(
 private fun SendButtonArrow(
     modifier: Modifier,
     isEnabled: Boolean,
+    iconSize: Dp,
     circleColor: Color,
     circleGradient: ConciergeGradient?,
     arrowColor: Color,
@@ -129,6 +139,9 @@ private fun SendButtonArrow(
         Image(
             painter = painterResource(R.drawable.send_arrow),
             contentDescription = "Send message",
+            modifier = Modifier
+                .size(iconSize)
+                .testTag("SendIconGlyph"),
             colorFilter = ColorFilter.tint(arrowColor)
         )
     }

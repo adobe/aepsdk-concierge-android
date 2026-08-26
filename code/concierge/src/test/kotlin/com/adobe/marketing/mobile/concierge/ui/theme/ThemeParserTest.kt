@@ -1949,6 +1949,109 @@ class ThemeParserTest {
     }
 
     // -----------------------------------------------------------------------
+    // Input leading icon - behavior.input.showAiChatIcon, text["input.aiChatIcon.tooltip"]
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `parseThemeTokens should parse showAiChatIcon icon path`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "showAiChatIcon": {
+                            "icon": "icon_ai_sparkle"
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertEquals("icon_ai_sparkle", tokens?.behavior?.showAiChatIcon)
+    }
+
+    @Test
+    fun `parseThemeTokens should default showAiChatIcon to null when absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "enableVoiceInput": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNull(tokens?.behavior?.showAiChatIcon)
+    }
+
+    @Test
+    fun `parseThemeTokens should treat null showAiChatIcon as absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "showAiChatIcon": null
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNull(tokens?.behavior?.showAiChatIcon)
+    }
+
+    @Test
+    fun `parseThemeTokens should treat blank showAiChatIcon icon as absent`() {
+        val json = """
+            {
+                "behavior": {
+                    "input": {
+                        "showAiChatIcon": {
+                            "icon": ""
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertNull(tokens?.behavior?.showAiChatIcon)
+    }
+
+    @Test
+    fun `parseThemeJson should parse input aiChatIcon tooltip text`() {
+        val json = """
+            {
+                "theme": {
+                    "--color-primary": "#FF0000"
+                },
+                "text": {
+                    "input.aiChatIcon.tooltip": "Ask AI"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertEquals("Ask AI", config?.text?.inputAiChatIconTooltip)
+    }
+
+    @Test
+    fun `parseThemeJson should default input aiChatIcon tooltip to null when absent`() {
+        val json = """
+            {
+                "theme": {
+                    "--color-primary": "#FF0000"
+                }
+            }
+        """.trimIndent()
+
+        val config = ThemeParser.parseThemeJson(json)
+        assertNull(config?.text?.inputAiChatIconTooltip)
+    }
+
+    // -----------------------------------------------------------------------
     // Welcome card behavior - promptFullWidth, promptMaxLines, contentAlignment
     // -----------------------------------------------------------------------
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -74,6 +75,116 @@ class ConciergeStylesTest {
         assertNotNull(style)
         assertEquals(14.0, style!!.textStyle.fontSize.value.toDouble(), 0.1)
         assertEquals(700, style!!.textStyle.fontWeight?.weight ?: 0)
+    }
+
+    // -----------------------------------------------------------------------
+    // inputRowIconSize
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun inputRowIconSize_noTokens_defaultsTo24dp() {
+        var size: Dp? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(24.dp, size)
+    }
+
+    @Test
+    fun inputRowIconSize_withInputButtonWidth_overridesDefault() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, size)
+    }
+
+    @Test
+    fun inputRowIconSize_withOnlyInputButtonHeight_fallsBackToHeight() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 44.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(44.dp, size)
+    }
+
+    @Test
+    fun inputRowIconSize_withBothWidthAndHeight_prefersWidth() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(inputButtonWidth = 40.0, inputButtonHeight = 44.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, size)
+    }
+
+    @Test
+    fun micButtonStyle_withInputButtonWidth_appliesToSize() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, style!!.size)
+    }
+
+    @Test
+    fun sendButtonStyle_withInputButtonWidth_appliesToSize() {
+        var style: ConciergeStyles.SendButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.sendButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, style!!.size)
     }
 
     // -----------------------------------------------------------------------
