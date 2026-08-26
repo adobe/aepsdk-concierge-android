@@ -222,6 +222,7 @@ class InputActionButtonsTest {
             }
         }
 
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("MicIconGlyph")
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)
@@ -247,6 +248,7 @@ class InputActionButtonsTest {
             }
         }
 
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("SendIconGlyph")
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)
@@ -272,6 +274,7 @@ class InputActionButtonsTest {
             }
         }
 
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ClearIconGlyph")
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)

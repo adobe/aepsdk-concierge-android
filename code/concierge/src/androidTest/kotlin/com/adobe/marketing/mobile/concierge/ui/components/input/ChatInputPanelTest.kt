@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsEqualTo
@@ -32,6 +33,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
+import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import org.junit.Rule
 import org.junit.Test
 
@@ -261,28 +264,33 @@ class ChatInputPanelTest {
 
     @Test
     fun chatInputPanel_showAiChatIcon_glyphResizesWithInputButtonHeight() {
+        // A URL (not a local asset name) so the glyph renders immediately via AsyncImage's
+        // loading-state Box, without depending on a real bundled test asset resolving.
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(
                 text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
             ),
             tokens = ConciergeThemeTokens(
-                behavior = ConciergeThemeBehavior(showAiChatIcon = "icon_ai_sparkle"),
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "https://example.com/leading-icon.png"),
                 cssLayout = ConciergeLayout(inputButtonHeight = 50.0)
             )
         )
 
         composeTestRule.setContent {
             ConciergeTheme(theme = themeData) {
-                ChatInputPanel(
-                    text = "",
-                    onTextChange = {},
-                    inputState = UserInputState.Empty,
-                    onMicPressed = {},
-                    onSend = {}
-                )
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatInputPanel(
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
             }
         }
 
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIconGlyph")
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)
