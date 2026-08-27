@@ -892,6 +892,22 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Padding the input-bar spec puts around each icon in the row (`padding: 16px 12px` on the
+     * 56px-tall bar, whose height is exactly a 24px icon plus this padding top and bottom).
+     */
+    private val INPUT_ROW_ICON_PADDING = 16.dp
+
+    /**
+     * Tap-target container for every icon in the input row. Derived from [inputRowIconSize] plus
+     * the spec's [INPUT_ROW_ICON_PADDING] on each side, so it is the spec's 56dp at the default
+     * 24dp glyph and keeps that padding as the glyph grows -- rather than being pinned at 56dp,
+     * which would let a glyph configured above 56dp overflow its own container while the glyph
+     * itself resized correctly.
+     */
+    val inputRowIconContainerSize: Dp
+        @Composable get() = inputRowIconSize + (INPUT_ROW_ICON_PADDING * 2)
+
+    /**
      * Styling for microphone button
      */
     @Immutable

@@ -85,10 +85,12 @@ internal fun InputActionButtons(
         ,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Tap-area size for mic / clear / stop buttons. Sized to match the OutlinedTextField's
-        // minimum height so the row stays a uniform 56dp when the field is empty/single-line —
-        // this eliminates the vertical gap that appeared with Alignment.Bottom.
-        val micContainerSize = 56.dp
+        // Tap-area size for mic / clear / stop buttons. Derived from the shared input-row icon size
+        // plus the spec's padding, so it is 56dp at the default 24dp glyph — matching the
+        // OutlinedTextField's minimum height, which keeps the row a uniform 56dp when the field is
+        // empty/single-line and eliminates the vertical gap that appeared with Alignment.Bottom —
+        // and grows with the glyph when the theme overrides the icon size.
+        val micContainerSize = ConciergeStyles.inputRowIconContainerSize
         val hasText = text.isNotBlank()
 
         if (enableVoiceInput) {
@@ -194,8 +196,8 @@ private fun StopRecordingButton(
         onClick = onClick,
         modifier = modifier
     ) {
-        // Center the glyph inside the 56dp tap area — keeps the stop visually close to the
-        // adjacent mic-wave (also centered in its 56dp container) rather than pushing it to
+        // Center the glyph inside the tap area — keeps the stop visually close to the
+        // adjacent mic-wave (also centered in its own container) rather than pushing it to
         // the panel's right edge, which would leave a large gap between wave and stop.
         if (themedBitmap != null) {
             Image(

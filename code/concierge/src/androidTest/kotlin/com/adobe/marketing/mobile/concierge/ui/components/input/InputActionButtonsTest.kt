@@ -223,7 +223,9 @@ class InputActionButtonsTest {
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("MicIconGlyph")
+        // The glyph sits inside the button's merged semantics node, so it is only addressable
+        // in the unmerged tree.
+        composeTestRule.onNodeWithTag("MicIconGlyph", useUnmergedTree = true)
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)
     }
@@ -249,7 +251,9 @@ class InputActionButtonsTest {
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("SendIconGlyph")
+        // The glyph sits inside the button's merged semantics node, so it is only addressable
+        // in the unmerged tree.
+        composeTestRule.onNodeWithTag("SendIconGlyph", useUnmergedTree = true)
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)
     }
@@ -275,9 +279,61 @@ class InputActionButtonsTest {
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("ClearIconGlyph")
+        // The glyph sits inside the button's merged semantics node, so it is only addressable
+        // in the unmerged tree.
+        composeTestRule.onNodeWithTag("ClearIconGlyph", useUnmergedTree = true)
             .assertWidthIsEqualTo(50.dp)
             .assertHeightIsEqualTo(50.dp)
+    }
+
+    @Test
+    fun inputActionButtons_clearButtonContainer_resizesWithInputButtonHeight() {
+        // The tap-target container was pinned at 56dp while only the glyph scaled, so an icon size
+        // above 56dp overflowed its own container. The container is the glyph plus the spec's 16dp
+        // padding on each side, so it must grow with the glyph.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Clear input"))
+            .assertWidthIsEqualTo(112.dp)
+            .assertHeightIsEqualTo(112.dp)
+    }
+
+    @Test
+    fun inputActionButtons_clearButtonContainer_defaultsToSpec56dp() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Clear input"))
+            .assertWidthIsEqualTo(56.dp)
+            .assertHeightIsEqualTo(56.dp)
     }
 
     @Test

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" color="#7A5C1E" role="img" aria-label="Sparkle">
+  <!-- Generic four-point AI sparkle. Sized on the 24x24 grid the input-row spec uses.
+       Paths inherit `color`, so recolor by changing the root color attribute. -->
+  <path d="M9.25 1Q9.25 9.25 17.5 9.25Q9.25 9.25 9.25 17.5Q9.25 9.25 1 9.25Q9.25 9.25 9.25 1Z" fill="currentColor"/>
+  <path d="M18.25 13.5Q18.25 17.75 22.5 17.75Q18.25 17.75 18.25 22Q18.25 17.75 14 17.75Q18.25 17.75 18.25 13.5Z" fill="currentColor"/>
+</svg>

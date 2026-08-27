@@ -297,6 +297,75 @@ class ChatInputPanelTest {
     }
 
     @Test
+    fun chatInputPanel_showAiChatIcon_containerResizesWithInputButtonHeight() {
+        // Regression test: the leading icon's container was pinned at 56dp while only the glyph
+        // scaled, so an icon size above 56dp overflowed its own container. The container is the
+        // glyph plus the spec's 16dp padding on each side, so it must grow with the glyph.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
+            ),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "https://example.com/leading-icon.png"),
+                cssLayout = ConciergeLayout(inputButtonHeight = 80.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatInputPanel(
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("ChatInputLeadingIcon")
+            .assertWidthIsEqualTo(112.dp)
+            .assertHeightIsEqualTo(112.dp)
+        composeTestRule.onNodeWithTag("ChatInputLeadingIconGlyph")
+            .assertWidthIsEqualTo(80.dp)
+            .assertHeightIsEqualTo(80.dp)
+    }
+
+    @Test
+    fun chatInputPanel_showAiChatIcon_containerDefaultsToSpec56dp() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
+            ),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "https://example.com/leading-icon.png")
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatInputPanel(
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("ChatInputLeadingIcon")
+            .assertWidthIsEqualTo(56.dp)
+            .assertHeightIsEqualTo(56.dp)
+    }
+
+    @Test
     fun chatInputPanel_showAiChatIcon_hidesLeadingIcon_whenNotConfigured() {
         composeTestRule.setContent {
             ConciergeTheme {

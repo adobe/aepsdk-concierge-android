@@ -151,6 +151,64 @@ class ConciergeStylesTest {
         assertEquals(40.dp, size)
     }
 
+    // -----------------------------------------------------------------------
+    // inputRowIconContainerSize
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun inputRowIconContainerSize_noTokens_defaultsToSpec56dp() {
+        var size: Dp? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                size = ConciergeStyles.inputRowIconContainerSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // 24dp glyph + the spec's 16dp padding on each side = the spec's 56dp input bar.
+        assertEquals(56.dp, size)
+    }
+
+    @Test
+    fun inputRowIconContainerSize_growsWithInputButtonWidth() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconContainerSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(72.dp, size)
+    }
+
+    @Test
+    fun inputRowIconContainerSize_iconLargerThan56dp_stillLeavesPaddingAroundGlyph() {
+        var iconSize: Dp? = null
+        var containerSize: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                iconSize = ConciergeStyles.inputRowIconSize
+                containerSize = ConciergeStyles.inputRowIconContainerSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(80.dp, iconSize)
+        assertEquals(112.dp, containerSize)
+    }
+
     @Test
     fun micButtonStyle_withInputButtonWidth_appliesToSize() {
         var style: ConciergeStyles.MicButtonStyle? = null

@@ -107,7 +107,7 @@ internal fun ChatInputPanel(
             if (!leadingIconPath.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(ConciergeStyles.inputRowIconContainerSize)
                         .testTag("ChatInputLeadingIcon"),
                     contentAlignment = Alignment.Center
                 ) {
