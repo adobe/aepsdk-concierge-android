@@ -289,8 +289,7 @@ class InputActionButtonsTest {
     @Test
     fun inputActionButtons_clearButtonContainer_resizesWithInputButtonHeight() {
         // The tap-target container was pinned at 56dp while only the glyph scaled, so an icon size
-        // above 56dp overflowed its own container. The container is the glyph plus the spec's 16dp
-        // padding on each side, so it must grow with the glyph.
+        // above 56dp overflowed its own container. The container must grow with the glyph instead.
         val theme = ConciergeThemeData(
             config = ConciergeThemeConfig(),
             tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
@@ -316,7 +315,7 @@ class InputActionButtonsTest {
     }
 
     @Test
-    fun inputActionButtons_clearButtonContainer_defaultsToSpec56dp() {
+    fun inputActionButtons_clearButtonContainer_defaultsTo56dp() {
         composeTestRule.setContent {
             ConciergeTheme {
                 InputActionButtons(
@@ -332,6 +331,56 @@ class InputActionButtonsTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNode(hasContentDescription("Clear input"))
+            .assertWidthIsEqualTo(56.dp)
+            .assertHeightIsEqualTo(56.dp)
+    }
+
+    @Test
+    fun inputActionButtons_sendButtonContainer_resizesWithInputButtonHeight() {
+        // Regression test: Send's tap target was left at the bare glyph size while mic/clear/
+        // leading-icon were migrated to the padded container, making Send inconsistent with its row
+        // neighbors at large configured icon sizes.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Send message"))
+            .assertWidthIsEqualTo(112.dp)
+            .assertHeightIsEqualTo(112.dp)
+    }
+
+    @Test
+    fun inputActionButtons_sendButtonContainer_defaultsTo56dp() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Send message"))
             .assertWidthIsEqualTo(56.dp)
             .assertHeightIsEqualTo(56.dp)
     }

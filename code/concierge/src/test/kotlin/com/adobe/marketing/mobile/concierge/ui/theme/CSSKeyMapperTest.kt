@@ -474,6 +474,31 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply with unparsable input-button-height leaves it null instead of substituting a default`() {
+        // Regression test: a fabricated default here would incorrectly outrank a validly-configured
+        // input-button-width in ConciergeStyles.inputRowIconSize's width-wins precedence chain.
+        val result = CSSKeyMapper.apply("--input-button-height", "16dp", emptyTheme)
+        assertNull(result.cssLayout?.inputButtonHeight)
+    }
+
+    @Test
+    fun `apply with unparsable input-button-width leaves it null instead of substituting a default`() {
+        // Regression test: a fabricated default here would silently discard a validly-configured
+        // input-button-height, since ConciergeStyles.inputRowIconSize treats any non-null width as
+        // "explicitly configured" and lets it win.
+        val result = CSSKeyMapper.apply("--input-button-width", "16dp", emptyTheme)
+        assertNull(result.cssLayout?.inputButtonWidth)
+    }
+
+    @Test
+    fun `apply with unparsable input-button-width does not clobber an already-set height`() {
+        val withHeight = CSSKeyMapper.apply("--input-button-height", "50px", emptyTheme)
+        val result = CSSKeyMapper.apply("--input-button-width", "16dp", withHeight)
+        assertEquals(50.0, result.cssLayout?.inputButtonHeight)
+        assertNull(result.cssLayout?.inputButtonWidth)
+    }
+
+    @Test
     fun `apply maps input-button-border-radius`() {
         val result = CSSKeyMapper.apply("--input-button-border-radius", "8px", emptyTheme)
         assertEquals(8.0, result.cssLayout?.inputButtonBorderRadius)

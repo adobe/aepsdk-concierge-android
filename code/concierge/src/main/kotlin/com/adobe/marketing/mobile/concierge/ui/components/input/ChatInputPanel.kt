@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
@@ -103,8 +104,12 @@ internal fun ChatInputPanel(
             // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
             verticalAlignment = Alignment.Bottom
         ) {
+            // Reserve layout space only once the icon is actually resolvable -- same rule
+            // ChatMessageItem applies to company icons -- so a typo'd/missing local asset name
+            // hides the icon entirely instead of leaving a permanent blank gap before the text field.
             val leadingIconPath = ConciergeTheme.behavior?.showAiChatIcon
-            if (!leadingIconPath.isNullOrBlank()) {
+                ?.takeIf { rememberIsIconConfigured(it) }
+            if (leadingIconPath != null) {
                 Box(
                     modifier = Modifier
                         .size(ConciergeStyles.inputRowIconContainerSize)

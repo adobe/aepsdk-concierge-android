@@ -402,16 +402,24 @@ internal object CSSKeyMapper {
                 layout?.copy(inputFontSize = size) ?: ConciergeLayout(inputFontSize = size)
             }
         },
+        // Unlike most layout keys, a parse failure here must leave the field null rather than
+        // substituting a default: ConciergeStyles.inputRowIconSize treats "width present" as
+        // "width was explicitly configured" and lets it win over a validly-configured height, so a
+        // fabricated default would incorrectly outrank a real height value.
         "input-button-height" to { cssValue, theme ->
-            updateLayout(theme) { layout ->
-                val height = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
-                layout?.copy(inputButtonHeight = height) ?: ConciergeLayout(inputButtonHeight = height)
+            val height = CSSValueConverter.parsePxValue(cssValue)
+            if (height != null) {
+                updateLayout(theme) { layout -> layout?.copy(inputButtonHeight = height) ?: ConciergeLayout(inputButtonHeight = height) }
+            } else {
+                theme
             }
         },
         "input-button-width" to { cssValue, theme ->
-            updateLayout(theme) { layout ->
-                val width = CSSValueConverter.parsePxValue(cssValue) ?: 24.0
-                layout?.copy(inputButtonWidth = width) ?: ConciergeLayout(inputButtonWidth = width)
+            val width = CSSValueConverter.parsePxValue(cssValue)
+            if (width != null) {
+                updateLayout(theme) { layout -> layout?.copy(inputButtonWidth = width) ?: ConciergeLayout(inputButtonWidth = width) }
+            } else {
+                theme
             }
         },
         "input-button-border-radius" to { cssValue, theme ->

@@ -12,14 +12,19 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradientColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeInputColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
@@ -302,4 +307,55 @@ class SendButtonTest {
         composeTestRule.onNode(hasContentDescription("Send message"))
             .assertIsDisplayed()
     }
+
+    @Test
+    fun sendButton_arrowStyle_glyphIsSmallerThanCircleAtDefaultSize() {
+        // Regression test: the arrow glyph previously filled its circle edge-to-edge (both sized to
+        // the same value), removing the margin around it. The circle ("SendIconGlyph") must track
+        // the theme's icon-size knob directly; the arrow ("SendArrowGlyph") must stay smaller than it.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(sendButtonStyle = "arrow"))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                SendButton(isEnabled = true, onSend = {})
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("SendIconGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(24.dp)
+            .assertHeightIsEqualTo(24.dp)
+        composeTestRule.onNodeWithTag("SendArrowGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(16.dp)
+            .assertHeightIsEqualTo(16.dp)
+    }
+
+    @Test
+    fun sendButton_arrowStyle_circleAndArrowResizeTogetherWithInputButtonHeight() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(sendButtonStyle = "arrow"),
+                cssLayout = ConciergeLayout(inputButtonHeight = 60.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                SendButton(isEnabled = true, onSend = {})
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("SendIconGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(60.dp)
+            .assertHeightIsEqualTo(60.dp)
+        composeTestRule.onNodeWithTag("SendArrowGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(40.dp)
+            .assertHeightIsEqualTo(40.dp)
+    }
+
 }

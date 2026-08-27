@@ -238,27 +238,33 @@ class ChatInputPanelTest {
 
     @Test
     fun chatInputPanel_showAiChatIcon_showsLeadingIconContainer_whenConfigured() {
+        // A URL (not a local asset name) so the icon is resolvable without depending on a real
+        // bundled test asset -- see rememberIsIconConfigured, which requires a local name to
+        // actually resolve to a bundled file before reserving layout space for it.
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(
                 text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
             ),
             tokens = ConciergeThemeTokens(
-                behavior = ConciergeThemeBehavior(showAiChatIcon = "icon_ai_sparkle")
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "https://example.com/leading-icon.png")
             )
         )
 
         composeTestRule.setContent {
             ConciergeTheme(theme = themeData) {
-                ChatInputPanel(
-                    text = "",
-                    onTextChange = {},
-                    inputState = UserInputState.Empty,
-                    onMicPressed = {},
-                    onSend = {}
-                )
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatInputPanel(
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
             }
         }
 
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertIsDisplayed()
     }
 
@@ -299,8 +305,8 @@ class ChatInputPanelTest {
     @Test
     fun chatInputPanel_showAiChatIcon_containerResizesWithInputButtonHeight() {
         // Regression test: the leading icon's container was pinned at 56dp while only the glyph
-        // scaled, so an icon size above 56dp overflowed its own container. The container is the
-        // glyph plus the spec's 16dp padding on each side, so it must grow with the glyph.
+        // scaled, so an icon size above 56dp overflowed its own container. The container must grow
+        // with the glyph instead.
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(
                 text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
@@ -335,7 +341,7 @@ class ChatInputPanelTest {
     }
 
     @Test
-    fun chatInputPanel_showAiChatIcon_containerDefaultsToSpec56dp() {
+    fun chatInputPanel_showAiChatIcon_containerDefaultsTo56dp() {
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(
                 text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
@@ -403,6 +409,36 @@ class ChatInputPanelTest {
             }
         }
 
+        composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertDoesNotExist()
+    }
+
+    @Test
+    fun chatInputPanel_showAiChatIcon_hidesLeadingIcon_whenLocalAssetUnresolved() {
+        // Regression test: a local asset name that doesn't resolve to a real bundled file must
+        // fall back to hiding the icon entirely -- the same rule ChatMessageItem applies to
+        // company icons -- rather than permanently reserving a blank gap before the text field.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
+            ),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "no-such-local-asset")
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertDoesNotExist()
     }
 }

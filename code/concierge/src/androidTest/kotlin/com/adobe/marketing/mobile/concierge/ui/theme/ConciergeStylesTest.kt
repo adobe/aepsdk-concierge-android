@@ -156,7 +156,7 @@ class ConciergeStylesTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun inputRowIconContainerSize_noTokens_defaultsToSpec56dp() {
+    fun inputRowIconContainerSize_noTokens_defaultsTo56dp() {
         var size: Dp? = null
 
         composeTestRule.setContent {
@@ -166,7 +166,7 @@ class ConciergeStylesTest {
         }
 
         composeTestRule.waitForIdle()
-        // 24dp glyph + the spec's 16dp padding on each side = the spec's 56dp input bar.
+        // 24dp glyph + 16dp padding on each side = 56dp.
         assertEquals(56.dp, size)
     }
 

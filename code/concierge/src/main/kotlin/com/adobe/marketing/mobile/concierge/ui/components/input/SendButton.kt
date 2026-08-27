@@ -34,6 +34,14 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBackground
 
 /**
+ * The "arrow" style's up-arrow glyph is drawn smaller than its enclosing circle rather than
+ * filling it edge-to-edge. Applies only to the circle style -- the "default" (bare icon, no
+ * circle) style has nothing to leave a margin against, so its glyph fills its icon slot exactly
+ * like every other input-row icon (mic, clear, leading icon).
+ */
+private const val SEND_ARROW_ICON_SCALE = 2f / 3f
+
+/**
  * A send button for submitting chat messages.
  * Supports two styles controlled via theme behavior:
  * - "default": paper airplane icon with color tint (original look)
@@ -107,6 +115,11 @@ private fun SendButtonDefault(
 
 /**
  * Arrow send button — filled circle with upward arrow icon.
+ *
+ * [modifier] sizes the outer tap target (matching every other input-row icon's padded touch
+ * area), while the visible circle is centered inside it at exactly [iconSize] -- so the circle's
+ * visible size tracks the theme's icon-size knob without the invisible tap-target padding
+ * inflating it, mirroring how the mic/clear glyphs stay smaller than their own tap areas.
  */
 @Composable
 private fun SendButtonArrow(
@@ -125,24 +138,31 @@ private fun SendButtonArrow(
 
     Box(
         modifier = modifier
-            .clip(CircleShape)
-            .then(
-                if (renderableGradient != null) Modifier.conciergeGradientBackground(renderableGradient, CircleShape)
-                else Modifier.background(bgColor)
-            )
             .then(
                 if (isEnabled) Modifier.clickable { onSend() }
                 else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.send_arrow),
-            contentDescription = "Send message",
+        Box(
             modifier = Modifier
                 .size(iconSize)
+                .clip(CircleShape)
+                .then(
+                    if (renderableGradient != null) Modifier.conciergeGradientBackground(renderableGradient, CircleShape)
+                    else Modifier.background(bgColor)
+                )
                 .testTag("SendIconGlyph"),
-            colorFilter = ColorFilter.tint(arrowColor)
-        )
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.send_arrow),
+                contentDescription = "Send message",
+                modifier = Modifier
+                    .size(iconSize * SEND_ARROW_ICON_SCALE)
+                    .testTag("SendArrowGlyph"),
+                colorFilter = ColorFilter.tint(arrowColor)
+            )
+        }
     }
 }
