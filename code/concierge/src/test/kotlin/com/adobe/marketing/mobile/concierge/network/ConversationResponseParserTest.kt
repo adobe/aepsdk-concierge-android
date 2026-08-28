@@ -2671,6 +2671,77 @@ class ConversationResponseParserTest {
         assertEquals("Shop Now", cta.button.label)
         assertEquals("https://example.com/shop", cta.button.url)
     }
+
+    @Test
+    fun `parseConversationData exposes legacy payload as ordered parts`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Here are some shoes:",
+                        "multimodalElements": {
+                          "elements": [
+                            { "id": "card-1", "entity_info": { "productName": "Shoe One" } },
+                            { "id": "card-2", "entity_info": { "productName": "Shoe Two" } }
+                          ]
+                        },
+                        "promptSuggestions": ["Wide", "Narrow"]
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val parts = ConversationResponseParser.parseConversationData(json)[0].parts
+
+        assertEquals(4, parts.size)
+        assertEquals("Here are some shoes:", (parts[0] as ConversationPart.Text).text)
+        assertEquals("card-1", (parts[1] as ConversationPart.Card).element.id)
+        assertEquals("card-2", (parts[2] as ConversationPart.Card).element.id)
+        assertEquals(listOf("Wide", "Narrow"), (parts[3] as ConversationPart.Suggestions).prompts)
+    }
+
+    @Test
+    fun `parseConversationData orders text elements between cards`() {
+        val json = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "Here are some shoes:\n\nWhat width do you need?",
+                        "multimodalElements": {
+                          "elements": [
+                            { "type": "text", "text": "Here are some shoes:" },
+                            { "id": "card-1", "entity_info": { "productName": "Shoe One" } },
+                            { "type": "text", "text": "What width do you need?" }
+                          ]
+                        },
+                        "promptSuggestions": ["Wide"]
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val parts = ConversationResponseParser.parseConversationData(json)[0].parts
+
+        assertEquals(4, parts.size)
+        assertEquals("Here are some shoes:", (parts[0] as ConversationPart.Text).text)
+        assertEquals("card-1", (parts[1] as ConversationPart.Card).element.id)
+        assertEquals("What width do you need?", (parts[2] as ConversationPart.Text).text)
+        assertEquals(listOf("Wide"), (parts[3] as ConversationPart.Suggestions).prompts)
+    }
 }
-
-

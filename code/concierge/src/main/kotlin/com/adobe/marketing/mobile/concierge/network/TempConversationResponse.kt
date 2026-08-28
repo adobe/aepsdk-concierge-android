@@ -95,6 +95,20 @@ internal sealed class ParsedMultimodalItem {
 }
 
 /**
+ * A single renderable part of an agent response, held in the order the backend sent it.
+ *
+ * The backend may interleave text and data parts (e.g. text, product cards, a follow-up
+ * question, then prompt suggestions). [ParsedConversationMessage.parts] preserves that order
+ * so the UI renders parts as sent rather than grouping all text ahead of all elements.
+ */
+internal sealed class ConversationPart {
+    data class Text(val text: String) : ConversationPart()
+    data class Card(val element: MultimodalElement) : ConversationPart()
+    data class Cta(val button: CtaButton) : ConversationPart()
+    data class Suggestions(val prompts: List<String>) : ConversationPart()
+}
+
+/**
  * Multimodal elements for rich content
  */
 internal data class MultimodalElement(
@@ -155,7 +169,34 @@ internal data class ParsedConversationMessage(
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val orderedElements: List<ParsedMultimodalItem> = emptyList(),
+    /**
+     * The response's renderable parts in backend order. The parser always supplies this
+     * explicitly; the default derives the equivalent list from the flattened fields above so
+     * instances built by hand (tests, locally synthesized messages) behave the same.
+     */
+    val parts: List<ConversationPart> = legacyParts(messageContent, orderedElements, promptSuggestions),
     val sources: List<Citation> = emptyList(),
     val feedbackEligible: Boolean = false,
     val linkHints: List<LinkHint> = emptyList()
 )
+
+/**
+ * Derives the ordered part list from the flattened response fields: text first, then elements in
+ * their original order, then prompt suggestions.
+ */
+private fun legacyParts(
+    messageContent: String,
+    orderedElements: List<ParsedMultimodalItem>,
+    promptSuggestions: List<String>
+): List<ConversationPart> {
+    val parts = mutableListOf<ConversationPart>()
+    if (messageContent.isNotEmpty()) parts.add(ConversationPart.Text(messageContent))
+    orderedElements.forEach { item ->
+        when (item) {
+            is ParsedMultimodalItem.Card -> parts.add(ConversationPart.Card(item.element))
+            is ParsedMultimodalItem.Cta -> parts.add(ConversationPart.Cta(item.button))
+        }
+    }
+    if (promptSuggestions.isNotEmpty()) parts.add(ConversationPart.Suggestions(promptSuggestions))
+    return parts
+}

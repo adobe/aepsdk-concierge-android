@@ -19,9 +19,11 @@ import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConversationPart
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
+import com.adobe.marketing.mobile.concierge.network.PaaProductCardFixtures
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
@@ -61,6 +63,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -1409,6 +1412,119 @@ class ConciergeChatViewModelTest {
         verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
         assertNull(vm.webviewOverlay.value)
     }
+
+    @Test
+    fun `parts render in the order sent with text between cards`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val card = MultimodalElement(id = "card-1")
+
+        every { chatClient.chat("Shoes") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "",
+                state = ConversationState.COMPLETED,
+                parts = listOf(
+                    ConversationPart.Text("Here are some shoes:"),
+                    ConversationPart.Card(card),
+                    ConversationPart.Text("What width do you need?"),
+                    ConversationPart.Suggestions(listOf("Wide", "Narrow"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Shoes"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + intro text + cards + follow-up text = 4
+        assertEquals(4, messages.size)
+        assertEquals("Here are some shoes:", (messages[1].content as MessageContent.Text).text)
+        val cards = messages[2].content as MessageContent.Mixed
+        assertEquals(listOf("card-1"), cards.multimodalElements?.map { it.id })
+        assertEquals("What width do you need?", (messages[3].content as MessageContent.Text).text)
+        // suggestions belong to the last part of the turn, below the follow-up question
+        assertEquals(listOf("Wide", "Narrow"), messages[3].promptSuggestions)
+    }
+
+    @Test
+    fun `card groups separated by text render separately with distinct keys`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat("Shoes") } returns flow {
+            emit(ParsedConversationMessage(
+                messageContent = "",
+                state = ConversationState.COMPLETED,
+                parts = listOf(
+                    ConversationPart.Card(MultimodalElement(id = "card-1")),
+                    ConversationPart.Text("And a few more:"),
+                    ConversationPart.Card(MultimodalElement(id = "card-2"))
+                )
+            ))
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("Shoes"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + first carousel + text + second carousel = 4
+        assertEquals(4, messages.size)
+        val first = messages[1].content as MessageContent.Mixed
+        val second = messages[3].content as MessageContent.Mixed
+        assertEquals(listOf("card-1"), first.multimodalElements?.map { it.id })
+        assertEquals(listOf("card-2"), second.multimodalElements?.map { it.id })
+        // both carousels have empty text and can share a timestamp, so they need distinct ids
+        // to survive as LazyColumn keys
+        assertNotEquals(messages[1].id, messages[3].id)
+    }
+
+    @Test
+    fun `mocked product card response with positioned text renders the follow-up below the cards`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat(any()) } returns flow {
+            PaaProductCardFixtures.interleavedParsedMessages().forEach { emit(it) }
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("running shoes size 9"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + intro text + carousel + follow-up question = 4
+        assertEquals(4, messages.size)
+        assertEquals(PaaProductCardFixtures.INTRO_TEXT, (messages[1].content as MessageContent.Text).text)
+        assertEquals(
+            PaaProductCardFixtures.CARD_IDS,
+            (messages[2].content as MessageContent.Mixed).multimodalElements?.map { it.id }
+        )
+        assertEquals(PaaProductCardFixtures.FOLLOW_UP_TEXT, (messages[3].content as MessageContent.Text).text)
+        // suggestions sit directly below the follow-up question, which is the requested layout
+        assertEquals(PaaProductCardFixtures.SUGGESTIONS, messages[3].promptSuggestions)
+        assertTrue(messages[1].promptSuggestions.isEmpty())
+    }
+
+    @Test
+    fun `mocked product card response without positioned text strands the follow-up above the cards`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+
+        every { chatClient.chat(any()) } returns flow {
+            PaaProductCardFixtures.flattenedParsedMessages().forEach { emit(it) }
+        }
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.processEvent(ChatEvent.SendMessage("running shoes size 9"))
+        advanceUntilIdle()
+
+        val messages = vm.messages.value
+        // user + one text blob + carousel = 3; today's shape, pinned so a regression is visible
+        assertEquals(3, messages.size)
+        // the repeated in-progress payloads must not accumulate
+        assertEquals(PaaProductCardFixtures.FLATTENED_MESSAGE, (messages[1].content as MessageContent.Text).text)
+        assertEquals(PaaProductCardFixtures.SUGGESTIONS, messages[2].promptSuggestions)
+    }
 }
-
-

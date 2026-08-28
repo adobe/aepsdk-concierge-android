@@ -28,8 +28,8 @@ import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.network.ConversationPart
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
-import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -44,6 +44,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.DisclaimerClickedEvent
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
+import com.adobe.marketing.mobile.concierge.ui.state.ConversationPartsRenderer
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
@@ -741,8 +742,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    parsedMessage.orderedElements.isNotEmpty()
+                val hasVisibleContent = parsedMessage.hasRenderableContent()
                 if (!responseStartedDispatched && hasVisibleContent) {
                     responseStartedDispatched = true
                     dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
@@ -756,8 +756,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             ConversationState.COMPLETED -> {
                 // For COMPLETED state, replace content if there is text or ordered elements.
                 // If both are absent, keep existing streamed content and just transition to Idle.
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    parsedMessage.orderedElements.isNotEmpty()
+                val hasVisibleContent = parsedMessage.hasRenderableContent()
                 if (hasVisibleContent) {
                     replaceAssistantMessageContent(parsedMessage)
                 } else {
@@ -826,38 +825,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param parsedMessage The parsed message containing the final complete content
      */
     private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
-        if (parsedMessage.orderedElements.isNotEmpty()) {
-            if (parsedMessage.messageContent.isNotEmpty()) {
-                // Text + ordered elements: keep the text message, then append elements.
-                // Suppress interactionId (and thus feedback controls) when CTAs are present —
-                // service-intent responses are deterministic and don't warrant thumbs up/down.
-                val hasCtas = parsedMessage.orderedElements.any { it is ParsedMultimodalItem.Cta }
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Replacing with final Text message (${parsedMessage.messageContent.length} chars), then appending ${parsedMessage.orderedElements.size} ordered elements."
-                )
-                updateAssistantMessageContent(
-                    MessageContent.Text(parsedMessage.messageContent),
-                    emptyList(),
-                    parsedMessage.sources,
-                    interactionId = if (hasCtas) null else parsedMessage.interactionId,
-                    sseComplete = true,
-                    feedbackEligible = if (hasCtas) false else parsedMessage.feedbackEligible,
-                    linkHints = parsedMessage.linkHints
-                )
-            } else {
-                // No text, ordered elements only: remove the streaming placeholder so feedback
-                // controls don't appear on an empty bubble.
-                Log.debug(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "No text content, removing placeholder and appending ${parsedMessage.orderedElements.size} ordered elements."
-                )
-                removeLastAssistantPlaceholder()
-            }
-            appendOrderedElementMessages(parsedMessage.orderedElements, parsedMessage.promptSuggestions)
-        } else {
+        if (parsedMessage.needsOrderedRender()) {
+            renderOrderedParts(parsedMessage)        } else {
             // Legacy path: text-only or mixed message
             val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
                 MessageContent.Text(parsedMessage.messageContent)
@@ -889,50 +858,81 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
-     * Appends standalone messages for each ordered element.
-     * All cards are batched into one Mixed message at the position of the first Card element.
-     * Each CTA becomes its own CtaButton message.
+     * True when the response has something to show. Prompt suggestions alone are not content —
+     * they attach to a message rather than forming one — and blank text is the streaming
+     * placeholder rather than a rendered part.
      */
-    private fun appendOrderedElementMessages(
-        orderedElements: List<ParsedMultimodalItem>,
-        promptSuggestions: List<String> = emptyList()
-    ) {
-        val cardElements = orderedElements
-            .filterIsInstance<ParsedMultimodalItem.Card>()
-            .map { it.element }
-        var cardMessageAppended = false
+    private fun ParsedConversationMessage.hasRenderableContent(): Boolean =
+        parts.any { part ->
+            when (part) {
+                is ConversationPart.Text -> part.text.isNotBlank()
+                is ConversationPart.Suggestions -> false
+                else -> true
+            }
+        }
 
+    /**
+     * True when the response must be rendered as an ordered sequence of parts: it carries
+     * elements, or it carries more than one text part that the backend positioned itself.
+     */
+    private fun ParsedConversationMessage.needsOrderedRender(): Boolean =
+        parts.any { it is ConversationPart.Card || it is ConversationPart.Cta } ||
+            parts.count { it is ConversationPart.Text } > 1
+
+    /**
+     * Renders a response as one message per part, in the order the backend sent them.
+     *
+     * The streaming placeholder is reused for a leading text part so its footer (citations and
+     * feedback controls) stays where it is today; any other leading part means the placeholder
+     * has nothing to show and is removed. Prompt suggestions are not a message of their own —
+     * they attach to the final message of the turn so they always render last.
+     */
+    private fun renderOrderedParts(parsedMessage: ParsedConversationMessage) {
+        val renderables = ConversationPartsRenderer.buildRenderables(parsedMessage.parts)
+        val suggestions = ConversationPartsRenderer.suggestionsOf(parsedMessage.parts)
+        val hasCtas = parsedMessage.parts.any { it is ConversationPart.Cta }
+
+        val cardElements = parsedMessage.parts.filterIsInstance<ConversationPart.Card>().map { it.element }
         if (cardElements.isNotEmpty()) {
             val displayMode = if (cardElements.size == 1) "single" else "carousel"
             val elementDicts = cardElements.map { element -> buildCardElementDict(element.content) }
             dispatchTrackingEvent(ConciergeTrackingEvent.CardsRendered(displayMode, elementDicts))
         }
 
-        for (element in orderedElements) {
-            when (element) {
-                is ParsedMultimodalItem.Cta -> {
-                    val ctaMessage = ChatMessage(
-                        content = MessageContent.CtaButton(element.button),
-                        isFromUser = false,
-                        timestamp = System.currentTimeMillis(),
-                        sseComplete = true
-                    )
-                    _messages.update { it + ctaMessage }
-                }
-                is ParsedMultimodalItem.Card -> {
-                    if (!cardMessageAppended) {
-                        cardMessageAppended = true
-                        val cardMessage = ChatMessage(
-                            content = MessageContent.Mixed(text = "", multimodalElements = cardElements),
-                            isFromUser = false,
-                            timestamp = System.currentTimeMillis(),
-                            sseComplete = true,
-                            promptSuggestions = promptSuggestions
-                        )
-                        _messages.update { it + cardMessage }
-                    }
-                }
-            }
+        Log.debug(
+            ConciergeConstants.EXTENSION_NAME,
+            TAG,
+            "Rendering ${renderables.size} ordered parts from ${parsedMessage.parts.size} response parts."
+        )
+
+        val leadingText = renderables.firstOrNull() as? MessageContent.Text
+        if (leadingText != null) {
+            // Suppress interactionId (and thus feedback controls) when CTAs are present —
+            // service-intent responses are deterministic and don't warrant thumbs up/down.
+            updateAssistantMessageContent(
+                leadingText,
+                promptSuggestions = if (renderables.size == 1) suggestions else emptyList(),
+                sources = parsedMessage.sources,
+                interactionId = if (hasCtas) null else parsedMessage.interactionId,
+                sseComplete = true,
+                feedbackEligible = if (hasCtas) false else parsedMessage.feedbackEligible,
+                linkHints = parsedMessage.linkHints
+            )
+        } else {
+            // No leading text: the placeholder would render as an empty thinking bubble.
+            removeLastAssistantPlaceholder()
+        }
+
+        val remaining = if (leadingText != null) renderables.drop(1) else renderables
+        remaining.forEachIndexed { index, content ->
+            val message = ChatMessage(
+                content = content,
+                isFromUser = false,
+                timestamp = System.currentTimeMillis(),
+                sseComplete = true,
+                promptSuggestions = if (index == remaining.lastIndex) suggestions else emptyList()
+            )
+            _messages.update { it + message }
         }
     }
 

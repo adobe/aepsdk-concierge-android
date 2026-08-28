@@ -83,11 +83,15 @@ internal class SSEParser {
             reader.useLines { lines ->
                 lines.forEach { line ->
                     try {
-                        Log.debug(
-                            ConciergeConstants.EXTENSION_NAME,
-                            TAG,
-                            "SSE raw line: $line"
-                        )
+                        // Chunked at verbose: a single data line carries the whole payload and
+                        // is routinely longer than the platform's per-line log limit.
+                        ConversationDiagnostics.chunk(line).forEach { chunk ->
+                            Log.trace(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "SSE raw line: $chunk"
+                            )
+                        }
                         val events = feed(line)
                         events.forEach { sseEvent ->
                             emit(convertToStreamingEvent(sseEvent))

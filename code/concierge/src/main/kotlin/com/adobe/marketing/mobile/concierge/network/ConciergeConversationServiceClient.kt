@@ -97,19 +97,28 @@ internal class ConciergeConversationServiceClient(
 
         val connection = connect(request)
         var eventOrDataReceived = false
+        val diagnostics = ConversationDiagnostics()
 
         processResponse(connection).collect { event ->
             when (event) {
                 is StreamingEvent.EventReceived -> {
+                    logRawPayload(event.data)
                     val parsed = ConversationResponseParser.parseConversationData(event.data)
                     eventOrDataReceived = true
-                    parsed.forEach { emit(it) }
+                    parsed.forEach {
+                        logPayloadShape(diagnostics, it)
+                        emit(it)
+                    }
                 }
 
                 is StreamingEvent.DataReceived -> {
+                    logRawPayload(event.data)
                     val parsed = ConversationResponseParser.parseConversationData(event.data)
                     eventOrDataReceived = true
-                    parsed.forEach { emit(it) }
+                    parsed.forEach {
+                        logPayloadShape(diagnostics, it)
+                        emit(it)
+                    }
                 }
 
                 is StreamingEvent.Closed -> {
@@ -131,6 +140,24 @@ internal class ConciergeConversationServiceClient(
             }
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Logs the full raw payload at verbose, split into numbered chunks so nothing is lost to the
+     * platform's per-line log limit.
+     */
+    private fun logRawPayload(data: String) {
+        ConversationDiagnostics.chunk(data).forEach { chunk ->
+            Log.trace(ConciergeConstants.EXTENSION_NAME, TAG, "SSE payload $chunk")
+        }
+    }
+
+    /**
+     * Logs a one-line structural summary of a payload: its state, how its text relates to the
+     * previous payload's, and the kinds of parts it carries, in order.
+     */
+    private fun logPayloadShape(diagnostics: ConversationDiagnostics, parsed: ParsedConversationMessage) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "SSE shape: ${diagnostics.describe(parsed)}")
+    }
 
     /**
      * Creates the JSON request body for the conversation request.

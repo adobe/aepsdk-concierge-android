@@ -71,9 +71,7 @@ internal fun MessageList(
             // Show messages in chronological order (oldest first, newest last)
             itemsIndexed(
                 items = messages,
-                key = { _, message ->
-                    message.interactionId ?: "${message.timestamp}:${message.isFromUser}:${message.text.hashCode()}"
-                }
+                key = { _, message -> message.id }
             ) { index, message ->
                 // If the last item is an assistant message immediately following the latest user message,
                 // set its minimum height to the parent height so the response "fills the screen",

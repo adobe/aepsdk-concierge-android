@@ -1088,4 +1088,64 @@ class ConciergeConversationServiceClientTest {
 
     private fun toSse(json: String): String =
         json.lines().joinToString("\n") { "data: $it" } + "\n\n"
+
+    private fun partKinds(parts: List<ConversationPart>): List<String> = parts.map { part ->
+        when (part) {
+            is ConversationPart.Text -> "Text"
+            is ConversationPart.Card -> "Card"
+            is ConversationPart.Cta -> "Cta"
+            is ConversationPart.Suggestions -> "Suggestions"
+        }
+    }
+
+    private suspend fun streamThrough(sse: String): List<ParsedConversationMessage> {
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(sse.toByteArray(StandardCharsets.UTF_8))
+        every { networkService.connectAsync(any(), any()) } answers {
+            secondArg<NetworkCallback>().call(connection)
+        }
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        return client.chat("running shoes size 9").toList()
+    }
+
+    @Test
+    fun `mocked product card stream with positioned text yields parts in backend order`() = runTest {
+        val emitted = streamThrough(PaaProductCardFixtures.interleavedStream())
+
+        val completed = emitted.last()
+        assertEquals(ConversationState.COMPLETED, completed.state)
+        assertEquals(
+            listOf("Text", "Card", "Card", "Card", "Card", "Text", "Suggestions"),
+            partKinds(completed.parts)
+        )
+        assertEquals(
+            PaaProductCardFixtures.INTRO_TEXT,
+            (completed.parts.first() as ConversationPart.Text).text
+        )
+        assertEquals(
+            PaaProductCardFixtures.FOLLOW_UP_TEXT,
+            (completed.parts[5] as ConversationPart.Text).text
+        )
+        assertEquals(
+            PaaProductCardFixtures.CARD_IDS,
+            completed.parts.filterIsInstance<ConversationPart.Card>().map { it.element.id }
+        )
+    }
+
+    @Test
+    fun `mocked product card stream without positioned text keeps the single flattened text part`() = runTest {
+        val emitted = streamThrough(PaaProductCardFixtures.flattenedStream())
+
+        val completed = emitted.last()
+        assertEquals(
+            listOf("Text", "Card", "Card", "Card", "Card", "Suggestions"),
+            partKinds(completed.parts)
+        )
+        // The follow-up question is stranded inside the leading text blob — the defect the
+        // positioned-text contract exists to fix.
+        val leadingText = (completed.parts.first() as ConversationPart.Text).text
+        assertTrue(leadingText.endsWith(PaaProductCardFixtures.FOLLOW_UP_TEXT))
+    }
 }

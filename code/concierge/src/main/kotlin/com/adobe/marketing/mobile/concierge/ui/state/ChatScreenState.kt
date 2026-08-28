@@ -19,6 +19,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import java.util.UUID
 
 /**
  * Enum representing feedback sentiment type
@@ -187,7 +188,14 @@ internal data class ChatMessage(
     val feedbackState: FeedbackState = FeedbackState.None,
     val ctaButton: NetworkCtaButton? = null,
     val feedbackEligible: Boolean = false,
-    val linkHints: List<LinkHint> = emptyList()
+    val linkHints: List<LinkHint> = emptyList(),
+    /**
+     * Stable identity for this message, used as the list key. A single agent turn can produce
+     * several messages (text, carousels, CTAs) that share a timestamp and may have identical
+     * text, so content-derived keys are not unique. Preserved across `copy(...)` so streaming
+     * updates keep the same list item.
+     */
+    val id: String = UUID.randomUUID().toString()
 ) {
     val text: String
         get() = when (content) {

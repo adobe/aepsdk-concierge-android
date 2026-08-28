@@ -73,6 +73,8 @@ internal object ConversationResponseParser {
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
     private const val FIELD_PRODUCT_BADGE = "productBadge"
     private const val ELEMENT_TYPE_CTA_BUTTON = "ctaButton"
+    private const val ELEMENT_TYPE_TEXT = "text"
+    private const val FIELD_TEXT = "text"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -147,7 +149,8 @@ internal object ConversationResponseParser {
         val promptSuggestions = (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
             ?: emptyList()).filter { it.isNotEmpty() }
 
-        val orderedElements = extractOrderedElements(response)
+        val elementParts = extractElementParts(response)
+        val orderedElements = toLegacyItems(elementParts)
         val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
         val feedbackInfo = DataReader.optTypedMap(Any::class.java, response, FIELD_FEEDBACK, null)
@@ -156,6 +159,7 @@ internal object ConversationResponseParser {
         val linkHints = extractLinkHints(response)
 
         return ParsedConversationMessage(
+            parts = buildParts(message, elementParts, promptSuggestions),
             messageContent = message,
             state = state,
             conversationId = conversationId,
@@ -170,11 +174,46 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts ordered elements from the response, preserving original array position.
-     * Each element is parsed as either a [ParsedMultimodalItem.Cta] (for ctaButton elements)
-     * or a [ParsedMultimodalItem.Card] (for all other element types).
+     * Builds the ordered part list for a response.
+     *
+     * Today's payload carries a single `message` string alongside a separate element array, so
+     * text can only ever lead. The order within [orderedElements] is preserved, and prompt
+     * suggestions always trail the response.
      */
-    private fun extractOrderedElements(response: Map<String, Any?>): List<ParsedMultimodalItem> {
+    private fun buildParts(
+        message: String,
+        elementParts: List<ConversationPart>,
+        promptSuggestions: List<String>
+    ): List<ConversationPart> {
+        val parts = mutableListOf<ConversationPart>()
+        // When the response carries text elements it is authoritative about ordering, and
+        // `message` is only a flattened copy kept for older clients — ignore it to avoid
+        // rendering the same text twice.
+        val textIsPositioned = elementParts.any { it is ConversationPart.Text }
+        if (!textIsPositioned && message.isNotEmpty()) parts.add(ConversationPart.Text(message))
+        parts.addAll(elementParts)
+        if (promptSuggestions.isNotEmpty()) parts.add(ConversationPart.Suggestions(promptSuggestions))
+        return parts
+    }
+
+    /**
+     * Maps element parts back to the legacy card/CTA item list, dropping positioned text.
+     */
+    private fun toLegacyItems(elementParts: List<ConversationPart>): List<ParsedMultimodalItem> =
+        elementParts.mapNotNull { part ->
+            when (part) {
+                is ConversationPart.Card -> ParsedMultimodalItem.Card(part.element)
+                is ConversationPart.Cta -> ParsedMultimodalItem.Cta(part.button)
+                else -> null
+            }
+        }
+
+    /**
+     * Extracts element parts from the response, preserving original array position.
+     * Each element becomes a [ConversationPart.Cta] (ctaButton elements), a
+     * [ConversationPart.Text] (text elements) or a [ConversationPart.Card] (everything else).
+     */
+    private fun extractElementParts(response: Map<String, Any?>): List<ConversationPart> {
         val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
         if (multimodalRaw is List<*>) return emptyList()
         val multimodalMap = multimodalRaw as? Map<*, *> ?: return emptyList()
@@ -187,24 +226,37 @@ internal object ConversationResponseParser {
             null
         ) ?: return emptyList()
 
-        val items = mutableListOf<ParsedMultimodalItem>()
+        val items = mutableListOf<ConversationPart>()
         elementsList.forEachIndexed { i, elementMap ->
-            val elementType = DataReader.optString(elementMap, FIELD_TYPE, "")
-            if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
-                val ctaButton = parseCtaButton(elementMap)
-                if (ctaButton != null) {
-                    items.add(ParsedMultimodalItem.Cta(ctaButton))
-                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed CTA button ${i + 1}: label=${ctaButton.label}")
-                } else {
-                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse CTA button element ${i + 1}.")
+            when (DataReader.optString(elementMap, FIELD_TYPE, "")) {
+                ELEMENT_TYPE_CTA_BUTTON -> {
+                    val ctaButton = parseCtaButton(elementMap)
+                    if (ctaButton != null) {
+                        items.add(ConversationPart.Cta(ctaButton))
+                        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed CTA button ${i + 1}: label=${ctaButton.label}")
+                    } else {
+                        Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse CTA button element ${i + 1}.")
+                    }
                 }
-            } else {
-                val element = parseMultimodalElement(elementMap)
-                if (element != null) {
-                    items.add(ParsedMultimodalItem.Card(element))
-                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed card element ${i + 1}: id=${element.id}")
-                } else {
-                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse card element ${i + 1}.")
+
+                ELEMENT_TYPE_TEXT -> {
+                    val text = DataReader.optString(elementMap, FIELD_TEXT, "")
+                    if (text.isNotEmpty()) {
+                        items.add(ConversationPart.Text(text))
+                        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed text element ${i + 1}: ${text.length} chars")
+                    } else {
+                        Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Skipping empty text element ${i + 1}.")
+                    }
+                }
+
+                else -> {
+                    val element = parseMultimodalElement(elementMap)
+                    if (element != null) {
+                        items.add(ConversationPart.Card(element))
+                        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed card element ${i + 1}: id=${element.id}")
+                    } else {
+                        Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse card element ${i + 1}.")
+                    }
                 }
             }
         }
