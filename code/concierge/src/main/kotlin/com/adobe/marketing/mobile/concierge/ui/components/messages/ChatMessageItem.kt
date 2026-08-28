@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.CtaButton
@@ -41,7 +42,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCar
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
-import com.adobe.marketing.mobile.concierge.ui.components.image.rememberLocalAssetBitmap
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -113,7 +114,7 @@ private fun RenderCtaButton(
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val rawIconName = ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() }
-    val hasCompanyIcon = rawIconName?.let { rememberLocalAssetBitmap(it) } != null
+    val hasCompanyIcon = rememberIsIconConfigured(rawIconName)
 
     CtaButton(
         cta = content.button,
@@ -139,8 +140,7 @@ private fun RenderTextMessage(
     val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
     val isThinking = message.isThinking
     val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
-    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
-    val companyIconName = if (iconBitmap != null) rawIconName else null
+    val companyIconName = rawIconName?.takeIf { rememberIsIconConfigured(it) }
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     if (companyIconName != null) {
@@ -254,6 +254,7 @@ private fun RenderTextMessageWithIcon(
                 modifier = Modifier
                     .padding(top = style.padding)
                     .size(style.agentIconSize)
+                    .testTag("MessageCompanyIcon")
             ) {
                 LocalAssetImage(
                     source = companyIconName,
@@ -334,8 +335,7 @@ private fun RenderMixedMessage(
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
     val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
-    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
-    val companyIconName = if (iconBitmap != null) rawIconName else null
+    val companyIconName = rawIconName?.takeIf { rememberIsIconConfigured(it) }
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     val hasText = content.text.isNotEmpty()

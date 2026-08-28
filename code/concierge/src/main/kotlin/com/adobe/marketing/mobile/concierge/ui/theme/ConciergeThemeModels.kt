@@ -103,6 +103,7 @@ internal fun ConciergeThemeConfig.toWelcomeConfig(
 data class ConciergeTextStrings(
     // Input
     val inputPlaceholder: String? = null,
+    val inputAiChatIconTooltip: String? = null,
 
     // Welcome
     val welcomeHeading: String? = null,

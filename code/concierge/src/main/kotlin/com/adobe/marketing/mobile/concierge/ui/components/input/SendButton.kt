@@ -16,6 +16,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -24,11 +25,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBackground
+
+/**
+ * The "arrow" style's up-arrow glyph is drawn smaller than its enclosing circle rather than
+ * filling it edge-to-edge. Applies only to the circle style -- the "default" (bare icon, no
+ * circle) style has nothing to leave a margin against, so its glyph fills its icon slot exactly
+ * like every other input-row icon (mic, clear, leading icon).
+ */
+private const val SEND_ARROW_ICON_SCALE = 2f / 3f
 
 /**
  * A send button for submitting chat messages.
@@ -52,6 +63,7 @@ internal fun SendButton(
         SendButtonArrow(
             modifier = modifier,
             isEnabled = isEnabled,
+            iconSize = style.size,
             circleColor = style.arrowCircleColor,
             circleGradient = style.arrowCircleGradient,
             arrowColor = style.arrowIconColor,
@@ -62,6 +74,7 @@ internal fun SendButton(
         SendButtonDefault(
             modifier = modifier,
             isEnabled = isEnabled,
+            iconSize = style.size,
             iconColor = style.enabledIconColor,
             disabledAlpha = style.disabledIconAlpha,
             onSend = onSend
@@ -76,6 +89,7 @@ internal fun SendButton(
 private fun SendButtonDefault(
     modifier: Modifier,
     isEnabled: Boolean,
+    iconSize: Dp,
     iconColor: Color,
     disabledAlpha: Float,
     onSend: () -> Unit
@@ -88,6 +102,9 @@ private fun SendButtonDefault(
         Image(
             painter = painterResource(R.drawable.send),
             contentDescription = "Send message",
+            modifier = Modifier
+                .size(iconSize)
+                .testTag("SendIconGlyph"),
             colorFilter = ColorFilter.tint(
                 if (isEnabled) iconColor
                 else iconColor.copy(alpha = disabledAlpha)
@@ -98,11 +115,17 @@ private fun SendButtonDefault(
 
 /**
  * Arrow send button — filled circle with upward arrow icon.
+ *
+ * [modifier] sizes the outer tap target (matching every other input-row icon's padded touch
+ * area), while the visible circle is centered inside it at exactly [iconSize] -- so the circle's
+ * visible size tracks the theme's icon-size knob without the invisible tap-target padding
+ * inflating it, mirroring how the mic/clear glyphs stay smaller than their own tap areas.
  */
 @Composable
 private fun SendButtonArrow(
     modifier: Modifier,
     isEnabled: Boolean,
+    iconSize: Dp,
     circleColor: Color,
     circleGradient: ConciergeGradient?,
     arrowColor: Color,
@@ -115,21 +138,31 @@ private fun SendButtonArrow(
 
     Box(
         modifier = modifier
-            .clip(CircleShape)
-            .then(
-                if (renderableGradient != null) Modifier.conciergeGradientBackground(renderableGradient, CircleShape)
-                else Modifier.background(bgColor)
-            )
             .then(
                 if (isEnabled) Modifier.clickable { onSend() }
                 else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.send_arrow),
-            contentDescription = "Send message",
-            colorFilter = ColorFilter.tint(arrowColor)
-        )
+        Box(
+            modifier = Modifier
+                .size(iconSize)
+                .clip(CircleShape)
+                .then(
+                    if (renderableGradient != null) Modifier.conciergeGradientBackground(renderableGradient, CircleShape)
+                    else Modifier.background(bgColor)
+                )
+                .testTag("SendIconGlyph"),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.send_arrow),
+                contentDescription = "Send message",
+                modifier = Modifier
+                    .size(iconSize * SEND_ARROW_ICON_SCALE)
+                    .testTag("SendArrowGlyph"),
+                colorFilter = ColorFilter.tint(arrowColor)
+            )
+        }
     }
 }

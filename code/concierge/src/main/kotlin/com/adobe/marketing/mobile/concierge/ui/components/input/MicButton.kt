@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -113,7 +114,7 @@ internal fun MicButton(
         label = "mic_pulse_anim"
     )
 
-    // When idle, push the mic glyph to the right edge of the 56dp tap area so the visible icon
+    // When idle, push the mic glyph to the right edge of the tap area so the visible icon
     // hugs the panel's right edge (matches the visual rhythm of the typing-state send button).
     // While recording we keep it centered in its slot next to the stop button.
     val contentAlignment = if (isRecording) Alignment.Center else Alignment.CenterEnd
@@ -167,7 +168,8 @@ internal fun MicButton(
             } else {
                 GradientTintableIcon(
                     tint = tintColor,
-                    gradient = dimIfDisabled(style.iconGradient, isEnabled)
+                    gradient = dimIfDisabled(style.iconGradient, isEnabled),
+                    iconSize = iconSize
                 )
             }
         }
@@ -182,13 +184,15 @@ internal fun MicButton(
  * blend is confined to the glyph's own alpha instead of the whole draw surface).
  */
 @Composable
-private fun GradientTintableIcon(tint: Color, gradient: ConciergeGradient?) {
+private fun GradientTintableIcon(tint: Color, gradient: ConciergeGradient?, iconSize: Dp) {
     if (gradient?.isRenderable == true) {
         Image(
             painter = painterResource(R.drawable.microphone),
             contentDescription = null,
             colorFilter = ColorFilter.tint(Color.White),
             modifier = Modifier
+                .size(iconSize)
+                .testTag("MicIconGlyph")
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithCache {
                     val brush = gradient.toBrush(size)
@@ -202,6 +206,9 @@ private fun GradientTintableIcon(tint: Color, gradient: ConciergeGradient?) {
         Image(
             painter = painterResource(R.drawable.microphone),
             contentDescription = null,
+            modifier = Modifier
+                .size(iconSize)
+                .testTag("MicIconGlyph"),
             colorFilter = ColorFilter.tint(tint)
         )
     }

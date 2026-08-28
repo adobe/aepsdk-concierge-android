@@ -12,12 +12,20 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import org.junit.Rule
 import org.junit.Test
 
@@ -189,6 +197,192 @@ class InputActionButtonsTest {
 
         assert(!voiceCancelCalled) { "onVoiceCancel must not fire when the mic animation is tapped during recording" }
         assert(!micPressedCalled) { "onMicPressed must not fire when the mic animation is tapped during recording" }
+    }
+
+    @Test
+    fun inputActionButtons_micIconGlyph_resizesWithInputButtonHeight() {
+        // Regression test: the mic glyph (GradientTintableIcon) previously had no explicit size
+        // modifier, so it stayed at its drawable's intrinsic size even though the outer
+        // IconButton container correctly resized -- the override had no visible effect.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 50.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // The glyph sits inside the button's merged semantics node, so it is only addressable
+        // in the unmerged tree.
+        composeTestRule.onNodeWithTag("MicIconGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(50.dp)
+    }
+
+    @Test
+    fun inputActionButtons_sendIconGlyph_resizesWithInputButtonHeight() {
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 50.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // The glyph sits inside the button's merged semantics node, so it is only addressable
+        // in the unmerged tree.
+        composeTestRule.onNodeWithTag("SendIconGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(50.dp)
+    }
+
+    @Test
+    fun inputActionButtons_clearIconGlyph_resizesWithInputButtonHeight() {
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 50.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // The glyph sits inside the button's merged semantics node, so it is only addressable
+        // in the unmerged tree.
+        composeTestRule.onNodeWithTag("ClearIconGlyph", useUnmergedTree = true)
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(50.dp)
+    }
+
+    @Test
+    fun inputActionButtons_clearButtonContainer_resizesWithInputButtonHeight() {
+        // The tap-target container was pinned at 56dp while only the glyph scaled, so an icon size
+        // above 56dp overflowed its own container. The container must grow with the glyph instead.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Clear input"))
+            .assertWidthIsEqualTo(112.dp)
+            .assertHeightIsEqualTo(112.dp)
+    }
+
+    @Test
+    fun inputActionButtons_clearButtonContainer_defaultsTo56dp() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Clear input"))
+            .assertWidthIsEqualTo(56.dp)
+            .assertHeightIsEqualTo(56.dp)
+    }
+
+    @Test
+    fun inputActionButtons_sendButtonContainer_resizesWithInputButtonHeight() {
+        // Regression test: Send's tap target was left at the bare glyph size while mic/clear/
+        // leading-icon were migrated to the padded container, making Send inconsistent with its row
+        // neighbors at large configured icon sizes.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Send message"))
+            .assertWidthIsEqualTo(112.dp)
+            .assertHeightIsEqualTo(112.dp)
+    }
+
+    @Test
+    fun inputActionButtons_sendButtonContainer_defaultsTo56dp() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Empty,
+                    text = "Hello",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNode(hasContentDescription("Send message"))
+            .assertWidthIsEqualTo(56.dp)
+            .assertHeightIsEqualTo(56.dp)
     }
 
     @Test

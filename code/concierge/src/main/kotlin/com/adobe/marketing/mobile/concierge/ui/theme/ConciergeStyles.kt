@@ -880,6 +880,30 @@ internal object ConciergeStyles {
     )
 
     /**
+     * Shared icon size for every icon in the input row -- leading AI-chat icon, clear (x), mic,
+     * send, and stop-recording -- a single knob matching iOS's `theme.layout.inputButtonWidth`/
+     * `inputButtonHeight`. Either CSS key alone is enough to override the default; width wins when
+     * both are set, since these icons are always rendered square.
+     */
+    val inputRowIconSize: Dp
+        @Composable get() {
+            val cssLayout = ConciergeTheme.tokens?.cssLayout
+            return (cssLayout?.inputButtonWidth ?: cssLayout?.inputButtonHeight)?.dp ?: 24.dp
+        }
+
+    /**
+     * Per-icon touch-target padding for the input row.
+     */
+    private val INPUT_ROW_ICON_PADDING = 16.dp
+
+    /**
+     * Tap-target container for every icon in the input row. Derived from [inputRowIconSize] plus
+     * [INPUT_ROW_ICON_PADDING] on each side.
+     */
+    val inputRowIconContainerSize: Dp
+        @Composable get() = inputRowIconSize + (INPUT_ROW_ICON_PADDING * 2)
+
+    /**
      * Styling for microphone button
      */
     @Immutable
@@ -903,7 +927,7 @@ internal object ConciergeStyles {
             val micIconColor = themeColors.micIconColor ?: micColor
             val pulsingBackgroundEnabled = ConciergeTheme.behavior?.enableMicPulseBackground ?: true
             return MicButtonStyle(
-                size = 24.dp,
+                size = inputRowIconSize,
                 iconColor = micIconColor,
                 iconGradient = themeColors.micIconGradient,
                 recordingIconColor = themeColors.micRecordingIconColor
@@ -936,7 +960,7 @@ internal object ConciergeStyles {
             val themeColors = ConciergeTheme.colors
             val sendButtonStyleName = ConciergeTheme.behavior?.sendButtonStyle ?: "default"
             return SendButtonStyle(
-                size = 24.dp,
+                size = inputRowIconSize,
                 enabledIconColor = themeColors.sendIconColor ?: themeColors.onSurface,
                 arrowCircleColor = themeColors.sendArrowBackgroundColor ?: themeColors.sendIconColor ?: themeColors.primary,
                 arrowCircleGradient = themeColors.sendArrowBackgroundGradient,

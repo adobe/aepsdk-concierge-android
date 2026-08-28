@@ -290,7 +290,7 @@ Feature toggles and interaction configuration.
 | `behavior.input.enableVoiceInput` | boolean | `false` | Enable voice input button |
 | `behavior.input.sendButtonStyle` | string | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | boolean | `true` | Disable multiline text input |
-| `behavior.input.showAiChatIcon` | object | `null` | AI chat icon configuration (JSON object). Present in shared theme JSON for web/iOS; ignored by the Android SDK. |
+| `behavior.input.showAiChatIcon` | object | `null` | Leading icon shown before the text field in the input bar. Object with an `icon` property: a local asset basename under `assets/icons/` or an absolute `http(s)` URL — same resolution rules as `citations.phoneIcon`/`storeIcon`. `null` or an empty `icon` hides it. Tooltip/content description is set via `text["input.aiChatIcon.tooltip"]`. |
 | `behavior.input.enableMicPulseBackground` | boolean | `true` | Shows a pulsing colored disc behind the mic/waveform icon while recording. Set to `false` for a bare waveform with no disc, rendered directly on the input background. |
 
 ### Chat
@@ -363,7 +363,9 @@ Feature toggles and interaction configuration.
       "enableVoiceInput": true,
       "sendButtonStyle": "default",
       "disableMultiline": false,
-      "showAiChatIcon": null
+      "showAiChatIcon": {
+        "icon": "ai-assistant-icon"
+      }
     },
     "chat": {
       "messageAlignment": "left",
@@ -801,8 +803,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--input-outline-width` | `cssLayout.inputOutlineWidth` | `Double` | `2.0` | Input border width (dp) |
 | `--input-focus-outline-width` | `cssLayout.inputFocusOutlineWidth` | `Double` | `2.0` | Focused input border width (dp) |
 | `--input-font-size` | `cssLayout.inputFontSize` | `Double` | `16.0` | Input text font size (sp) |
-| `--input-button-height` | `cssLayout.inputButtonHeight` | `Double` | `32.0` | Input button height (dp) |
-| `--input-button-width` | `cssLayout.inputButtonWidth` | `Double` | `32.0` | Input button width (dp) |
+| `--input-button-height` | `cssLayout.inputButtonHeight` | `Double` | `24.0` | Shared icon size (dp) for every icon in the input row: leading AI-chat icon, clear (x), mic, send, and stop-recording. Either this or `--input-button-width` alone is enough to override the default; when both are set, width wins. |
+| `--input-button-width` | `cssLayout.inputButtonWidth` | `Double` | `24.0` | See `--input-button-height` — same shared input-row icon size, preferred over height when both are set. |
 | `--input-button-border-radius` | `cssLayout.inputButtonBorderRadius` | `Double` | `8.0` | Input button corner radius (dp) |
 | `--input-box-shadow` | `cssLayout.inputBoxShadow` | `Map<String, Any>` | `null` | Input field shadow |
 
@@ -974,7 +976,9 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
       "enableVoiceInput": true,
       "sendButtonStyle": "default",
       "disableMultiline": false,
-      "showAiChatIcon": null
+      "showAiChatIcon": {
+        "icon": "ai-assistant-icon"
+      }
     },
     "chat": {
       "messageAlignment": "left",
@@ -1292,7 +1296,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
-| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.showAiChatIcon` | ✅ | Rendered as a leading icon before the text field | `ChatInputPanel` |
 | `behavior.input.enableMicPulseBackground` | ✅ | Shows/hides the pulsing colored disc behind the mic/waveform icon while recording | `MicButton` |
 | `behavior.chat.messageAlignment` | ✅ | `"start"` (default, full-width), `"center"`, or `"end"` alignment for agent message bubbles | `ChatMessageItem` |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
@@ -1322,7 +1326,7 @@ This section documents which properties are fully implemented, partially impleme
 | `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
 | `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
-| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but not implemented | - |
+| `text["input.aiChatIcon.tooltip"]` | ✅ | Used as the content description for the leading input icon | `ChatInputPanel` |
 | `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
@@ -1483,8 +1487,8 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-outline-width` | ✅ | Input field border width | `ChatInputPanel` |
 | `--input-focus-outline-width` | ✅ | Input field focused border width | `ChatInputPanel` |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
-| `--input-button-height` | ⚠️ | Parsed but not used in composables | - |
-| `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
+| `--input-button-height` | ✅ | Sizes every input-row icon (leading AI-chat icon, clear, mic, send, stop-recording) | `ConciergeStyles.inputRowIconSize` |
+| `--input-button-width` | ✅ | Sizes every input-row icon (leading AI-chat icon, clear, mic, send, stop-recording) | `ConciergeStyles.inputRowIconSize` |
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
 | `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
