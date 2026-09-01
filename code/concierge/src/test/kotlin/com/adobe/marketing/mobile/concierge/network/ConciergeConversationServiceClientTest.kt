@@ -11,6 +11,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenHolder
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
@@ -1163,9 +1164,139 @@ class ConciergeConversationServiceClientTest {
         )
     }
 
+    // ========== Auth Token Data Part Tests ==========
+
+    @Test
+    fun `chat request carries the auth token as a data part inside query conversation`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Auth data part should sit alongside the message in query.conversation",
+            body.contains("\"message\":\"hello\",\"data\":{\"type\":\"auth\",\"payload\":{\"token\":\"token-abc\"}}")
+        )
+    }
+
+    @Test
+    fun `chat request omits the data part entirely when no token is available`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider { null }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertFalse("No data part should be present", body.contains("\"data\""))
+        assertFalse("No auth type should be present", body.contains("\"auth\""))
+    }
+
+    @Test
+    fun `feedback request carries the auth token as a data part inside xdm conversation`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.sendFeedback(
+            Feedback(interactionId = "turn-1", feedbackType = FeedbackType.POSITIVE)
+        )
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Auth data part should follow turnID in xdm.conversation",
+            body.contains("\"turnID\":\"turn-1\",\"data\":{\"type\":\"auth\",\"payload\":{\"token\":\"token-abc\"}}")
+        )
+    }
+
+    @Test
+    fun `feedback request omits the data part entirely when no token is available`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider { null }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.sendFeedback(
+            Feedback(interactionId = "turn-1", feedbackType = FeedbackType.POSITIVE)
+        )
+
+        val body = capturedBody(requestSlot)
+        assertFalse("No data part should be present", body.contains("\"data\""))
+        assertFalse("No auth type should be present", body.contains("\"auth\""))
+    }
+
+    @Test
+    fun `auth token containing JSON control characters is escaped in the request body`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider { """a"b\c""" }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Quote and backslash should be escaped",
+            body.contains("""{"token":"a\"b\\c"}""")
+        )
+    }
+
+    @Test
+    fun `auth token is never sent as a request header`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val headers = requestSlot.captured.headers
+        assertFalse(
+            "Authorization header must never be set",
+            headers.keys.any { it.equals("Authorization", ignoreCase = true) }
+        )
+        assertFalse(
+            "Token value must never appear in any header",
+            headers.values.any { it.contains("token-abc") }
+        )
+    }
+
+    @Test
+    fun `auth token is resolved once per turn rather than cached across turns`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        var resolveCount = 0
+        ConciergeAuthTokenHolder.setProvider {
+            resolveCount++
+            "token-$resolveCount"
+        }
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+        assertTrue(capturedBody(requestSlot).contains("\"token\":\"token-1\""))
+
+        client.chat("hello").toList()
+        assertTrue(capturedBody(requestSlot).contains("\"token\":\"token-2\""))
+
+        assertEquals(2, resolveCount)
+    }
+
     @After
     fun tearDown() {
         unmockkStatic(ServiceProvider::class)
+        ConciergeAuthTokenHolder.setProvider(null)
     }
 
     private fun toSse(json: String): String =

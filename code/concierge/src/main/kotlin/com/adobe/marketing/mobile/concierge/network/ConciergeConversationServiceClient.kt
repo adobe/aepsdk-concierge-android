@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenHolder
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
@@ -133,17 +134,40 @@ internal class ConciergeConversationServiceClient(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Escapes backslashes and double quotes so a value can be embedded in a JSON string literal.
+     * Resolves the app-supplied auth token and renders it as the trailing `data` part of the
+     * enclosing object, including the leading comma that separates it from the preceding key.
+     *
+     * Returns an empty string when no token is available, so that the `data` key is omitted from
+     * the payload entirely rather than sent as null or empty.
      */
-    private fun String.escapedForJson(): String =
-        replace("\\", "\\\\").replace("\"", "\\\"")
+    private fun authDataPartSuffix(): String {
+        val token = ConciergeAuthTokenHolder.resolveToken() ?: return ""
+        return ""","data": {"type": "auth", "payload": {"token": "${token.escapedForJson()}"}}"""
+    }
+
+    /**
+     * Escapes a value so it can be embedded in a JSON string literal.
+     */
+    private fun String.escapedForJson(): String = buildString(length) {
+        for (c in this@escapedForJson) {
+            when {
+                c == '\\' -> append("\\\\")
+                c == '"' -> append("\\\"")
+                c == '\n' -> append("\\n")
+                c == '\r' -> append("\\r")
+                c == '\t' -> append("\\t")
+                c.code < 0x20 -> append("\\u%04x".format(c.code))
+                else -> append(c)
+            }
+        }
+    }
 
     /**
      * Creates the JSON request body for the conversation request.
      */
     private fun createRequestBody(message: String, state: ConciergeState): String {
         val surfaces = state.surfaces
-        check(surfaces.isNotEmpty()) {
+        check(surfaces.any { it.isNotBlank() }) {
             "Unable to create Concierge request payload. No surfaces were provided."
         }
         return """
@@ -152,20 +176,20 @@ internal class ConciergeConversationServiceClient(
                 {
                     "meta": {
                          "consent": {
-                            "state": "${state.consent}"
+                            "state": "${state.consent?.escapedForJson() ?: "null"}"
                         }
                     },
                     "query": {
                         "conversation": {
                             "surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }},
-                            "message": "${message.escapedForJson()}"
+                            "message": "${message.escapedForJson()}"${authDataPartSuffix()}
                         }
                     },
                     "xdm": {
                         "identityMap": {
                             "ECID": [
                                 {
-                                    "id": "${state.experienceCloudId}"
+                                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
                                 }
                             ]
                         }
@@ -368,7 +392,7 @@ internal class ConciergeConversationServiceClient(
         }
 
         val conversationIdLine = feedback.conversationId?.let {
-            """"conversationID": "$it","""
+            """"conversationID": "${it.escapedForJson()}","""
         } ?: ""
 
         val isPositive = feedback.feedbackType == FeedbackType.POSITIVE
@@ -379,13 +403,13 @@ internal class ConciergeConversationServiceClient(
     "events": [{
         "meta": {
             "consent": {
-                "state": "${state.consent}"
+                "state": "${state.consent?.escapedForJson() ?: "null"}"
             }
         },
         "xdm": {
             "identityMap": {
                 "ECID": [{
-                    "id": "${state.experienceCloudId}"
+                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
                 }]
             },
             "conversation": {
@@ -395,11 +419,11 @@ internal class ConciergeConversationServiceClient(
                     "rating": {
                         "score": ${if (isPositive) 1 else 0},
                         "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
-                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"$it\"" }}]
+                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"${it.escapedForJson()}\"" }}]
                     }
                 },
                 $conversationIdLine
-                "turnID": "${feedback.interactionId}"
+                "turnID": "${feedback.interactionId.escapedForJson()}"${authDataPartSuffix()}
             },
             "eventType": "conversation.feedback",
             "timestamp": "$timestamp",

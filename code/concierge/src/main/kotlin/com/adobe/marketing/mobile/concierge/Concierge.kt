@@ -32,4 +32,18 @@ object Concierge {
     fun setEdgeTrackingEnabled(enabled: Boolean) {
         ConciergeEventTracker.enableTracking(enabled)
     }
+
+    /**
+     * Registers the provider the SDK consults for an authentication token before building each
+     * conversation turn, for both chat and feedback requests.
+     *
+     * Pass null to clear a previously registered provider. Setting a provider replaces any
+     * previously registered one.
+     *
+     * @param provider the token provider, or null to clear.
+     */
+    @JvmStatic
+    fun setAuthTokenProvider(provider: ConciergeAuthTokenProvider?) {
+        ConciergeAuthTokenHolder.setProvider(provider)
+    }
 }
