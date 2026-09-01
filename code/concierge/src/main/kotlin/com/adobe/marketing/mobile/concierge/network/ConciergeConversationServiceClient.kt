@@ -133,10 +133,19 @@ internal class ConciergeConversationServiceClient(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Escapes backslashes and double quotes so a value can be embedded in a JSON string literal.
+     */
+    private fun String.escapedForJson(): String =
+        replace("\\", "\\\\").replace("\"", "\\\"")
+
+    /**
      * Creates the JSON request body for the conversation request.
      */
     private fun createRequestBody(message: String, state: ConciergeState): String {
         val surfaces = state.surfaces
+        check(surfaces.isNotEmpty()) {
+            "Unable to create Concierge request payload. No surfaces were provided."
+        }
         return """
         {
             "events": [
@@ -148,8 +157,8 @@ internal class ConciergeConversationServiceClient(
                     },
                     "query": {
                         "conversation": {
-                            "surfaces": ${surfaces.joinToString(",", "[\"", "\"]") { it }},
-                            "message": "${message.replace("\"", "\\\"")}"
+                            "surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }},
+                            "message": "${message.escapedForJson()}"
                         }
                     },
                     "xdm": {
@@ -353,7 +362,7 @@ internal class ConciergeConversationServiceClient(
             TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
 
         val rawArray = if (feedback.notes.isNotBlank()) {
-            """[{"text": "${feedback.notes.replace("\"", "\\\"")}","purpose": "user input"}]"""
+            """[{"text": "${feedback.notes.escapedForJson()}","purpose": "user input"}]"""
         } else {
             "[]"
         }

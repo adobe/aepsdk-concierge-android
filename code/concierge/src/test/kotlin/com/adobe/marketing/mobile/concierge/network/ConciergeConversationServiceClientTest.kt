@@ -22,6 +22,7 @@ import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.Networking
 import com.adobe.marketing.mobile.services.ServiceProvider
+import io.mockk.CapturingSlot
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -40,6 +41,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -959,31 +961,37 @@ class ConciergeConversationServiceClientTest {
     // ========== Edge Case Tests ==========
 
     @Test
-    fun `chat request with empty surfaces list`() = runTest {
+    fun `chat with no surfaces configured fails the turn without sending a request`() = runTest {
         val stateWithNoSurfaces = testState.copy(surfaces = emptyList())
         every { mockStateRepository.state } returns MutableStateFlow(stateWithNoSurfaces)
 
-        val requestSlot = slot<NetworkRequest>()
         val connection = mockk<HttpConnecting>(relaxed = true)
         every { connection.responseCode } returns 200
         every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
-        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+        every { networkService.connectAsync(any(), any()) } answers {
             val cb = secondArg<NetworkCallback>()
             cb.call(connection)
         }
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
-        client.chat("test").toList()
 
-        val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
-        // When surfaces list is empty, joinToString produces [""]
-        assertTrue(requestBody.contains("\"surfaces\": [\"\"]"))
+        try {
+            client.chat("test").toList()
+            fail("Expected chat to fail when no surfaces are configured")
+        } catch (e: IllegalStateException) {
+            assertTrue(
+                "Failure should name the missing surfaces",
+                e.message.orEmpty().contains("surface", ignoreCase = true)
+            )
+        }
+
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
     }
 
     @Test
-    fun `chat request with empty surfaces from state`() = runTest {
-        val stateWithNoSurfaces = testState.copy(surfaces = emptyList())
-        every { mockStateRepository.state } returns MutableStateFlow(stateWithNoSurfaces)
+    fun `chat request with a single surface emits one array element`() = runTest {
+        val stateWithOneSurface = testState.copy(surfaces = listOf("surface1"))
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithOneSurface)
 
         val requestSlot = slot<NetworkRequest>()
         val connection = mockk<HttpConnecting>(relaxed = true)
@@ -998,8 +1006,7 @@ class ConciergeConversationServiceClientTest {
         client.chat("test").toList()
 
         val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
-        // When surfaces is empty, joinToString produces [""]
-        assertTrue(requestBody.contains("\"surfaces\": [\"\"]"))
+        assertTrue(requestBody.contains("\"surfaces\": [\"surface1\"]"))
     }
 
     @Test
@@ -1081,6 +1088,81 @@ class ConciergeConversationServiceClientTest {
         verify(atLeast = 2) { networkService.connectAsync(any(), any()) }
     }
 
+    // ========== Payload Serialization Tests ==========
+
+    @Test
+    fun `chat request serializes multiple surfaces as distinct array elements`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Each surface must be its own array element",
+            body.contains("\"surfaces\":[\"surface1\",\"surface2\"]")
+        )
+    }
+
+    @Test
+    fun `chat request escapes special characters in surface values`() = runTest {
+        every { mockStateRepository.state } returns
+            MutableStateFlow(testState.copy(surfaces = listOf("""web://a"b""")))
+
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Quote inside a surface must be escaped",
+            body.contains("\"surfaces\":[\"web://a\\\"b\"]")
+        )
+    }
+
+    @Test
+    fun `chat request escapes backslashes in the message`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("""a\b""").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Backslash in the message must be escaped",
+            body.contains("\"message\":\"a\\\\b\"")
+        )
+    }
+
+    @Test
+    fun `feedback request escapes backslashes in notes`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.sendFeedback(
+            Feedback(
+                interactionId = "turn-1",
+                feedbackType = FeedbackType.POSITIVE,
+                notes = """a\b"""
+            )
+        )
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Backslash in feedback notes must be escaped",
+            body.contains("\"text\":\"a\\\\b\"")
+        )
+    }
+
     @After
     fun tearDown() {
         unmockkStatic(ServiceProvider::class)
@@ -1088,4 +1170,26 @@ class ConciergeConversationServiceClientTest {
 
     private fun toSse(json: String): String =
         json.lines().joinToString("\n") { "data: $it" } + "\n\n"
+
+    /**
+     * Stubs a successful, empty-bodied connection and captures the outgoing request.
+     */
+    private fun stubConnection(requestSlot: CapturingSlot<NetworkRequest>) {
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.responseMessage } returns "OK"
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+    }
+
+    /**
+     * Returns the captured request body with all whitespace stripped, so assertions can pin the
+     * exact JSON structure without depending on the template's indentation. Test inputs are chosen
+     * to be free of spaces so that stripping is lossless.
+     */
+    private fun capturedBody(requestSlot: CapturingSlot<NetworkRequest>): String =
+        String(requestSlot.captured.body, StandardCharsets.UTF_8).replace(Regex("\\s+"), "")
 }
