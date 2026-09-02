@@ -288,8 +288,9 @@ class InputActionButtonsTest {
 
     @Test
     fun inputActionButtons_clearButtonContainer_resizesWithInputButtonHeight() {
-        // The tap-target container was pinned at 56dp while only the glyph scaled, so an icon size
-        // above 56dp overflowed its own container. The container must grow with the glyph instead.
+        // Action buttons render at the shared glyph size with no padded layout container, so the
+        // tap target tracks the icon-size knob exactly (touch expansion happens at the input
+        // layer). The button must equal the configured glyph size, not glyph + padding.
         val theme = ConciergeThemeData(
             config = ConciergeThemeConfig(),
             tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
@@ -310,12 +311,12 @@ class InputActionButtonsTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNode(hasContentDescription("Clear input"))
-            .assertWidthIsEqualTo(112.dp)
-            .assertHeightIsEqualTo(112.dp)
+            .assertWidthIsEqualTo(80.dp)
+            .assertHeightIsEqualTo(80.dp)
     }
 
     @Test
-    fun inputActionButtons_clearButtonContainer_defaultsTo56dp() {
+    fun inputActionButtons_clearButtonContainer_defaultsToGlyphSize24dp() {
         composeTestRule.setContent {
             ConciergeTheme {
                 InputActionButtons(
@@ -331,15 +332,13 @@ class InputActionButtonsTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNode(hasContentDescription("Clear input"))
-            .assertWidthIsEqualTo(56.dp)
-            .assertHeightIsEqualTo(56.dp)
+            .assertWidthIsEqualTo(24.dp)
+            .assertHeightIsEqualTo(24.dp)
     }
 
     @Test
     fun inputActionButtons_sendButtonContainer_resizesWithInputButtonHeight() {
-        // Regression test: Send's tap target was left at the bare glyph size while mic/clear/
-        // leading-icon were migrated to the padded container, making Send inconsistent with its row
-        // neighbors at large configured icon sizes.
+        // Send tracks the same shared glyph size as its row neighbors, with no padded container.
         val theme = ConciergeThemeData(
             config = ConciergeThemeConfig(),
             tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
@@ -360,12 +359,12 @@ class InputActionButtonsTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNode(hasContentDescription("Send message"))
-            .assertWidthIsEqualTo(112.dp)
-            .assertHeightIsEqualTo(112.dp)
+            .assertWidthIsEqualTo(80.dp)
+            .assertHeightIsEqualTo(80.dp)
     }
 
     @Test
-    fun inputActionButtons_sendButtonContainer_defaultsTo56dp() {
+    fun inputActionButtons_sendButtonContainer_defaultsToGlyphSize24dp() {
         composeTestRule.setContent {
             ConciergeTheme {
                 InputActionButtons(
@@ -381,8 +380,8 @@ class InputActionButtonsTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNode(hasContentDescription("Send message"))
-            .assertWidthIsEqualTo(56.dp)
-            .assertHeightIsEqualTo(56.dp)
+            .assertWidthIsEqualTo(24.dp)
+            .assertHeightIsEqualTo(24.dp)
     }
 
     @Test

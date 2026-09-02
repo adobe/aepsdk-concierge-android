@@ -21,10 +21,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Icon
@@ -39,7 +38,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.components.image.assetBitmapCache
 import com.adobe.marketing.mobile.concierge.ui.components.image.loadAssetBitmap
@@ -80,17 +78,17 @@ internal fun InputActionButtons(
 
     Row(
         modifier = modifier
-            .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 300f))
-            .padding(end = 8.dp)
-        ,
+            .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 300f)),
+        // Spec gap between adjacent action buttons (e.g. clear + send). The gap to the text field
+        // and the pill's edge padding are provided by ChatInputPanel, so no end padding here.
+        horizontalArrangement = Arrangement.spacedBy(ConciergeStyles.inputPanelStyle.buttonSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Tap-area size shared by every icon in the row -- mic, clear, stop, and send. Matches the
-        // OutlinedTextField's minimum height at the default icon size, which keeps the row a
-        // uniform height when the field is empty/single-line and eliminates the vertical gap that
-        // appeared with Alignment.Bottom -- and grows with the glyph when the theme overrides the
-        // icon size, instead of staying fixed and letting a large glyph overflow its own container.
-        val iconContainerSize = ConciergeStyles.inputRowIconContainerSize
+        // Every icon in the row (mic, clear, stop, send) renders at the shared glyph size and
+        // relies on the platform's input-layer touch-target expansion rather than a padded layout
+        // container -- so the visible icons sit at the spec's tight spacing instead of being pushed
+        // apart by invisible padding. Grows with the glyph when the theme overrides the icon size.
+        val iconContainerSize = ConciergeStyles.inputRowIconSize
         val hasText = text.isNotBlank()
 
         if (enableVoiceInput) {

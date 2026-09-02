@@ -126,7 +126,10 @@ internal object ConciergeStyles {
         val outerShape: Shape,
         val innerShape: Shape,
         val outerPadding: Dp,
-        val innerPadding: Dp,
+        /** Padding between the pill's edge and its content -- spec is `padding: 16px 12px`. */
+        val innerPadding: PaddingValues,
+        /** Gap between the leading AI-chat icon and the text field. */
+        val leadingIconSpacing: Dp,
         val backgroundColor: Color,
         val borderColor: Color?,
         val borderGradient: ConciergeGradient?,
@@ -135,6 +138,7 @@ internal object ConciergeStyles {
         val focusBorderWidth: Dp,
         val recordingBorderColors: List<Color>,
         val recordingBorderAnimationDuration: Int,
+        /** Gap between the text field and the action-button group (clear/mic/send). */
         val buttonSpacing: Dp,
         val placeholderText: String,
         val listeningPlaceholderText: String
@@ -156,7 +160,8 @@ internal object ConciergeStyles {
                 outerShape = RoundedCornerShape(outerRadius),
                 innerShape = RoundedCornerShape(innerRadius),
                 outerPadding = 2.dp,
-                innerPadding = 4.dp,
+                innerPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                leadingIconSpacing = 4.dp,
                 backgroundColor = themeColors.inputBackground ?: themeColors.container,
                 borderColor = themeColors.inputOutline ?: themeColors.outline,
                 borderGradient = themeColors.inputOutlineGradient,
@@ -892,18 +897,6 @@ internal object ConciergeStyles {
         }
 
     /**
-     * Per-icon touch-target padding for the input row.
-     */
-    private val INPUT_ROW_ICON_PADDING = 16.dp
-
-    /**
-     * Tap-target container for every icon in the input row. Derived from [inputRowIconSize] plus
-     * [INPUT_ROW_ICON_PADDING] on each side.
-     */
-    val inputRowIconContainerSize: Dp
-        @Composable get() = inputRowIconSize + (INPUT_ROW_ICON_PADDING * 2)
-
-    /**
      * Styling for microphone button
      */
     @Immutable
@@ -1060,7 +1053,6 @@ internal object ConciergeStyles {
      */
     @Immutable
     data class ChatTextFieldStyle(
-        val horizontalPadding: Dp,
         val maxLines: Int,
         val textStyle: TextStyle,
         val placeholderTextColor: Color,
@@ -1073,7 +1065,6 @@ internal object ConciergeStyles {
             val themeTypography = ConciergeTheme.typography
             val fontSize = themeTypography?.inputFontSize?.sp
             return ChatTextFieldStyle(
-                horizontalPadding = 8.dp,
                 maxLines = 10,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = themeColors.inputText ?: themeColors.onSurface,

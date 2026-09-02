@@ -15,9 +15,11 @@ package com.adobe.marketing.mobile.concierge.ui.components.input
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -101,8 +103,9 @@ internal fun ChatInputPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(style.innerPadding),
-            // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
-            verticalAlignment = Alignment.Bottom
+            // Spec `align-items: center` -- the text and action icons share a common vertical center
+            // so the placeholder/input text lines up with the leading icon and the send/mic buttons.
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Reserve layout space only once the icon is actually resolvable -- same rule
             // ChatMessageItem applies to company icons -- so a typo'd/missing local asset name
@@ -110,9 +113,13 @@ internal fun ChatInputPanel(
             val leadingIconPath = ConciergeTheme.behavior?.showAiChatIcon
                 ?.takeIf { rememberIsIconConfigured(it) }
             if (leadingIconPath != null) {
+                // The leading icon is decorative (not a tap target), so it renders at the bare glyph
+                // size with no padded container -- the spec's 4px gap to the text field is provided
+                // explicitly below rather than by container padding, which previously left a wide
+                // blank gap between the glyph and the text.
                 Box(
                     modifier = Modifier
-                        .size(ConciergeStyles.inputRowIconContainerSize)
+                        .size(ConciergeStyles.inputRowIconSize)
                         .testTag("ChatInputLeadingIcon"),
                     contentAlignment = Alignment.Center
                 ) {
@@ -124,6 +131,7 @@ internal fun ChatInputPanel(
                             .testTag("ChatInputLeadingIconGlyph")
                     )
                 }
+                Spacer(modifier = Modifier.width(style.leadingIconSpacing))
             }
 
             ChatTextField(
@@ -133,6 +141,8 @@ internal fun ChatInputPanel(
                 isEnabled = enable,
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
+
+            Spacer(modifier = Modifier.width(style.buttonSpacing))
 
             // Input action buttons (clear, mic, and send) with state-aware animations
             InputActionButtons(

@@ -304,9 +304,9 @@ class ChatInputPanelTest {
 
     @Test
     fun chatInputPanel_showAiChatIcon_containerResizesWithInputButtonHeight() {
-        // Regression test: the leading icon's container was pinned at 56dp while only the glyph
-        // scaled, so an icon size above 56dp overflowed its own container. The container must grow
-        // with the glyph instead.
+        // The decorative leading icon renders at the bare glyph size (no padded container), so its
+        // container tracks the icon-size knob exactly rather than adding invisible padding that
+        // pushed the text field to the right.
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(
                 text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
@@ -333,15 +333,15 @@ class ChatInputPanelTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIcon")
-            .assertWidthIsEqualTo(112.dp)
-            .assertHeightIsEqualTo(112.dp)
+            .assertWidthIsEqualTo(80.dp)
+            .assertHeightIsEqualTo(80.dp)
         composeTestRule.onNodeWithTag("ChatInputLeadingIconGlyph")
             .assertWidthIsEqualTo(80.dp)
             .assertHeightIsEqualTo(80.dp)
     }
 
     @Test
-    fun chatInputPanel_showAiChatIcon_containerDefaultsTo56dp() {
+    fun chatInputPanel_showAiChatIcon_containerDefaultsToGlyphSize24dp() {
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(
                 text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
@@ -367,8 +367,8 @@ class ChatInputPanelTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIcon")
-            .assertWidthIsEqualTo(56.dp)
-            .assertHeightIsEqualTo(56.dp)
+            .assertWidthIsEqualTo(24.dp)
+            .assertHeightIsEqualTo(24.dp)
     }
 
     @Test
