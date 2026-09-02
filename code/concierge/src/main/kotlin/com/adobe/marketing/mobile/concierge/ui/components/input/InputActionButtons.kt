@@ -99,7 +99,7 @@ internal fun InputActionButtons(
                         modifier = Modifier.size(micContainerSize)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.close),
+                            painter = painterResource(R.drawable.concierge_ic_close),
                             contentDescription = "Clear input",
                         )
                     }
@@ -134,7 +134,7 @@ internal fun InputActionButtons(
                 modifier = Modifier.size(micContainerSize)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.close),
+                    painter = painterResource(R.drawable.concierge_ic_close),
                     contentDescription = "Clear input",
                 )
             }

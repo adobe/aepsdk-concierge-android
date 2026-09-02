@@ -82,7 +82,7 @@ internal fun VoiceRecordingPanel(
                 modifier = Modifier.size(style.iconSize)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.close),
+                    painter = painterResource(R.drawable.concierge_ic_close),
                     contentDescription = "Cancel recording",
                     tint = style.cancelIconColor
                 )
@@ -96,8 +96,8 @@ internal fun VoiceRecordingPanel(
                 // Animated microphone/waveform icon
                 Icon(
                     painter = when (inputState) {
-                        is UserInputState.Recording -> painterResource(R.drawable.audiowave)
-                        else -> painterResource(R.drawable.microphone)
+                        is UserInputState.Recording -> painterResource(R.drawable.concierge_ic_audiowave)
+                        else -> painterResource(R.drawable.concierge_ic_microphone)
                     },
                     contentDescription = null,
                     tint = style.iconColor,
@@ -124,7 +124,7 @@ internal fun VoiceRecordingPanel(
                     modifier = Modifier.size(style.iconSize)
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.checkmark),
+                        painter = painterResource(R.drawable.concierge_ic_checkmark),
                         contentDescription = "Confirm recording",
                         tint = style.iconColor
                     )

@@ -155,7 +155,7 @@ internal fun CitationItem(
         if (hasUrl && showLinkIcon) {
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
-                painter = painterResource(id = R.drawable.external_link),
+                painter = painterResource(id = R.drawable.concierge_ic_external_link),
                 contentDescription = "Open link",
                 modifier = Modifier.size(14.dp),
                 tint = style.urlColor

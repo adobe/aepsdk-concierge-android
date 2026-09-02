@@ -190,7 +190,7 @@ private fun CloseButton(
         modifier = Modifier.size(style.iconSize)
     ) {
         Icon(
-            painter = painterResource(R.drawable.close),
+            painter = painterResource(R.drawable.concierge_ic_close),
             contentDescription = "Close chat",
             tint = style.iconColor
         )

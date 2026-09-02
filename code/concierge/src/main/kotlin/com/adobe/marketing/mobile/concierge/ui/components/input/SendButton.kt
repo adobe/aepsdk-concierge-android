@@ -83,7 +83,7 @@ private fun SendButtonDefault(
         modifier = modifier
     ) {
         Image(
-            painter = painterResource(R.drawable.send),
+            painter = painterResource(R.drawable.concierge_ic_send),
             contentDescription = "Send message",
             colorFilter = ColorFilter.tint(
                 if (isEnabled) iconColor
@@ -118,7 +118,7 @@ private fun SendButtonArrow(
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.send_arrow),
+            painter = painterResource(R.drawable.concierge_ic_send_arrow),
             contentDescription = "Send message",
             colorFilter = ColorFilter.tint(arrowColor)
         )

@@ -49,7 +49,7 @@ internal fun SourcesAccordionButton(
         Row {
             Icon(
                 painter = painterResource(
-                    id = if (expanded) R.drawable.chevron_down else R.drawable.chevron_right
+                    id = if (expanded) R.drawable.concierge_ic_chevron_down else R.drawable.concierge_ic_chevron_right
                 ),
                 contentDescription = if (expanded) "Collapse sources" else "Expand sources",
                 tint = style.textColor

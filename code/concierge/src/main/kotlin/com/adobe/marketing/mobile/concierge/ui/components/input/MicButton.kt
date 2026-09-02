@@ -124,7 +124,7 @@ internal fun MicButton(
                 )
             } else {
                 Image(
-                    painter = painterResource(R.drawable.microphone),
+                    painter = painterResource(R.drawable.concierge_ic_microphone),
                     contentDescription = null,
                     colorFilter = ColorFilter.tint(tintColor)
                 )

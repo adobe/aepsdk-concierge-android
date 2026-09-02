@@ -76,7 +76,7 @@ internal fun CtaButton(
                 color = style.textColor
             )
             Icon(
-                painter = painterResource(id = R.drawable.external_link),
+                painter = painterResource(id = R.drawable.concierge_ic_external_link),
                 contentDescription = null,
                 modifier = Modifier.size(style.iconSize),
                 tint = style.iconColor

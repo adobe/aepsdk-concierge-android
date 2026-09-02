@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
 /**
  * Returns a [Painter] for the link-hint inline icon. Tries the themed bitmap under
  * `assets/icons/[assetName].{png,webp,jpg,jpeg}` first; falls back to the SDK's
- * [R.drawable.external_link] vector when the name is null/blank or the asset can't be
+ * [R.drawable.concierge_ic_external_link] vector when the name is null/blank or the asset can't be
  * resolved. Always non-null so callers don't need branching.
  */
 @Composable
@@ -53,5 +53,5 @@ internal fun rememberLinkHintIconPainter(assetName: String?): Painter {
     }
 
     return themed?.let { BitmapPainter(it) }
-        ?: painterResource(R.drawable.external_link)
+        ?: painterResource(R.drawable.concierge_ic_external_link)
 }
