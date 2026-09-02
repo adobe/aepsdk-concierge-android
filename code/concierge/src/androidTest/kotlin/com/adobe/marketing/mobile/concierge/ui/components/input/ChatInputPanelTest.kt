@@ -12,10 +12,14 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -266,6 +270,109 @@ class ChatInputPanelTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertIsDisplayed()
+    }
+
+    @Test
+    fun chatInputPanel_leadingIconToTextFieldGap_matchesSpec4dp() {
+        // Renders the actual gap between the leading icon and the text field -- a regression that
+        // drops or reorders the Spacer wouldn't be caught by ConciergeStylesTest alone, since that
+        // only asserts the style value in isolation, not that it's actually applied in the layout.
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                text = ConciergeTextStrings(inputAiChatIconTooltip = "Ask AI")
+            ),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(showAiChatIcon = "https://example.com/leading-icon.png")
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ChatInputPanel(
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val leadingIconBounds = composeTestRule.onNodeWithTag("ChatInputLeadingIcon").getUnclippedBoundsInRoot()
+        val textFieldBounds = composeTestRule.onNodeWithTag("ChatTextField").getUnclippedBoundsInRoot()
+        val gap = textFieldBounds.left - leadingIconBounds.right
+
+        assert(kotlin.math.abs(gap.value - 4f) < 1f) {
+            "Expected ~4dp between the leading icon and the text field, was $gap"
+        }
+    }
+
+    @Test
+    fun chatInputPanel_textFieldToActionButtonsGap_matchesSpec8dp() {
+        // Renders the actual gap between the text field and the first action button (mic) -- same
+        // rationale as the leading-icon gap test above.
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatInputPanel(
+                    text = "",
+                    onTextChange = {},
+                    inputState = UserInputState.Empty,
+                    onMicPressed = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val textFieldBounds = composeTestRule.onNodeWithTag("ChatTextField").getUnclippedBoundsInRoot()
+        val micButtonBounds = composeTestRule.onNode(hasContentDescription("Start voice input")).getUnclippedBoundsInRoot()
+        val gap = micButtonBounds.left - textFieldBounds.right
+
+        assert(kotlin.math.abs(gap.value - 8f) < 1f) {
+            "Expected ~8dp between the text field and the action buttons, was $gap"
+        }
+    }
+
+    @Test
+    fun chatInputPanel_voiceDisabledAndEmpty_noTrailingGap() {
+        // Regression test: when enableVoiceInput is false and the field is empty,
+        // InputActionButtons renders nothing (no clear button, and the send button's
+        // AnimatedVisibility is fully hidden) -- the trailing Spacer before it must be skipped too,
+        // or the text field's right edge sits short of the pill's own edge padding.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(enableVoiceInput = false))
+        )
+        val panelWidth = 300.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                Box(modifier = Modifier.width(panelWidth)) {
+                    ChatInputPanel(
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val textFieldBounds = composeTestRule.onNodeWithTag("ChatTextField").getUnclippedBoundsInRoot()
+        // Pill's horizontal edge padding is 12dp (InputPanelStyle.innerPadding) with no leading
+        // icon and no action buttons configured here -- the text field should extend right up to
+        // panelWidth - 12dp, not fall an extra 8dp (buttonSpacing) short of it.
+        val gapFromEdge = panelWidth - textFieldBounds.right
+
+        assert(kotlin.math.abs(gapFromEdge.value - 12f) < 1f) {
+            "Expected the text field to extend to ~12dp from the panel's right edge (no extra " +
+                "trailing gap), was $gapFromEdge from the edge"
+        }
     }
 
     @Test

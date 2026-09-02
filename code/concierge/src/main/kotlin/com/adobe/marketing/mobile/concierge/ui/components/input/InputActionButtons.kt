@@ -59,6 +59,9 @@ import kotlinx.coroutines.withContext
  * @param onVoiceCancel Callback when recording should be stopped
  * @param onSend Callback when send button is pressed
  * @param onClear Callback when clear button is pressed to clear the input text
+ * @param buttonSpacing Gap between adjacent action buttons; defaults to the shared input-panel
+ * style, but callers that already hold that style (e.g. [ChatInputPanel]) should pass it in
+ * directly rather than have it recomputed here.
  */
 @Composable
 internal fun InputActionButtons(
@@ -69,7 +72,8 @@ internal fun InputActionButtons(
     onMicPressed: () -> Unit,
     onVoiceCancel: () -> Unit,
     onSend: (String) -> Unit,
-    onClear: () -> Unit = {}
+    onClear: () -> Unit = {},
+    buttonSpacing: Dp = ConciergeStyles.inputPanelStyle.buttonSpacing
 ) {
     val micButtonStyle = ConciergeStyles.micButtonStyle
 
@@ -81,7 +85,7 @@ internal fun InputActionButtons(
             .animateContentSize(animationSpec = spring(dampingRatio = 0.75f, stiffness = 300f)),
         // Spec gap between adjacent action buttons (e.g. clear + send). The gap to the text field
         // and the pill's edge padding are provided by ChatInputPanel, so no end padding here.
-        horizontalArrangement = Arrangement.spacedBy(ConciergeStyles.inputPanelStyle.buttonSpacing),
+        horizontalArrangement = Arrangement.spacedBy(buttonSpacing),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Every icon in the row (mic, clear, stop, send) renders at the shared glyph size and
@@ -96,21 +100,37 @@ internal fun InputActionButtons(
                 // Clear button (X) — only shown when typing
                 hasText && inputState !is UserInputState.Recording -> {
                     ClearButton(
-                        containerSize = iconContainerSize,
-                        glyphSize = micButtonStyle.size,
+                        size = iconContainerSize,
                         onClick = onClear
                     )
                 }
                 // Recording state — animated mic + stop button, both visible together
                 inputState is UserInputState.Recording -> {
+                    // The mic's container must be sized to fit whatever it visually needs while
+                    // recording, or this Row's animateContentSize (which clips to its own bounds)
+                    // truncates the overflow: either the enlarged glyph when there's no pulsing
+                    // disc (see micIconSize), or the pulsing ring's peak size when the disc is
+                    // shown -- the ring scales up to pulseScaleRange.second, well past the base
+                    // glyph size.
+                    val micSize = if (micButtonStyle.pulsingBackgroundEnabled) {
+                        iconContainerSize * micButtonStyle.pulseScaleRange.second
+                    } else {
+                        micIconSize(
+                            baseSize = iconContainerSize,
+                            isRecording = true,
+                            showPulsingBackground = false
+                        )
+                    }
                     MicButton(
-                        modifier = Modifier.size(iconContainerSize),
+                        modifier = Modifier.size(micSize),
                         userInputState = inputState,
                         isEnabled = true,
                         onClick = {} // animation tap no longer stops recording — stop button does
                     )
                     StopRecordingButton(
-                        modifier = Modifier.size(iconContainerSize),
+                        // Stop's own glyph always renders at MIC_INNER_DISC_SCALE (see
+                        // StopRecordingButton), so its container always matches that enlarged size.
+                        modifier = Modifier.size(iconContainerSize * MIC_INNER_DISC_SCALE),
                         onClick = onVoiceCancel
                     )
                 }
@@ -127,8 +147,7 @@ internal fun InputActionButtons(
         } else if (hasText) {
             // Voice disabled — clear button (X) accompanies the send button when typing
             ClearButton(
-                containerSize = iconContainerSize,
-                glyphSize = micButtonStyle.size,
+                size = iconContainerSize,
                 onClick = onClear
             )
         }
@@ -149,10 +168,7 @@ internal fun InputActionButtons(
         ) {
             Row {
                 SendButton(
-                    // Padded tap target, matching mic/clear/leading-icon -- previously bare
-                    // sendButtonStyle.size, which left Send with a smaller touch area and (for the
-                    // "arrow" style) a circle with no breathing room around it as the row's other
-                    // icons grew.
+                    // Shared glyph size, matching mic/clear/leading-icon -- no padded container.
                     modifier = Modifier.size(iconContainerSize),
                     isEnabled = text.isNotBlank() && !isProcessing,
                     onSend = {
@@ -172,19 +188,18 @@ internal fun InputActionButtons(
  */
 @Composable
 private fun ClearButton(
-    containerSize: Dp,
-    glyphSize: Dp,
+    size: Dp,
     onClick: () -> Unit
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(containerSize)
+        modifier = Modifier.size(size)
     ) {
         Icon(
             painter = painterResource(R.drawable.close),
             contentDescription = "Clear input",
             modifier = Modifier
-                .size(glyphSize)
+                .size(size)
                 .testTag("ClearIconGlyph")
         )
     }

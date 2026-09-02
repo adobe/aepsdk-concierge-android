@@ -1056,7 +1056,8 @@ internal object ConciergeStyles {
         val maxLines: Int,
         val textStyle: TextStyle,
         val placeholderTextColor: Color,
-        val fontSize: TextUnit? = null
+        val fontSize: TextUnit? = null,
+        val disabledAlpha: Float = 0.5f
     )
 
     val chatTextFieldStyle: ChatTextFieldStyle

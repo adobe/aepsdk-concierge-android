@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -56,24 +57,27 @@ internal fun ChatTextField(
     placeholder: String = "Type a message..."
 ) {
     val style = ConciergeStyles.chatTextFieldStyle
-    val textColor = ConciergeTheme.colors.onSurface
     val focusManager = LocalFocusManager.current
     val disableMultiline = ConciergeTheme.behavior?.disableMultiline ?: true
 
     // Strip the font's built-in vertical padding and center the text within its line box, so the
     // glyphs sit on the row's shared center line (aligned with the leading icon and action buttons)
     // rather than riding low on the baseline. Applied to both the input text and the placeholder.
-    val centeredTextStyle = style.textStyle.copy(
-        platformStyle = PlatformTextStyle(includeFontPadding = false),
-        lineHeightStyle = LineHeightStyle(
-            alignment = LineHeightStyle.Alignment.Center,
-            trim = LineHeightStyle.Trim.Both
+    val centeredTextStyle = remember(style.textStyle) {
+        style.textStyle.copy(
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+            lineHeightStyle = LineHeightStyle(
+                alignment = LineHeightStyle.Alignment.Center,
+                trim = LineHeightStyle.Trim.Both
+            )
         )
-    )
-    val effectiveTextStyle = if (isEnabled) {
-        centeredTextStyle
-    } else {
-        centeredTextStyle.copy(color = centeredTextStyle.color.copy(alpha = 0.5f))
+    }
+    val effectiveTextStyle = remember(centeredTextStyle, isEnabled, style.disabledAlpha) {
+        if (isEnabled) {
+            centeredTextStyle
+        } else {
+            centeredTextStyle.copy(color = centeredTextStyle.color.copy(alpha = style.disabledAlpha))
+        }
     }
 
     BasicTextField(
@@ -86,7 +90,7 @@ internal fun ChatTextField(
         singleLine = disableMultiline,
         maxLines = if (disableMultiline) 1 else style.maxLines,
         textStyle = effectiveTextStyle,
-        cursorBrush = SolidColor(textColor),
+        cursorBrush = SolidColor(effectiveTextStyle.color),
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done

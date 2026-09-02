@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
@@ -172,6 +173,86 @@ class InputActionButtonsTest {
 
         composeTestRule.onNode(hasContentDescription("Recording in progress")).assertIsDisplayed()
         composeTestRule.onNode(hasContentDescription("Stop recording")).assertIsDisplayed()
+    }
+
+    @Test
+    fun inputActionButtons_recordingWithPulsingBackgroundDisabled_micAndStopIconsEnlarge() {
+        // Without the pulsing disc, the mic and stop icons enlarge to MIC_INNER_DISC_SCALE
+        // (1.3x the base 24dp glyph size) so they stay visually consistent -- this must not be
+        // clamped back down to the base size by their containers.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(enableMicPulseBackground = false))
+        )
+        val enlargedSize = 24.dp * MIC_INNER_DISC_SCALE
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                InputActionButtons(
+                    inputState = UserInputState.Recording(transcription = "test"),
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
+            .assertWidthIsEqualTo(enlargedSize)
+            .assertHeightIsEqualTo(enlargedSize)
+        composeTestRule.onNode(hasContentDescription("Stop recording"))
+            .assertWidthIsEqualTo(enlargedSize)
+            .assertHeightIsEqualTo(enlargedSize)
+    }
+
+    @Test
+    fun inputActionButtons_recordingWithPulsingBackgroundEnabled_micIconStaysBaseSize() {
+        // With the pulsing disc providing visual weight, the mic icon should stay at the base
+        // glyph size rather than enlarging.
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Recording(transcription = "test"),
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        composeTestRule.onNode(hasContentDescription("Recording in progress"))
+            .assertWidthIsEqualTo(24.dp)
+            .assertHeightIsEqualTo(24.dp)
+    }
+
+    @Test
+    fun inputActionButtons_recordingWithPulsingBackgroundEnabled_micContainerGrowsToFitPulseRing() {
+        // The pulsing ring visually scales up to pulseScaleRange.second (2.0x by default), well
+        // past the base 24dp glyph -- MicButton's own outer container (not the inner glyph, which
+        // stays at base size per the test above) must reserve that much room, or this Row's
+        // animateContentSize (which clips to its own bounds) truncates the ring. Regression test
+        // for the mic-pulse-ring left-edge clipping bug.
+        composeTestRule.setContent {
+            ConciergeTheme {
+                InputActionButtons(
+                    inputState = UserInputState.Recording(transcription = "test"),
+                    text = "",
+                    isProcessing = false,
+                    onMicPressed = {},
+                    onVoiceCancel = {},
+                    onSend = {}
+                )
+            }
+        }
+
+        val expectedSize = 24.dp * 2.0f // ConciergeStyles.micButtonStyle.pulseScaleRange.second default
+        composeTestRule.onNodeWithTag("MicButtonContainer")
+            .assertWidthIsEqualTo(expectedSize)
+            .assertHeightIsEqualTo(expectedSize)
     }
 
     @Test

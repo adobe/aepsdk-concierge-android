@@ -65,7 +65,8 @@ internal fun ChatInputPanel(
     isFocused: Boolean = false
 ) {
     val style = ConciergeStyles.inputPanelStyle
-    
+    val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
+
     // Determine border appearance based on focus state
     val borderModifier = when {
         isFocused && style.focusBorderWidth > 0.dp && style.focusBorderColor != null -> {
@@ -142,7 +143,12 @@ internal fun ChatInputPanel(
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
 
-            Spacer(modifier = Modifier.width(style.buttonSpacing))
+            // InputActionButtons renders nothing when voice input is off and the field is empty
+            // (no clear button, and the send button's AnimatedVisibility is fully hidden) -- skip
+            // the gap in that case so the pill's trailing edge doesn't show an extra blank space.
+            if (enableVoiceInput || text.isNotBlank()) {
+                Spacer(modifier = Modifier.width(style.buttonSpacing))
+            }
 
             // Input action buttons (clear, mic, and send) with state-aware animations
             InputActionButtons(
@@ -152,7 +158,8 @@ internal fun ChatInputPanel(
                 onMicPressed = onMicPressed,
                 onVoiceCancel = { onVoiceCancel?.invoke() },
                 onSend = onSend,
-                onClear = { onClear?.invoke() }
+                onClear = { onClear?.invoke() },
+                buttonSpacing = style.buttonSpacing
             )
         }
     }
