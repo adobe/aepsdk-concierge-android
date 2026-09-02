@@ -337,7 +337,15 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.citations.showLinkIcon` | boolean | `false` | Show an external link icon next to citation URLs. |
+| `behavior.citations.showLinkIcon` | boolean | `false` | Show an external link icon next to citation URLs, and next to links inline in AI message text. |
+| `behavior.citations.phoneIcon` | string \| null | `null` | Icon shown next to inline message links whose `kind` is `"phone"` (assigned by the response's `linkHints`, not inferred from the URL). A local asset basename under `assets/icons/` or an absolute `http(s)` URL — same resolution rules as `behavior.input.showAiChatIcon.icon`. Falls back to the built-in pop-out icon when `null`, blank, or unresolvable. |
+| `behavior.citations.storeIcon` | string \| null | `null` | Same as `phoneIcon`, for links with `kind` `"store"`. |
+| `behavior.citations.defaultLinkIcon` | string \| null | `null` | Same as `phoneIcon`, for links with any other `kind` — including links with no matching `linkHints` entry. |
+| `behavior.citations.linkIconStyle.size` | number | `16` | Inline link icon size, in dp. |
+| `behavior.citations.linkIconStyle.spacing` | number | `2` | Gap between link text and its icon, in dp. |
+| `behavior.citations.linkIconStyle.color` | string | `--message-concierge-link-color`, else primary | Inline link icon tint color (hex). |
+
+`phoneIcon`/`storeIcon`/`defaultLinkIcon`/`linkIconStyle` only affect links rendered inline within AI message text. The citation list icon (in the expanded sources accordion) is a fixed 14dp size tinted with the citation URL color, and always uses the built-in pop-out icon — only `showLinkIcon` applies to it.
 
 ### Privacy Notice
 
@@ -1356,7 +1364,11 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.feedback.thumbsPlacement` | ✅ | Inline (default) or below sources accordion | `ChatFooter` |
 | `behavior.feedback.showCloseButton` | ✅ | Toggles the top-right X close button; defaults by `displayMode` when `null` | `FeedbackDialog` |
 | `behavior.feedback.showCancelButton` | ✅ | Toggles the Cancel button; defaults by `displayMode` when `null` | `FeedbackDialog` |
-| `behavior.citations.showLinkIcon` | ✅ | External link icon next to citation URLs | `ExpandedCitations` → `CitationItem` |
+| `behavior.citations.showLinkIcon` | ✅ | External link icon next to citation URLs, and next to inline message links | `ExpandedCitations` → `CitationItem`; `ConciergeResponse` → `LinkHintUiUtils` |
+| `behavior.citations.phoneIcon` | ✅ | Icon for inline links with `kind: "phone"` | `LinkHintUiUtils` |
+| `behavior.citations.storeIcon` | ✅ | Icon for inline links with `kind: "store"` | `LinkHintUiUtils` |
+| `behavior.citations.defaultLinkIcon` | ✅ | Icon for inline links with any other/unmatched `kind` | `LinkHintUiUtils` |
+| `behavior.citations.linkIconStyle` | ✅ | Size/spacing/color for inline link icons | `ConciergeResponse` |
 
 ### Arrays
 

@@ -122,7 +122,7 @@ internal fun MicButton(
     val iconSize = micIconSize(style.size, isRecording, showPulsingBackground)
 
     Box(
-        modifier = modifier,
+        modifier = modifier.testTag("MicButtonContainer"),
         contentAlignment = contentAlignment
     ) {
         // Two filled circles while recording: inner static disc and outer pulsing disc

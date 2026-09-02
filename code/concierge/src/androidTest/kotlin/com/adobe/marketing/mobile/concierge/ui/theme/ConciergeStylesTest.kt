@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -152,61 +153,43 @@ class ConciergeStylesTest {
     }
 
     // -----------------------------------------------------------------------
-    // inputRowIconContainerSize
+    // inputPanelStyle spacing
     // -----------------------------------------------------------------------
 
     @Test
-    fun inputRowIconContainerSize_noTokens_defaultsTo56dp() {
-        var size: Dp? = null
+    fun inputPanelStyle_innerPadding_matchesSpec16x12() {
+        var style: ConciergeStyles.InputPanelStyle? = null
 
         composeTestRule.setContent {
             ConciergeTheme {
-                size = ConciergeStyles.inputRowIconContainerSize
+                style = ConciergeStyles.inputPanelStyle
             }
         }
 
         composeTestRule.waitForIdle()
-        // 24dp glyph + 16dp padding on each side = 56dp.
-        assertEquals(56.dp, size)
+        val padding = style!!.innerPadding
+        // Spec `padding: 16px 12px` -- 12dp horizontal, 16dp vertical -- around the input row.
+        assertEquals(12.dp, padding.calculateLeftPadding(LayoutDirection.Ltr))
+        assertEquals(12.dp, padding.calculateRightPadding(LayoutDirection.Ltr))
+        assertEquals(16.dp, padding.calculateTopPadding())
+        assertEquals(16.dp, padding.calculateBottomPadding())
     }
 
     @Test
-    fun inputRowIconContainerSize_growsWithInputButtonWidth() {
-        var size: Dp? = null
-        val themeData = ConciergeThemeData(
-            config = ConciergeThemeConfig(),
-            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
-        )
+    fun inputPanelStyle_gaps_matchSpec() {
+        var style: ConciergeStyles.InputPanelStyle? = null
 
         composeTestRule.setContent {
-            ConciergeTheme(theme = themeData) {
-                size = ConciergeStyles.inputRowIconContainerSize
+            ConciergeTheme {
+                style = ConciergeStyles.inputPanelStyle
             }
         }
 
         composeTestRule.waitForIdle()
-        assertEquals(72.dp, size)
-    }
-
-    @Test
-    fun inputRowIconContainerSize_iconLargerThan56dp_stillLeavesPaddingAroundGlyph() {
-        var iconSize: Dp? = null
-        var containerSize: Dp? = null
-        val themeData = ConciergeThemeData(
-            config = ConciergeThemeConfig(),
-            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
-        )
-
-        composeTestRule.setContent {
-            ConciergeTheme(theme = themeData) {
-                iconSize = ConciergeStyles.inputRowIconSize
-                containerSize = ConciergeStyles.inputRowIconContainerSize
-            }
-        }
-
-        composeTestRule.waitForIdle()
-        assertEquals(80.dp, iconSize)
-        assertEquals(112.dp, containerSize)
+        // 4dp between the leading AI-chat icon and the text field; 8dp between the text field and
+        // the action-button group (and between adjacent action buttons).
+        assertEquals(4.dp, style!!.leadingIconSpacing)
+        assertEquals(8.dp, style!!.buttonSpacing)
     }
 
     @Test
