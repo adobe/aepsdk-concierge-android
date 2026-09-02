@@ -72,6 +72,78 @@ internal object CSSKeyMapper {
     private fun updateInputColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeInputColors?, String) -> ConciergeInputColors) =
         updateNestedColors(cssValue, theme, { it?.input }, { c, v -> c?.copy(input = v) ?: ConciergeThemeColors(input = v) }, updater)
 
+    /**
+     * Applies one field-mutation on top of whatever gradient (if any) prior CSS keys for the same
+     * gradient-capable input token (border outline, mic icon, send-arrow background, mic waveform)
+     * already built. Each of those tokens is configured via 3 independent CSS keys (start color,
+     * end color, angle) that may arrive in any order, so the existing partially-built gradient is
+     * preserved and only the touched field is updated -- see [ConciergeGradientColors.toConciergeGradient]
+     * for how an unset side/angle is defaulted at runtime.
+     */
+    private fun updateInputGradient(
+        theme: ConciergeThemeTokens,
+        getGradient: (ConciergeInputColors) -> ConciergeGradientColors?,
+        setGradient: (ConciergeInputColors, ConciergeGradientColors) -> ConciergeInputColors,
+        mutate: (ConciergeGradientColors) -> ConciergeGradientColors
+    ): ConciergeThemeTokens {
+        return updateColors(theme) { colors ->
+            val existingInput = colors?.input ?: ConciergeInputColors()
+            val updatedGradient = mutate(getGradient(existingInput) ?: ConciergeGradientColors())
+            val updatedInput = setGradient(existingInput, updatedGradient)
+            colors?.copy(input = updatedInput) ?: ConciergeThemeColors(input = updatedInput)
+        }
+    }
+
+    /**
+     * One gradient-capable input token's CSS key prefix (ex: "input-outline-gradient") plus the
+     * getter/setter pair used to read/write its [ConciergeGradientColors] field on
+     * [ConciergeInputColors].
+     */
+    private data class GradientToken(
+        val cssKeyPrefix: String,
+        val get: (ConciergeInputColors) -> ConciergeGradientColors?,
+        val set: (ConciergeInputColors, ConciergeGradientColors) -> ConciergeInputColors
+    )
+
+    private val gradientTokens = listOf(
+        GradientToken("input-outline-gradient", { it.outlineGradient }, { input, g -> input.copy(outlineGradient = g) }),
+        GradientToken("input-mic-icon-gradient", { it.micIconGradient }, { input, g -> input.copy(micIconGradient = g) }),
+        GradientToken(
+            "input-send-arrow-background-gradient",
+            { it.sendArrowBackgroundGradient },
+            { input, g -> input.copy(sendArrowBackgroundGradient = g) }
+        ),
+        GradientToken("input-mic-waveform-gradient", { it.micWaveformGradient }, { input, g -> input.copy(micWaveformGradient = g) })
+    )
+
+    /**
+     * Generates the 3 CSS key assignments (start color, end color, angle) that together configure
+     * one gradient-capable input token, keyed by [token]'s `cssKeyPrefix` (ex: "input-outline-gradient"
+     * -> "input-outline-gradient-start-color", "-end-color", "-angle"). Every gradient-capable token
+     * shares this exact 3-key shape.
+     */
+    private fun gradientAssignments(token: GradientToken): Map<String, CSSAssignment> = mapOf(
+        "${token.cssKeyPrefix}-start-color" to { cssValue, theme ->
+            updateInputGradient(theme, token.get, token.set) {
+                it.copy(startColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "${token.cssKeyPrefix}-end-color" to { cssValue, theme ->
+            updateInputGradient(theme, token.get, token.set) {
+                it.copy(endColor = CSSValueConverter.parseColor(cssValue).toHexString())
+            }
+        },
+        "${token.cssKeyPrefix}-angle" to { cssValue, theme ->
+            updateInputGradient(theme, token.get, token.set) {
+                it.copy(angle = CSSValueConverter.parseGradientAngle(cssValue).toDouble())
+            }
+        }
+    )
+
+    /** All 12 gradient CSS key assignments (4 tokens x 3 keys), merged into [cssToAssignmentMap]. */
+    private val gradientCssAssignments: Map<String, CSSAssignment> =
+        gradientTokens.flatMap { gradientAssignments(it).toList() }.toMap()
+
     private fun updateFeedbackColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeFeedbackColors?, String) -> ConciergeFeedbackColors) =
         updateNestedColors(cssValue, theme, { it?.feedback }, { c, v -> c?.copy(feedback = v) ?: ConciergeThemeColors(feedback = v) }, updater)
 
@@ -99,11 +171,160 @@ internal object CSSKeyMapper {
     ): ConciergeThemeTokens {
         return theme.copy(cssLayout = updater(theme.cssLayout))
     }
-    
+
+    /**
+     * A CSS key plus the `.copy(...)`-based field mutation used to build one nested colors object
+     * (ex: [ConciergeButtonColors]) from its existing value (or a fresh instance) and a parsed color
+     * hex string.
+     */
+    private data class ColorToken<T>(
+        val cssKey: String,
+        val copyField: (T?, String) -> T
+    )
+
+    /**
+     * Generates one CSS key assignment per entry in [tokens], each delegating to [updateFn] (one of
+     * the per-nested-type `updateXColors` helpers above) with that token's field mutation.
+     */
+    private fun <T> colorAssignments(
+        tokens: List<ColorToken<T>>,
+        updateFn: (String, ConciergeThemeTokens, (T?, String) -> T) -> ConciergeThemeTokens
+    ): Map<String, CSSAssignment> = tokens.associate { token ->
+        token.cssKey to { cssValue: String, theme: ConciergeThemeTokens -> updateFn(cssValue, theme, token.copyField) }
+    }
+
+    private val primaryColorTokens: List<ColorToken<ConciergePrimaryColors>> = listOf(
+        ColorToken("color-primary") { existing, color -> existing?.copy(primary = color) ?: ConciergePrimaryColors(primary = color) },
+        ColorToken("color-text") { existing, color -> existing?.copy(text = color) ?: ConciergePrimaryColors(text = color) }
+    )
+
+    private val surfaceColorTokens: List<ColorToken<ConciergeSurfaceColors>> = listOf(
+        ColorToken("main-container-background") { existing, color ->
+            existing?.copy(mainContainerBackground = color) ?: ConciergeSurfaceColors(mainContainerBackground = color)
+        },
+        ColorToken("main-container-bottom-background") { existing, color ->
+            existing?.copy(mainContainerBottomBackground = color) ?: ConciergeSurfaceColors(mainContainerBottomBackground = color)
+        },
+        ColorToken("message-blocker-background") { existing, color ->
+            existing?.copy(messageBlockerBackground = color) ?: ConciergeSurfaceColors(messageBlockerBackground = color)
+        }
+    )
+
+    private val messageColorTokens: List<ColorToken<ConciergeMessageColors>> = listOf(
+        ColorToken("message-user-background") { existing, color -> existing?.copy(userBackground = color) ?: ConciergeMessageColors(userBackground = color) },
+        ColorToken("message-user-text") { existing, color -> existing?.copy(userText = color) ?: ConciergeMessageColors(userText = color) },
+        ColorToken("message-concierge-background") { existing, color ->
+            existing?.copy(conciergeBackground = color) ?: ConciergeMessageColors(conciergeBackground = color)
+        },
+        ColorToken("message-concierge-text") { existing, color -> existing?.copy(conciergeText = color) ?: ConciergeMessageColors(conciergeText = color) },
+        ColorToken("message-concierge-link-color") { existing, color -> existing?.copy(conciergeLink = color) ?: ConciergeMessageColors(conciergeLink = color) }
+    )
+
+    private val buttonColorTokens: List<ColorToken<ConciergeButtonColors>> = listOf(
+        ColorToken("button-primary-background") { existing, color -> existing?.copy(primaryBackground = color) ?: ConciergeButtonColors(primaryBackground = color) },
+        ColorToken("button-primary-text") { existing, color -> existing?.copy(primaryText = color) ?: ConciergeButtonColors(primaryText = color) },
+        ColorToken("button-primary-hover") { existing, color -> existing?.copy(primaryHover = color) ?: ConciergeButtonColors(primaryHover = color) },
+        ColorToken("button-secondary-border") { existing, color -> existing?.copy(secondaryBorder = color) ?: ConciergeButtonColors(secondaryBorder = color) },
+        ColorToken("button-secondary-text") { existing, color -> existing?.copy(secondaryText = color) ?: ConciergeButtonColors(secondaryText = color) },
+        ColorToken("button-secondary-hover") { existing, color -> existing?.copy(secondaryHover = color) ?: ConciergeButtonColors(secondaryHover = color) },
+        ColorToken("color-button-secondary-hover-text") { existing, color ->
+            existing?.copy(secondaryHoverText = color) ?: ConciergeButtonColors(secondaryHoverText = color)
+        },
+        ColorToken("submit-button-fill-color") { existing, color -> existing?.copy(submitFill = color) ?: ConciergeButtonColors(submitFill = color) },
+        ColorToken("submit-button-fill-color-disabled") { existing, color ->
+            existing?.copy(submitFillDisabled = color) ?: ConciergeButtonColors(submitFillDisabled = color)
+        },
+        ColorToken("color-button-submit") { existing, color -> existing?.copy(submitText = color) ?: ConciergeButtonColors(submitText = color) },
+        ColorToken("color-button-submit-hover") { existing, color -> existing?.copy(submitTextHover = color) ?: ConciergeButtonColors(submitTextHover = color) },
+        ColorToken("button-disabled-background") { existing, color -> existing?.copy(disabledBackground = color) ?: ConciergeButtonColors(disabledBackground = color) }
+    )
+
+    private val inputColorTokens: List<ColorToken<ConciergeInputColors>> = listOf(
+        ColorToken("input-background") { existing, color -> existing?.copy(background = color) ?: ConciergeInputColors(background = color) },
+        ColorToken("input-text-color") { existing, color -> existing?.copy(text = color) ?: ConciergeInputColors(text = color) },
+        ColorToken("input-focus-outline-color") { existing, color -> existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color) },
+        ColorToken("input-send-icon-color") { existing, color -> existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color) },
+        ColorToken("input-send-arrow-icon-color") { existing, color -> existing?.copy(sendArrowIconColor = color) ?: ConciergeInputColors(sendArrowIconColor = color) },
+        ColorToken("input-send-arrow-background-color") { existing, color ->
+            existing?.copy(sendArrowBackgroundColor = color) ?: ConciergeInputColors(sendArrowBackgroundColor = color)
+        },
+        ColorToken("input-mic-icon-color") { existing, color -> existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color) },
+        ColorToken("input-mic-recording-icon-color") { existing, color ->
+            existing?.copy(micRecordingIconColor = color) ?: ConciergeInputColors(micRecordingIconColor = color)
+        }
+    )
+
+    private val feedbackColorTokens: List<ColorToken<ConciergeFeedbackColors>> = listOf(
+        ColorToken("feedback-icon-btn-background") { existing, color -> existing?.copy(iconButtonBackground = color) ?: ConciergeFeedbackColors(iconButtonBackground = color) },
+        ColorToken("feedback-icon-btn-hover-background") { existing, color ->
+            existing?.copy(iconButtonHoverBackground = color) ?: ConciergeFeedbackColors(iconButtonHoverBackground = color)
+        },
+        ColorToken("feedback-sheet-background-color") { existing, color -> existing?.copy(sheetBackground = color) ?: ConciergeFeedbackColors(sheetBackground = color) },
+        ColorToken("feedback-title-text-color") { existing, color -> existing?.copy(titleText = color) ?: ConciergeFeedbackColors(titleText = color) },
+        ColorToken("feedback-question-text-color") { existing, color -> existing?.copy(questionText = color) ?: ConciergeFeedbackColors(questionText = color) },
+        ColorToken("feedback-options-text-color") { existing, color -> existing?.copy(optionsText = color) ?: ConciergeFeedbackColors(optionsText = color) },
+        ColorToken("feedback-checkbox-border-color") { existing, color -> existing?.copy(checkboxBorder = color) ?: ConciergeFeedbackColors(checkboxBorder = color) },
+        ColorToken("feedback-drag-handle-color") { existing, color -> existing?.copy(dragHandle = color) ?: ConciergeFeedbackColors(dragHandle = color) },
+        ColorToken("feedback-submit-button-fill-color") { existing, color ->
+            existing?.copy(submitButtonFill = color) ?: ConciergeFeedbackColors(submitButtonFill = color)
+        },
+        ColorToken("feedback-submit-button-text-color") { existing, color ->
+            existing?.copy(submitButtonText = color) ?: ConciergeFeedbackColors(submitButtonText = color)
+        },
+        ColorToken("feedback-cancel-button-fill-color") { existing, color ->
+            existing?.copy(cancelButtonFill = color) ?: ConciergeFeedbackColors(cancelButtonFill = color)
+        },
+        ColorToken("feedback-cancel-button-text-color") { existing, color ->
+            existing?.copy(cancelButtonText = color) ?: ConciergeFeedbackColors(cancelButtonText = color)
+        },
+        ColorToken("feedback-cancel-button-border-color") { existing, color ->
+            existing?.copy(cancelButtonBorder = color) ?: ConciergeFeedbackColors(cancelButtonBorder = color)
+        }
+    )
+
+    private val citationColorTokens: List<ColorToken<ConciergeCitationColors>> = listOf(
+        ColorToken("citations-background-color") { existing, color -> existing?.copy(backgroundColor = color) ?: ConciergeCitationColors(backgroundColor = color) },
+        ColorToken("citations-text-color") { existing, color -> existing?.copy(textColor = color) ?: ConciergeCitationColors(textColor = color) }
+    )
+
+    private val welcomePromptColorTokens: List<ColorToken<ConciergeWelcomePromptColors>> = listOf(
+        ColorToken("welcome-prompt-background-color") { existing, color -> existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color) },
+        ColorToken("welcome-prompt-text-color") { existing, color -> existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color) }
+    )
+
+    private val suggestionColorTokens: List<ColorToken<ConciergeWelcomePromptColors>> = listOf(
+        ColorToken("suggestion-background-color") { existing, color -> existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color) },
+        ColorToken("suggestion-text-color") { existing, color -> existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color) }
+    )
+
+    private val thinkingColorTokens: List<ColorToken<ConciergeThinkingColors>> = listOf(
+        ColorToken("thinking-dot-color") { existing, color -> existing?.copy(dotColor = color) ?: ConciergeThinkingColors(dotColor = color) }
+    )
+
+    private val ctaButtonColorTokens: List<ColorToken<ConciergeCtaButtonColors>> = listOf(
+        ColorToken("cta-button-background-color") { existing, color -> existing?.copy(backgroundColor = color) ?: ConciergeCtaButtonColors(backgroundColor = color) },
+        ColorToken("cta-button-text-color") { existing, color -> existing?.copy(textColor = color) ?: ConciergeCtaButtonColors(textColor = color) },
+        ColorToken("cta-button-icon-color") { existing, color -> existing?.copy(iconColor = color) ?: ConciergeCtaButtonColors(iconColor = color) }
+    )
+
+    /** All uniform single-field solid-color CSS key assignments, merged into [cssToAssignmentMap]. */
+    private val colorCssAssignments: Map<String, CSSAssignment> =
+        colorAssignments(primaryColorTokens, ::updatePrimaryColors) +
+            colorAssignments(surfaceColorTokens, ::updateSurfaceColors) +
+            colorAssignments(messageColorTokens, ::updateMessageColors) +
+            colorAssignments(buttonColorTokens, ::updateButtonColors) +
+            colorAssignments(inputColorTokens, ::updateInputColors) +
+            colorAssignments(feedbackColorTokens, ::updateFeedbackColors) +
+            colorAssignments(citationColorTokens, ::updateCitationColors) +
+            colorAssignments(welcomePromptColorTokens, ::updateWelcomePromptColors) +
+            colorAssignments(suggestionColorTokens, ::updateSuggestionColors) +
+            colorAssignments(thinkingColorTokens, ::updateThinkingColors) +
+            colorAssignments(ctaButtonColorTokens, ::updateCtaButtonColors)
+
     /**
      * Mapping from CSS variable name (without --) to direct assignment function
      */
-    private val cssToAssignmentMap: Map<String, CSSAssignment> = mapOf(
+    private val cssToAssignmentMap: Map<String, CSSAssignment> = mapOf<String, CSSAssignment>(
         // Typography
         "font-family" to { cssValue, theme ->
             val fontFamily = CSSValueConverter.parseFontFamily(cssValue)
@@ -120,140 +341,14 @@ internal object CSSKeyMapper {
             )
         },
         
-        // Colors - Primary (using helper)
-        "color-primary" to { cssValue, theme ->
-            updatePrimaryColors(cssValue, theme) { existing, color ->
-                existing?.copy(primary = color) ?: ConciergePrimaryColors(primary = color)
-            }
-        },
-        "color-text" to { cssValue, theme ->
-            updatePrimaryColors(cssValue, theme) { existing, color ->
-                existing?.copy(text = color) ?: ConciergePrimaryColors(text = color)
-            }
-        },
+        // Colors - Primary/Surface/Message/Button/Input/Feedback/Citations/Prompt Pill/Prompt Suggestions
+        // are generated below via colorCssAssignments -- the couple of bespoke ones that don't fit the
+        // uniform single-field-color-parse shape stay inline here.
         "color-container" to { cssValue, theme ->
             val color = CSSValueConverter.parseColor(cssValue)
             updateColors(theme) { colors ->
                 colors?.copy(container = color.toHexString())
                     ?: ConciergeThemeColors(container = color.toHexString())
-            }
-        },
-
-        // Colors - Surface (using helper)
-        "main-container-background" to { cssValue, theme ->
-            updateSurfaceColors(cssValue, theme) { existing, color ->
-                existing?.copy(mainContainerBackground = color) ?: ConciergeSurfaceColors(mainContainerBackground = color)
-            }
-        },
-        "main-container-bottom-background" to { cssValue, theme ->
-            updateSurfaceColors(cssValue, theme) { existing, color ->
-                existing?.copy(mainContainerBottomBackground = color) ?: ConciergeSurfaceColors(mainContainerBottomBackground = color)
-            }
-        },
-        "message-blocker-background" to { cssValue, theme ->
-            updateSurfaceColors(cssValue, theme) { existing, color ->
-                existing?.copy(messageBlockerBackground = color) ?: ConciergeSurfaceColors(messageBlockerBackground = color)
-            }
-        },
-        
-        // Colors - Message (using helper)
-        "message-user-background" to { cssValue, theme ->
-            updateMessageColors(cssValue, theme) { existing, color ->
-                existing?.copy(userBackground = color) ?: ConciergeMessageColors(userBackground = color)
-            }
-        },
-        "message-user-text" to { cssValue, theme ->
-            updateMessageColors(cssValue, theme) { existing, color ->
-                existing?.copy(userText = color) ?: ConciergeMessageColors(userText = color)
-            }
-        },
-        "message-concierge-background" to { cssValue, theme ->
-            updateMessageColors(cssValue, theme) { existing, color ->
-                existing?.copy(conciergeBackground = color) ?: ConciergeMessageColors(conciergeBackground = color)
-            }
-        },
-        "message-concierge-text" to { cssValue, theme ->
-            updateMessageColors(cssValue, theme) { existing, color ->
-                existing?.copy(conciergeText = color) ?: ConciergeMessageColors(conciergeText = color)
-            }
-        },
-        "message-concierge-link-color" to { cssValue, theme ->
-            updateMessageColors(cssValue, theme) { existing, color ->
-                existing?.copy(conciergeLink = color) ?: ConciergeMessageColors(conciergeLink = color)
-            }
-        },
-        
-        // Colors - Button (using helper)
-        "button-primary-background" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(primaryBackground = color) ?: ConciergeButtonColors(primaryBackground = color)
-            }
-        },
-        "button-primary-text" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(primaryText = color) ?: ConciergeButtonColors(primaryText = color)
-            }
-        },
-        "button-primary-hover" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(primaryHover = color) ?: ConciergeButtonColors(primaryHover = color)
-            }
-        },
-        "button-secondary-border" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(secondaryBorder = color) ?: ConciergeButtonColors(secondaryBorder = color)
-            }
-        },
-        "button-secondary-text" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(secondaryText = color) ?: ConciergeButtonColors(secondaryText = color)
-            }
-        },
-        "button-secondary-hover" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(secondaryHover = color) ?: ConciergeButtonColors(secondaryHover = color)
-            }
-        },
-        "color-button-secondary-hover-text" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(secondaryHoverText = color) ?: ConciergeButtonColors(secondaryHoverText = color)
-            }
-        },
-        "submit-button-fill-color" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(submitFill = color) ?: ConciergeButtonColors(submitFill = color)
-            }
-        },
-        "submit-button-fill-color-disabled" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(submitFillDisabled = color) ?: ConciergeButtonColors(submitFillDisabled = color)
-            }
-        },
-        "color-button-submit" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(submitText = color) ?: ConciergeButtonColors(submitText = color)
-            }
-        },
-        "color-button-submit-hover" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(submitTextHover = color) ?: ConciergeButtonColors(submitTextHover = color)
-            }
-        },
-        "button-disabled-background" to { cssValue, theme ->
-            updateButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(disabledBackground = color) ?: ConciergeButtonColors(disabledBackground = color)
-            }
-        },
-        
-        // Colors - Input (using helper)
-        "input-background" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(background = color) ?: ConciergeInputColors(background = color)
-            }
-        },
-        "input-text-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(text = color) ?: ConciergeInputColors(text = color)
             }
         },
         "input-outline-color" to { cssValue, theme ->
@@ -268,146 +363,11 @@ internal object CSSKeyMapper {
                 }
             }
         },
-        "input-focus-outline-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color)
-            }
-        },
-        "input-send-icon-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color)
-            }
-        },
-        "input-send-arrow-icon-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(sendArrowIconColor = color) ?: ConciergeInputColors(sendArrowIconColor = color)
-            }
-        },
-        "input-send-arrow-background-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(sendArrowBackgroundColor = color) ?: ConciergeInputColors(sendArrowBackgroundColor = color)
-            }
-        },
-        "input-mic-icon-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(micIconColor = color) ?: ConciergeInputColors(micIconColor = color)
-            }
-        },
-        "input-mic-recording-icon-color" to { cssValue, theme ->
-            updateInputColors(cssValue, theme) { existing, color ->
-                existing?.copy(micRecordingIconColor = color) ?: ConciergeInputColors(micRecordingIconColor = color)
-            }
-        },
-
-        // Colors - Feedback (using helper)
-        "feedback-icon-btn-background" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(iconButtonBackground = color) ?: ConciergeFeedbackColors(iconButtonBackground = color)
-            }
-        },
-        "feedback-icon-btn-hover-background" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(iconButtonHoverBackground = color) ?: ConciergeFeedbackColors(iconButtonHoverBackground = color)
-            }
-        },
-        "feedback-sheet-background-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(sheetBackground = color) ?: ConciergeFeedbackColors(sheetBackground = color)
-            }
-        },
-        "feedback-title-text-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(titleText = color) ?: ConciergeFeedbackColors(titleText = color)
-            }
-        },
-        "feedback-question-text-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(questionText = color) ?: ConciergeFeedbackColors(questionText = color)
-            }
-        },
-        "feedback-options-text-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(optionsText = color) ?: ConciergeFeedbackColors(optionsText = color)
-            }
-        },
-        "feedback-checkbox-border-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(checkboxBorder = color) ?: ConciergeFeedbackColors(checkboxBorder = color)
-            }
-        },
-        "feedback-drag-handle-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(dragHandle = color) ?: ConciergeFeedbackColors(dragHandle = color)
-            }
-        },
-        "feedback-submit-button-fill-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(submitButtonFill = color) ?: ConciergeFeedbackColors(submitButtonFill = color)
-            }
-        },
-        "feedback-submit-button-text-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(submitButtonText = color) ?: ConciergeFeedbackColors(submitButtonText = color)
-            }
-        },
-        "feedback-cancel-button-fill-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(cancelButtonFill = color) ?: ConciergeFeedbackColors(cancelButtonFill = color)
-            }
-        },
-        "feedback-cancel-button-text-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(cancelButtonText = color) ?: ConciergeFeedbackColors(cancelButtonText = color)
-            }
-        },
-        "feedback-cancel-button-border-color" to { cssValue, theme ->
-            updateFeedbackColors(cssValue, theme) { existing, color ->
-                existing?.copy(cancelButtonBorder = color) ?: ConciergeFeedbackColors(cancelButtonBorder = color)
-            }
-        },
-
-        // Colors - Disclaimer
         "disclaimer-color" to { cssValue, theme ->
             val color = CSSValueConverter.parseColor(cssValue)
             updateColors(theme) { colors ->
                 colors?.copy(disclaimer = color.toHexString())
                     ?: ConciergeThemeColors(disclaimer = color.toHexString())
-            }
-        },
-        
-        // Colors - Citations (using helper)
-        "citations-background-color" to { cssValue, theme ->
-            updateCitationColors(cssValue, theme) { existing, color ->
-                existing?.copy(backgroundColor = color) ?: ConciergeCitationColors(backgroundColor = color)
-            }
-        },
-        "citations-text-color" to { cssValue, theme ->
-            updateCitationColors(cssValue, theme) { existing, color ->
-                existing?.copy(textColor = color) ?: ConciergeCitationColors(textColor = color)
-            }
-        },
-
-        // Colors - Prompt Pill
-        "welcome-prompt-background-color" to { cssValue, theme ->
-            updateWelcomePromptColors(cssValue, theme) { existing, color ->
-                existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color)
-            }
-        },
-        "welcome-prompt-text-color" to { cssValue, theme ->
-            updateWelcomePromptColors(cssValue, theme) { existing, color ->
-                existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color)
-            }
-        },
-
-        // Colors - Prompt Suggestions
-        "suggestion-background-color" to { cssValue, theme ->
-            updateSuggestionColors(cssValue, theme) { existing, color ->
-                existing?.copy(backgroundColor = color) ?: ConciergeWelcomePromptColors(backgroundColor = color)
-            }
-        },
-        "suggestion-text-color" to { cssValue, theme ->
-            updateSuggestionColors(cssValue, theme) { existing, color ->
-                existing?.copy(textColor = color) ?: ConciergeWelcomePromptColors(textColor = color)
             }
         },
 
@@ -442,16 +402,24 @@ internal object CSSKeyMapper {
                 layout?.copy(inputFontSize = size) ?: ConciergeLayout(inputFontSize = size)
             }
         },
+        // Unlike most layout keys, a parse failure here must leave the field null rather than
+        // substituting a default: ConciergeStyles.inputRowIconSize treats "width present" as
+        // "width was explicitly configured" and lets it win over a validly-configured height, so a
+        // fabricated default would incorrectly outrank a real height value.
         "input-button-height" to { cssValue, theme ->
-            updateLayout(theme) { layout ->
-                val height = CSSValueConverter.parsePxValue(cssValue) ?: 32.0
-                layout?.copy(inputButtonHeight = height) ?: ConciergeLayout(inputButtonHeight = height)
+            val height = CSSValueConverter.parsePxValue(cssValue)
+            if (height != null) {
+                updateLayout(theme) { layout -> layout?.copy(inputButtonHeight = height) ?: ConciergeLayout(inputButtonHeight = height) }
+            } else {
+                theme
             }
         },
         "input-button-width" to { cssValue, theme ->
-            updateLayout(theme) { layout ->
-                val width = CSSValueConverter.parsePxValue(cssValue) ?: 32.0
-                layout?.copy(inputButtonWidth = width) ?: ConciergeLayout(inputButtonWidth = width)
+            val width = CSSValueConverter.parsePxValue(cssValue)
+            if (width != null) {
+                updateLayout(theme) { layout -> layout?.copy(inputButtonWidth = width) ?: ConciergeLayout(inputButtonWidth = width) }
+            } else {
+                theme
             }
         },
         "input-button-border-radius" to { cssValue, theme ->
@@ -719,12 +687,7 @@ internal object CSSKeyMapper {
             }
         },
 
-        // Colors - Thinking Animation
-        "thinking-dot-color" to { cssValue, theme ->
-            updateThinkingColors(cssValue, theme) { existing, color ->
-                existing?.copy(dotColor = color) ?: ConciergeThinkingColors(dotColor = color)
-            }
-        },
+        // Colors - Thinking Animation: "thinking-dot-color" is generated via colorCssAssignments.
 
         // Layout - Thinking Animation
         "thinking-dot-size" to { cssValue, theme ->
@@ -1020,22 +983,7 @@ internal object CSSKeyMapper {
             }
         },
 
-        // Colors - CTA Button (using helper)
-        "cta-button-background-color" to { cssValue, theme ->
-            updateCtaButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(backgroundColor = color) ?: ConciergeCtaButtonColors(backgroundColor = color)
-            }
-        },
-        "cta-button-text-color" to { cssValue, theme ->
-            updateCtaButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(textColor = color) ?: ConciergeCtaButtonColors(textColor = color)
-            }
-        },
-        "cta-button-icon-color" to { cssValue, theme ->
-            updateCtaButtonColors(cssValue, theme) { existing, color ->
-                existing?.copy(iconColor = color) ?: ConciergeCtaButtonColors(iconColor = color)
-            }
-        },
+        // Colors - CTA Button: "cta-button-background/text/icon-color" are generated via colorCssAssignments.
 
         // Components - Feedback
         "feedback-icon-btn-size-desktop" to { cssValue, theme ->
@@ -1049,8 +997,8 @@ internal object CSSKeyMapper {
                 )
             )
         }
-    )
-    
+    ) + gradientCssAssignments + colorCssAssignments
+
     /**
      * Returns the normalized CSS keys (without the leading `--`) that are supported.
      */

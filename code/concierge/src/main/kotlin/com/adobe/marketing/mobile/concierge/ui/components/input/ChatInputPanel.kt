@@ -13,17 +13,24 @@
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
 
 /**
  * Chat input panel with text field, microphone button, and send button.
@@ -66,6 +73,13 @@ internal fun ChatInputPanel(
                 shape = style.innerShape
             )
         }
+        !isFocused && style.borderWidth > 0.dp && style.borderGradient?.isRenderable == true -> {
+            Modifier.conciergeGradientBorder(
+                width = style.borderWidth,
+                gradient = style.borderGradient,
+                shape = style.innerShape
+            )
+        }
         !isFocused && style.borderWidth > 0.dp && style.borderColor != null -> {
             Modifier.border(
                 width = style.borderWidth,
@@ -90,6 +104,28 @@ internal fun ChatInputPanel(
             // Pin action buttons to the bottom so they stay anchored as the text field grows multi-line.
             verticalAlignment = Alignment.Bottom
         ) {
+            // Reserve layout space only once the icon is actually resolvable -- same rule
+            // ChatMessageItem applies to company icons -- so a typo'd/missing local asset name
+            // hides the icon entirely instead of leaving a permanent blank gap before the text field.
+            val leadingIconPath = ConciergeTheme.behavior?.showAiChatIcon
+                ?.takeIf { rememberIsIconConfigured(it) }
+            if (leadingIconPath != null) {
+                Box(
+                    modifier = Modifier
+                        .size(ConciergeStyles.inputRowIconContainerSize)
+                        .testTag("ChatInputLeadingIcon"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LocalAssetImage(
+                        source = leadingIconPath,
+                        contentDescription = ConciergeTheme.text?.inputAiChatIconTooltip ?: "Ask AI",
+                        modifier = Modifier
+                            .size(ConciergeStyles.inputRowIconSize)
+                            .testTag("ChatInputLeadingIconGlyph")
+                    )
+                }
+            }
+
             ChatTextField(
                 modifier = Modifier.weight(1f),
                 value = text,

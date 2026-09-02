@@ -318,6 +318,44 @@ class SpeechToTextManagerTest {
     }
 
     @Test
+    fun `onRmsChanged does not throw when no listener is attached`() {
+        val sttManager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
+        sttManager.startListening()
+
+        internalSpeechListener.captured.onRmsChanged(5f)
+    }
+
+    @Test
+    fun `onRmsChanged normalizes and clamps rms into a 0 to 1 audio level`() {
+        val sttManager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
+        sttManager.setListener(testListener)
+        sttManager.startListening()
+
+        internalSpeechListener.captured.onRmsChanged(-5f)
+        internalSpeechListener.captured.onRmsChanged(2f)
+        internalSpeechListener.captured.onRmsChanged(6f)
+        internalSpeechListener.captured.onRmsChanged(10f)
+        internalSpeechListener.captured.onRmsChanged(20f)
+
+        assertEquals(listOf(0f, 0f, 0.5f, 1f, 1f), testListener.audioLevels)
+    }
+
+    @Test
+    fun `onRmsChanged treats ambient background noise as silence, not speech`() {
+        val sttManager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
+        sttManager.setListener(testListener)
+        sttManager.startListening()
+
+        // Android's onRmsChanged empirically ranges roughly -2..10 with no documented bounds;
+        // readings in the low end of that range are ambient noise/mic self-noise, not speech.
+        internalSpeechListener.captured.onRmsChanged(-2f)
+        internalSpeechListener.captured.onRmsChanged(0f)
+        internalSpeechListener.captured.onRmsChanged(1.5f)
+
+        assertEquals(listOf(0f, 0f, 0f), testListener.audioLevels)
+    }
+
+    @Test
     fun `multiple start and stop calls are safe`() {
         val sttManager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
         sttManager.setListener(testListener)
@@ -339,12 +377,14 @@ class SpeechToTextManagerTest {
         val partialResults = mutableListOf<String>()
         val finalResults = mutableListOf<String>()
         val errors = mutableListOf<SpeechCaptureError>()
+        val audioLevels = mutableListOf<Float>()
 
         override fun onSpeechStarted() { startedCount++ }
         override fun onSpeechEnded() { endedCount++ }
         override fun onPartialTranscription(text: String) { partialResults.add(text) }
         override fun onTranscriptionResult(text: String) { finalResults.add(text) }
         override fun onError(error: SpeechCaptureError) { errors.add(error) }
+        override fun onAudioLevelChanged(level: Float) { audioLevels.add(level) }
     }
 }
 

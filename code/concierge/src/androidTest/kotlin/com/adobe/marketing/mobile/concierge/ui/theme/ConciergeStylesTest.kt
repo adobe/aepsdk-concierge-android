@@ -18,9 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -71,6 +75,397 @@ class ConciergeStylesTest {
         assertNotNull(style)
         assertEquals(14.0, style!!.textStyle.fontSize.value.toDouble(), 0.1)
         assertEquals(700, style!!.textStyle.fontWeight?.weight ?: 0)
+    }
+
+    // -----------------------------------------------------------------------
+    // inputRowIconSize
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun inputRowIconSize_noTokens_defaultsTo24dp() {
+        var size: Dp? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(24.dp, size)
+    }
+
+    @Test
+    fun inputRowIconSize_withInputButtonWidth_overridesDefault() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, size)
+    }
+
+    @Test
+    fun inputRowIconSize_withOnlyInputButtonHeight_fallsBackToHeight() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 44.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(44.dp, size)
+    }
+
+    @Test
+    fun inputRowIconSize_withBothWidthAndHeight_prefersWidth() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(inputButtonWidth = 40.0, inputButtonHeight = 44.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, size)
+    }
+
+    // -----------------------------------------------------------------------
+    // inputRowIconContainerSize
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun inputRowIconContainerSize_noTokens_defaultsTo56dp() {
+        var size: Dp? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                size = ConciergeStyles.inputRowIconContainerSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // 24dp glyph + 16dp padding on each side = 56dp.
+        assertEquals(56.dp, size)
+    }
+
+    @Test
+    fun inputRowIconContainerSize_growsWithInputButtonWidth() {
+        var size: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                size = ConciergeStyles.inputRowIconContainerSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(72.dp, size)
+    }
+
+    @Test
+    fun inputRowIconContainerSize_iconLargerThan56dp_stillLeavesPaddingAroundGlyph() {
+        var iconSize: Dp? = null
+        var containerSize: Dp? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonHeight = 80.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                iconSize = ConciergeStyles.inputRowIconSize
+                containerSize = ConciergeStyles.inputRowIconContainerSize
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(80.dp, iconSize)
+        assertEquals(112.dp, containerSize)
+    }
+
+    @Test
+    fun micButtonStyle_withInputButtonWidth_appliesToSize() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, style!!.size)
+    }
+
+    @Test
+    fun sendButtonStyle_withInputButtonWidth_appliesToSize() {
+        var style: ConciergeStyles.SendButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(inputButtonWidth = 40.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.sendButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertEquals(40.dp, style!!.size)
+    }
+
+    // -----------------------------------------------------------------------
+    // micButtonStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun micButtonStyle_noTokens_pulsingBackgroundEnabledDefaultsToTrue() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertTrue(style!!.pulsingBackgroundEnabled)
+        assertNull(style!!.waveformGradient)
+    }
+
+    @Test
+    fun micButtonStyle_withPulsingBackgroundDisabled_recordingIconColorFallsBackToMicColor() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(behavior = ConciergeThemeBehavior(enableMicPulseBackground = false))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertFalse(style!!.pulsingBackgroundEnabled)
+        assertEquals(LightConciergeColors.primary, style!!.recordingIconColor)
+    }
+
+    @Test
+    fun micButtonStyle_withGradientColors_appliesGradientStartAndEnd() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micWaveformGradient = ConciergeGradientColors(startColor = "#00F5D4", endColor = "#003D33")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF00F5D4), style!!.waveformGradient?.startColor)
+        assertEquals(Color(0xFF003D33), style!!.waveformGradient?.endColor)
+    }
+
+    @Test
+    fun micButtonStyle_noTokens_iconGradientIsNull() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNull(style!!.iconGradient)
+    }
+
+    @Test
+    fun micButtonStyle_withIconGradient_appliesGradientStartAndEnd() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        micIconGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF12B0A0), style!!.iconGradient?.startColor)
+        assertEquals(Color(0xFF6DD3C4), style!!.iconGradient?.endColor)
+    }
+
+    // -----------------------------------------------------------------------
+    // inputPanelStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun inputPanelStyle_noTokens_borderGradientIsNull() {
+        var style: ConciergeStyles.InputPanelStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.inputPanelStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNull(style!!.borderGradient)
+    }
+
+    @Test
+    fun inputPanelStyle_withOutlineGradient_appliesGradientStartEndAndAngle() {
+        var style: ConciergeStyles.InputPanelStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        outlineGradient = ConciergeGradientColors(
+                            startColor = "#12B0A0",
+                            endColor = "#6DD3C4",
+                            angle = 90.0
+                        )
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.inputPanelStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF12B0A0), style!!.borderGradient?.startColor)
+        assertEquals(Color(0xFF6DD3C4), style!!.borderGradient?.endColor)
+        assertEquals(90f, style!!.borderGradient?.angle)
+        assertTrue(style!!.borderGradient?.isRenderable ?: false)
+    }
+
+    // -----------------------------------------------------------------------
+    // sendButtonStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun sendButtonStyle_noTokens_arrowCircleGradientIsNull() {
+        var style: ConciergeStyles.SendButtonStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.sendButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNull(style!!.arrowCircleGradient)
+    }
+
+    @Test
+    fun sendButtonStyle_withSendArrowBackgroundGradient_appliesGradientStartAndEnd() {
+        var style: ConciergeStyles.SendButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(
+                        sendArrowBackgroundGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.sendButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFF12B0A0), style!!.arrowCircleGradient?.startColor)
+        assertEquals(Color(0xFF6DD3C4), style!!.arrowCircleGradient?.endColor)
+    }
+
+    @Test
+    fun micButtonStyle_withExplicitRecordingIconColor_overridesPulsingBackgroundFallback() {
+        var style: ConciergeStyles.MicButtonStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                colors = ConciergeThemeColors(
+                    input = ConciergeInputColors(micRecordingIconColor = "#FF0000")
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.micButtonStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(Color(0xFFFF0000), style!!.recordingIconColor)
     }
 
     // -----------------------------------------------------------------------
@@ -535,5 +930,227 @@ class ConciergeStylesTest {
         composeTestRule.waitForIdle()
         assertNotNull(style)
         assertEquals(12.dp, style!!.itemSpacing)
+    }
+
+    // -----------------------------------------------------------------------
+    // extendedProductCardStyle
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun extendedProductCardStyle_noTokens_cardWidthDefaultsTo250dp() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // 250dp was chosen after testing across devices
+        assertEquals(250.dp, style!!.cardWidth)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_sectionAndPriceSpacingMatchSpecDefaults() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // The card spec's gap between the headline/subhead block and the price block is 16px.
+        assertEquals(16.dp, style!!.sectionSpacing)
+        // The card spec's price/was-price stack has no gap between the two lines.
+        assertEquals(0.dp, style!!.priceSpacing)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_headlineLineHeightIs17sp_atDefault14spFontSize() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Title and price are both 14px/700-or-400 "headline" role text; spec line-height is 17px.
+        assertEquals(17f, style!!.titleLineHeight.value, 0.01f)
+        assertEquals(17f, style!!.priceLineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_captionLineHeightIs14sp_atDefault12spFontSize() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Subtitle, was-price, and badge are all 12px "caption" role text; spec line-height is 14px.
+        assertEquals(14f, style!!.subtitleLineHeight.value, 0.01f)
+        assertEquals(14f, style!!.wasPriceLineHeight.value, 0.01f)
+        assertEquals(14f, style!!.badgeLineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_lineHeightRatio_scalesWithCustomFontSize() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardTitleFontSize = 28.0))
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Ratio (17/14) is preserved rather than an absolute px value, so a themed font size
+        // still gets proportional, non-cramped line spacing.
+        assertEquals(28f * (17f / 14f), style!!.titleLineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_subtitleAndPriceLetterSpacingMatchSpec() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(-0.5f, style!!.subtitleLetterSpacing.value, 0.01f)
+        assertEquals(-0.5f, style!!.priceLetterSpacing.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noTokens_badgeLetterSpacingIsZero() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Pinned explicitly so the badge can't inherit a host app's ambient letter spacing.
+        assertEquals(0f, style!!.badgeLetterSpacing.value, 0.01f)
+    }
+
+    @Test
+    fun extendedProductCardStyle_withThemeOverrides_sectionAndPriceSpacingAreConfigurable() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    productCardSectionSpacing = 24.0,
+                    productCardPriceSpacing = 4.0
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(24.dp, style!!.sectionSpacing)
+        assertEquals(4.dp, style!!.priceSpacing)
+    }
+
+    @Test
+    fun extendedProductCardStyle_sectionSpacing_fallsBackToGenericTextSpacingWhenUnset() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                // productCardSectionSpacing is intentionally left unset so sectionSpacing
+                // falls through to the generic productCardTextSpacing value.
+                cssLayout = ConciergeLayout(productCardTextSpacing = 12.0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(12.dp, style!!.sectionSpacing)
+    }
+
+    @Test
+    fun extendedProductCardStyle_withBoxShadowToken_shadowElevationAndColorReflectBlurAndColor() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    multimodalCardBoxShadow = mapOf(
+                        "offsetX" to 0.0,
+                        "offsetY" to 1.0,
+                        "blurRadius" to 3.0,
+                        "spreadRadius" to 0.0,
+                        "color" to Color(0x14000000)
+                    )
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(3.dp, style!!.shadowElevation)
+        assertEquals(Color(0x14000000), style!!.shadowColor)
+    }
+
+    @Test
+    fun extendedProductCardStyle_noBoxShadowToken_shadowElevationIsZeroAndColorIsTransparent() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        // Covers both an unset theme and an explicit "none" box-shadow, since parseBoxShadow
+        // collapses "none" to the same null the token has when it's never set.
+        assertEquals(0.dp, style!!.shadowElevation)
+        assertEquals(Color.Transparent, style!!.shadowColor)
     }
 }

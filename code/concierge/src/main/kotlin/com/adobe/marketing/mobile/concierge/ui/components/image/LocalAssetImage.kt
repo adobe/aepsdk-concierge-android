@@ -35,6 +35,15 @@ internal val SUPPORTED_EXTENSIONS = listOf(".png", ".webp", ".jpg", ".jpeg")
 internal val assetBitmapCache: MutableMap<String, ImageBitmap?> = Collections.synchronizedMap(HashMap())
 
 /**
+ * Whether [source] is a remote URL (as opposed to a local assets/icons basename) -- the single
+ * source of truth for that distinction, shared by every place that needs to decide how a
+ * company/icon source will resolve (this file, [rememberIsIconConfigured], and any composable
+ * deciding whether to reserve layout space for one).
+ */
+private fun isRemoteUrl(source: String): Boolean =
+    source.startsWith("http://") || source.startsWith("https://")
+
+/**
  * Composable that loads and displays a company icon from either a remote URL or the app's
  * assets/icons folder.
  *
@@ -52,7 +61,7 @@ internal fun LocalAssetImage(
     fallback: String? = null,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    if (source.startsWith("http://") || source.startsWith("https://")) {
+    if (isRemoteUrl(source)) {
         AsyncImage(
             url = source,
             contentDescription = contentDescription,
@@ -77,6 +86,21 @@ internal fun LocalAssetImage(
             contentScale = contentScale
         )
     }
+}
+
+/**
+ * Determines if icon [source] is configured well enough to reserve layout space for it (e.g. an icon
+ * column offset applied before the image itself has loaded). A remote URL always counts -- it
+ * resolves via [AsyncImage] asynchronously and can show a placeholder while loading, so there's
+ * no synchronous signal to wait for. A local asset name must already resolve to a real bundled
+ * file, so a typo'd or missing name correctly falls back to no-icon layout instead of reserving
+ * space for nothing.
+ */
+@Composable
+internal fun rememberIsIconConfigured(source: String?): Boolean {
+    if (source.isNullOrBlank()) return false
+    if (isRemoteUrl(source)) return true
+    return rememberLocalAssetBitmap(source) != null
 }
 
 /**

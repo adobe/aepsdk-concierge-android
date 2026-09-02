@@ -130,6 +130,15 @@ class CSSKeyMapperTest {
         assertEquals("#F0F0F0", result.colors?.container)
     }
 
+    @Test
+    fun `apply builds up both primary colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf("color-primary" to "#EB1000", "color-text" to "#2C2C2C")
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        assertEquals("#EB1000", theme.colors?.primaryColors?.primary)
+        assertEquals("#2C2C2C", theme.colors?.primaryColors?.text)
+    }
+
     // -----------------------------------------------------------------------
     // Surface colors
     // -----------------------------------------------------------------------
@@ -150,6 +159,21 @@ class CSSKeyMapperTest {
     fun `apply maps message-blocker-background`() {
         val result = CSSKeyMapper.apply("--message-blocker-background", "#000000", emptyTheme)
         assertEquals("#000000", result.colors?.surfaceColors?.messageBlockerBackground)
+    }
+
+    @Test
+    fun `apply builds up all surface colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf(
+            "main-container-background" to "#FFFFFF",
+            "main-container-bottom-background" to "#F5F5F5",
+            "message-blocker-background" to "#000000"
+        )
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        val surface = theme.colors?.surfaceColors
+        assertEquals("#FFFFFF", surface?.mainContainerBackground)
+        assertEquals("#F5F5F5", surface?.mainContainerBottomBackground)
+        assertEquals("#000000", surface?.messageBlockerBackground)
     }
 
     // -----------------------------------------------------------------------
@@ -184,6 +208,25 @@ class CSSKeyMapperTest {
     fun `apply maps message-concierge-link-color`() {
         val result = CSSKeyMapper.apply("--message-concierge-link-color", "#274DEA", emptyTheme)
         assertEquals("#274DEA", result.colors?.message?.conciergeLink)
+    }
+
+    @Test
+    fun `apply builds up all message colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf(
+            "message-user-background" to "#EBEEFF",
+            "message-user-text" to "#292929",
+            "message-concierge-background" to "#F5F5F5",
+            "message-concierge-text" to "#292929",
+            "message-concierge-link-color" to "#274DEA"
+        )
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        val message = theme.colors?.message
+        assertEquals("#EBEEFF", message?.userBackground)
+        assertEquals("#292929", message?.userText)
+        assertEquals("#F5F5F5", message?.conciergeBackground)
+        assertEquals("#292929", message?.conciergeText)
+        assertEquals("#274DEA", message?.conciergeLink)
     }
 
     // -----------------------------------------------------------------------
@@ -260,6 +303,39 @@ class CSSKeyMapperTest {
     fun `apply maps button-disabled-background`() {
         val result = CSSKeyMapper.apply("--button-disabled-background", "#FFFFFF", emptyTheme)
         assertEquals("#FFFFFF", result.colors?.button?.disabledBackground)
+    }
+
+    @Test
+    fun `apply builds up all button colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf(
+            "button-primary-background" to "#3B63FB",
+            "button-primary-text" to "#FFFFFF",
+            "button-primary-hover" to "#274DEA",
+            "button-secondary-border" to "#2C2C2C",
+            "button-secondary-text" to "#2C2C2C",
+            "button-secondary-hover" to "#000000",
+            "color-button-secondary-hover-text" to "#FFFFFF",
+            "submit-button-fill-color" to "#FFFFFF",
+            "submit-button-fill-color-disabled" to "#C6C6C6",
+            "color-button-submit" to "#292929",
+            "color-button-submit-hover" to "#292929",
+            "button-disabled-background" to "#EEEEEE"
+        )
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        val button = theme.colors?.button
+        assertEquals("#3B63FB", button?.primaryBackground)
+        assertEquals("#FFFFFF", button?.primaryText)
+        assertEquals("#274DEA", button?.primaryHover)
+        assertEquals("#2C2C2C", button?.secondaryBorder)
+        assertEquals("#2C2C2C", button?.secondaryText)
+        assertEquals("#000000", button?.secondaryHover)
+        assertEquals("#FFFFFF", button?.secondaryHoverText)
+        assertEquals("#FFFFFF", button?.submitFill)
+        assertEquals("#C6C6C6", button?.submitFillDisabled)
+        assertEquals("#292929", button?.submitText)
+        assertEquals("#292929", button?.submitTextHover)
+        assertEquals("#EEEEEE", button?.disabledBackground)
     }
 
     // -----------------------------------------------------------------------
@@ -342,6 +418,15 @@ class CSSKeyMapperTest {
         assertEquals("#FFFFFF", result.colors?.citation?.textColor)
     }
 
+    @Test
+    fun `apply builds up both citation colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf("citations-background-color" to "#4B4B4B", "citations-text-color" to "#FFFFFF")
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        assertEquals("#4B4B4B", theme.colors?.citation?.backgroundColor)
+        assertEquals("#FFFFFF", theme.colors?.citation?.textColor)
+    }
+
     // -----------------------------------------------------------------------
     // Layout - Input
     // -----------------------------------------------------------------------
@@ -386,6 +471,31 @@ class CSSKeyMapperTest {
     fun `apply maps input-button-width`() {
         val result = CSSKeyMapper.apply("--input-button-width", "32px", emptyTheme)
         assertEquals(32.0, result.cssLayout?.inputButtonWidth)
+    }
+
+    @Test
+    fun `apply with unparsable input-button-height leaves it null instead of substituting a default`() {
+        // Regression test: a fabricated default here would incorrectly outrank a validly-configured
+        // input-button-width in ConciergeStyles.inputRowIconSize's width-wins precedence chain.
+        val result = CSSKeyMapper.apply("--input-button-height", "16dp", emptyTheme)
+        assertNull(result.cssLayout?.inputButtonHeight)
+    }
+
+    @Test
+    fun `apply with unparsable input-button-width leaves it null instead of substituting a default`() {
+        // Regression test: a fabricated default here would silently discard a validly-configured
+        // input-button-height, since ConciergeStyles.inputRowIconSize treats any non-null width as
+        // "explicitly configured" and lets it win.
+        val result = CSSKeyMapper.apply("--input-button-width", "16dp", emptyTheme)
+        assertNull(result.cssLayout?.inputButtonWidth)
+    }
+
+    @Test
+    fun `apply with unparsable input-button-width does not clobber an already-set height`() {
+        val withHeight = CSSKeyMapper.apply("--input-button-height", "50px", emptyTheme)
+        val result = CSSKeyMapper.apply("--input-button-width", "16dp", withHeight)
+        assertEquals(50.0, result.cssLayout?.inputButtonHeight)
+        assertNull(result.cssLayout?.inputButtonWidth)
     }
 
     @Test
@@ -992,6 +1102,165 @@ class CSSKeyMapperTest {
         assertNotNull(result.colors?.input?.micIconColor)
     }
 
+    @Test
+    fun `apply maps input-send-arrow-icon-color`() {
+        val result = CSSKeyMapper.apply("--input-send-arrow-icon-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.input?.sendArrowIconColor)
+    }
+
+    @Test
+    fun `apply maps input-send-arrow-background-color solid`() {
+        val result = CSSKeyMapper.apply("--input-send-arrow-background-color", "#1976D2", emptyTheme)
+        assertEquals("#1976D2", result.colors?.input?.sendArrowBackgroundColor)
+    }
+
+    @Test
+    fun `apply maps input-mic-recording-icon-color`() {
+        val result = CSSKeyMapper.apply("--input-mic-recording-icon-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.input?.micRecordingIconColor)
+    }
+
+    @Test
+    fun `apply builds up all solid input colors from a realistic sequence of keys without clobbering earlier ones`() {
+        // Mirrors how ThemeParser.parseCSSThemeBlock actually applies a theme JSON: one CSS
+        // variable at a time, threading the same theme forward. Verifies the whole input color set
+        // survives being built up incrementally, not just an isolated pair.
+        val cssBlock = listOf(
+            "input-background" to "#FFFFFF",
+            "input-text-color" to "#000000",
+            "input-focus-outline-color" to "#4B75FF",
+            "input-send-icon-color" to "#111111",
+            "input-send-arrow-icon-color" to "#222222",
+            "input-send-arrow-background-color" to "#333333",
+            "input-mic-icon-color" to "#444444",
+            "input-mic-recording-icon-color" to "#555555"
+        )
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        val input = theme.colors?.input
+        assertEquals("#FFFFFF", input?.background)
+        assertEquals("#000000", input?.text)
+        assertEquals("#4B75FF", input?.outlineFocus)
+        assertEquals("#111111", input?.sendIconColor)
+        assertEquals("#222222", input?.sendArrowIconColor)
+        assertEquals("#333333", input?.sendArrowBackgroundColor)
+        assertEquals("#444444", input?.micIconColor)
+        assertEquals("#555555", input?.micRecordingIconColor)
+    }
+
+    @Test
+    fun `apply maps input-mic-waveform-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", theme)
+        theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-angle", "90deg", theme)
+        assertEquals("#00F5D4", theme.colors?.input?.micWaveformGradient?.startColor)
+        assertEquals("#003D33", theme.colors?.input?.micWaveformGradient?.endColor)
+        assertEquals(90.0, theme.colors?.input?.micWaveformGradient?.angle)
+    }
+
+    @Test
+    fun `apply defaults input-mic-waveform-gradient angle to null when omitted`() {
+        var theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", theme)
+        assertNull(theme.colors?.input?.micWaveformGradient?.angle)
+    }
+
+    @Test
+    fun `apply preserves other input colors when setting input-mic-waveform-gradient-start-color`() {
+        val withIcon = CSSKeyMapper.apply("--input-mic-icon-color", "#FF0000", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--input-mic-waveform-gradient-start-color", "#00F5D4", withIcon)
+        assertEquals("#FF0000", withBoth.colors?.input?.micIconColor)
+        assertNotNull(withBoth.colors?.input?.micWaveformGradient)
+    }
+
+    @Test
+    fun `apply preserves other input colors when setting input-mic-waveform-gradient-end-color`() {
+        val withIcon = CSSKeyMapper.apply("--input-mic-icon-color", "#FF0000", emptyTheme)
+        val withBoth = CSSKeyMapper.apply("--input-mic-waveform-gradient-end-color", "#003D33", withIcon)
+        assertEquals("#FF0000", withBoth.colors?.input?.micIconColor)
+        assertNotNull(withBoth.colors?.input?.micWaveformGradient)
+    }
+
+    @Test
+    fun `apply maps input-outline-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-outline-gradient-start-color", "#12B0A0", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-outline-gradient-end-color", "#6DD3C4", theme)
+        theme = CSSKeyMapper.apply("--input-outline-gradient-angle", "to right", theme)
+        assertEquals("#12B0A0", theme.colors?.input?.outlineGradient?.startColor)
+        assertEquals("#6DD3C4", theme.colors?.input?.outlineGradient?.endColor)
+        assertEquals(90.0, theme.colors?.input?.outlineGradient?.angle)
+    }
+
+    @Test
+    fun `apply maps input-mic-icon-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-mic-icon-gradient-start-color", "#12B0A0", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-mic-icon-gradient-end-color", "#6DD3C4", theme)
+        theme = CSSKeyMapper.apply("--input-mic-icon-gradient-angle", "45deg", theme)
+        assertEquals("#12B0A0", theme.colors?.input?.micIconGradient?.startColor)
+        assertEquals("#6DD3C4", theme.colors?.input?.micIconGradient?.endColor)
+        assertEquals(45.0, theme.colors?.input?.micIconGradient?.angle)
+    }
+
+    @Test
+    fun `apply maps input-send-arrow-background-gradient start end and angle keys to one gradient`() {
+        var theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-start-color", "#12B0A0", emptyTheme)
+        theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-end-color", "#6DD3C4", theme)
+        theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-angle", "to left", theme)
+        assertEquals("#12B0A0", theme.colors?.input?.sendArrowBackgroundGradient?.startColor)
+        assertEquals("#6DD3C4", theme.colors?.input?.sendArrowBackgroundGradient?.endColor)
+        assertEquals(270.0, theme.colors?.input?.sendArrowBackgroundGradient?.angle)
+    }
+
+    @Test
+    fun `apply setting only input-outline-gradient-angle creates a gradient with no colors set yet`() {
+        // Regression test: a theme that only sets the angle key (ex: JSON key ordering happens to
+        // put it first) must still build a placeholder gradient rather than losing the angle.
+        val theme = CSSKeyMapper.apply("--input-outline-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.outlineGradient?.angle)
+        assertNull(theme.colors?.input?.outlineGradient?.startColor)
+        assertNull(theme.colors?.input?.outlineGradient?.endColor)
+    }
+
+    @Test
+    fun `apply setting only input-mic-icon-gradient-angle creates a gradient with no colors set yet`() {
+        val theme = CSSKeyMapper.apply("--input-mic-icon-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.micIconGradient?.angle)
+        assertNull(theme.colors?.input?.micIconGradient?.startColor)
+        assertNull(theme.colors?.input?.micIconGradient?.endColor)
+    }
+
+    @Test
+    fun `apply setting only input-send-arrow-background-gradient-angle creates a gradient with no colors set yet`() {
+        val theme = CSSKeyMapper.apply("--input-send-arrow-background-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.sendArrowBackgroundGradient?.angle)
+        assertNull(theme.colors?.input?.sendArrowBackgroundGradient?.startColor)
+        assertNull(theme.colors?.input?.sendArrowBackgroundGradient?.endColor)
+    }
+
+    @Test
+    fun `apply setting only input-mic-waveform-gradient-angle creates a gradient with no colors set yet`() {
+        val theme = CSSKeyMapper.apply("--input-mic-waveform-gradient-angle", "45deg", emptyTheme)
+        assertEquals(45.0, theme.colors?.input?.micWaveformGradient?.angle)
+        assertNull(theme.colors?.input?.micWaveformGradient?.startColor)
+        assertNull(theme.colors?.input?.micWaveformGradient?.endColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains all 12 gradient keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        val prefixes = listOf(
+            "input-outline-gradient",
+            "input-mic-icon-gradient",
+            "input-send-arrow-background-gradient",
+            "input-mic-waveform-gradient"
+        )
+        for (prefix in prefixes) {
+            assertTrue("supportedCSSKeys should contain $prefix-start-color", keys.contains("$prefix-start-color"))
+            assertTrue("supportedCSSKeys should contain $prefix-end-color", keys.contains("$prefix-end-color"))
+            assertTrue("supportedCSSKeys should contain $prefix-angle", keys.contains("$prefix-angle"))
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Welcome Prompt Colors
     // -----------------------------------------------------------------------
@@ -1018,6 +1287,24 @@ class CSSKeyMapperTest {
     fun `apply maps suggestion-text-color`() {
         val result = CSSKeyMapper.apply("--suggestion-text-color", "#333333", emptyTheme)
         assertEquals("#333333", result.colors?.promptSuggestion?.textColor)
+    }
+
+    @Test
+    fun `apply builds up both welcome-prompt colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf("welcome-prompt-background-color" to "#F5F5F5", "welcome-prompt-text-color" to "#000000")
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        assertEquals("#F5F5F5", theme.colors?.welcomePrompt?.backgroundColor)
+        assertEquals("#000000", theme.colors?.welcomePrompt?.textColor)
+    }
+
+    @Test
+    fun `apply builds up both suggestion colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf("suggestion-background-color" to "#E8E8E8", "suggestion-text-color" to "#333333")
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        assertEquals("#E8E8E8", theme.colors?.promptSuggestion?.backgroundColor)
+        assertEquals("#333333", theme.colors?.promptSuggestion?.textColor)
     }
 
     // -----------------------------------------------------------------------
@@ -1199,6 +1486,41 @@ class CSSKeyMapperTest {
     fun `apply maps feedback-cancel-button-border-color`() {
         val result = CSSKeyMapper.apply("--feedback-cancel-button-border-color", "#2C2C2C", emptyTheme)
         assertEquals("#2C2C2C", result.colors?.feedback?.cancelButtonBorder)
+    }
+
+    @Test
+    fun `apply builds up all feedback colors from a realistic sequence of keys without clobbering earlier ones`() {
+        val cssBlock = listOf(
+            "feedback-icon-btn-background" to "#FFFFFF",
+            "feedback-icon-btn-hover-background" to "#F0F0F0",
+            "feedback-sheet-background-color" to "#FFFFFF",
+            "feedback-title-text-color" to "#131313",
+            "feedback-question-text-color" to "#424242",
+            "feedback-options-text-color" to "#131313",
+            "feedback-checkbox-border-color" to "#131313",
+            "feedback-drag-handle-color" to "#CCCCCC",
+            "feedback-submit-button-fill-color" to "#3B63FB",
+            "feedback-submit-button-text-color" to "#FFFFFF",
+            "feedback-cancel-button-fill-color" to "#FFFFFF",
+            "feedback-cancel-button-text-color" to "#2C2C2C",
+            "feedback-cancel-button-border-color" to "#2C2C2C"
+        )
+        val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
+
+        val feedback = theme.colors?.feedback
+        assertEquals("#FFFFFF", feedback?.iconButtonBackground)
+        assertEquals("#F0F0F0", feedback?.iconButtonHoverBackground)
+        assertEquals("#FFFFFF", feedback?.sheetBackground)
+        assertEquals("#131313", feedback?.titleText)
+        assertEquals("#424242", feedback?.questionText)
+        assertEquals("#131313", feedback?.optionsText)
+        assertEquals("#131313", feedback?.checkboxBorder)
+        assertEquals("#CCCCCC", feedback?.dragHandle)
+        assertEquals("#3B63FB", feedback?.submitButtonFill)
+        assertEquals("#FFFFFF", feedback?.submitButtonText)
+        assertEquals("#FFFFFF", feedback?.cancelButtonFill)
+        assertEquals("#2C2C2C", feedback?.cancelButtonText)
+        assertEquals("#2C2C2C", feedback?.cancelButtonBorder)
     }
 
     // -----------------------------------------------------------------------

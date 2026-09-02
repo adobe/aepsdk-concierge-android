@@ -12,71 +12,112 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
+import com.adobe.marketing.mobile.concierge.ui.theme.toBrush
+import kotlin.math.sin
+
+private const val BAR_HEIGHT_FLOOR = 0.12
+private const val MAX_AMPLITUDE = 0.88
 
 /**
- * Animated audio waveform with 5 bars that oscillate at staggered intervals.
- * Each bar pulses between a minimum and maximum height fraction.
+ * Computes the height fraction for a waveform bar at [index] given the elapsed [timeSeconds].
+ * Each bar is offset in phase by [index] so the bars don't all pulse in lockstep. [audioLevel]
+ * (0f..1f, defaults to full amplitude) scales the oscillation's amplitude: at 0 (no voice
+ * detected) the bar is static at [BAR_HEIGHT_FLOOR]; at 1 it swings through the full
+ * [BAR_HEIGHT_FLOOR]..1f range.
+ */
+internal fun audioWaveBarScale(index: Int, timeSeconds: Double, audioLevel: Float = 1f): Float {
+    val phase = sin(timeSeconds * 4.0 + index * 1.2)
+    val oscillation = (phase + 1.0) / 2.0
+    val amplitude = MAX_AMPLITUDE * audioLevel.coerceIn(0f, 1f)
+    val scale = BAR_HEIGHT_FLOOR + amplitude * oscillation
+    return scale.toFloat()
+}
+
+/**
+ * Returns [gradient]'s angle-aware linear-gradient brush when it's renderable (see
+ * [ConciergeGradient.isRenderable]), otherwise falls back to a solid [color] fill.
+ */
+internal fun audioWaveBarBrush(color: Color, gradient: ConciergeGradient?, size: Size): Brush {
+    return if (gradient != null && gradient.isRenderable) {
+        gradient.toBrush(size)
+    } else {
+        SolidColor(color)
+    }
+}
+
+/**
+ * Animated audio waveform with 5 bars that pulse while recording, each bar staggered in phase
+ * for a natural waveform look. Bars sit static and flat until voice is actually detected.
  *
  * @param modifier Modifier for the composable
- * @param color The color of the waveform bars
+ * @param color The color of the waveform bars, used when no gradient is configured
+ * @param gradient Optional gradient fill for the bars, used instead of [color] when renderable
+ * @param barCount Number of bars to render
+ * @param audioLevel Normalized 0f..1f input level. Defaults to full amplitude; pass the live
+ * level from [com.adobe.marketing.mobile.concierge.ui.state.UserInputState.Recording] so the
+ * bars stay static during silence and only animate once voice is detected.
  */
 @Composable
 internal fun AnimatedAudioWave(
     modifier: Modifier = Modifier,
-    color: Color
+    color: Color,
+    gradient: ConciergeGradient? = null,
+    barCount: Int = 5,
+    audioLevel: Float = 1f
 ) {
-    // Base height fractions for each bar (min, max) — gives a natural waveform look
-    val barConfigs = listOf(
-        0.25f to 0.55f,   // bar 1 (short)
-        0.35f to 0.80f,   // bar 2
-        0.30f to 0.65f,   // bar 3
-        0.40f to 1.00f,   // bar 4 (tallest)
-        0.20f to 0.50f    // bar 5 (shortest)
-    )
-    val delays = listOf(0, 150, 80, 200, 120)
-
-    val transition = rememberInfiniteTransition(label = "audiowave")
-    val fractions = barConfigs.mapIndexed { index, (min, max) ->
-        transition.animateFloat(
-            initialValue = min,
-            targetValue = max,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 400, delayMillis = delays[index]),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "bar_$index"
-        )
+    var elapsedMillis by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val start = withInfiniteAnimationFrameMillis { it }
+        while (true) {
+            withInfiniteAnimationFrameMillis { frameMillis ->
+                elapsedMillis = (frameMillis - start).toFloat()
+            }
+        }
     }
 
+    // Smooth out the discrete, somewhat noisy level updates from the speech engine so the
+    // amplitude eases between readings instead of jumping.
+    val smoothedAudioLevel by animateFloatAsState(
+        targetValue = audioLevel.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 150),
+        label = "audio_level"
+    )
+
     Canvas(modifier = modifier) {
-        val barCount = fractions.size
+        val brush = audioWaveBarBrush(color, gradient, size)
         val totalWidth = size.width
         val totalHeight = size.height
         val barWidth = totalWidth / (barCount * 2f - 1f) // bars + gaps
         val gap = barWidth
         val cornerRadius = barWidth / 2f
+        val timeSeconds = elapsedMillis / 1000.0
 
-        fractions.forEachIndexed { index, anim ->
-            val fraction by anim
-            val barHeight = totalHeight * fraction
+        for (index in 0 until barCount) {
+            val scale = audioWaveBarScale(index, timeSeconds, smoothedAudioLevel)
+            val barHeight = totalHeight * scale
             val x = index * (barWidth + gap)
             val y = (totalHeight - barHeight) / 2f
 
             drawRoundRect(
-                color = color,
+                brush = brush,
                 topLeft = Offset(x, y),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(cornerRadius, cornerRadius)

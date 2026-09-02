@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.CtaButton
@@ -41,7 +42,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.card.RecommendationCar
 import com.adobe.marketing.mobile.concierge.ui.components.footer.ChatFooter
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
-import com.adobe.marketing.mobile.concierge.ui.components.image.rememberLocalAssetBitmap
+import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.components.serviceintent.CtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.suggestions.PromptSuggestions
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -99,15 +100,30 @@ internal fun ChatMessageItem(
     }
 }
 
+/**
+ * Renders a CTA button that is itself a standalone list item (an ordered element the backend
+ * sent as its own message, rather than attached via [ChatMessage.ctaButton] to a text response).
+ * It has no text bubble of its own to inherit alignment from, so it must independently match the
+ * start inset used by agent text messages: the icon column when a company icon is configured,
+ * otherwise the message bubble's own padding.
+ */
 @Composable
 private fun RenderCtaButton(
     content: MessageContent.CtaButton,
     onCtaButtonClick: (CtaButton) -> Unit
 ) {
+    val style = ConciergeStyles.messageBubbleStyle
+    val rawIconName = ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() }
+    val hasCompanyIcon = rememberIsIconConfigured(rawIconName)
+
     CtaButton(
         cta = content.button,
         onClick = onCtaButtonClick,
-        applyContainerPadding = false
+        containerStartPadding = if (hasCompanyIcon) {
+            style.agentIconSize + style.agentIconSpacing
+        } else {
+            style.padding + style.innerPadding
+        }
     )
 }
 
@@ -124,8 +140,7 @@ private fun RenderTextMessage(
     val thinkingStyle = ConciergeStyles.thinkingAnimationStyle
     val isThinking = message.isThinking
     val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
-    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
-    val companyIconName = if (iconBitmap != null) rawIconName else null
+    val companyIconName = rawIconName?.takeIf { rememberIsIconConfigured(it) }
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     if (companyIconName != null) {
@@ -203,7 +218,8 @@ private fun RenderTextMessage(
             BotMessageSuffix(
                 message = message,
                 onSuggestionClick = onSuggestionClick,
-                onCtaButtonClick = onCtaButtonClick
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = style.padding + style.innerPadding
             )
         }
     }
@@ -238,6 +254,7 @@ private fun RenderTextMessageWithIcon(
                 modifier = Modifier
                     .padding(top = style.padding)
                     .size(style.agentIconSize)
+                    .testTag("MessageCompanyIcon")
             ) {
                 LocalAssetImage(
                     source = companyIconName,
@@ -297,7 +314,8 @@ private fun RenderTextMessageWithIcon(
             BotMessageSuffix(
                 message = message,
                 onSuggestionClick = onSuggestionClick,
-                onCtaButtonClick = onCtaButtonClick
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = 0.dp
             )
         }
     }
@@ -317,8 +335,7 @@ private fun RenderMixedMessage(
     val style = ConciergeStyles.messageBubbleStyle
     val content = message.content as MessageContent.Mixed
     val rawIconName = if (!message.isFromUser) ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() } else null
-    val iconBitmap = rawIconName?.let { rememberLocalAssetBitmap(it) }
-    val companyIconName = if (iconBitmap != null) rawIconName else null
+    val companyIconName = rawIconName?.takeIf { rememberIsIconConfigured(it) }
     val messageAlignment = ConciergeTheme.behavior?.chat?.messageAlignment ?: ConciergeTextAlignment.START
 
     val hasText = content.text.isNotEmpty()
@@ -449,7 +466,8 @@ private fun RenderMixedMessage(
             BotMessageSuffix(
                 message = message,
                 onSuggestionClick = onSuggestionClick,
-                onCtaButtonClick = onCtaButtonClick
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = if (companyIconName != null) 0.dp else style.padding + style.innerPadding
             )
         }
     }
@@ -491,12 +509,17 @@ private fun AgentResponseContent(
 /**
  * Prompt suggestions and CTA button shown below the message card for bot responses.
  * Shared across all bot message render functions.
+ *
+ * @param ctaStartPadding Start inset for the CTA button, matching the start inset of the response
+ * text above it so the two stay aligned. Callers that already offset this composable to the text
+ * column (e.g. via a leading Spacer for the agent icon) should pass 0.dp.
  */
 @Composable
 private fun BotMessageSuffix(
     message: ChatMessage,
     onSuggestionClick: (String) -> Unit,
-    onCtaButtonClick: (CtaButton) -> Unit
+    onCtaButtonClick: (CtaButton) -> Unit,
+    ctaStartPadding: Dp = ConciergeStyles.ctaButtonStyle.containerStartPadding
 ) {
     if (message.promptSuggestions.isNotEmpty()) {
         PromptSuggestions(
@@ -508,7 +531,8 @@ private fun BotMessageSuffix(
     message.ctaButton?.let { cta ->
         CtaButton(
             cta = cta,
-            onClick = onCtaButtonClick
+            onClick = onCtaButtonClick,
+            containerStartPadding = ctaStartPadding
         )
     }
 }

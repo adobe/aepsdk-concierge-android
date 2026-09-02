@@ -12,21 +12,28 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.ui.components.image.assetBitmapCache
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeIconAssets
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeAssets
@@ -35,6 +42,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 
@@ -46,6 +54,11 @@ class ChatMessageItemTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @After
+    fun clearBitmapCache() {
+        assetBitmapCache.clear()
+    }
 
     @Test
     fun chatMessageItem_displaysUserTextMessage() {
@@ -311,9 +324,9 @@ class ChatMessageItemTest {
     // --- Brand icon routing ---
 
     @Test
-    fun chatMessageItem_botTextMessage_withCompanyIconUrl_displaysMessageContent() {
-        // When assets.icons.company is a non-empty URL the icon layout path is used.
-        // The message text must still be visible.
+    fun chatMessageItem_botTextMessage_withCompanyIconUrl_rendersIconColumn() {
+        // When assets.icons.company is a non-empty URL, the icon column must render even before
+        // the remote image has loaded -- it can't wait for a synchronous local-asset resolve.
         val theme = ConciergeThemeData(
             config = ConciergeThemeConfig(),
             tokens = ConciergeThemeTokens(
@@ -339,10 +352,12 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithText("Here is your answer.")
             .assertIsDisplayed()
+        composeTestRule.onNodeWithTag("MessageCompanyIcon")
+            .assertIsDisplayed()
     }
 
     @Test
-    fun chatMessageItem_botTextMessage_withEmptyCompanyIcon_displaysMessageContent() {
+    fun chatMessageItem_botTextMessage_withEmptyCompanyIcon_hidesIconColumn() {
         // When assets.icons.company is an empty string the no-icon (upstream) layout is used.
         val theme = ConciergeThemeData(
             config = ConciergeThemeConfig(),
@@ -367,6 +382,40 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithText("Here is your answer.")
             .assertIsDisplayed()
+        composeTestRule.onNodeWithTag("MessageCompanyIcon")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun chatMessageItem_botTextMessage_withUnresolvedLocalCompanyIcon_hidesIconColumn() {
+        // A local asset name that doesn't resolve to a real bundled file falls back to the
+        // no-icon layout instead of reserving space for nothing -- unlike a URL, which always
+        // gets the icon column since it loads asynchronously.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "no-such-local-asset")
+                )
+            )
+        )
+
+        val message = ChatMessage(
+            content = MessageContent.Text("Here is your answer."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here is your answer.")
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithTag("MessageCompanyIcon")
+            .assertDoesNotExist()
     }
 
     @Test
@@ -451,7 +500,187 @@ class ChatMessageItemTest {
             .assertIsDisplayed()
     }
 
+    // --- CTA button alignment tests ---
+    // The CTA button's start inset must match the response text's start inset, whether the CTA
+    // is attached to a text bubble (BotMessageSuffix) or sent as its own standalone message
+    // (RenderCtaButton) — and whether or not a company icon shifts the whole text column over.
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCtaButton_ctaAlignsWithResponseText() {
+        val message = ChatMessage(
+            content = MessageContent.Text("Check this out."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "Shop Now", url = "https://example.com/shop")
+        )
+        var expectedStart = 0.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                val style = ConciergeStyles.messageBubbleStyle
+                expectedStart = style.padding + style.innerPadding
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton")
+            .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
+
+    @Test
+    fun chatMessageItem_botTextMessage_withCtaButtonAndIcon_ctaAlignsWithIconColumn() {
+        val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImageBitmap()
+        assetBitmapCache["cta-alignment-icon-attached"] = bitmap
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "cta-alignment-icon-attached")
+                )
+            )
+        )
+        val message = ChatMessage(
+            content = MessageContent.Text("Check this out."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            ctaButton = NetworkCtaButton(label = "Learn More", url = "https://example.com/learn")
+        )
+        var expectedStart = 0.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                val style = ConciergeStyles.messageBubbleStyle
+                expectedStart = style.agentIconSize + style.agentIconSpacing
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton")
+            .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
+
+    @Test
+    fun chatMessageItem_standaloneCtaMessage_alignsWithResponseTextColumn() {
+        // The backend sends the CTA as its own ordered-element message (RenderCtaButton),
+        // separate from the preceding text message. It has no bubble of its own to inherit
+        // alignment from, so it must independently match the no-icon text inset.
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat")),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        var expectedStart = 0.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                val style = ConciergeStyles.messageBubbleStyle
+                expectedStart = style.padding + style.innerPadding
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton")
+            .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
+
+    @Test
+    fun chatMessageItem_standaloneCtaMessage_withIcon_alignsWithIconColumn() {
+        val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImageBitmap()
+        assetBitmapCache["cta-alignment-icon-standalone"] = bitmap
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "cta-alignment-icon-standalone")
+                )
+            )
+        )
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat")),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        var expectedStart = 0.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                val style = ConciergeStyles.messageBubbleStyle
+                expectedStart = style.agentIconSize + style.agentIconSpacing
+                ChatMessageItem(message = message)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton")
+            .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
+
+    @Test
+    fun chatMessageItem_standaloneCtaMessage_withUrlIcon_alignsWithIconColumn() {
+        // A URL-configured company icon must get the icon-column offset immediately, the same
+        // as an already-resolved local asset -- it can't wait on a synchronous bitmap load.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat")),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        var expectedStart = 0.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    val style = ConciergeStyles.messageBubbleStyle
+                    expectedStart = style.agentIconSize + style.agentIconSpacing
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton")
+            .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
+
     // --- RenderMixedMessage + BotMessageSuffix ---
+
+    @Test
+    fun chatMessageItem_botMixedMessage_withUrlCompanyIcon_textAlignsWithIconColumn() {
+        // A URL-configured company icon must shift the mixed message's text column over
+        // immediately, the same as an already-resolved local asset.
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                assets = ConciergeThemeAssets(
+                    icons = ConciergeIconAssets(company = "https://example.com/brand-icon.png")
+                )
+            )
+        )
+        val message = ChatMessage(
+            content = MessageContent.Mixed(text = "Here are some options."),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        var expectedStart = 0.dp
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    val style = ConciergeStyles.messageBubbleStyle
+                    expectedStart = style.agentIconSize + style.agentIconSpacing
+                    ChatMessageItem(message = message)
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Here are some options.")
+            .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
 
     @Test
     fun chatMessageItem_botMixedMessage_withCtaButton_displaysBothTextAndCta() {

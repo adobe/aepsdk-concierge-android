@@ -78,6 +78,7 @@ internal object ThemeParser {
             val textStrings = textMap?.let {
                 ConciergeTextStrings(
                     inputPlaceholder = DataReader.optString(it, "input.placeholder", null),
+                    inputAiChatIconTooltip = DataReader.optString(it, "input.aiChatIcon.tooltip", null),
                     welcomeHeading = DataReader.optString(it, "welcome.heading", null),
                     welcomeSubheading = DataReader.optString(it, "welcome.subheading", null),
                     loadingMessage = DataReader.optString(it, "loading.message", null),
@@ -350,13 +351,17 @@ internal object ThemeParser {
             inputBackground = themeColors.input?.background?.toComposeColor(),
             inputText = themeColors.input?.text?.toComposeColor(),
             inputOutline = themeColors.input?.outline?.toComposeColor(),
+            inputOutlineGradient = themeColors.input?.outlineGradient.toConciergeGradient(),
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
             micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
             sendIconColor = themeColors.input?.sendIconColor?.toComposeColor(),
             sendArrowIconColor = themeColors.input?.sendArrowIconColor?.toComposeColor(),
             sendArrowBackgroundColor = themeColors.input?.sendArrowBackgroundColor?.toComposeColor(),
+            sendArrowBackgroundGradient = themeColors.input?.sendArrowBackgroundGradient.toConciergeGradient(),
             micIconColor = themeColors.input?.micIconColor?.toComposeColor(),
+            micIconGradient = themeColors.input?.micIconGradient.toConciergeGradient(),
             micRecordingIconColor = themeColors.input?.micRecordingIconColor?.toComposeColor(),
+            micWaveformGradient = themeColors.input?.micWaveformGradient.toConciergeGradient(),
             // Feedback-specific colors from CSS themes
             feedbackIconButtonBackground = themeColors.feedback?.iconButtonBackground?.toComposeColor(),
             feedbackIconButtonHoverBackground = themeColors.feedback?.iconButtonHoverBackground?.toComposeColor(),
@@ -426,7 +431,13 @@ internal object ThemeParser {
             false
         }
         val disableMultiline = DataReader.optBoolean(inputTypedMap, "disableMultiline", true)
-        
+
+        val showAiChatIconMap = inputTypedMap?.get("showAiChatIcon") as? Map<*, *>
+        @Suppress("UNCHECKED_CAST")
+        val showAiChatIconTyped = showAiChatIconMap as? MutableMap<String?, Any?>
+        val showAiChatIcon = showAiChatIconTyped?.let { DataReader.optString(it, "icon", null) }
+            ?.takeIf { it.isNotBlank() }
+
         val productCardMap = typedMap?.get("productCard") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
         val productCardTyped = productCardMap as? MutableMap<String?, Any?>
@@ -528,6 +539,8 @@ internal object ThemeParser {
             disableMultiline = disableMultiline,
             sendButtonStyle = DataReader.optString(inputTypedMap, "sendButtonStyle", "default") ?: "default",
             stopRecordingIcon = DataReader.optString(inputTypedMap, "stopRecordingIcon", null),
+            showAiChatIcon = showAiChatIcon,
+            enableMicPulseBackground = DataReader.optBoolean(inputTypedMap, "enableMicPulseBackground", true),
             maxMessageLength = DataReader.optInt(typedMap, "maxMessageLength", 2000),
             typingIndicatorDelay = DataReader.optInt(typedMap, "typingIndicatorDelay", 500),
             feedback = feedback,

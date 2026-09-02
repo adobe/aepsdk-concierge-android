@@ -175,10 +175,50 @@ Shadows use CSS box-shadow syntax:
 
 ```json
 "--input-box-shadow": "0 2px 8px 0 #00000014"
-"--multimodal-card-box-shadow": "none"
+"--multimodal-card-box-shadow": "0 1px 3px 0 #00000014"
 ```
 
-Format: `offsetX offsetY blurRadius spreadRadius color`
+Format: `offsetX offsetY blurRadius spreadRadius color`. Set to `"none"` to disable a shadow entirely.
+
+`--multimodal-card-box-shadow` renders as a drop shadow on `ExtendedProductCard`, but only two of the five values are actually applied — Compose's `Modifier.shadow` is elevation-based, not a literal box-shadow renderer:
+
+| Token | Consumed? | Effect |
+|-------|-----------|--------|
+| `offsetX` | ❌ | Parsed but ignored — no horizontal-offset equivalent in Compose's shadow |
+| `offsetY` | ❌ | Parsed but ignored — no vertical-offset equivalent either |
+| `blurRadius` | ✅ | Becomes the shadow's `elevation` (dp) |
+| `spreadRadius` | ❌ | Parsed but ignored — no spread equivalent |
+| `color` | ✅ | Used as both `ambientColor` and `spotColor` |
+
+Low alpha values (e.g. `#00000014` ≈ 8%) are barely visible against a white background — increase alpha (e.g. `#00000040`+) for a more visible effect.
+
+`--input-box-shadow` is parsed into the same shape but isn't rendered by any composable yet (see status table below).
+
+### Gradients
+
+Some color tokens (input border, mic icon, arrow send button background, mic waveform bars) support
+a two-color linear gradient as an alternative to a solid color. Each gradient-capable token is
+configured via 3 CSS variables sharing a common prefix — a start color, an end color, and an
+optional angle:
+
+```json
+"--input-outline-gradient-start-color": "#12B0A0",
+"--input-outline-gradient-end-color": "#6DD3C4",
+"--input-outline-gradient-angle": "90deg"
+```
+
+- **Both the start and end color must be set for the gradient to render.** Setting only one (or
+  setting only the angle) does *not* produce a partial/fading gradient — the unset side is treated
+  as a not-yet-configured placeholder, and the token silently falls back to its solid-color
+  counterpart (e.g. `--input-outline-color`) exactly as if no gradient keys had been set at all.
+- The angle accepts a CSS `<n>deg` value or a direction keyword (`to top`, `to right`, `to bottom`,
+  `to left`, `to top right`, `to top left`, `to bottom right`, `to bottom left`) and follows CSS
+  `linear-gradient` convention: `0deg`/`to top` points up, increasing clockwise. Defaults to
+  `180deg` (`to bottom`) when omitted.
+- Once both colors are set, the gradient takes priority over the corresponding solid-color token
+  (e.g. `--input-outline-gradient-*` overrides `--input-outline-color`).
+- The angle-to-render conversion is exact only for the 4 axis-aligned angles (`0`/`90`/`180`/`270`);
+  other angles are a close visual approximation, not pixel-exact CSS gradient math.
 
 ### Font Weights
 
@@ -250,7 +290,8 @@ Feature toggles and interaction configuration.
 | `behavior.input.enableVoiceInput` | boolean | `false` | Enable voice input button |
 | `behavior.input.sendButtonStyle` | string | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | boolean | `true` | Disable multiline text input |
-| `behavior.input.showAiChatIcon` | object | `null` | AI chat icon configuration (JSON object). Present in shared theme JSON for web/iOS; ignored by the Android SDK. |
+| `behavior.input.showAiChatIcon` | object | `null` | Leading icon shown before the text field in the input bar. Object with an `icon` property: a local asset basename under `assets/icons/` or an absolute `http(s)` URL — same resolution rules as `citations.phoneIcon`/`storeIcon`. `null` or an empty `icon` hides it. Tooltip/content description is set via `text["input.aiChatIcon.tooltip"]`. |
+| `behavior.input.enableMicPulseBackground` | boolean | `true` | Shows a pulsing colored disc behind the mic/waveform icon while recording. Set to `false` for a bare waveform with no disc, rendered directly on the input background. |
 
 ### Chat
 
@@ -322,7 +363,9 @@ Feature toggles and interaction configuration.
       "enableVoiceInput": true,
       "sendButtonStyle": "default",
       "disableMultiline": false,
-      "showAiChatIcon": null
+      "showAiChatIcon": {
+        "icon": "ai-assistant-icon"
+      }
     },
     "chat": {
       "messageAlignment": "left",
@@ -655,12 +698,24 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-background` | `colors.input.background` | `String` | `"#FFFFFF"` | Input field background (hex) |
 | `--input-text-color` | `colors.input.text` | `String` | `"#000000"` | Input text color (hex) |
 | `--input-outline-color` | `colors.input.outline` | `String?` | `null` | Input border color (hex) |
+| `--input-outline-gradient-start-color` | `colors.input.outlineGradient` | `String?` | `null` | Input border gradient start color (hex). See [Gradients](#gradients). Overrides `--input-outline-color` when both gradient colors are set |
+| `--input-outline-gradient-end-color` | `colors.input.outlineGradient` | `String?` | `null` | Input border gradient end color (hex) |
+| `--input-outline-gradient-angle` | `colors.input.outlineGradient` | `String` | `"180deg"` | Input border gradient direction |
 | `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
 | `--input-send-icon-color` | `colors.input.sendIconColor` | `String?` | `null` | Send button icon color (hex). Falls back to `onSurface` |
 | `--input-send-arrow-icon-color` | `colors.input.sendArrowIconColor` | `String?` | `null` | Arrow send button icon (arrow) color (hex). Falls back to `onPrimary`. Only used when `sendButtonStyle` is `"arrow"` |
 | `--input-send-arrow-background-color` | `colors.input.sendArrowBackgroundColor` | `String?` | `null` | Arrow send button circle background color (hex). Falls back to `sendIconColor` then `primary`. Only used when `sendButtonStyle` is `"arrow"` |
+| `--input-send-arrow-background-gradient-start-color` | `colors.input.sendArrowBackgroundGradient` | `String?` | `null` | Arrow send button circle gradient start color (hex). See [Gradients](#gradients). Only used when `sendButtonStyle` is `"arrow"` |
+| `--input-send-arrow-background-gradient-end-color` | `colors.input.sendArrowBackgroundGradient` | `String?` | `null` | Arrow send button circle gradient end color (hex) |
+| `--input-send-arrow-background-gradient-angle` | `colors.input.sendArrowBackgroundGradient` | `String` | `"180deg"` | Arrow send button circle gradient direction |
 | `--input-mic-icon-color` | `colors.input.micIconColor` | `String?` | `null` | Mic button icon color (hex). Falls back to `primary` |
-| `--input-mic-recording-icon-color` | `colors.input.micRecordingIconColor` | `String?` | `null` | Waveform animation color during voice recording (hex). Falls back to `onPrimary` |
+| `--input-mic-icon-gradient-start-color` | `colors.input.micIconGradient` | `String?` | `null` | Mic button icon gradient start color (hex). See [Gradients](#gradients) |
+| `--input-mic-icon-gradient-end-color` | `colors.input.micIconGradient` | `String?` | `null` | Mic button icon gradient end color (hex) |
+| `--input-mic-icon-gradient-angle` | `colors.input.micIconGradient` | `String` | `"180deg"` | Mic button icon gradient direction |
+| `--input-mic-recording-icon-color` | `colors.input.micRecordingIconColor` | `String?` | `null` | Waveform animation color during voice recording (hex). Falls back to `onPrimary` when `enableMicPulseBackground` is `true`, otherwise `primary` |
+| `--input-mic-waveform-gradient-start-color` | `colors.input.micWaveformGradient` | `String?` | `null` | Start color of the listening waveform bars' gradient (hex). Requires the end color to also be set; otherwise falls back to `micRecordingIconColor` |
+| `--input-mic-waveform-gradient-end-color` | `colors.input.micWaveformGradient` | `String?` | `null` | End color of the listening waveform bars' gradient (hex). Requires the start color to also be set; otherwise falls back to `micRecordingIconColor` |
+| `--input-mic-waveform-gradient-angle` | `colors.input.micWaveformGradient` | `String` | `"180deg"` | Waveform bar gradient direction. Defaults to top-to-bottom |
 
 ### Colors - Welcome Prompts
 
@@ -748,8 +803,8 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | `--input-outline-width` | `cssLayout.inputOutlineWidth` | `Double` | `2.0` | Input border width (dp) |
 | `--input-focus-outline-width` | `cssLayout.inputFocusOutlineWidth` | `Double` | `2.0` | Focused input border width (dp) |
 | `--input-font-size` | `cssLayout.inputFontSize` | `Double` | `16.0` | Input text font size (sp) |
-| `--input-button-height` | `cssLayout.inputButtonHeight` | `Double` | `32.0` | Input button height (dp) |
-| `--input-button-width` | `cssLayout.inputButtonWidth` | `Double` | `32.0` | Input button width (dp) |
+| `--input-button-height` | `cssLayout.inputButtonHeight` | `Double` | `24.0` | Shared icon size (dp) for every icon in the input row: leading AI-chat icon, clear (x), mic, send, and stop-recording. Either this or `--input-button-width` alone is enough to override the default; when both are set, width wins. |
+| `--input-button-width` | `cssLayout.inputButtonWidth` | `Double` | `24.0` | See `--input-button-height` — same shared input-row icon size, preferred over height when both are set. |
 | `--input-button-border-radius` | `cssLayout.inputButtonBorderRadius` | `Double` | `8.0` | Input button corner radius (dp) |
 | `--input-box-shadow` | `cssLayout.inputBoxShadow` | `Map<String, Any>` | `null` | Input field shadow |
 
@@ -921,7 +976,9 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
       "enableVoiceInput": true,
       "sendButtonStyle": "default",
       "disableMultiline": false,
-      "showAiChatIcon": null
+      "showAiChatIcon": {
+        "icon": "ai-assistant-icon"
+      }
     },
     "chat": {
       "messageAlignment": "left",
@@ -1096,6 +1153,9 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
 
     "--input-background": "#FFFFFF",
     "--input-outline-color": null,
+    "--input-outline-gradient-start-color": "#1976D2",
+    "--input-outline-gradient-end-color": "#4B75FF",
+    "--input-outline-gradient-angle": "90deg",
     "--input-outline-width": "2px",
     "--input-box-shadow": "0 2px 8px 0 #00000014",
     "--input-focus-outline-width": "2px",
@@ -1104,8 +1164,17 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "--input-send-icon-color": "#000000",
     "--input-send-arrow-icon-color": "#FFFFFF",
     "--input-send-arrow-background-color": "#1976D2",
+    "--input-send-arrow-background-gradient-start-color": "#1976D2",
+    "--input-send-arrow-background-gradient-end-color": "#4B75FF",
+    "--input-send-arrow-background-gradient-angle": "135deg",
     "--input-mic-icon-color": "#000000",
+    "--input-mic-icon-gradient-start-color": "#1976D2",
+    "--input-mic-icon-gradient-end-color": "#4B75FF",
+    "--input-mic-icon-gradient-angle": "135deg",
     "--input-mic-recording-icon-color": "#FFFFFF",
+    "--input-mic-waveform-gradient-start-color": "#1976D2",
+    "--input-mic-waveform-gradient-end-color": "#4B75FF",
+    "--input-mic-waveform-gradient-angle": "180deg",
     "--input-font-size": "16px",
     "--input-button-height": "32px",
     "--input-button-width": "32px",
@@ -1227,7 +1296,8 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
-| `behavior.input.showAiChatIcon` | ⚠️ | Parsed but not implemented | - |
+| `behavior.input.showAiChatIcon` | ✅ | Rendered as a leading icon before the text field | `ChatInputPanel` |
+| `behavior.input.enableMicPulseBackground` | ✅ | Shows/hides the pulsing colored disc behind the mic/waveform icon while recording | `MicButton` |
 | `behavior.chat.messageAlignment` | ✅ | `"start"` (default, full-width), `"center"`, or `"end"` alignment for agent message bubbles | `ChatMessageItem` |
 | `behavior.chat.messageWidth` | ⚠️ | Parsed but not implemented | - |
 | `behavior.chat.userMessageBubbleStyle` | ✅ | `"default"` (all corners rounded) or `"balloon"` (square bottom-right corner) | `ChatMessageItem` |
@@ -1256,7 +1326,7 @@ This section documents which properties are fully implemented, partially impleme
 | `text["input.placeholder"]` | ✅ | Input field hint text | `ChatTextField` |
 | `text["input.messageInput.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["input.send.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
-| `text["input.aiChatIcon.tooltip"]` | ⚠️ | Parsed but not implemented | - |
+| `text["input.aiChatIcon.tooltip"]` | ✅ | Used as the content description for the leading input icon | `ChatInputPanel` |
 | `text["input.mic.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["card.aria.select"]` | ⚠️ | Parsed but not used for accessibility | - |
 | `text["carousel.prev.aria"]` | ⚠️ | Parsed but not used for accessibility | - |
@@ -1356,12 +1426,24 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-background` | ✅ | Input field background | `ChatInputPanel` |
 | `--input-text-color` | ✅ | Input field text color | `ChatTextField`, `FeedbackDialog` |
 | `--input-outline-color` | ✅ | Input field border color | `ChatInputPanel` |
+| `--input-outline-gradient-start-color` | ✅ | Input border gradient start color, overrides `--input-outline-color` | `ChatInputPanel` |
+| `--input-outline-gradient-end-color` | ✅ | Input border gradient end color | `ChatInputPanel` |
+| `--input-outline-gradient-angle` | ✅ | Input border gradient direction | `ChatInputPanel` |
 | `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
 | `--input-send-icon-color` | ✅ | Send button icon color (default style tint) | `SendButton` |
 | `--input-send-arrow-icon-color` | ✅ | Arrow send button icon color (arrow style only) | `SendButton` |
 | `--input-send-arrow-background-color` | ✅ | Arrow send button circle background (arrow style only) | `SendButton` |
+| `--input-send-arrow-background-gradient-start-color` | ✅ | Arrow send button circle gradient start color | `SendButton` |
+| `--input-send-arrow-background-gradient-end-color` | ✅ | Arrow send button circle gradient end color | `SendButton` |
+| `--input-send-arrow-background-gradient-angle` | ✅ | Arrow send button circle gradient direction | `SendButton` |
 | `--input-mic-icon-color` | ✅ | Mic button icon color | `MicButton` |
+| `--input-mic-icon-gradient-start-color` | ✅ | Mic button icon gradient start color | `MicButton` |
+| `--input-mic-icon-gradient-end-color` | ✅ | Mic button icon gradient end color | `MicButton` |
+| `--input-mic-icon-gradient-angle` | ✅ | Mic button icon gradient direction | `MicButton` |
 | `--input-mic-recording-icon-color` | ✅ | Waveform animation color during recording | `MicButton`, `AnimatedAudioWave` |
+| `--input-mic-waveform-gradient-start-color` | ✅ | Start color of the listening waveform bars' gradient | `AnimatedAudioWave` |
+| `--input-mic-waveform-gradient-end-color` | ✅ | End color of the listening waveform bars' gradient | `AnimatedAudioWave` |
+| `--input-mic-waveform-gradient-angle` | ✅ | Waveform bar gradient direction | `AnimatedAudioWave` |
 | `--welcome-prompt-background-color` | ✅ | Welcome prompt pill background | `SuggestedPromptItem` |
 | `--welcome-prompt-text-color` | ✅ | Welcome prompt pill text | `SuggestedPromptItem` |
 | `--suggestion-background-color` | ✅ | Prompt suggestion chip background | `PromptSuggestions` |
@@ -1405,8 +1487,8 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-outline-width` | ✅ | Input field border width | `ChatInputPanel` |
 | `--input-focus-outline-width` | ✅ | Input field focused border width | `ChatInputPanel` |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
-| `--input-button-height` | ⚠️ | Parsed but not used in composables | - |
-| `--input-button-width` | ⚠️ | Parsed but not used in composables | - |
+| `--input-button-height` | ✅ | Sizes every input-row icon (leading AI-chat icon, clear, mic, send, stop-recording) | `ConciergeStyles.inputRowIconSize` |
+| `--input-button-width` | ✅ | Sizes every input-row icon (leading AI-chat icon, clear, mic, send, stop-recording) | `ConciergeStyles.inputRowIconSize` |
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
 | `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
@@ -1420,7 +1502,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
 | `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
-| `--multimodal-card-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--multimodal-card-box-shadow` | ✅ | Card drop shadow (blur radius → elevation, color → ambient/spot shadow color) | `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-height` | ✅ | Extended product card height | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-border-radius` | ✅ | Extended product card corner radius | `ExtendedProductCard` |
@@ -1529,6 +1611,8 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 - `--input-send-icon-color` / `--input-mic-icon-color` - Send and mic button icon colors
 - `--input-send-arrow-icon-color` / `--input-send-arrow-background-color` - Arrow send button colors (when `sendButtonStyle` is `"arrow"`)
 - `--input-mic-recording-icon-color` - Waveform animation color during voice recording
+- `--input-mic-waveform-gradient-start-color` / `--input-mic-waveform-gradient-end-color` / `--input-mic-waveform-gradient-angle` - Optional gradient for the waveform bars (falls back to `--input-mic-recording-icon-color`)
+- `--input-outline-gradient-start-color` / `-end-color` / `-angle`, `--input-mic-icon-gradient-*`, `--input-send-arrow-background-gradient-*` - Optional gradients for the input border, mic icon, and arrow send button circle (each overrides its solid-color counterpart when set — see [Gradients](#gradients))
 - `--submit-button-fill-color` / `--color-button-submit` - Submit button
 - `--disclaimer-color` / `--disclaimer-font-size` / `--disclaimer-font-weight` - Disclaimer text at bottom
 - `--citations-background-color` / `--citations-text-color` - Citation pill (badge).
@@ -1546,6 +1630,7 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 **Essential Behavior:**
 - `behavior.input.enableVoiceInput` - Show/hide microphone button
 - `behavior.input.sendButtonStyle` - `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow)
+- `behavior.input.enableMicPulseBackground` - Show/hide the pulsing colored disc behind the mic/waveform icon while recording (default `true`; set `false` for a bare waveform)
 - `behavior.productCard.cardStyle` - Use `"productDetail"` for extended product cards (image, badge, name, subtitle, price)
 - `behavior.productCard.cardsAlignment` - Horizontal alignment of product cards: `"start"` (left), `"center"` (default), or `"end"` (right)
 - `behavior.multimodalCarousel.carouselStyle` - Use `"paged"` for prev/next/dots or `"scroll"` for continuous scroll

@@ -212,6 +212,10 @@ data class ConciergeThemeBehavior(
     val sendButtonStyle: String = "default",
     /** Basename (no extension) of the stop-recording icon under `assets/icons/`. Falls back to Material `Icons.Filled.StopCircle` when null/blank or unresolved. */
     val stopRecordingIcon: String? = null,
+    /** Basename (no extension) of the leading icon shown before the text field in the input bar, under `assets/icons/`, or an absolute http(s) URL. Null/blank hides it. From `behavior.input.showAiChatIcon.icon`. */
+    val showAiChatIcon: String? = null,
+    /** Shows a pulsing colored disc behind the mic/waveform icon while recording. When false, the waveform renders directly on the input background with no disc. */
+    val enableMicPulseBackground: Boolean = true,
     val maxMessageLength: Int = 2000,
     val typingIndicatorDelay: Int = 500,
     val feedback: ConciergeFeedbackBehavior? = null,
