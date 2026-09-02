@@ -20,8 +20,8 @@ This document provides a comprehensive reference for all styling properties supp
 - [Assets](#assets)
 - [Theme Tokens](#theme-tokens)
   - [Typography](#typography)
-  - [Colors](#colors)
-  - [Layout](#layout)
+  - [Colors](#colors---primary)
+  - [Layout](#layout---input)
 - [Implementation Status](#implementation-status)
 
 ---
