@@ -13,8 +13,8 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.services.Log
-import kotlinx.coroutines.CancellationException
 import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -28,11 +28,12 @@ internal object ConciergeAuthTokenHolder {
 
     private const val LOG_TAG = "ConciergeAuthTokenHolder"
     private const val PROVIDE_TOKEN_TIMEOUT_MS = 500L
+    private const val EXECUTOR_POOL_SIZE = 4
 
     @Volatile
     private var provider: ConciergeAuthTokenProvider? = null
 
-    private val executor = Executors.newCachedThreadPool { runnable ->
+    private val executor = Executors.newFixedThreadPool(EXECUTOR_POOL_SIZE) { runnable ->
         Thread(runnable, "ConciergeAuthTokenProvider").apply { isDaemon = true }
     }
 
@@ -58,19 +59,23 @@ internal object ConciergeAuthTokenHolder {
      */
     fun resolveToken(): String? {
         val current = provider ?: return null
+        val future = executor.submit(Callable { current.provideToken() })
         return try {
-            executor.submit(Callable { current.provideToken() })
-                .get(PROVIDE_TOKEN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            future.get(PROVIDE_TOKEN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 ?.takeIf { it.isNotBlank() }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
+            if (e is InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+            val cause = if (e is ExecutionException) e.cause ?: e else e
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
                 LOG_TAG,
-                "Auth token provider threw ${e.javaClass.simpleName}; sending turn without a token"
+                "Auth token provider threw ${cause.javaClass.simpleName}; sending turn without a token"
             )
             null
+        } finally {
+            future.cancel(true)
         }
     }
 }

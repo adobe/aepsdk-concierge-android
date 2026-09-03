@@ -134,15 +134,13 @@ internal class ConciergeConversationServiceClient(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Resolves the app-supplied auth token and renders it as the trailing `data` part of the
-     * enclosing object, including the leading comma that separates it from the preceding key.
-     *
-     * Returns an empty string when no token is available, so that the `data` key is omitted from
-     * the payload entirely rather than sent as null or empty.
+     * Resolves the app-supplied auth token and renders it as the `data` field of the enclosing
+     * object, or null when no token is available so the `data` key can be omitted from the
+     * payload entirely rather than sent as null or empty.
      */
-    private fun authDataPartSuffix(): String {
-        val token = ConciergeAuthTokenHolder.resolveToken() ?: return ""
-        return ""","data": {"type": "auth", "payload": {"token": "${token.escapedForJson()}"}}"""
+    private fun authDataPart(): String? {
+        val token = ConciergeAuthTokenHolder.resolveToken() ?: return null
+        return """"data": {"type": "auth", "payload": {"token": "${token.escapedForJson()}"}}"""
     }
 
     /**
@@ -170,6 +168,11 @@ internal class ConciergeConversationServiceClient(
         check(surfaces.any { it.isNotBlank() }) {
             "Unable to create Concierge request payload. No surfaces were provided."
         }
+        val conversationFields = listOfNotNull(
+            """"surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }}""",
+            """"message": "${message.escapedForJson()}"""",
+            authDataPart()
+        ).joinToString(",")
         return """
         {
             "events": [
@@ -181,8 +184,7 @@ internal class ConciergeConversationServiceClient(
                     },
                     "query": {
                         "conversation": {
-                            "surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }},
-                            "message": "${message.escapedForJson()}"${authDataPartSuffix()}
+                            $conversationFields
                         }
                     },
                     "xdm": {
@@ -391,11 +393,24 @@ internal class ConciergeConversationServiceClient(
             "[]"
         }
 
-        val conversationIdLine = feedback.conversationId?.let {
-            """"conversationID": "${it.escapedForJson()}","""
-        } ?: ""
-
         val isPositive = feedback.feedbackType == FeedbackType.POSITIVE
+
+        val feedbackField = """"feedback": {
+                    "source": "end-user",
+                    "raw": $rawArray,
+                    "rating": {
+                        "score": ${if (isPositive) 1 else 0},
+                        "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
+                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"${it.escapedForJson()}\"" }}]
+                    }
+                }"""
+
+        val xdmConversationFields = listOfNotNull(
+            feedbackField,
+            feedback.conversationId?.let { """"conversationID": "${it.escapedForJson()}"""" },
+            """"turnID": "${feedback.interactionId.escapedForJson()}"""",
+            authDataPart()
+        ).joinToString(",")
 
         // TODO: this has to be formalized in a JSON structure once the data model is finalized.
         return """
@@ -413,17 +428,7 @@ internal class ConciergeConversationServiceClient(
                 }]
             },
             "conversation": {
-                "feedback": {
-                    "source": "end-user",
-                    "raw": $rawArray,
-                    "rating": {
-                        "score": ${if (isPositive) 1 else 0},
-                        "classification": "${if (isPositive) "Thumbs Up" else "Thumbs Down"}",
-                        "reasons": [${feedback.selectedCategories.joinToString(",") { "\"${it.escapedForJson()}\"" }}]
-                    }
-                },
-                $conversationIdLine
-                "turnID": "${feedback.interactionId.escapedForJson()}"${authDataPartSuffix()}
+                $xdmConversationFields
             },
             "eventType": "conversation.feedback",
             "timestamp": "$timestamp",

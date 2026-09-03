@@ -12,16 +12,32 @@
 
 package com.adobe.marketing.mobile.concierge
 
+import com.adobe.marketing.mobile.services.Log
+import io.mockk.Runs
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import io.mockk.verify
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 
 class ConciergeAuthTokenHolderTest {
 
+    @Before
+    fun setUp() {
+        mockkStatic(Log::class)
+        every { Log.debug(any(), any(), any()) } just Runs
+        every { Log.warning(any(), any(), any()) } just Runs
+    }
+
     @After
     fun tearDown() {
         ConciergeAuthTokenHolder.setProvider(null)
+        unmockkStatic(Log::class)
     }
 
     @Test
@@ -71,6 +87,41 @@ class ConciergeAuthTokenHolderTest {
         ConciergeAuthTokenHolder.setProvider { throw IllegalStateException("mint failed") }
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
+    }
+
+    @Test
+    fun `resolveToken returns null when the provider does not return within the timeout`() {
+        ConciergeAuthTokenHolder.setProvider {
+            Thread.sleep(1000)
+            "too-late"
+        }
+
+        assertNull(ConciergeAuthTokenHolder.resolveToken())
+    }
+
+    @Test
+    fun `resolveToken never logs the token value`() {
+        ConciergeAuthTokenHolder.setProvider { "super-secret-token" }
+
+        ConciergeAuthTokenHolder.resolveToken()
+
+        verify(exactly = 0) { Log.debug(any(), any(), match { it.contains("super-secret-token") }) }
+        verify(exactly = 0) { Log.warning(any(), any(), match { it.contains("super-secret-token") }) }
+    }
+
+    @Test
+    fun `resolveToken logs only the exception class name when the provider throws, never the exception message`() {
+        ConciergeAuthTokenHolder.setProvider {
+            throw IllegalStateException("token was super-secret-token")
+        }
+
+        ConciergeAuthTokenHolder.resolveToken()
+
+        verify {
+            Log.warning(any(), any(), match {
+                it.contains("IllegalStateException") && !it.contains("super-secret-token")
+            })
+        }
     }
 
     @Test
