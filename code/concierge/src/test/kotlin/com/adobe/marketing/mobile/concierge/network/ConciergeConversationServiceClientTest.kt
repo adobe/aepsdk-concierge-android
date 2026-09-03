@@ -1199,6 +1199,24 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `chat request omits the data part when the auth provider does not return within the timeout`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        ConciergeAuthTokenHolder.setProvider {
+            Thread.sleep(1000)
+            "too-late"
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertFalse("No data part should be present when the provider times out", body.contains("\"data\""))
+        assertFalse("No auth type should be present when the provider times out", body.contains("\"auth\""))
+    }
+
+    @Test
     fun `feedback request carries the auth token as a data part inside xdm conversation`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
