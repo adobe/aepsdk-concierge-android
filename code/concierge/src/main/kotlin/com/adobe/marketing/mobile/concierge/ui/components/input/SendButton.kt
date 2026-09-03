@@ -100,7 +100,7 @@ private fun SendButtonDefault(
         modifier = modifier
     ) {
         Image(
-            painter = painterResource(R.drawable.send),
+            painter = painterResource(R.drawable.concierge_ic_send),
             contentDescription = "Send message",
             modifier = Modifier
                 .size(iconSize)
@@ -155,7 +155,7 @@ private fun SendButtonArrow(
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(R.drawable.send_arrow),
+                painter = painterResource(R.drawable.concierge_ic_send_arrow),
                 contentDescription = "Send message",
                 modifier = Modifier
                     .size(iconSize * SEND_ARROW_ICON_SCALE)

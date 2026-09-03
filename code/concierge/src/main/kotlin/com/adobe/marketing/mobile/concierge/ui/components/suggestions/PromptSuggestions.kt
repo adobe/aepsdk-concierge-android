@@ -113,7 +113,7 @@ private fun PromptSuggestionItem(
         ) {
             // Arrow icon
             Icon(
-                painter = painterResource(id = R.drawable.arrow_curved),
+                painter = painterResource(id = R.drawable.concierge_ic_arrow_curved),
                 contentDescription = null,
                 modifier = Modifier.size(style.iconSize),
                 tint = style.iconColor

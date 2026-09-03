@@ -47,6 +47,11 @@ aepLibrary {
     }
 }
 
+android {
+    // Prefix library resources so they cannot be overridden by same-named host-app resources.
+    resourcePrefix = "concierge_"
+}
+
 dependencies {
     // COMPOSE_RUNTIME, COMPOSE_MATERIAL, ANDROIDX_ACTIVITY_COMPOSE, COMPOSE_UI_TOOLING
     implementation("androidx.compose.ui:ui-tooling-preview:${BuildConstants.Versions.COMPOSE}")
