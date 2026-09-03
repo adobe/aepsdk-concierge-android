@@ -13,29 +13,38 @@
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.LineHeightStyle
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * A text input field for chat messages with support for different states.
  *
+ * Uses [BasicTextField] rather than Material's `OutlinedTextField` so the field imposes neither a
+ * 56dp minimum height nor the ~16dp internal content padding that the outlined field bakes in --
+ * both of which fought the input-bar spec (a 56dp pill with `padding: 16px 12px` around a 24dp
+ * row). The field now contributes only the text's own height, letting the pill's padding and the
+ * 24dp action icons drive its size, and its text starts flush so the leading gap is exactly the
+ * spec's 4dp (or the pill's 12dp edge padding when no leading icon is shown).
+ *
  * @param modifier Modifier for the composable
  * @param value The current text value
  * @param onValueChange Callback when the text value changes
- * @param userInputState The current state of the input stream
  * @param isEnabled Whether the field is enabled
  * @param placeholder Default placeholder text
  */
@@ -48,26 +57,40 @@ internal fun ChatTextField(
     placeholder: String = "Type a message..."
 ) {
     val style = ConciergeStyles.chatTextFieldStyle
-    val textColor = ConciergeTheme.colors.onSurface
     val focusManager = LocalFocusManager.current
     val disableMultiline = ConciergeTheme.behavior?.disableMultiline ?: true
 
-    OutlinedTextField(
+    // Strip the font's built-in vertical padding and center the text within its line box, so the
+    // glyphs sit on the row's shared center line (aligned with the leading icon and action buttons)
+    // rather than riding low on the baseline. Applied to both the input text and the placeholder.
+    val centeredTextStyle = remember(style.textStyle) {
+        style.textStyle.copy(
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+            lineHeightStyle = LineHeightStyle(
+                alignment = LineHeightStyle.Alignment.Center,
+                trim = LineHeightStyle.Trim.Both
+            )
+        )
+    }
+    val effectiveTextStyle = remember(centeredTextStyle, isEnabled, style.disabledAlpha) {
+        if (isEnabled) {
+            centeredTextStyle
+        } else {
+            centeredTextStyle.copy(color = centeredTextStyle.color.copy(alpha = style.disabledAlpha))
+        }
+    }
+
+    BasicTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
             .testTag("ChatTextField")
-            .animateContentSize()
-            .padding(horizontal = style.horizontalPadding),
-        placeholder = {
-            Text(
-                text = placeholder,
-                color = style.placeholderTextColor
-            )
-        },
+            .animateContentSize(),
         enabled = isEnabled,
         singleLine = disableMultiline,
         maxLines = if (disableMultiline) 1 else style.maxLines,
+        textStyle = effectiveTextStyle,
+        cursorBrush = SolidColor(effectiveTextStyle.color),
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Text,
             imeAction = ImeAction.Done
@@ -77,17 +100,19 @@ internal fun ChatTextField(
                 focusManager.clearFocus()
             }
         ),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color.Transparent,
-            unfocusedContainerColor = Color.Transparent,
-            disabledContainerColor = Color.Transparent,
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent,
-            disabledBorderColor = Color.Transparent,
-            focusedTextColor = textColor,
-            unfocusedTextColor = textColor,
-            disabledTextColor = textColor.copy(alpha = 0.5f)
-        ),
-        textStyle = style.textStyle
+        decorationBox = { innerTextField ->
+            // No content padding -- the pill's padding and the leading-icon/action-button gaps in
+            // ChatInputPanel supply all the spacing the spec calls for.
+            Box(contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = style.placeholderTextColor,
+                        style = centeredTextStyle
+                    )
+                }
+                innerTextField()
+            }
+        }
     )
 }

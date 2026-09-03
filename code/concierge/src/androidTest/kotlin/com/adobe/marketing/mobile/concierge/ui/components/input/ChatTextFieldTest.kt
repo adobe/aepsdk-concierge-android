@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -97,6 +99,57 @@ class ChatTextFieldTest {
 
         composeTestRule.onNodeWithText("How can I help")
             .assertExists()
+    }
+
+    @Test
+    fun chatTextField_whenDisabled_reportsDisabledSemantics() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatTextField(
+                    value = "",
+                    onValueChange = {},
+                    isEnabled = false,
+                    placeholder = "Type a message..."
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChatTextField")
+            .assertIsNotEnabled()
+    }
+
+    @Test
+    fun chatTextField_whenEnabled_reportsEnabledSemantics() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatTextField(
+                    value = "",
+                    onValueChange = {},
+                    isEnabled = true,
+                    placeholder = "Type a message..."
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithTag("ChatTextField")
+            .assertIsEnabled()
+    }
+
+    @Test
+    fun chatTextField_withValue_placeholderIsHidden() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatTextField(
+                    value = "Hello",
+                    onValueChange = {},
+                    isEnabled = true,
+                    placeholder = "Type a message..."
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Type a message...")
+            .assertDoesNotExist()
     }
 
     @Test

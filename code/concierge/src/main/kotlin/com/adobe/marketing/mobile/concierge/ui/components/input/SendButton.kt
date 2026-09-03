@@ -116,10 +116,9 @@ private fun SendButtonDefault(
 /**
  * Arrow send button — filled circle with upward arrow icon.
  *
- * [modifier] sizes the outer tap target (matching every other input-row icon's padded touch
- * area), while the visible circle is centered inside it at exactly [iconSize] -- so the circle's
- * visible size tracks the theme's icon-size knob without the invisible tap-target padding
- * inflating it, mirroring how the mic/clear glyphs stay smaller than their own tap areas.
+ * [modifier] sizes the outer tap area to the shared row glyph size (no padded container); the
+ * visible circle fills it at [iconSize], with the arrow glyph drawn smaller than the circle
+ * (see [SEND_ARROW_ICON_SCALE]) so it doesn't touch the circle's edge.
  */
 @Composable
 private fun SendButtonArrow(
