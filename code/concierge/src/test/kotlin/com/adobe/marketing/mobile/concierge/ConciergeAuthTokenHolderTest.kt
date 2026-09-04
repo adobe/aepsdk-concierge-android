@@ -19,9 +19,13 @@ import io.mockk.just
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -47,14 +51,14 @@ class ConciergeAuthTokenHolderTest {
 
     @Test
     fun `resolveToken returns the value supplied by the provider`() {
-        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
 
         assertEquals("token-abc", ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
     fun `resolveToken returns null after the provider is cleared`() {
-        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
         ConciergeAuthTokenHolder.setProvider(null)
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
@@ -62,46 +66,120 @@ class ConciergeAuthTokenHolderTest {
 
     @Test
     fun `resolveToken returns the value from the most recently set provider`() {
-        ConciergeAuthTokenHolder.setProvider { "first" }
-        ConciergeAuthTokenHolder.setProvider { "second" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "first" })
+        ConciergeAuthTokenHolder.setProvider(provider = { "second" })
 
         assertEquals("second", ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
     fun `resolveToken returns null when the provider returns null`() {
-        ConciergeAuthTokenHolder.setProvider { null }
+        ConciergeAuthTokenHolder.setProvider(provider = { null })
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
     fun `resolveToken returns null when the provider returns a blank token`() {
-        ConciergeAuthTokenHolder.setProvider { "   " }
+        ConciergeAuthTokenHolder.setProvider(provider = { "   " })
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
     fun `resolveToken returns null when the provider throws`() {
-        ConciergeAuthTokenHolder.setProvider { throw IllegalStateException("mint failed") }
+        ConciergeAuthTokenHolder.setProvider(provider = { throw IllegalStateException("mint failed") })
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
     fun `resolveToken returns null when the provider does not return within the timeout`() {
-        ConciergeAuthTokenHolder.setProvider {
-            Thread.sleep(1000)
-            "too-late"
-        }
+        ConciergeAuthTokenHolder.setProvider(
+            provider = {
+                Thread.sleep(200)
+                "too-late"
+            },
+            timeoutMillis = 50L
+        )
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
+    fun `resolveToken respects a custom timeout`() {
+        ConciergeAuthTokenHolder.setProvider(
+            provider = {
+                Thread.sleep(50)
+                "token-abc"
+            },
+            timeoutMillis = 500L
+        )
+
+        assertEquals("token-abc", ConciergeAuthTokenHolder.resolveToken())
+    }
+
+    @Test
+    fun `default timeout matches the value shared with iOS`() {
+        assertEquals(3000L, ConciergeAuthTokenHolder.DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS)
+    }
+
+    @Test
+    fun `setProvider throws when timeoutMillis is zero`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConciergeAuthTokenHolder.setProvider(provider = { "token" }, timeoutMillis = 0L)
+        }
+    }
+
+    @Test
+    fun `setProvider throws when timeoutMillis is negative`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ConciergeAuthTokenHolder.setProvider(provider = { "token" }, timeoutMillis = -1L)
+        }
+    }
+
+    @Test
+    fun `resolveToken degrades gracefully when the executor pool and queue are both saturated`() {
+        val poolSize = ConciergeAuthTokenHolder.EXECUTOR_POOL_SIZE
+        val totalCapacity = poolSize + ConciergeAuthTokenHolder.EXECUTOR_QUEUE_CAPACITY
+
+        val blockLatch = CountDownLatch(1)
+        val runningLatch = CountDownLatch(poolSize)
+        ConciergeAuthTokenHolder.setProvider(
+            provider = {
+                runningLatch.countDown()
+                blockLatch.await(5, TimeUnit.SECONDS)
+                "token"
+            },
+            timeoutMillis = 5000L
+        )
+
+        // Fill the pool + bounded queue, all blocked on the latch.
+        val saturatingThreads = List(totalCapacity) {
+            Thread { ConciergeAuthTokenHolder.resolveToken() }.also { it.start() }
+        }
+        // Deterministically confirm the pool itself is saturated (all threads actively running)
+        // before allowing the brief buffer below for the remaining calls to land in the queue.
+        assertTrue(
+            "All $poolSize pool threads should be running the provider",
+            runningLatch.await(2, TimeUnit.SECONDS)
+        )
+        Thread.sleep(200)
+
+        val start = System.currentTimeMillis()
+        val result = ConciergeAuthTokenHolder.resolveToken()
+        val elapsed = System.currentTimeMillis() - start
+
+        assertNull("21st concurrent call should degrade to null once pool and queue are full", result)
+        assertTrue("Rejection should fail fast rather than wait out the timeout", elapsed < 2000L)
+
+        blockLatch.countDown()
+        saturatingThreads.forEach { it.join(6000) }
+    }
+
+    @Test
     fun `resolveToken never logs the token value`() {
-        ConciergeAuthTokenHolder.setProvider { "super-secret-token" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "super-secret-token" })
 
         ConciergeAuthTokenHolder.resolveToken()
 
@@ -111,9 +189,9 @@ class ConciergeAuthTokenHolderTest {
 
     @Test
     fun `resolveToken logs only the exception class name when the provider throws, never the exception message`() {
-        ConciergeAuthTokenHolder.setProvider {
+        ConciergeAuthTokenHolder.setProvider(provider = {
             throw IllegalStateException("token was super-secret-token")
-        }
+        })
 
         ConciergeAuthTokenHolder.resolveToken()
 
@@ -127,10 +205,10 @@ class ConciergeAuthTokenHolderTest {
     @Test
     fun `resolveToken invokes the provider on every call so the token is never cached`() {
         var callCount = 0
-        ConciergeAuthTokenHolder.setProvider {
+        ConciergeAuthTokenHolder.setProvider(provider = {
             callCount++
             "token-$callCount"
-        }
+        })
 
         assertEquals("token-1", ConciergeAuthTokenHolder.resolveToken())
         assertEquals("token-2", ConciergeAuthTokenHolder.resolveToken())

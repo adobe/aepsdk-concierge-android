@@ -111,8 +111,16 @@ Concierge.setAuthTokenProvider(ConciergeAuthTokenProvider {
 
 Register the provider once, typically alongside extension registration in your `Application.onCreate()`. Pass `null` to `setAuthTokenProvider` to clear a previously registered provider.
 
-- `provideToken()` is called once per turn (chat and feedback) on a background thread — the token is never cached, so refreshed or rotated tokens are picked up on the next turn. Implementations must return promptly and must not perform network I/O; a call that doesn't return quickly is treated as if it returned no token for that turn.
+- `provideToken()` is called once per turn (chat and feedback) on a background thread — the token is never cached, so refreshed or rotated tokens are picked up on the next turn. It may block briefly to refresh the token; the SDK bounds the wait (3 seconds by default) and sends the turn without a token if `provideToken()` doesn't return in time.
 - Returning `null` or a blank value, or throwing, sends the turn without a token rather than failing it — the token is never merged into the identity payload or sent as a request header.
+- To use a different wait budget than the 3-second default (for example if your token mint is consistently slower or faster), pass `timeoutMillis` to `setAuthTokenProvider`:
+
+```kotlin
+Concierge.setAuthTokenProvider(
+    ConciergeAuthTokenProvider { myAuthTokenCache.getCurrentToken() },
+    timeoutMillis = 5000L
+)
+```
 
 ---
 

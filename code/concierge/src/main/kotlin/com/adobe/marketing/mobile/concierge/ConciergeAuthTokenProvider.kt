@@ -26,8 +26,8 @@ fun interface ConciergeAuthTokenProvider {
      *
      * The app owns minting and refresh.
      *
-     * This is invoked on a background thread and should return promptly. Implementations must not
-     * block on network I/O.
+     * This is invoked on a background thread and may block briefly to refresh the token; the SDK
+     * bounds the wait (see [Concierge.setAuthTokenProvider]).
      */
     fun provideToken(): String?
 }

@@ -41,9 +41,15 @@ object Concierge {
      * previously registered one.
      *
      * @param provider the token provider, or null to clear.
+     * @param timeoutMillis how long to wait for [provider] before sending the turn without a
+     * token. Must be positive. Defaults to 3000ms (3 seconds).
      */
     @JvmStatic
-    fun setAuthTokenProvider(provider: ConciergeAuthTokenProvider?) {
-        ConciergeAuthTokenHolder.setProvider(provider)
+    @JvmOverloads
+    fun setAuthTokenProvider(
+        provider: ConciergeAuthTokenProvider?,
+        timeoutMillis: Long = ConciergeAuthTokenHolder.DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS
+    ) {
+        ConciergeAuthTokenHolder.setProvider(provider, timeoutMillis)
     }
 }

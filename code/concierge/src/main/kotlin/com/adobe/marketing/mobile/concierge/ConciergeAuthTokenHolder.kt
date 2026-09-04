@@ -13,9 +13,10 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.services.Log
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 /**
@@ -27,21 +28,52 @@ import java.util.concurrent.TimeUnit
 internal object ConciergeAuthTokenHolder {
 
     private const val LOG_TAG = "ConciergeAuthTokenHolder"
-    private const val PROVIDE_TOKEN_TIMEOUT_MS = 500L
-    private const val EXECUTOR_POOL_SIZE = 4
 
+    /** Kept in sync with the iOS SDK's default; change both together. */
+    const val DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS = 3000L
+
+    // Sized for a handful of concurrent turns (multiple ConciergeChatViewModel instances, or
+    // overlapping chat + feedback calls) rather than heavy parallel load: 4 threads run
+    // concurrently, up to 16 more queue behind them, and the 21st concurrent call is rejected
+    // outright instead of growing an unbounded backlog.
+    internal const val EXECUTOR_POOL_SIZE = 4
+    internal const val EXECUTOR_QUEUE_CAPACITY = 16
+
+    private data class Registration(
+        val provider: ConciergeAuthTokenProvider?,
+        val timeoutMillis: Long
+    )
+
+    // A single volatile field so a concurrent setProvider() can't be observed as a torn
+    // combination of the new provider with the old timeout (or vice versa).
     @Volatile
-    private var provider: ConciergeAuthTokenProvider? = null
+    private var registration = Registration(null, DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS)
 
-    private val executor = Executors.newFixedThreadPool(EXECUTOR_POOL_SIZE) { runnable ->
+    // Bounded queue + the default AbortPolicy: once the pool and queue are both full, submit()
+    // throws RejectedExecutionException instead of growing an unbounded backlog of tasks behind
+    // a run of stuck providers.
+    private val executor = ThreadPoolExecutor(
+        EXECUTOR_POOL_SIZE,
+        EXECUTOR_POOL_SIZE,
+        0L,
+        TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue(EXECUTOR_QUEUE_CAPACITY)
+    ) { runnable ->
         Thread(runnable, "ConciergeAuthTokenProvider").apply { isDaemon = true }
     }
 
     /**
      * Registers [provider], replacing any previously registered one. Pass null to clear.
+     *
+     * @param timeoutMillis how long [resolveToken] waits for [provider] before degrading the turn.
+     * Must be positive.
      */
-    fun setProvider(provider: ConciergeAuthTokenProvider?) {
-        this.provider = provider
+    fun setProvider(
+        provider: ConciergeAuthTokenProvider?,
+        timeoutMillis: Long = DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS
+    ) {
+        require(timeoutMillis > 0) { "timeoutMillis must be positive" }
+        registration = Registration(provider, timeoutMillis)
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             LOG_TAG,
@@ -53,16 +85,20 @@ internal object ConciergeAuthTokenHolder {
      * Returns the token for the turn being built, or null when the turn should be sent without one.
      *
      * Null is returned when no provider is registered, when the provider returns null or a blank
-     * value, when the provider throws, or when it doesn't return within [PROVIDE_TOKEN_TIMEOUT_MS].
+     * value, when the provider throws, or when it doesn't return within the configured timeout.
      * A failing provider is logged and treated as "no token" so that a failure to mint degrades the
      * turn rather than failing it.
      */
     fun resolveToken(): String? {
+        val (provider, timeout) = registration
         val current = provider ?: return null
-        val future = executor.submit(Callable { current.provideToken() })
         return try {
-            future.get(PROVIDE_TOKEN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                ?.takeIf { it.isNotBlank() }
+            val future = executor.submit(Callable { current.provideToken() })
+            try {
+                future.get(timeout, TimeUnit.MILLISECONDS)?.takeIf { it.isNotBlank() }
+            } finally {
+                future.cancel(true)
+            }
         } catch (e: Exception) {
             if (e is InterruptedException) {
                 Thread.currentThread().interrupt()
@@ -71,11 +107,9 @@ internal object ConciergeAuthTokenHolder {
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
                 LOG_TAG,
-                "Auth token provider threw ${cause.javaClass.simpleName}; sending turn without a token"
+                "Unable to resolve auth token (${cause.javaClass.simpleName}); sending turn without a token"
             )
             null
-        } finally {
-            future.cancel(true)
         }
     }
 }

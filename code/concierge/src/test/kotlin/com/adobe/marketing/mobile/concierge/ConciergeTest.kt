@@ -26,15 +26,28 @@ class ConciergeTest {
 
     @Test
     fun `setAuthTokenProvider makes the provider token available to the SDK`() {
-        Concierge.setAuthTokenProvider { "athlete-token" }
+        Concierge.setAuthTokenProvider(provider = { "athlete-token" })
 
         assertEquals("athlete-token", ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
     fun `setAuthTokenProvider with null clears a previously set provider`() {
-        Concierge.setAuthTokenProvider { "athlete-token" }
+        Concierge.setAuthTokenProvider(provider = { "athlete-token" })
         Concierge.setAuthTokenProvider(null)
+
+        assertNull(ConciergeAuthTokenHolder.resolveToken())
+    }
+
+    @Test
+    fun `setAuthTokenProvider threads a custom timeoutMillis through to the holder`() {
+        Concierge.setAuthTokenProvider(
+            provider = {
+                Thread.sleep(200)
+                "too-late"
+            },
+            timeoutMillis = 50L
+        )
 
         assertNull(ConciergeAuthTokenHolder.resolveToken())
     }

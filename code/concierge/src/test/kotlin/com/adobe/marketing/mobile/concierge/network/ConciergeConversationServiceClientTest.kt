@@ -1170,7 +1170,7 @@ class ConciergeConversationServiceClientTest {
     fun `chat request carries the auth token as a data part inside query conversation`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1187,7 +1187,7 @@ class ConciergeConversationServiceClientTest {
     fun `chat request omits the data part entirely when no token is available`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider { null }
+        ConciergeAuthTokenHolder.setProvider(provider = { null })
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1202,10 +1202,13 @@ class ConciergeConversationServiceClientTest {
     fun `chat request omits the data part when the auth provider does not return within the timeout`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider {
-            Thread.sleep(1000)
-            "too-late"
-        }
+        ConciergeAuthTokenHolder.setProvider(
+            provider = {
+                Thread.sleep(200)
+                "too-late"
+            },
+            timeoutMillis = 50L
+        )
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1220,7 +1223,7 @@ class ConciergeConversationServiceClientTest {
     fun `feedback request carries the auth token as a data part inside xdm conversation`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1239,7 +1242,7 @@ class ConciergeConversationServiceClientTest {
     fun `feedback request omits the data part entirely when no token is available`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider { null }
+        ConciergeAuthTokenHolder.setProvider(provider = { null })
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1256,7 +1259,7 @@ class ConciergeConversationServiceClientTest {
     fun `auth token containing JSON control characters is escaped in the request body`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider { """a"b\c""" }
+        ConciergeAuthTokenHolder.setProvider(provider = { """a"b\c""" })
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1273,7 +1276,7 @@ class ConciergeConversationServiceClientTest {
     fun `auth token is never sent as a request header`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        ConciergeAuthTokenHolder.setProvider { "token-abc" }
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
@@ -1296,10 +1299,10 @@ class ConciergeConversationServiceClientTest {
         stubConnection(requestSlot)
 
         var resolveCount = 0
-        ConciergeAuthTokenHolder.setProvider {
+        ConciergeAuthTokenHolder.setProvider(provider = {
             resolveCount++
             "token-$resolveCount"
-        }
+        })
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
 
         client.chat("hello").toList()
