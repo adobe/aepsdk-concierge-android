@@ -42,7 +42,7 @@ object Concierge {
      *
      * @param provider the token provider, or null to clear.
      * @param timeoutMillis how long to wait for [provider] before sending the turn without a
-     * token. Must be positive. Defaults to 3000ms (3 seconds).
+     * token. Defaults to 3000ms (3 seconds); clamped range rather than rejected if out of bounds.
      */
     @JvmStatic
     @JvmOverloads

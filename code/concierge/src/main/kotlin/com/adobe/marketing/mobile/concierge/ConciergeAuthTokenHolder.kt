@@ -32,6 +32,16 @@ internal object ConciergeAuthTokenHolder {
     /** Kept in sync with the iOS SDK's default; change both together. */
     const val DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS = 3000L
 
+    /**
+     * Upper bound on the provider timeout. Out-of-range values are clamped rather than rejected, 
+     * so a bad computed timeout degrades the turn instead of crashing the host app.
+     */
+    internal const val MAX_PROVIDE_TOKEN_TIMEOUT_MS = 600_000L // 10 minutes
+
+    /** Clamps a caller-supplied timeout to `0..MAX_PROVIDE_TOKEN_TIMEOUT_MS`. */
+    internal fun clampTimeoutMillis(timeoutMillis: Long): Long =
+        timeoutMillis.coerceIn(0, MAX_PROVIDE_TOKEN_TIMEOUT_MS)
+
     // Sized for a handful of concurrent turns (multiple ConciergeChatViewModel instances, or
     // overlapping chat + feedback calls) rather than heavy parallel load: 4 threads run
     // concurrently, up to 16 more queue behind them, and the 21st concurrent call is rejected
@@ -66,14 +76,14 @@ internal object ConciergeAuthTokenHolder {
      * Registers [provider], replacing any previously registered one. Pass null to clear.
      *
      * @param timeoutMillis how long [resolveToken] waits for [provider] before degrading the turn.
-     * Must be positive.
+     * Clamped to 0..[MAX_PROVIDE_TOKEN_TIMEOUT_MS]; a non-positive value degrades every turn
+     * immediately rather than being rejected.
      */
     fun setProvider(
         provider: ConciergeAuthTokenProvider?,
         timeoutMillis: Long = DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS
     ) {
-        require(timeoutMillis > 0) { "timeoutMillis must be positive" }
-        registration = Registration(provider, timeoutMillis)
+        registration = Registration(provider, clampTimeoutMillis(timeoutMillis))
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             LOG_TAG,

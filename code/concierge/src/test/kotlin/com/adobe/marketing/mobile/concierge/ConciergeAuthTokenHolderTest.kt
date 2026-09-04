@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -125,17 +124,41 @@ class ConciergeAuthTokenHolderTest {
     }
 
     @Test
-    fun `setProvider throws when timeoutMillis is zero`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            ConciergeAuthTokenHolder.setProvider(provider = { "token" }, timeoutMillis = 0L)
-        }
+    fun `max timeout matches the value shared with iOS`() {
+        assertEquals(600_000L, ConciergeAuthTokenHolder.MAX_PROVIDE_TOKEN_TIMEOUT_MS)
     }
 
     @Test
-    fun `setProvider throws when timeoutMillis is negative`() {
-        assertThrows(IllegalArgumentException::class.java) {
-            ConciergeAuthTokenHolder.setProvider(provider = { "token" }, timeoutMillis = -1L)
-        }
+    fun `clampTimeoutMillis clamps a non-positive value to zero`() {
+        assertEquals(0L, ConciergeAuthTokenHolder.clampTimeoutMillis(0L))
+        assertEquals(0L, ConciergeAuthTokenHolder.clampTimeoutMillis(-1L))
+        assertEquals(0L, ConciergeAuthTokenHolder.clampTimeoutMillis(Long.MIN_VALUE))
+    }
+
+    @Test
+    fun `clampTimeoutMillis clamps an excessive value to the max`() {
+        assertEquals(
+            ConciergeAuthTokenHolder.MAX_PROVIDE_TOKEN_TIMEOUT_MS,
+            ConciergeAuthTokenHolder.clampTimeoutMillis(Long.MAX_VALUE)
+        )
+    }
+
+    @Test
+    fun `clampTimeoutMillis leaves an in-range value unchanged`() {
+        assertEquals(1500L, ConciergeAuthTokenHolder.clampTimeoutMillis(1500L))
+    }
+
+    @Test
+    fun `setProvider with a non-positive timeout degrades every turn immediately instead of throwing`() {
+        ConciergeAuthTokenHolder.setProvider(
+            provider = {
+                Thread.sleep(50)
+                "too-late"
+            },
+            timeoutMillis = 0L
+        )
+
+        assertNull(ConciergeAuthTokenHolder.resolveToken())
     }
 
     @Test
