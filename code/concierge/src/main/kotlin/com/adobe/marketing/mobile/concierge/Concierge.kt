@@ -32,4 +32,24 @@ object Concierge {
     fun setEdgeTrackingEnabled(enabled: Boolean) {
         ConciergeEventTracker.enableTracking(enabled)
     }
+
+    /**
+     * Registers the provider the SDK consults for an authentication token before building each
+     * conversation turn, for both chat and feedback requests.
+     *
+     * Pass null to clear a previously registered provider. Setting a provider replaces any
+     * previously registered one.
+     *
+     * @param provider the token provider, or null to clear.
+     * @param timeoutMillis how long to wait for [provider] before sending the turn without a
+     * token. Defaults to 3000ms (3 seconds); clamped range rather than rejected if out of bounds.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun setAuthTokenProvider(
+        provider: ConciergeAuthTokenProvider?,
+        timeoutMillis: Long = ConciergeAuthTokenHolder.DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS
+    ) {
+        ConciergeAuthTokenHolder.setProvider(provider, timeoutMillis)
+    }
 }

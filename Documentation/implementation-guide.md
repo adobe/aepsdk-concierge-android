@@ -95,6 +95,35 @@ Another option for validation is to use Adobe Assurance. Refer to the [Mobile SD
 
 ---
 
+## Authentication
+
+If your backend requires proof of the user's identity, register a `ConciergeAuthTokenProvider` to supply an app-minted authentication token. Brand Concierge attaches it to every chat and feedback request until the provider is cleared.
+
+```kotlin
+import com.adobe.marketing.mobile.Concierge
+import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenProvider
+
+Concierge.setAuthTokenProvider(ConciergeAuthTokenProvider {
+    // Return the current token, or null to send the turn without one
+    myAuthTokenCache.getCurrentToken()
+})
+```
+
+Register the provider once, typically alongside extension registration in your `Application.onCreate()`. Pass `null` to `setAuthTokenProvider` to clear a previously registered provider.
+
+- `provideToken()` is called once per turn (chat and feedback) on a background thread — the token is never cached, so refreshed or rotated tokens are picked up on the next turn. It may block briefly to refresh the token; the SDK bounds the wait (3 seconds by default) and sends the turn without a token if `provideToken()` doesn't return in time.
+- Returning `null` or a blank value, or throwing, sends the turn without a token rather than failing it — the token is never merged into the identity payload or sent as a request header.
+- To use a different wait budget than the 3-second default (for example if your token mint is consistently slower or faster), pass `timeoutMillis` to `setAuthTokenProvider`:
+
+```kotlin
+Concierge.setAuthTokenProvider(
+    ConciergeAuthTokenProvider { myAuthTokenCache.getCurrentToken() },
+    timeoutMillis = 5000L
+)
+```
+
+---
+
 ## Integration
 
 ### Managed Integration
