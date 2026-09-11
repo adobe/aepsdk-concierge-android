@@ -276,7 +276,7 @@ private fun FeedbackTitleRow(
                     .align(Alignment.CenterEnd)
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.close),
+                    painter = painterResource(id = R.drawable.concierge_ic_close),
                     contentDescription = "Close",
                     tint = style.closeIconTint,
                     modifier = Modifier.size(18.dp)
