@@ -125,7 +125,7 @@ internal fun SuggestedPromptItem(
 
 @Composable
 private fun promptIconPainter(imageVector: ImageVector?): Painter =
-    imageVector?.let { rememberVectorPainter(it) } ?: painterResource(R.drawable.sparkle)
+    imageVector?.let { rememberVectorPainter(it) } ?: painterResource(R.drawable.concierge_ic_sparkle)
 
 @Composable
 private fun PromptImage(

@@ -79,7 +79,7 @@ internal object LinkHintUiUtils {
      * - anything else → [ConciergeCitationsBehavior.defaultLinkIcon]
      *
      * A null/blank asset name or an asset that fails to load falls back to the SDK's built-in
-     * `external_link` drawable (see [rememberLinkHintIconPainter]).
+     * `concierge_ic_external_link` drawable (see [rememberLinkHintIconPainter]).
      *
      * @param linkHints The (augmented) link hints covering every URL in the message
      * @param iconColor Tint color applied to every icon

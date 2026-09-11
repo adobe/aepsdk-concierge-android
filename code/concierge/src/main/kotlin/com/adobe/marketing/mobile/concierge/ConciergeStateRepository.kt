@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.update
  * @property surfaces List of surface URLs set via the [ConciergeChat] surfaces parameter.
  * @property conciergeServer Server URL from concierge.server configuration.
  * @property conciergeConfigId Configuration ID from concierge.configId configuration.
+ * @property conciergeRegion Region from concierge.region configuration. Null when not configured.
  * @property consent Consent value from the Consent extension. Default is "in".
  */
 internal data class ConciergeState(
@@ -39,6 +40,7 @@ internal data class ConciergeState(
     val surfaces: List<String> = emptyList(),
     val conciergeServer: String? = null,
     val conciergeConfigId: String? = null,
+    val conciergeRegion: String? = null,
     val consent: String? = ConciergeConstants.ConsentValues.DEFAULT_VALUE
 )
 
@@ -143,7 +145,8 @@ internal class ConciergeStateRepository internal constructor(
                 it.copy(
                     configurationReady = false,
                     conciergeServer = "",
-                    conciergeConfigId = ""
+                    conciergeConfigId = "",
+                    conciergeRegion = null
                 )
             }
 
@@ -176,18 +179,28 @@ internal class ConciergeStateRepository internal constructor(
                 ?.takeIf { it.isNotEmpty() }
         }
 
+        val region: String? = configMap?.let { map ->
+            DataReader.optString(
+                map,
+                ConciergeConstants.SharedState.Configuration.CONCIERGE_REGION,
+                null
+            )
+                ?.takeIf { it.isNotEmpty() }
+        }
+
         _state.update {
             it.copy(
                 configurationReady = true,
                 conciergeServer = server,
-                conciergeConfigId = configId
+                conciergeConfigId = configId,
+                conciergeRegion = region
             )
         }
 
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             LOG_TAG,
-            "Updated ConciergeState with configId: $configId, server: $server"
+            "Updated ConciergeState with configId: $configId, server: $server, region: $region"
         )
     }
 

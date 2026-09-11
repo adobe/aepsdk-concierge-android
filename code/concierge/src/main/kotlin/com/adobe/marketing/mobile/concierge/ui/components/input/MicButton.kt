@@ -187,7 +187,7 @@ internal fun MicButton(
 private fun GradientTintableIcon(tint: Color, gradient: ConciergeGradient?, iconSize: Dp) {
     if (gradient?.isRenderable == true) {
         Image(
-            painter = painterResource(R.drawable.microphone),
+            painter = painterResource(R.drawable.concierge_ic_microphone),
             contentDescription = null,
             colorFilter = ColorFilter.tint(Color.White),
             modifier = Modifier
@@ -204,7 +204,7 @@ private fun GradientTintableIcon(tint: Color, gradient: ConciergeGradient?, icon
         )
     } else {
         Image(
-            painter = painterResource(R.drawable.microphone),
+            painter = painterResource(R.drawable.concierge_ic_microphone),
             contentDescription = null,
             modifier = Modifier
                 .size(iconSize)

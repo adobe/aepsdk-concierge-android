@@ -85,7 +85,8 @@ internal class ConciergeConversationServiceClient(
         get() {
             val currentState = conciergeState.value
             val sessionId = sessionManager.getSessionId()
-            return "https://${currentState.conciergeServer}/brand-concierge/conversations" +
+            val regionSegment = currentState.conciergeRegion?.let { "/$it" }.orEmpty()
+            return "https://${currentState.conciergeServer}/brand-concierge$regionSegment/conversations" +
                     "?configId=${currentState.conciergeConfigId}" +
                     "&sessionId=$sessionId" +
                     "&requestId=${UUID.randomUUID()}"

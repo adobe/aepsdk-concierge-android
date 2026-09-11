@@ -196,7 +196,7 @@ private fun ClearButton(
         modifier = Modifier.size(size)
     ) {
         Icon(
-            painter = painterResource(R.drawable.close),
+            painter = painterResource(R.drawable.concierge_ic_close),
             contentDescription = "Clear input",
             modifier = Modifier
                 .size(size)

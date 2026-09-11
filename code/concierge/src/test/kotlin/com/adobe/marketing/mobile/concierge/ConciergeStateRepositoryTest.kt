@@ -176,6 +176,42 @@ class ConciergeStateRepositoryTest {
         assertTrue(state.configurationReady)
         assertEquals("test-server.com", state.conciergeServer)
         assertEquals("test-config-123", state.conciergeConfigId)
+        assertNull(state.conciergeRegion)
+    }
+
+    @Test
+    fun `updateConfiguration sets region when present in config`() = runTest {
+        val configMap = mapOf<String?, Any?>(
+            "concierge.server" to "test-server.com",
+            "concierge.configId" to "test-config-123",
+            "concierge.region" to "va6"
+        )
+
+        val sharedStateResult = mockk<SharedStateResult>()
+        every { sharedStateResult.value } returns configMap
+
+        repository.updateConfiguration(sharedStateResult)
+
+        val state = repository.state.first()
+        assertTrue(state.configurationReady)
+        assertEquals("va6", state.conciergeRegion)
+    }
+
+    @Test
+    fun `updateConfiguration treats empty region string as absent`() = runTest {
+        val configMap = mapOf<String?, Any?>(
+            "concierge.server" to "test-server.com",
+            "concierge.configId" to "test-config-123",
+            "concierge.region" to ""
+        )
+
+        val sharedStateResult = mockk<SharedStateResult>()
+        every { sharedStateResult.value } returns configMap
+
+        repository.updateConfiguration(sharedStateResult)
+
+        val state = repository.state.first()
+        assertNull(state.conciergeRegion)
     }
 
     @Test
@@ -186,6 +222,7 @@ class ConciergeStateRepositoryTest {
         assertFalse(state.configurationReady)
         assertEquals("", state.conciergeServer)
         assertEquals("", state.conciergeConfigId)
+        assertNull(state.conciergeRegion)
     }
 
     @Test

@@ -14,7 +14,7 @@ package com.adobe.marketing.mobile.concierge
 object ConciergeConstants {
     internal const val EXTENSION_NAME = "brandconcierge"
     internal const val EXTENSION_FRIENDLY_NAME = "BrandConcierge"
-    internal const val VERSION = "3.8.0"
+    internal const val VERSION = "3.8.1"
     internal const val LOG_TAG = "BrandConcierge"
     internal const val DATA_STORE_NAME = EXTENSION_NAME
 
@@ -31,6 +31,7 @@ object ConciergeConstants {
             const val EXTENSION_NAME = "com.adobe.module.configuration"
             const val CONCIERGE_SERVER = "concierge.server"
             const val CONCIERGE_CONFIG_ID = "concierge.configId"
+            const val CONCIERGE_REGION = "concierge.region"
         }
         object Consent {
             const val EXTENSION_NAME = "com.adobe.edge.consent"

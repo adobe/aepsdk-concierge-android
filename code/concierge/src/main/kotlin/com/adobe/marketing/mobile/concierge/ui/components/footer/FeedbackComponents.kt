@@ -109,9 +109,9 @@ private fun ThumbsRow(
             Icon(
                 painter = painterResource(
                     if (feedbackState == FeedbackState.Positive) {
-                        R.drawable.thumbs_up_filled
+                        R.drawable.concierge_ic_thumbs_up_filled
                     } else {
-                        R.drawable.thumbs_up
+                        R.drawable.concierge_ic_thumbs_up
                     }
                 ),
                 contentDescription = "Thumbs up",
@@ -133,9 +133,9 @@ private fun ThumbsRow(
             Icon(
                 painter = painterResource(
                     id = if (feedbackState == FeedbackState.Negative) {
-                        R.drawable.thumbs_down_filled
+                        R.drawable.concierge_ic_thumbs_down_filled
                     } else {
-                        R.drawable.thumbs_down
+                        R.drawable.concierge_ic_thumbs_down
                     }
                 ),
                 contentDescription = "Thumbs down",

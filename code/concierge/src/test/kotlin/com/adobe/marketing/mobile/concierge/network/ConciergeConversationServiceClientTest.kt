@@ -1050,6 +1050,45 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `endpoint includes region segment when region is configured`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val stateWithRegion = testState.copy(conciergeRegion = "va6")
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithRegion)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("test").toList()
+
+        val url = requestSlot.captured.url
+        assertTrue(url.startsWith("https://https://test-server.com/brand-concierge/va6/conversations"))
+    }
+
+    @Test
+    fun `endpoint omits region segment when region is not configured`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        val connection = mockk<HttpConnecting>(relaxed = true)
+        every { connection.responseCode } returns 200
+        every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+        every { networkService.connectAsync(capture(requestSlot), any()) } answers {
+            val cb = secondArg<NetworkCallback>()
+            cb.call(connection)
+        }
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("test").toList()
+
+        val url = requestSlot.captured.url
+        assertTrue(url.startsWith("https://https://test-server.com/brand-concierge/conversations"))
+    }
+
+    @Test
     fun `multiple sequential chat calls work correctly`() = runTest {
         val json = """
             {
