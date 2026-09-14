@@ -59,10 +59,10 @@ class ConciergeStateRepositoryTest {
         assertNull(state.conciergeConfigId)
     }
 
-    // ========== updateExperienceCloudId Tests ==========
+    // ========== updateIdentity Tests ==========
 
     @Test
-    fun `updateExperienceCloudId updates ECID from shared state`() = runTest {
+    fun `updateIdentity updates ECID from shared state`() = runTest {
         val event = Event.Builder(
             "Identity Event",
             EventType.HUB,
@@ -88,14 +88,14 @@ class ConciergeStateRepositoryTest {
             )
         } returns sharedStateResult
 
-        repository.updateExperienceCloudId(mockApi, event)
+        repository.updateIdentity(mockApi, event)
 
         val state = repository.state.first()
         assertEquals("test-ecid-12345", state.experienceCloudId)
     }
 
     @Test
-    fun `updateExperienceCloudId handles empty ECID list`() = runTest {
+    fun `updateIdentity handles empty ECID list`() = runTest {
         val event = Event.Builder(
             "Identity Event",
             EventType.HUB,
@@ -119,14 +119,14 @@ class ConciergeStateRepositoryTest {
             )
         } returns sharedStateResult
 
-        repository.updateExperienceCloudId(mockApi, event)
+        repository.updateIdentity(mockApi, event)
 
         val state = repository.state.first()
         assertNull(state.experienceCloudId)
     }
 
     @Test
-    fun `updateExperienceCloudId handles empty ECID string`() = runTest {
+    fun `updateIdentity handles empty ECID string`() = runTest {
         val event = Event.Builder(
             "Identity Event",
             EventType.HUB,
@@ -152,10 +152,75 @@ class ConciergeStateRepositoryTest {
             )
         } returns sharedStateResult
 
-        repository.updateExperienceCloudId(mockApi, event)
+        repository.updateIdentity(mockApi, event)
 
         val state = repository.state.first()
         assertNull(state.experienceCloudId)
+    }
+
+    @Test
+    fun `updateIdentity stores full identityMap verbatim with all namespaces`() = runTest {
+        val event = Event.Builder(
+            "Identity Event",
+            EventType.HUB,
+            EventSource.SHARED_STATE
+        ).build()
+
+        val identityMap = mapOf(
+            "ECID" to listOf(
+                mapOf("id" to "test-ecid-12345", "authenticatedState" to "ambiguous", "primary" to false)
+            ),
+            "hashedEmail" to listOf(
+                mapOf("id" to "5e884898da28047151d0e56f8dc62927", "authenticatedState" to "authenticated", "primary" to false)
+            ),
+            "CustomNamespace" to listOf(
+                mapOf("id" to "custom-id-999", "authenticatedState" to "authenticated", "primary" to false)
+            )
+        )
+        val xdmSharedState = mapOf<String?, Any?>("identityMap" to identityMap)
+
+        val sharedStateResult = mockk<SharedStateResult>()
+        every { sharedStateResult.value } returns xdmSharedState
+        every {
+            mockApi.getXDMSharedState(
+                ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
+                event,
+                false,
+                SharedStateResolution.LAST_SET
+            )
+        } returns sharedStateResult
+
+        repository.updateIdentity(mockApi, event)
+
+        val state = repository.state.first()
+        assertEquals("test-ecid-12345", state.experienceCloudId)
+        assertEquals(identityMap, state.identityMap)
+    }
+
+    @Test
+    fun `updateIdentity sets null identityMap when identityMap absent`() = runTest {
+        val event = Event.Builder(
+            "Identity Event",
+            EventType.HUB,
+            EventSource.SHARED_STATE
+        ).build()
+
+        val sharedStateResult = mockk<SharedStateResult>()
+        every { sharedStateResult.value } returns mapOf<String?, Any?>()
+        every {
+            mockApi.getXDMSharedState(
+                ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
+                event,
+                false,
+                SharedStateResolution.LAST_SET
+            )
+        } returns sharedStateResult
+
+        repository.updateIdentity(mockApi, event)
+
+        val state = repository.state.first()
+        assertNull(state.experienceCloudId)
+        assertNull(state.identityMap)
     }
 
     // ========== updateConfiguration Tests ==========
@@ -397,7 +462,7 @@ class ConciergeStateRepositoryTest {
                 SharedStateResolution.LAST_SET
             )
         } returns ecidStateResult
-        repository.updateExperienceCloudId(mockApi, event)
+        repository.updateIdentity(mockApi, event)
 
         repository.clear()
 
@@ -490,7 +555,7 @@ class ConciergeStateRepositoryTest {
             )
         } returns sharedStateResult
 
-        repository.updateExperienceCloudId(mockApi, event)
+        repository.updateIdentity(mockApi, event)
         val state = repository.state.first()
 
         assertEquals("updated-ecid", state.experienceCloudId)
