@@ -84,6 +84,44 @@ object ConciergeConstants {
     object EventSource {
         // Not available as a named constant in the Android AEP Core SDK — defined here for parity with iOS.
         const val NOTIFICATION = "com.adobe.eventSource.notification"
+        const val DATA_HANDOFF = "com.adobe.eventSource.dataHandoff"
+        const val DATA_HANDOFF_DELIVERY = "com.adobe.eventSource.dataHandoffDelivery"
+    }
+
+    object DataHandoff {
+        internal object EventData {
+            internal object Key {
+                const val ROUTING_HINT = "routingHint"
+                const val XDM_FIELDS = "xdmFields"
+            }
+        }
+
+        object ResponseKey {
+            const val ACCEPTED = "accepted"
+            const val REJECT_REASON = "rejectReason"
+        }
+
+        object DeliveryEventData {
+            object Key {
+                const val DELIVERED = "delivered"
+                const val DELIVERY_ERROR_CODE = "deliveryErrorCode"
+                // Echoed back from the original submission — there is no SDK-level correlation
+                // id, so a host app matches a delivery result to its submission by content.
+                const val ROUTING_HINT = "routingHint"
+                const val XDM_FIELDS = "xdmFields"
+            }
+        }
+
+        // Top-level xdmFields keys that collide with these are rejected outright. `identityMap`
+        // is what the SDK already places at the xdm root today (ConciergeChatService payload).
+        internal val RESERVED_XDM_KEYS = setOf("identityMap")
+
+        object DeliveryErrorCode {
+            const val NOT_IMPLEMENTED = "forwarding_not_implemented"
+            const val UNREACHABLE = "unreachable"
+            const val TIMEOUT = "timeout"
+            const val UNKNOWN = "unknown"
+        }
     }
 
     object TrackingEvent {
