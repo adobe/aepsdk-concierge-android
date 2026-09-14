@@ -60,29 +60,29 @@ data class ConciergeDataHandoffEvent(
          */
         internal fun fromEventData(data: Map<String, Any?>?): DataHandoffDecodeResult {
             if (data == null) {
-                return DataHandoffDecodeResult.Rejected("missing_event_data")
+                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.MISSING_EVENT_DATA)
             }
             val keys = ConciergeConstants.DataHandoff.EventData.Key
 
             val routingHint = (data[keys.ROUTING_HINT] as? String)?.takeIf { it.isNotBlank() }
-                ?: return DataHandoffDecodeResult.Rejected("missing_routing_hint")
+                ?: return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.MISSING_ROUTING_HINT)
 
             val rawXdmFields = data[keys.XDM_FIELDS] as? Map<*, *>
-                ?: return DataHandoffDecodeResult.Rejected("missing_xdm_fields")
+                ?: return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.MISSING_XDM_FIELDS)
             if (rawXdmFields.isEmpty()) {
-                return DataHandoffDecodeResult.Rejected("empty_xdm_fields")
+                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.EMPTY_XDM_FIELDS)
             }
 
             if (rawXdmFields.keys.any { it !is String }) {
-                return DataHandoffDecodeResult.Rejected("invalid_xdm_field_key")
+                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_KEY)
             }
 
             if (rawXdmFields.keys.any { (it as String) in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS }) {
-                return DataHandoffDecodeResult.Rejected("reserved_key_collision")
+                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.RESERVED_KEY_COLLISION)
             }
 
             if (rawXdmFields.values.any { !isJsonSafeValue(it) }) {
-                return DataHandoffDecodeResult.Rejected("invalid_xdm_field_value")
+                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE)
             }
 
             @Suppress("UNCHECKED_CAST")

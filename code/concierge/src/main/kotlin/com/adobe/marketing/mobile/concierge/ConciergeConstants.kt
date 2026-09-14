@@ -98,6 +98,7 @@ object ConciergeConstants {
 
         object ResponseKey {
             const val ACCEPTED = "accepted"
+            // Values are the constants in RejectReason.
             const val REJECT_REASON = "rejectReason"
         }
 
@@ -121,6 +122,16 @@ object ConciergeConstants {
             const val UNREACHABLE = "unreachable"
             const val TIMEOUT = "timeout"
             const val UNKNOWN = "unknown"
+        }
+
+        object RejectReason {
+            const val MISSING_EVENT_DATA = "missing_event_data"
+            const val MISSING_ROUTING_HINT = "missing_routing_hint"
+            const val MISSING_XDM_FIELDS = "missing_xdm_fields"
+            const val EMPTY_XDM_FIELDS = "empty_xdm_fields"
+            const val INVALID_XDM_FIELD_KEY = "invalid_xdm_field_key"
+            const val RESERVED_KEY_COLLISION = "reserved_key_collision"
+            const val INVALID_XDM_FIELD_VALUE = "invalid_xdm_field_value"
         }
     }
 

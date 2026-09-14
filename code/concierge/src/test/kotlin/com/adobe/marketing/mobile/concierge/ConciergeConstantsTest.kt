@@ -55,4 +55,15 @@ class ConciergeConstantsTest {
         assertEquals("timeout", ConciergeConstants.DataHandoff.DeliveryErrorCode.TIMEOUT)
         assertEquals("unknown", ConciergeConstants.DataHandoff.DeliveryErrorCode.UNKNOWN)
     }
+
+    @Test
+    fun `data handoff reject reasons have the published wire values`() {
+        assertEquals("missing_event_data", ConciergeConstants.DataHandoff.RejectReason.MISSING_EVENT_DATA)
+        assertEquals("missing_routing_hint", ConciergeConstants.DataHandoff.RejectReason.MISSING_ROUTING_HINT)
+        assertEquals("missing_xdm_fields", ConciergeConstants.DataHandoff.RejectReason.MISSING_XDM_FIELDS)
+        assertEquals("empty_xdm_fields", ConciergeConstants.DataHandoff.RejectReason.EMPTY_XDM_FIELDS)
+        assertEquals("invalid_xdm_field_key", ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_KEY)
+        assertEquals("reserved_key_collision", ConciergeConstants.DataHandoff.RejectReason.RESERVED_KEY_COLLISION)
+        assertEquals("invalid_xdm_field_value", ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE)
+    }
 }
