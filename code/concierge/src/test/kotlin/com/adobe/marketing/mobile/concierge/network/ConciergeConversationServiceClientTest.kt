@@ -422,6 +422,24 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `chat request sends an empty identityMap when serialization fails`() = runTest {
+        // A NaN value is not serializable by JSONObject, forcing the fallback branch.
+        every { mockStateRepository.state } returns
+            MutableStateFlow(testState.copy(identityMap = mapOf("ECID" to Double.NaN)))
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Body should fall back to an empty identityMap when serialization fails",
+            body.contains("\"identityMap\":{}")
+        )
+    }
+
+    @Test
     fun `chat request carries both the full identityMap and the auth token data part`() = runTest {
         val stateWithIdentityMap = testState.copy(
             experienceCloudId = "test-ecid",

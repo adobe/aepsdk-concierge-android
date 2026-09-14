@@ -178,16 +178,12 @@ internal class ConciergeConversationServiceClient(
      * namespace (not just ECID) is forwarded. [JSONObject] escapes keys and values, keeping
      * customer-supplied ids injection-safe. Returns an empty object when the map is unavailable.
      */
-    private fun identityMapJson(state: ConciergeState): String =
-        runCatching { JSONObject(state.identityMap.orEmpty()).toString() }
-            .getOrElse {
-                Log.warning(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Failed to serialize identityMap: ${it.message}"
-                )
-                "{}"
-            }
+    private fun identityMapJson(state: ConciergeState): String {
+        // JSONObject.toString() returns null (rather than throwing) if the map can't be
+        // serialized; fall back to an empty object in that case.
+        val json: String? = JSONObject(state.identityMap.orEmpty()).toString()
+        return json ?: "{}"
+    }
 
     /**
      * Creates the JSON request body for the conversation request.

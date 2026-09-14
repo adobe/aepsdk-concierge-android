@@ -223,6 +223,33 @@ class ConciergeStateRepositoryTest {
         assertNull(state.identityMap)
     }
 
+    @Test
+    fun `updateIdentity sets null identityMap when identityMap is empty`() = runTest {
+        val event = Event.Builder(
+            "Identity Event",
+            EventType.HUB,
+            EventSource.SHARED_STATE
+        ).build()
+
+        // identityMap key present but empty: the isNotEmpty guard drops it to null.
+        val sharedStateResult = mockk<SharedStateResult>()
+        every { sharedStateResult.value } returns mapOf<String?, Any?>("identityMap" to emptyMap<String, Any?>())
+        every {
+            mockApi.getXDMSharedState(
+                ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
+                event,
+                false,
+                SharedStateResolution.LAST_SET
+            )
+        } returns sharedStateResult
+
+        repository.updateIdentity(mockApi, event)
+
+        val state = repository.state.first()
+        assertNull(state.experienceCloudId)
+        assertNull(state.identityMap)
+    }
+
     // ========== updateConfiguration Tests ==========
 
     @Test
