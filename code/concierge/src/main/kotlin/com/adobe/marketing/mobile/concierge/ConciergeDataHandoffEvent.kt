@@ -12,39 +12,36 @@
 package com.adobe.marketing.mobile.concierge
 
 /**
- * A generic payload a host app hands to the Concierge SDK to forward toward Brand Concierge,
- * without the user typing or saying anything in chat.
- * The SDK has no knowledge of what [xdmFields] represents — checkout is just the first use case.
+ * A generic payload the SDK forwards toward Brand Concierge on behalf of a host app, without the
+ * user typing or saying anything in chat. The SDK does not interpret [xdmFields]'s contents.
  *
- * Build one of these, call [toEventData], and dispatch it via
- * `MobileCore.dispatchEventWithResponseCallback` using an [com.adobe.marketing.mobile.Event]
- * built with type [ConciergeConstants.EventType.CONCIERGE] and source
- * [ConciergeConstants.EventSource.DATA_HANDOFF]. The response reports accept/reject only (see
+ * Internal wire-format plumbing for [Concierge.sendDataHandoff] — [toEventData] builds the
+ * request [com.adobe.marketing.mobile.Event]'s data (type [ConciergeConstants.EventType.CONCIERGE],
+ * source [ConciergeConstants.EventSource.DATA_HANDOFF]) and [fromEventData] decodes it back on the
+ * extension side. The response reports accept/reject only (see
  * [ConciergeConstants.DataHandoff.ResponseKey]) — `accepted == true` confirms the SDK received
- * and validated the payload's shape; it isn't yet an independent confirmation that Brand
- * Concierge received or processed it, and there is no separate
- * delivery-confirmation signal today. The actual forward to Brand Concierge is still pending on
- * the SDK side — accepted events are not yet delivered anywhere.
+ * and validated the payload's shape; it is not confirmation that Brand Concierge received or
+ * processed it. The forward to Brand Concierge is not yet implemented — accepted events are not
+ * yet delivered anywhere.
  *
- * @property routingHint A keyword the user never sees, used only because Brand Concierge's
- * current routing is phrase-based. Required — not optional, since relaxing a required field to
- * optional later is non-breaking, while the reverse would not be.
+ * @property routingHint A keyword the user never sees, consumed by Brand Concierge's
+ * phrase-based routing. Required.
  * @property xdmFields Arbitrary XDM data merged into the root of the outbound `xdm` object.
  * Required and must be non-empty. Every key must be a `String`; top-level keys colliding with
  * [ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS] are rejected, as is any value that isn't
  * JSON-safe (`String`, `Boolean`, finite `Int`/`Long`/`Double`/`Float`, or a `Map`/`List` of
  * further JSON-safe values, up to a bounded nesting depth).
- * @property localMessage Optional message to render immediately in chat when set. Not yet
- * implemented — accepted and decoded, but not rendered.
+ * @property localMessage Message to render immediately in chat when set. Currently accepted and
+ * decoded, but not rendered.
  */
-data class ConciergeDataHandoffEvent(
+internal data class ConciergeDataHandoffEvent(
     val routingHint: String,
     val xdmFields: Map<String, Any>,
     val localMessage: String? = null
 ) {
 
     /** Converts this to the `Map<String, Any>` shape expected by [com.adobe.marketing.mobile.Event.Builder.setEventData]. */
-    fun toEventData(): Map<String, Any> {
+    internal fun toEventData(): Map<String, Any> {
         val keys = ConciergeConstants.DataHandoff.EventData.Key
         val data = mutableMapOf<String, Any>(
             keys.ROUTING_HINT to routingHint,

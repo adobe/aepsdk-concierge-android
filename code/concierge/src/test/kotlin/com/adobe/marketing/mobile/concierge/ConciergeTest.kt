@@ -12,9 +12,16 @@
 
 package com.adobe.marketing.mobile.concierge
 
+import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.MobileCore
+import io.mockk.every
+import io.mockk.mockkStatic
+import io.mockk.slot
+import io.mockk.unmockkStatic
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConciergeTest {
@@ -22,6 +29,62 @@ class ConciergeTest {
     @After
     fun tearDown() {
         Concierge.setAuthTokenProvider(null)
+    }
+
+    @Test
+    fun `sendDataHandoff dispatches a data handoff event with routingHint and xdmFields`() {
+        mockkStatic(MobileCore::class)
+        try {
+            val eventSlot = slot<Event>()
+            every { MobileCore.dispatchEventWithResponseCallback(capture(eventSlot), any(), any()) } returns Unit
+
+            Concierge.sendDataHandoff("buy_now", mapOf("orderId" to "abc-123")) { _, _ -> }
+
+            val event = eventSlot.captured
+            assertEquals("buy_now", event.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT))
+            assertEquals(
+                mapOf("orderId" to "abc-123"),
+                event.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS)
+            )
+            assertTrue(
+                ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE !in (event.eventData ?: emptyMap())
+            )
+        } finally {
+            unmockkStatic(MobileCore::class)
+        }
+    }
+
+    @Test
+    fun `sendDataHandoff with localMessage includes it in the dispatched event`() {
+        mockkStatic(MobileCore::class)
+        try {
+            val eventSlot = slot<Event>()
+            every { MobileCore.dispatchEventWithResponseCallback(capture(eventSlot), any(), any()) } returns Unit
+
+            Concierge.sendDataHandoff("buy_now", mapOf("orderId" to "abc-123"), "Thanks!") { _, _ -> }
+
+            assertEquals(
+                "Thanks!",
+                eventSlot.captured.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE)
+            )
+        } finally {
+            unmockkStatic(MobileCore::class)
+        }
+    }
+
+    @Test
+    fun `sendDataHandoff without a completion still dispatches the event`() {
+        mockkStatic(MobileCore::class)
+        try {
+            val eventSlot = slot<Event>()
+            every { MobileCore.dispatchEventWithResponseCallback(capture(eventSlot), any(), any()) } returns Unit
+
+            Concierge.sendDataHandoff("buy_now", mapOf("orderId" to "abc-123"))
+
+            assertEquals("buy_now", eventSlot.captured.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT))
+        } finally {
+            unmockkStatic(MobileCore::class)
+        }
     }
 
     @Test

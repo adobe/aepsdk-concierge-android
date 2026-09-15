@@ -88,6 +88,9 @@ object ConciergeConstants {
     }
 
     object DataHandoff {
+        // Mirrors MobileCore's own internal dispatchEventWithResponseCallback default timeout.
+        internal const val RESPONSE_TIMEOUT_MS = 5000L
+
         internal object EventData {
             internal object Key {
                 const val ROUTING_HINT = "routingHint"
@@ -116,6 +119,9 @@ object ConciergeConstants {
             const val INVALID_XDM_FIELD_KEY = "invalid_xdm_field_key"
             const val RESERVED_KEY_COLLISION = "reserved_key_collision"
             const val INVALID_XDM_FIELD_VALUE = "invalid_xdm_field_value"
+            // Client-side only: the extension never responded (e.g. dispatch failure or timeout),
+            // as opposed to responding with a validation-based rejection above.
+            const val NO_RESPONSE = "no_response"
         }
     }
 
