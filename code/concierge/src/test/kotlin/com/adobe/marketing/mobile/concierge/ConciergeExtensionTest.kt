@@ -72,7 +72,7 @@ class ConciergeExtensionTest {
     // ========== Event Processing Tests ==========
 
     @Test
-    fun `processEvent calls updateExperienceCloudId for identity shared state event`() {
+    fun `processEvent calls updateIdentity for identity shared state event`() {
         val event = Event.Builder(
             "Identity Event",
             EventType.HUB,
@@ -83,7 +83,7 @@ class ConciergeExtensionTest {
 
         extension.processEvent(event)
 
-        verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, event) }
+        verify(exactly = 1) { mockStateRepository.updateIdentity(mockApi, event) }
     }
 
     @Test
@@ -492,7 +492,7 @@ class ConciergeExtensionTest {
         extension.processEvent(identityEvent)
         extension.processEvent(configEvent)
 
-        verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
+        verify(exactly = 1) { mockStateRepository.updateIdentity(mockApi, identityEvent) }
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 
@@ -509,7 +509,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
 
         // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
 
@@ -524,7 +524,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
 
         // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
 
@@ -629,7 +629,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event1)
         extension.processEvent(event2)
 
-        verify(exactly = 2) { mockStateRepository.updateExperienceCloudId(mockApi, any()) }
+        verify(exactly = 2) { mockStateRepository.updateIdentity(mockApi, any()) }
     }
 
     @Test
@@ -719,7 +719,7 @@ class ConciergeExtensionTest {
 
         extension.processEvent(event)
 
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
 
@@ -767,7 +767,7 @@ class ConciergeExtensionTest {
 
         extension.processEvent(event)
 
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
     }
 
     @Test
@@ -829,7 +829,7 @@ class ConciergeExtensionTest {
         extension.processEvent(otherEvent)
         extension.processEvent(identityEvent)
 
-        verify(exactly = 2) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
+        verify(exactly = 2) { mockStateRepository.updateIdentity(mockApi, identityEvent) }
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 }

@@ -74,7 +74,7 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
                 SELF_TAG,
                 "Identity shared state event received."
             )
-            ConciergeStateRepository.instance.updateExperienceCloudId(api, event)
+            ConciergeStateRepository.instance.updateIdentity(api, event)
         } else if (event.isConsentSharedStateEvent()) {
             Log.trace(
                 EXTENSION_NAME,
