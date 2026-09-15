@@ -55,6 +55,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
             ConciergeConstants.EventSource.NOTIFICATION,
             this::processEvent
         )
+        api.registerEventListener(
+            ConciergeConstants.EventType.CONCIERGE,
+            ConciergeConstants.EventSource.DATA_HANDOFF,
+            ConciergeDataHandoffEventHandler.instance::handle
+        )
     }
 
     override fun readyForEvent(event: Event): Boolean {

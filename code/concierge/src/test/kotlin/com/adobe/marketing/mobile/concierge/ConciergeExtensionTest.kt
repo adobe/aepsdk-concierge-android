@@ -131,6 +131,21 @@ class ConciergeExtensionTest {
         assertEquals(ConciergeConstants.VERSION, ExtensionHelper.getVersion(extension))
     }
 
+    // ========== Data Handoff Event Listener Registration Tests ==========
+
+    @Test
+    fun `onRegistered registers a listener for the data handoff event source`() {
+        ExtensionHelper.notifyRegistered(extension)
+
+        verify(exactly = 1) {
+            mockApi.registerEventListener(
+                ConciergeConstants.EventType.CONCIERGE,
+                ConciergeConstants.EventSource.DATA_HANDOFF,
+                any()
+            )
+        }
+    }
+
     // ========== hasValidXdmSharedState Tests ==========
 
     @Test
