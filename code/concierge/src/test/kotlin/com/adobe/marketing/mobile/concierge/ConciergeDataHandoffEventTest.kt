@@ -12,6 +12,7 @@
 package com.adobe.marketing.mobile.concierge
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConciergeDataHandoffEventTest {
@@ -30,6 +31,20 @@ class ConciergeDataHandoffEventTest {
             mapOf("orderId" to "abc-123", "quantity" to 2),
             data[ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS]
         )
+        assertTrue(ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE !in data)
+    }
+
+    @Test
+    fun `toEventData includes localMessage when present`() {
+        val event = ConciergeDataHandoffEvent(
+            routingHint = "buy_now",
+            xdmFields = mapOf("orderId" to "abc-123"),
+            localMessage = "Your order is confirmed!"
+        )
+
+        val data = event.toEventData()
+
+        assertEquals("Your order is confirmed!", data[ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE])
     }
 
     @Test
@@ -44,6 +59,37 @@ class ConciergeDataHandoffEventTest {
         require(result is DataHandoffDecodeResult.Success)
         assertEquals("buy_now", result.result.routingHint)
         assertEquals(mapOf("orderId" to "abc-123"), result.result.xdmFields)
+        assertEquals(null, result.result.localMessage)
+    }
+
+    @Test
+    fun `fromEventData decodes localMessage when present`() {
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123"),
+            ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE to "Your order is confirmed!"
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Success)
+        assertEquals("Your order is confirmed!", result.result.localMessage)
+    }
+
+    @Test
+    fun `fromEventData treats a blank or wrong-type localMessage as absent, not a decode failure`() {
+        listOf<Any?>("   ", 42, null).forEach { badLocalMessage ->
+            val data = mapOf(
+                ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+                ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123"),
+                ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE to badLocalMessage
+            )
+
+            val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+            require(result is DataHandoffDecodeResult.Success) { "expected success for localMessage=$badLocalMessage" }
+            assertEquals(null, result.result.localMessage)
+        }
     }
 
     @Test

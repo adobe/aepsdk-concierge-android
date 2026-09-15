@@ -85,7 +85,6 @@ object ConciergeConstants {
         // Not available as a named constant in the Android AEP Core SDK — defined here for parity with iOS.
         const val NOTIFICATION = "com.adobe.eventSource.notification"
         const val DATA_HANDOFF = "com.adobe.eventSource.dataHandoff"
-        const val DATA_HANDOFF_DELIVERY = "com.adobe.eventSource.dataHandoffDelivery"
     }
 
     object DataHandoff {
@@ -93,6 +92,7 @@ object ConciergeConstants {
             internal object Key {
                 const val ROUTING_HINT = "routingHint"
                 const val XDM_FIELDS = "xdmFields"
+                const val LOCAL_MESSAGE = "localMessage"
             }
         }
 
@@ -102,30 +102,9 @@ object ConciergeConstants {
             const val REJECT_REASON = "rejectReason"
         }
 
-        object DeliveryEventData {
-            object Key {
-                const val DELIVERED = "delivered"
-                const val DELIVERY_ERROR_CODE = "deliveryErrorCode"
-                // Echoed back from the original submission — there is no SDK-level correlation
-                // id, so a host app matches a delivery result to its submission by content.
-                // Same wire values as EventData.Key — declared as references, not re-literaled,
-                // so the submission and its echo can never drift apart.
-                const val ROUTING_HINT = EventData.Key.ROUTING_HINT
-                const val XDM_FIELDS = EventData.Key.XDM_FIELDS
-            }
-        }
-
-        // Top-level xdmFields keys that collide with these are rejected outright. `identityMap`
-        // is what the SDK already places at the xdm root today (ConciergeChatService payload) —
-        // referenced from SharedState.EdgeIdentity rather than re-literaled, so the two can't drift.
+        // Top-level xdmFields keys colliding with these are rejected. identityMap is the SDK's
+        // existing xdm-root key (ConciergeChatService).
         internal val RESERVED_XDM_KEYS = setOf(SharedState.EdgeIdentity.IDENTITY_MAP)
-
-        object DeliveryErrorCode {
-            const val NOT_IMPLEMENTED = "forwarding_not_implemented"
-            const val UNREACHABLE = "unreachable"
-            const val TIMEOUT = "timeout"
-            const val UNKNOWN = "unknown"
-        }
 
         object RejectReason {
             const val MISSING_EVENT_DATA = "missing_event_data"

@@ -20,13 +20,13 @@ class ConciergeConstantsTest {
     @Test
     fun `data handoff event source constants have the published wire values`() {
         assertEquals("com.adobe.eventSource.dataHandoff", ConciergeConstants.EventSource.DATA_HANDOFF)
-        assertEquals("com.adobe.eventSource.dataHandoffDelivery", ConciergeConstants.EventSource.DATA_HANDOFF_DELIVERY)
     }
 
     @Test
     fun `data handoff event data keys have the published wire values`() {
         assertEquals("routingHint", ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT)
         assertEquals("xdmFields", ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS)
+        assertEquals("localMessage", ConciergeConstants.DataHandoff.EventData.Key.LOCAL_MESSAGE)
     }
 
     @Test
@@ -36,24 +36,8 @@ class ConciergeConstantsTest {
     }
 
     @Test
-    fun `data handoff delivery keys have the published wire values`() {
-        assertEquals("delivered", ConciergeConstants.DataHandoff.DeliveryEventData.Key.DELIVERED)
-        assertEquals("deliveryErrorCode", ConciergeConstants.DataHandoff.DeliveryEventData.Key.DELIVERY_ERROR_CODE)
-        assertEquals("routingHint", ConciergeConstants.DataHandoff.DeliveryEventData.Key.ROUTING_HINT)
-        assertEquals("xdmFields", ConciergeConstants.DataHandoff.DeliveryEventData.Key.XDM_FIELDS)
-    }
-
-    @Test
     fun `reserved xdm keys contain exactly identityMap`() {
         assertEquals(setOf("identityMap"), ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS)
-    }
-
-    @Test
-    fun `data handoff delivery error codes have the published wire values`() {
-        assertEquals("forwarding_not_implemented", ConciergeConstants.DataHandoff.DeliveryErrorCode.NOT_IMPLEMENTED)
-        assertEquals("unreachable", ConciergeConstants.DataHandoff.DeliveryErrorCode.UNREACHABLE)
-        assertEquals("timeout", ConciergeConstants.DataHandoff.DeliveryErrorCode.TIMEOUT)
-        assertEquals("unknown", ConciergeConstants.DataHandoff.DeliveryErrorCode.UNKNOWN)
     }
 
     @Test

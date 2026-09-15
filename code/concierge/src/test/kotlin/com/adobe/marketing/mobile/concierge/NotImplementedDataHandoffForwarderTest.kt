@@ -11,27 +11,18 @@
 
 package com.adobe.marketing.mobile.concierge
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class NotImplementedDataHandoffForwarderTest {
 
     @Test
-    fun `forward reports not delivered with the not-implemented error code synchronously`() {
+    fun `forward is a no-op that does not throw`() {
         val result = ConciergeDataHandoffEvent(
             routingHint = "buy_now",
             xdmFields = mapOf("orderId" to "abc-123")
         )
 
-        var calledDelivered: Boolean? = null
-        var calledErrorCode: String? = null
-        NotImplementedDataHandoffForwarder.forward(result) { delivered, errorCode ->
-            calledDelivered = delivered
-            calledErrorCode = errorCode
-        }
-
-        assertFalse(requireNotNull(calledDelivered))
-        assertEquals(ConciergeConstants.DataHandoff.DeliveryErrorCode.NOT_IMPLEMENTED, calledErrorCode)
+        // Should not throw — this is a fire-and-forget seam with no callback and no outcome to assert.
+        NotImplementedDataHandoffForwarder.forward(result)
     }
 }

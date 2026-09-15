@@ -12,22 +12,19 @@
 package com.adobe.marketing.mobile.concierge
 
 /**
- * A generic payload a host app hands to the Concierge SDK to forward toward the agent pipeline
- * (Brand Concierge → Product Advisor), without the user typing or saying anything in chat.
+ * A generic payload a host app hands to the Concierge SDK to forward toward Brand Concierge,
+ * without the user typing or saying anything in chat.
  * The SDK has no knowledge of what [xdmFields] represents — checkout is just the first use case.
  *
  * Build one of these, call [toEventData], and dispatch it via
  * `MobileCore.dispatchEventWithResponseCallback` using an [com.adobe.marketing.mobile.Event]
  * built with type [ConciergeConstants.EventType.CONCIERGE] and source
- * [ConciergeConstants.EventSource.DATA_HANDOFF]. The response reports accept/reject (see
- * [ConciergeConstants.DataHandoff.ResponseKey]); register a standing listener on
- * [ConciergeConstants.EventSource.DATA_HANDOFF_DELIVERY] for the eventual delivered/failed
- * outcome (see [ConciergeConstants.DataHandoff.DeliveryEventData]) — until a follow-up ticket
- * implements the real forward to Brand Concierge, every accepted event resolves as not-delivered
- * with [ConciergeConstants.DataHandoff.DeliveryErrorCode.NOT_IMPLEMENTED]. That delivery-result
- * event echoes this [routingHint]/[xdmFields] back verbatim, since the SDK has no correlation id
- * of its own — embed one inside [xdmFields] yourself if you need to match a result to a specific
- * submission.
+ * [ConciergeConstants.EventSource.DATA_HANDOFF]. The response reports accept/reject only (see
+ * [ConciergeConstants.DataHandoff.ResponseKey]) — `accepted == true` confirms the SDK received
+ * and validated the payload's shape; it isn't yet an independent confirmation that Brand
+ * Concierge received or processed it, and there is no separate
+ * delivery-confirmation signal today. The actual forward to Brand Concierge is still pending on
+ * the SDK side — accepted events are not yet delivered anywhere.
  *
  * @property routingHint A keyword the user never sees, used only because Brand Concierge's
  * current routing is phrase-based. Required — not optional, since relaxing a required field to
@@ -37,25 +34,29 @@ package com.adobe.marketing.mobile.concierge
  * [ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS] are rejected, as is any value that isn't
  * JSON-safe (`String`, `Boolean`, finite `Int`/`Long`/`Double`/`Float`, or a `Map`/`List` of
  * further JSON-safe values, up to a bounded nesting depth).
+ * @property localMessage Optional message to render immediately in chat when set. Not yet
+ * implemented — accepted and decoded, but not rendered.
  */
 data class ConciergeDataHandoffEvent(
     val routingHint: String,
-    val xdmFields: Map<String, Any>
+    val xdmFields: Map<String, Any>,
+    val localMessage: String? = null
 ) {
 
     /** Converts this to the `Map<String, Any>` shape expected by [com.adobe.marketing.mobile.Event.Builder.setEventData]. */
     fun toEventData(): Map<String, Any> {
         val keys = ConciergeConstants.DataHandoff.EventData.Key
-        return mapOf(
+        val data = mutableMapOf<String, Any>(
             keys.ROUTING_HINT to routingHint,
             keys.XDM_FIELDS to xdmFields
         )
+        localMessage?.let { data[keys.LOCAL_MESSAGE] = it }
+        return data
     }
 
     companion object {
 
-        // Caps the recursion in isJsonSafeValue so a deeply nested or self-referential xdmFields
-        // value can never blow the stack — bounded rejection instead, keeping "never throws" true.
+        // Recursion depth cap for isJsonSafeValue.
         private const val MAX_XDM_FIELD_VALUE_DEPTH = 20
 
         /**
@@ -76,7 +77,7 @@ data class ConciergeDataHandoffEvent(
             val routingHint = data[keys.ROUTING_HINT] as? String
                 ?: return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
             if (routingHint.isBlank()) {
-                // A blank routingHint conveys nothing meaningful — treat it the same as absent.
+                // Blank routingHint is treated as absent.
                 return DataHandoffDecodeResult.Rejected(reasons.MISSING_ROUTING_HINT)
             }
 
@@ -104,8 +105,11 @@ data class ConciergeDataHandoffEvent(
             @Suppress("UNCHECKED_CAST")
             val xdmFields = rawXdmFields as Map<String, Any>
 
+            // Missing, wrong-typed, or blank localMessage decodes to null, not a rejection.
+            val localMessage = (data[keys.LOCAL_MESSAGE] as? String)?.takeIf { it.isNotBlank() }
+
             return DataHandoffDecodeResult.Success(
-                ConciergeDataHandoffEvent(routingHint = routingHint, xdmFields = xdmFields)
+                ConciergeDataHandoffEvent(routingHint = routingHint, xdmFields = xdmFields, localMessage = localMessage)
             )
         }
 

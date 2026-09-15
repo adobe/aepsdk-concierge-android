@@ -14,29 +14,27 @@ package com.adobe.marketing.mobile.concierge
 import com.adobe.marketing.mobile.services.Log
 
 /**
- * Seam for forwarding an accepted [ConciergeDataHandoffEvent] to Brand Concierge. [onComplete]
- * must eventually be called with the true delivered/failed outcome — it has no deadline of its
- * own (the caller is responsible for timeout handling).
+ * Seam for forwarding an accepted [ConciergeDataHandoffEvent] to Brand Concierge. Fire-and-forget
+ * — there is no delivery-confirmation signal today (accept/reject only confirms the SDK validated
+ * the payload's shape, not that Brand Concierge received it).
  */
 internal interface ConciergeDataHandoffForwarder {
-    fun forward(result: ConciergeDataHandoffEvent, onComplete: (delivered: Boolean, errorCode: String?) -> Unit)
+    fun forward(result: ConciergeDataHandoffEvent)
 }
 
 /**
  * Default forwarder while the real Brand Concierge forward is still pending —
- * `ConciergeChatService`'s XDM plumbing for this doesn't exist yet. Always reports
- * not-delivered with an explicit, deterministic error code — never a silent no-op — so a
+ * `ConciergeChatService`'s XDM plumbing for this doesn't exist yet. A no-op (beyond logging) so a
  * follow-up implementation can swap in without changing any caller.
  */
 internal object NotImplementedDataHandoffForwarder : ConciergeDataHandoffForwarder {
     private const val SELF_TAG = "NotImplementedDataHandoffForwarder"
 
-    override fun forward(result: ConciergeDataHandoffEvent, onComplete: (Boolean, String?) -> Unit) {
+    override fun forward(result: ConciergeDataHandoffEvent) {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             SELF_TAG,
             "Data handoff forwarding not yet implemented; routingHint=${result.routingHint}"
         )
-        onComplete(false, ConciergeConstants.DataHandoff.DeliveryErrorCode.NOT_IMPLEMENTED)
     }
 }
