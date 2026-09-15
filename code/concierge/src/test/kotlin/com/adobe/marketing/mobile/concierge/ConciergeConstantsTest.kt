@@ -60,7 +60,9 @@ class ConciergeConstantsTest {
     fun `data handoff reject reasons have the published wire values`() {
         assertEquals("missing_event_data", ConciergeConstants.DataHandoff.RejectReason.MISSING_EVENT_DATA)
         assertEquals("missing_routing_hint", ConciergeConstants.DataHandoff.RejectReason.MISSING_ROUTING_HINT)
+        assertEquals("invalid_routing_hint_type", ConciergeConstants.DataHandoff.RejectReason.INVALID_ROUTING_HINT_TYPE)
         assertEquals("missing_xdm_fields", ConciergeConstants.DataHandoff.RejectReason.MISSING_XDM_FIELDS)
+        assertEquals("invalid_xdm_fields_type", ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELDS_TYPE)
         assertEquals("empty_xdm_fields", ConciergeConstants.DataHandoff.RejectReason.EMPTY_XDM_FIELDS)
         assertEquals("invalid_xdm_field_key", ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_KEY)
         assertEquals("reserved_key_collision", ConciergeConstants.DataHandoff.RejectReason.RESERVED_KEY_COLLISION)

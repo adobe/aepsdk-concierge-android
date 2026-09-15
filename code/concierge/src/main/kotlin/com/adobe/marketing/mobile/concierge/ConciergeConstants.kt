@@ -108,14 +108,17 @@ object ConciergeConstants {
                 const val DELIVERY_ERROR_CODE = "deliveryErrorCode"
                 // Echoed back from the original submission — there is no SDK-level correlation
                 // id, so a host app matches a delivery result to its submission by content.
-                const val ROUTING_HINT = "routingHint"
-                const val XDM_FIELDS = "xdmFields"
+                // Same wire values as EventData.Key — declared as references, not re-literaled,
+                // so the submission and its echo can never drift apart.
+                const val ROUTING_HINT = EventData.Key.ROUTING_HINT
+                const val XDM_FIELDS = EventData.Key.XDM_FIELDS
             }
         }
 
         // Top-level xdmFields keys that collide with these are rejected outright. `identityMap`
-        // is what the SDK already places at the xdm root today (ConciergeChatService payload).
-        internal val RESERVED_XDM_KEYS = setOf("identityMap")
+        // is what the SDK already places at the xdm root today (ConciergeChatService payload) —
+        // referenced from SharedState.EdgeIdentity rather than re-literaled, so the two can't drift.
+        internal val RESERVED_XDM_KEYS = setOf(SharedState.EdgeIdentity.IDENTITY_MAP)
 
         object DeliveryErrorCode {
             const val NOT_IMPLEMENTED = "forwarding_not_implemented"
@@ -127,7 +130,9 @@ object ConciergeConstants {
         object RejectReason {
             const val MISSING_EVENT_DATA = "missing_event_data"
             const val MISSING_ROUTING_HINT = "missing_routing_hint"
+            const val INVALID_ROUTING_HINT_TYPE = "invalid_routing_hint_type"
             const val MISSING_XDM_FIELDS = "missing_xdm_fields"
+            const val INVALID_XDM_FIELDS_TYPE = "invalid_xdm_fields_type"
             const val EMPTY_XDM_FIELDS = "empty_xdm_fields"
             const val INVALID_XDM_FIELD_KEY = "invalid_xdm_field_key"
             const val RESERVED_KEY_COLLISION = "reserved_key_collision"

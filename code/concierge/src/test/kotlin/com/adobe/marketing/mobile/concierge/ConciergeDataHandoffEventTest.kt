@@ -226,4 +226,87 @@ class ConciergeDataHandoffEventTest {
         require(result is DataHandoffDecodeResult.Success)
         assertEquals(xdmFields, result.result.xdmFields)
     }
+
+    @Test
+    fun `fromEventData rejects a non-string routingHint as invalid type, not missing`() {
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to 42,
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123")
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Rejected)
+        assertEquals(ConciergeConstants.DataHandoff.RejectReason.INVALID_ROUTING_HINT_TYPE, result.reason)
+    }
+
+    @Test
+    fun `fromEventData rejects a non-Map xdmFields as invalid type, not missing`() {
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to "not-a-map"
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Rejected)
+        assertEquals(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELDS_TYPE, result.reason)
+    }
+
+    @Test
+    fun `fromEventData rejects NaN and Infinity values as not JSON-safe`() {
+        listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY).forEach { badValue ->
+            val data = mapOf(
+                ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+                ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("price" to badValue)
+            )
+
+            val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+            require(result is DataHandoffDecodeResult.Rejected) { "expected rejection for value $badValue" }
+            assertEquals(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE, result.reason)
+        }
+    }
+
+    @Test
+    fun `fromEventData accepts a finite Double value`() {
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("price" to 19.99)
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Success)
+        assertEquals(19.99, result.result.xdmFields["price"])
+    }
+
+    @Test
+    fun `fromEventData rejects a self-referential xdmFields value instead of stack overflowing`() {
+        val cyclic = HashMap<String, Any>()
+        cyclic["self"] = cyclic
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("cyclic" to cyclic)
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Rejected)
+        assertEquals(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE, result.reason)
+    }
+
+    @Test
+    fun `fromEventData accepts values nested well within the depth cap`() {
+        var value: Any = "leaf"
+        repeat(5) { value = mapOf("nested" to value) }
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("deep" to value)
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Success)
+    }
 }

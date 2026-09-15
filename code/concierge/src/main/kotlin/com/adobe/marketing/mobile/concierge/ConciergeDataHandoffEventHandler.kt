@@ -13,15 +13,14 @@ package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.MobileCore
+import com.adobe.marketing.mobile.services.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.resume
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Handles inbound [ConciergeConstants.EventSource.DATA_HANDOFF] events: decodes, answers
@@ -38,6 +37,7 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
 ) {
 
     companion object {
+        private const val SELF_TAG = "ConciergeDataHandoffEventHandler"
         private const val RESPONSE_EVENT_NAME = "Concierge Data Handoff Event Response"
         private const val DELIVERY_EVENT_NAME = "Concierge Data Handoff Event Delivery"
 
@@ -46,66 +46,70 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
         }
     }
 
-    fun handle(event: Event) {
-        when (val decoded = ConciergeDataHandoffEvent.fromEventData(event.eventData)) {
-            is DataHandoffDecodeResult.Rejected -> respondRejected(event, decoded.reason)
-            is DataHandoffDecodeResult.Success -> handleDecoded(event, decoded.result)
-        }
+    fun handle(event: Event): Unit = when (val decoded = ConciergeDataHandoffEvent.fromEventData(event.eventData)) {
+        is DataHandoffDecodeResult.Rejected -> respondRejected(event, decoded.reason)
+        is DataHandoffDecodeResult.Success -> handleDecoded(event, decoded.result)
     }
 
     private fun handleDecoded(triggerEvent: Event, result: ConciergeDataHandoffEvent) {
         respondAccepted(triggerEvent)
 
         coroutineScope.launch {
-            val (delivered, errorCode) = try {
-                withTimeout(forwardTimeoutMs) {
-                    suspendCancellableCoroutine<Pair<Boolean, String?>> { continuation ->
-                        val completed = AtomicBoolean(false)
-                        try {
-                            forwarder.forward(result) { forwardDelivered, forwardErrorCode ->
-                                if (completed.compareAndSet(false, true)) {
-                                    continuation.resume(forwardDelivered to forwardErrorCode)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            if (completed.compareAndSet(false, true)) {
-                                continuation.resumeWith(Result.failure(e))
-                            }
-                        }
+            val deferred = CompletableDeferred<Pair<Boolean, String?>>()
+
+            try {
+                forwarder.forward(result) { delivered, errorCode ->
+                    if (!deferred.complete(delivered to errorCode)) {
+                        Log.debug(
+                            ConciergeConstants.EXTENSION_NAME, SELF_TAG,
+                            "Ignoring late/duplicate onComplete for data handoff forward " +
+                                "(routingHint=${result.routingHint}); outcome already reported."
+                        )
                     }
                 }
-            } catch (e: TimeoutCancellationException) {
-                false to ConciergeConstants.DataHandoff.DeliveryErrorCode.TIMEOUT
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                false to ConciergeConstants.DataHandoff.DeliveryErrorCode.UNKNOWN
+                if (!deferred.complete(false to ConciergeConstants.DataHandoff.DeliveryErrorCode.UNKNOWN)) {
+                    Log.debug(
+                        ConciergeConstants.EXTENSION_NAME, SELF_TAG,
+                        "Forwarder threw after already completing " +
+                            "(routingHint=${result.routingHint}): ${e.message}"
+                    )
+                }
+            }
+
+            val outcome = withTimeoutOrNull(forwardTimeoutMs) { deferred.await() }
+            val (delivered, errorCode) = outcome ?: run {
+                // Mark the deferred completed ourselves so a forwarder that eventually calls
+                // onComplete after this point hits the "already completed" branch above and
+                // gets logged, instead of silently completing a deferred nobody awaits anymore.
+                deferred.complete(false to ConciergeConstants.DataHandoff.DeliveryErrorCode.TIMEOUT)
+                false to ConciergeConstants.DataHandoff.DeliveryErrorCode.TIMEOUT
             }
             dispatchDeliveryResult(result, delivered, errorCode)
         }
     }
 
     private fun respondRejected(triggerEvent: Event, reason: String) {
-        val response = Event.Builder(
+        dispatch(
             RESPONSE_EVENT_NAME,
-            ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF
-        ).inResponseToEvent(triggerEvent).setEventData(
+            ConciergeConstants.EventSource.DATA_HANDOFF,
             mapOf(
                 ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to false,
                 ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON to reason
-            )
-        ).build()
-        MobileCore.dispatchEvent(response)
+            ),
+            triggerEvent = triggerEvent
+        )
     }
 
     private fun respondAccepted(triggerEvent: Event) {
-        val response = Event.Builder(
+        dispatch(
             RESPONSE_EVENT_NAME,
-            ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF
-        ).inResponseToEvent(triggerEvent).setEventData(
-            mapOf(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to true)
-        ).build()
-        MobileCore.dispatchEvent(response)
+            ConciergeConstants.EventSource.DATA_HANDOFF,
+            mapOf(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to true),
+            triggerEvent = triggerEvent
+        )
     }
 
     private fun dispatchDeliveryResult(result: ConciergeDataHandoffEvent, delivered: Boolean, errorCode: String?) {
@@ -117,11 +121,23 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
         )
         errorCode?.let { data[keys.DELIVERY_ERROR_CODE] = it }
 
-        val deliveryEvent = Event.Builder(
-            DELIVERY_EVENT_NAME,
-            ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF_DELIVERY
-        ).setEventData(data).build()
-        MobileCore.dispatchEvent(deliveryEvent)
+        dispatch(DELIVERY_EVENT_NAME, ConciergeConstants.EventSource.DATA_HANDOFF_DELIVERY, data)
+    }
+
+    /**
+     * Builds and dispatches an [Event], logging (rather than throwing) if [MobileCore.dispatchEvent]
+     * fails — this runs both synchronously from [handle] and from inside [coroutineScope]'s
+     * fire-and-forget coroutine, where an uncaught exception would otherwise be unrecoverable.
+     */
+    private fun dispatch(name: String, source: String, data: Map<String, Any>, triggerEvent: Event? = null) {
+        try {
+            val builder = Event.Builder(name, ConciergeConstants.EventType.CONCIERGE, source).setEventData(data)
+            val event = if (triggerEvent != null) builder.inResponseToEvent(triggerEvent).build() else builder.build()
+            MobileCore.dispatchEvent(event)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Failed to dispatch '$name': ${e.message}")
+        }
     }
 }

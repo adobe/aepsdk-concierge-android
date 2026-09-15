@@ -183,4 +183,32 @@ class ConciergeDataHandoffEventHandlerTest {
             deliveryEvent.eventData?.get(ConciergeConstants.DataHandoff.DeliveryEventData.Key.DELIVERY_ERROR_CODE)
         )
     }
+
+    @Test
+    fun `handle ignores a forwarder callback that fires after the timeout already resolved`() {
+        var lateCallback: ((Boolean, String?) -> Unit)? = null
+        val lateForwarder = object : ConciergeDataHandoffForwarder {
+            override fun forward(result: ConciergeDataHandoffEvent, onComplete: (Boolean, String?) -> Unit) {
+                lateCallback = onComplete // never invoked synchronously — simulates a real async forward
+            }
+        }
+        val testScope = TestScope(StandardTestDispatcher())
+        val lateHandler = ConciergeDataHandoffEventHandler(
+            forwarder = lateForwarder,
+            coroutineScope = testScope,
+            forwardTimeoutMs = 100L
+        )
+        val event = buildDataHandoffEvent()
+
+        lateHandler.handle(event)
+        testScope.advanceUntilIdle() // timeout fires; TIMEOUT delivery event dispatched
+        verify(exactly = 2) { MobileCore.dispatchEvent(any()) }
+
+        // The forwarder eventually completes after the handler already moved on.
+        lateCallback?.invoke(true, null)
+        testScope.advanceUntilIdle()
+
+        // The late completion must be discarded, not delivered a second time.
+        verify(exactly = 2) { MobileCore.dispatchEvent(any()) }
+    }
 }

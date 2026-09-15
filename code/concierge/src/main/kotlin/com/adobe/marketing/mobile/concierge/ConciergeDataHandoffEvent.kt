@@ -35,7 +35,8 @@ package com.adobe.marketing.mobile.concierge
  * @property xdmFields Arbitrary XDM data merged into the root of the outbound `xdm` object.
  * Required and must be non-empty. Every key must be a `String`; top-level keys colliding with
  * [ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS] are rejected, as is any value that isn't
- * JSON-safe (`String`, `Boolean`, a numeric type, or a `Map`/`List` of further JSON-safe values).
+ * JSON-safe (`String`, `Boolean`, finite `Int`/`Long`/`Double`/`Float`, or a `Map`/`List` of
+ * further JSON-safe values, up to a bounded nesting depth).
  */
 data class ConciergeDataHandoffEvent(
     val routingHint: String,
@@ -53,6 +54,10 @@ data class ConciergeDataHandoffEvent(
 
     companion object {
 
+        // Caps the recursion in isJsonSafeValue so a deeply nested or self-referential xdmFields
+        // value can never blow the stack — bounded rejection instead, keeping "never throws" true.
+        private const val MAX_XDM_FIELD_VALUE_DEPTH = 20
+
         /**
          * Decodes untrusted app-supplied event data into a [ConciergeDataHandoffEvent]. Never
          * throws — malformed, missing, or disallowed fields produce a
@@ -63,26 +68,37 @@ data class ConciergeDataHandoffEvent(
                 return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.MISSING_EVENT_DATA)
             }
             val keys = ConciergeConstants.DataHandoff.EventData.Key
+            val reasons = ConciergeConstants.DataHandoff.RejectReason
 
-            val routingHint = (data[keys.ROUTING_HINT] as? String)?.takeIf { it.isNotBlank() }
-                ?: return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.MISSING_ROUTING_HINT)
+            if (keys.ROUTING_HINT !in data) {
+                return DataHandoffDecodeResult.Rejected(reasons.MISSING_ROUTING_HINT)
+            }
+            val routingHint = data[keys.ROUTING_HINT] as? String
+                ?: return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
+            if (routingHint.isBlank()) {
+                // A blank routingHint conveys nothing meaningful — treat it the same as absent.
+                return DataHandoffDecodeResult.Rejected(reasons.MISSING_ROUTING_HINT)
+            }
 
+            if (keys.XDM_FIELDS !in data) {
+                return DataHandoffDecodeResult.Rejected(reasons.MISSING_XDM_FIELDS)
+            }
             val rawXdmFields = data[keys.XDM_FIELDS] as? Map<*, *>
-                ?: return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.MISSING_XDM_FIELDS)
+                ?: return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELDS_TYPE)
             if (rawXdmFields.isEmpty()) {
-                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.EMPTY_XDM_FIELDS)
+                return DataHandoffDecodeResult.Rejected(reasons.EMPTY_XDM_FIELDS)
             }
 
-            if (rawXdmFields.keys.any { it !is String }) {
-                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_KEY)
-            }
-
-            if (rawXdmFields.keys.any { (it as String) in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS }) {
-                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.RESERVED_KEY_COLLISION)
-            }
-
-            if (rawXdmFields.values.any { !isJsonSafeValue(it) }) {
-                return DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE)
+            for ((key, value) in rawXdmFields) {
+                if (key !is String) {
+                    return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELD_KEY)
+                }
+                if (key in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
+                    return DataHandoffDecodeResult.Rejected(reasons.RESERVED_KEY_COLLISION)
+                }
+                if (!isJsonSafeValue(value, depth = 0)) {
+                    return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELD_VALUE)
+                }
             }
 
             @Suppress("UNCHECKED_CAST")
@@ -93,11 +109,16 @@ data class ConciergeDataHandoffEvent(
             )
         }
 
-        private fun isJsonSafeValue(value: Any?): Boolean = when (value) {
-            is String, is Boolean, is Int, is Long, is Double, is Float -> true
-            is Map<*, *> -> value.keys.all { it is String } && value.values.all { isJsonSafeValue(it) }
-            is List<*> -> value.all { isJsonSafeValue(it) }
-            else -> false // covers null and any other non-JSON-safe type
+        private fun isJsonSafeValue(value: Any?, depth: Int): Boolean {
+            if (depth > MAX_XDM_FIELD_VALUE_DEPTH) return false
+            return when (value) {
+                is String, is Boolean, is Int, is Long -> true
+                is Double -> value.isFinite()
+                is Float -> value.isFinite()
+                is Map<*, *> -> value.keys.all { it is String } && value.values.all { isJsonSafeValue(it, depth + 1) }
+                is List<*> -> value.all { isJsonSafeValue(it, depth + 1) }
+                else -> false // covers null and any other non-JSON-safe type
+            }
         }
     }
 }
