@@ -495,6 +495,7 @@ class ConciergeStateRepositoryTest {
 
         val state = repository.state.first()
         assertNull(state.experienceCloudId)
+        assertNull(state.identityMap)
         assertFalse(state.configurationReady)
         assertNull(state.conciergeServer)
         assertNull(state.conciergeConfigId)
