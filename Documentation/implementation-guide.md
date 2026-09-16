@@ -98,13 +98,7 @@ Another option for validation is to use Adobe Assurance. Refer to the [Mobile SD
 
 ## Identities
 
-Brand Concierge forwards the full Edge Identity `identityMap` on every chat and feedback request. The ECID is always included automatically. To send additional identities (e.g. `hashedEmail`, `CRMID`, or a custom namespace), set them via the Edge Identity API — they are forwarded verbatim, so lowercasing/hashing is the app's responsibility:
-
-```kotlin
-val map = IdentityMap()
-map.addItem(IdentityItem("<lowercased-sha256-email>", AuthenticatedState.AUTHENTICATED, false), "hashedEmail")
-Identity.updateIdentities(map)
-```
+Brand Concierge forwards the full Edge Identity `identityMap` on every chat and feedback request. The ECID is always included automatically. To send additional identities (e.g. a hashed email, `CRMID`, or a custom namespace), set them via the Edge Identity extension's [`updateIdentities`](https://developer.adobe.com/client-sdks/edge/identity-for-edge-network/api-reference/#updateidentities) API — they are forwarded verbatim, so lowercasing/hashing is the app's responsibility.
 
 Namespace priority and identity-graph rules are configured server-side in Adobe Experience Platform; the SDK does not interpret or relabel namespaces.
 
