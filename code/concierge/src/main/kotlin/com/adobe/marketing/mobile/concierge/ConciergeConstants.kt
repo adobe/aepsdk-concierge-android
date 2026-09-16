@@ -86,6 +86,49 @@ object ConciergeConstants {
         const val NOTIFICATION = "com.adobe.eventSource.notification"
     }
 
+    object DataHandoff {
+        // Mirrors MobileCore's own internal dispatchEventWithResponseCallback default timeout.
+        internal const val RESPONSE_TIMEOUT_MS = 5000L
+
+        internal object EventName {
+            const val REQUEST = "Concierge Data Handoff Event"
+            const val RESPONSE = "Concierge Data Handoff Event Response"
+        }
+
+        internal object EventData {
+            internal object Key {
+                const val ROUTING_HINT = "routingHint"
+                const val XDM_FIELDS = "xdmFields"
+                const val LOCAL_MESSAGE = "localMessage"
+            }
+        }
+
+        object ResponseKey {
+            const val ACCEPTED = "accepted"
+            // Values are the constants in RejectReason.
+            const val REJECT_REASON = "rejectReason"
+        }
+
+        // Top-level xdmFields keys colliding with these are rejected. identityMap is the SDK's
+        // existing xdm-root key (ConciergeChatService).
+        internal val RESERVED_XDM_KEYS = setOf(SharedState.EdgeIdentity.IDENTITY_MAP)
+
+        object RejectReason {
+            const val MISSING_EVENT_DATA = "missing_event_data"
+            const val MISSING_ROUTING_HINT = "missing_routing_hint"
+            const val INVALID_ROUTING_HINT_TYPE = "invalid_routing_hint_type"
+            const val MISSING_XDM_FIELDS = "missing_xdm_fields"
+            const val INVALID_XDM_FIELDS_TYPE = "invalid_xdm_fields_type"
+            const val EMPTY_XDM_FIELDS = "empty_xdm_fields"
+            const val INVALID_XDM_FIELD_KEY = "invalid_xdm_field_key"
+            const val RESERVED_KEY_COLLISION = "reserved_key_collision"
+            const val INVALID_XDM_FIELD_VALUE = "invalid_xdm_field_value"
+            // Client-side only: the extension never responded (e.g. dispatch failure or timeout),
+            // as opposed to responding with a validation-based rejection above.
+            const val NO_RESPONSE = "no_response"
+        }
+    }
+
     object TrackingEvent {
         internal object Name {
             const val SESSION_INITIALIZED            = "Brand Concierge Session Initialized"
