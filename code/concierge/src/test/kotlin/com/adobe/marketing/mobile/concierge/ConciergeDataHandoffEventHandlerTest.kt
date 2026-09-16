@@ -12,6 +12,7 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.MobileCore
 import io.mockk.every
 import io.mockk.mockkStatic
@@ -43,9 +44,9 @@ class ConciergeDataHandoffEventHandlerTest {
         xdmFields: Map<String, Any> = mapOf("orderId" to "abc-123")
     ): Event {
         return Event.Builder(
-            "Data Handoff Event",
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
             ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF
+            EventSource.REQUEST_CONTENT
         ).setEventData(
             mapOf(
                 ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to routingHint,
@@ -57,9 +58,9 @@ class ConciergeDataHandoffEventHandlerTest {
     @Test
     fun `handle dispatches rejected response for malformed payload`() {
         val event = Event.Builder(
-            "Data Handoff Event",
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
             ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF
+            EventSource.REQUEST_CONTENT
         ).setEventData(emptyMap()).build()
 
         val slots = mutableListOf<Event>()
@@ -81,6 +82,8 @@ class ConciergeDataHandoffEventHandlerTest {
 
         val response = slots.single()
         assertEquals(true, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+        assertEquals(EventSource.RESPONSE_CONTENT, response.source)
+        assertEquals(ConciergeConstants.DataHandoff.EventName.RESPONSE, response.name)
     }
 
     @Test
@@ -111,9 +114,9 @@ class ConciergeDataHandoffEventHandlerTest {
         }
         val recordingHandler = ConciergeDataHandoffEventHandler(forwarder = recordingForwarder)
         val event = Event.Builder(
-            "Data Handoff Event",
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
             ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF
+            EventSource.REQUEST_CONTENT
         ).setEventData(emptyMap()).build()
 
         recordingHandler.handle(event)

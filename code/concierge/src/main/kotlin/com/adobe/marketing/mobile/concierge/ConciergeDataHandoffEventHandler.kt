@@ -12,14 +12,16 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.services.Log
 
 /**
- * Handles inbound [ConciergeConstants.EventSource.DATA_HANDOFF] events: decodes and answers
- * accept/reject immediately. `accepted == true` only confirms the SDK validated the payload's
- * shape — there is no delivery-confirmation signal today, so an accepted event is forwarded to
- * [forwarder] fire-and-forget with no outcome reported back to the host app.
+ * Handles inbound data handoff request events (see [ConciergeExtension.isDataHandoffEvent]):
+ * decodes and answers accept/reject immediately. `accepted == true` only confirms the SDK
+ * validated the payload's shape — there is no delivery-confirmation signal today, so an accepted
+ * event is forwarded to [forwarder] fire-and-forget with no outcome reported back to the host
+ * app.
  */
 internal class ConciergeDataHandoffEventHandler internal constructor(
     private val forwarder: ConciergeDataHandoffForwarder = NotImplementedDataHandoffForwarder
@@ -27,7 +29,6 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
 
     companion object {
         private const val SELF_TAG = "ConciergeDataHandoffEventHandler"
-        private const val RESPONSE_EVENT_NAME = "Concierge Data Handoff Event Response"
 
         internal val instance: ConciergeDataHandoffEventHandler by lazy {
             ConciergeDataHandoffEventHandler()
@@ -72,9 +73,9 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
     private fun dispatch(triggerEvent: Event, data: Map<String, Any>) {
         try {
             val response = Event.Builder(
-                RESPONSE_EVENT_NAME,
+                ConciergeConstants.DataHandoff.EventName.RESPONSE,
                 ConciergeConstants.EventType.CONCIERGE,
-                ConciergeConstants.EventSource.DATA_HANDOFF
+                EventSource.RESPONSE_CONTENT
             ).inResponseToEvent(triggerEvent).setEventData(data).build()
             MobileCore.dispatchEvent(response)
         } catch (e: Exception) {

@@ -18,8 +18,9 @@ import org.junit.Test
 class ConciergeConstantsTest {
 
     @Test
-    fun `data handoff event source constants have the published wire values`() {
-        assertEquals("com.adobe.eventSource.dataHandoff", ConciergeConstants.EventSource.DATA_HANDOFF)
+    fun `data handoff event name constants have the published wire values`() {
+        assertEquals("Concierge Data Handoff Event", ConciergeConstants.DataHandoff.EventName.REQUEST)
+        assertEquals("Concierge Data Handoff Event Response", ConciergeConstants.DataHandoff.EventName.RESPONSE)
     }
 
     @Test

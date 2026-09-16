@@ -57,8 +57,8 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
         )
         api.registerEventListener(
             ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF,
-            ConciergeDataHandoffEventHandler.instance::handle
+            EventSource.REQUEST_CONTENT,
+            this::processEvent
         )
     }
 
@@ -105,6 +105,13 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
                 "Concierge notification event received."
             )
             ConciergeEventTracker.trackEvent(event)
+        } else if (event.isDataHandoffEvent()) {
+            Log.trace(
+                EXTENSION_NAME,
+                SELF_TAG,
+                "Data handoff event received."
+            )
+            ConciergeDataHandoffEventHandler.instance.handle(event)
         }
     }
 
@@ -138,6 +145,12 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
     internal fun Event.isConciergeNotification(): Boolean {
         return this.type == ConciergeConstants.EventType.CONCIERGE &&
                 this.source == ConciergeConstants.EventSource.NOTIFICATION
+    }
+
+    internal fun Event.isDataHandoffEvent(): Boolean {
+        return this.type == ConciergeConstants.EventType.CONCIERGE &&
+                this.source == EventSource.REQUEST_CONTENT &&
+                this.name == ConciergeConstants.DataHandoff.EventName.REQUEST
     }
 
     private fun getSharedState(extensionName: String, event: Event): SharedStateResult? {

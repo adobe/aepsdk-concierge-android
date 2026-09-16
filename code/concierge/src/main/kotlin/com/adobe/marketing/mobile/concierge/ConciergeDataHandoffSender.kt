@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge
 import com.adobe.marketing.mobile.AdobeCallbackWithError
 import com.adobe.marketing.mobile.AdobeError
 import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.MobileCore
 
 /**
@@ -24,8 +25,6 @@ import com.adobe.marketing.mobile.MobileCore
  */
 internal object ConciergeDataHandoffSender {
 
-    private const val REQUEST_EVENT_NAME = "Concierge Data Handoff Event"
-
     fun send(
         routingHint: String,
         xdmFields: Map<String, Any>,
@@ -33,9 +32,9 @@ internal object ConciergeDataHandoffSender {
         completion: ConciergeDataHandoffCallback?
     ) {
         val event = Event.Builder(
-            REQUEST_EVENT_NAME,
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
             ConciergeConstants.EventType.CONCIERGE,
-            ConciergeConstants.EventSource.DATA_HANDOFF
+            EventSource.REQUEST_CONTENT
         ).setEventData(
             ConciergeDataHandoffEvent(routingHint, xdmFields, localMessage).toEventData()
         ).build()
@@ -47,12 +46,14 @@ internal object ConciergeDataHandoffSender {
                 override fun call(responseEvent: Event) {
                     val keys = ConciergeConstants.DataHandoff.ResponseKey
                     val accepted = responseEvent.eventData?.get(keys.ACCEPTED) as? Boolean ?: false
-                    val rejectReason = responseEvent.eventData?.get(keys.REJECT_REASON) as? String
+                    val rawReason = responseEvent.eventData?.get(keys.REJECT_REASON) as? String
+                    val rejectReason = ConciergeDataHandoffRejectReason.fromRawValue(rawReason)
+                        ?: if (accepted) null else ConciergeDataHandoffRejectReason.NO_RESPONSE
                     completion?.onResult(accepted, rejectReason)
                 }
 
                 override fun fail(error: AdobeError) {
-                    completion?.onResult(false, ConciergeConstants.DataHandoff.RejectReason.NO_RESPONSE)
+                    completion?.onResult(false, ConciergeDataHandoffRejectReason.NO_RESPONSE)
                 }
             }
         )

@@ -17,7 +17,8 @@ package com.adobe.marketing.mobile.concierge
  *
  * Internal wire-format plumbing for [Concierge.sendDataHandoff] — [toEventData] builds the
  * request [com.adobe.marketing.mobile.Event]'s data (type [ConciergeConstants.EventType.CONCIERGE],
- * source [ConciergeConstants.EventSource.DATA_HANDOFF]) and [fromEventData] decodes it back on the
+ * source `com.adobe.marketing.mobile.EventSource.REQUEST_CONTENT`, name
+ * [ConciergeConstants.DataHandoff.EventName.REQUEST]) and [fromEventData] decodes it back on the
  * extension side. The response reports accept/reject only (see
  * [ConciergeConstants.DataHandoff.ResponseKey]) — `accepted == true` confirms the SDK received
  * and validated the payload's shape; it is not confirmation that Brand Concierge received or

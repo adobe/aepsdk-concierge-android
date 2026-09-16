@@ -84,12 +84,16 @@ object ConciergeConstants {
     object EventSource {
         // Not available as a named constant in the Android AEP Core SDK — defined here for parity with iOS.
         const val NOTIFICATION = "com.adobe.eventSource.notification"
-        const val DATA_HANDOFF = "com.adobe.eventSource.dataHandoff"
     }
 
     object DataHandoff {
         // Mirrors MobileCore's own internal dispatchEventWithResponseCallback default timeout.
         internal const val RESPONSE_TIMEOUT_MS = 5000L
+
+        internal object EventName {
+            const val REQUEST = "Concierge Data Handoff Event"
+            const val RESPONSE = "Concierge Data Handoff Event Response"
+        }
 
         internal object EventData {
             internal object Key {

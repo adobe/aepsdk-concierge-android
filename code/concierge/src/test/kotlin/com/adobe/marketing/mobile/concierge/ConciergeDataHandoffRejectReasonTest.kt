@@ -12,18 +12,22 @@
  
 package com.adobe.marketing.mobile.concierge
 
-/**
- * Reports the outcome of a [Concierge.sendDataHandoff] call.
- *
- * Invoked exactly once, on a background thread.
- */
-fun interface ConciergeDataHandoffCallback {
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
 
-    /**
-     * @param accepted whether the SDK validated the payload's shape. This is not a
-     * delivery-confirmation signal — there is no independent signal today that Brand Concierge
-     * received or processed the payload.
-     * @param rejectReason the reason when [accepted] is false, or null when [accepted] is true.
-     */
-    fun onResult(accepted: Boolean, rejectReason: ConciergeDataHandoffRejectReason?)
+class ConciergeDataHandoffRejectReasonTest {
+
+    @Test
+    fun `fromRawValue matches every case's rawValue`() {
+        ConciergeDataHandoffRejectReason.values().forEach { reason ->
+            assertEquals(reason, ConciergeDataHandoffRejectReason.fromRawValue(reason.rawValue))
+        }
+    }
+
+    @Test
+    fun `fromRawValue returns null for an unrecognized or null raw value`() {
+        assertNull(ConciergeDataHandoffRejectReason.fromRawValue("not_a_real_reason"))
+        assertNull(ConciergeDataHandoffRejectReason.fromRawValue(null))
+    }
 }

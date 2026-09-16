@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge
 import com.adobe.marketing.mobile.AdobeCallbackWithError
 import com.adobe.marketing.mobile.AdobeError
 import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.MobileCore
 import io.mockk.every
 import io.mockk.mockkStatic
@@ -56,7 +57,7 @@ class ConciergeDataHandoffSenderTest {
 
         val event = eventSlot.captured
         assertEquals(ConciergeConstants.EventType.CONCIERGE, event.type)
-        assertEquals(ConciergeConstants.EventSource.DATA_HANDOFF, event.source)
+        assertEquals(EventSource.REQUEST_CONTENT, event.source)
         assertEquals("buy_now", event.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT))
         assertEquals(
             mapOf("orderId" to "abc-123"),
@@ -82,14 +83,14 @@ class ConciergeDataHandoffSenderTest {
     fun `send invokes completion with accepted true from the response event`() {
         val callbackSlot = captureCallback()
         var resultAccepted: Boolean? = null
-        var resultReason: String? = null
+        var resultReason: ConciergeDataHandoffRejectReason? = null
 
         ConciergeDataHandoffSender.send("buy_now", mapOf("orderId" to "abc-123"), null) { accepted, reason ->
             resultAccepted = accepted
             resultReason = reason
         }
         callbackSlot.captured.call(
-            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, ConciergeConstants.EventSource.DATA_HANDOFF)
+            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, EventSource.RESPONSE_CONTENT)
                 .setEventData(mapOf(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to true))
                 .build()
         )
@@ -102,14 +103,14 @@ class ConciergeDataHandoffSenderTest {
     fun `send invokes completion with accepted false and rejectReason from the response event`() {
         val callbackSlot = captureCallback()
         var resultAccepted: Boolean? = null
-        var resultReason: String? = null
+        var resultReason: ConciergeDataHandoffRejectReason? = null
 
         ConciergeDataHandoffSender.send("buy_now", mapOf("orderId" to "abc-123"), null) { accepted, reason ->
             resultAccepted = accepted
             resultReason = reason
         }
         callbackSlot.captured.call(
-            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, ConciergeConstants.EventSource.DATA_HANDOFF)
+            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, EventSource.RESPONSE_CONTENT)
                 .setEventData(
                     mapOf(
                         ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to false,
@@ -120,14 +121,14 @@ class ConciergeDataHandoffSenderTest {
         )
 
         assertEquals(false, resultAccepted)
-        assertEquals("missing_routing_hint", resultReason)
+        assertEquals(ConciergeDataHandoffRejectReason.MISSING_ROUTING_HINT, resultReason)
     }
 
     @Test
     fun `send invokes completion with accepted false and NO_RESPONSE reason on dispatch failure`() {
         val callbackSlot = captureCallback()
         var resultAccepted: Boolean? = null
-        var resultReason: String? = null
+        var resultReason: ConciergeDataHandoffRejectReason? = null
 
         ConciergeDataHandoffSender.send("buy_now", mapOf("orderId" to "abc-123"), null) { accepted, reason ->
             resultAccepted = accepted
@@ -136,7 +137,29 @@ class ConciergeDataHandoffSenderTest {
         callbackSlot.captured.fail(AdobeError.CALLBACK_TIMEOUT)
 
         assertEquals(false, resultAccepted)
-        assertEquals(ConciergeConstants.DataHandoff.RejectReason.NO_RESPONSE, resultReason)
+        assertEquals(ConciergeDataHandoffRejectReason.NO_RESPONSE, resultReason)
+    }
+
+    @Test
+    fun `send falls back to NO_RESPONSE when the response carries an unrecognized reject reason`() {
+        val callbackSlot = captureCallback()
+        var resultReason: ConciergeDataHandoffRejectReason? = null
+
+        ConciergeDataHandoffSender.send("buy_now", mapOf("orderId" to "abc-123"), null) { _, reason ->
+            resultReason = reason
+        }
+        callbackSlot.captured.call(
+            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, EventSource.RESPONSE_CONTENT)
+                .setEventData(
+                    mapOf(
+                        ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to false,
+                        ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON to "some_future_reason"
+                    )
+                )
+                .build()
+        )
+
+        assertEquals(ConciergeDataHandoffRejectReason.NO_RESPONSE, resultReason)
     }
 
     @Test
@@ -145,7 +168,7 @@ class ConciergeDataHandoffSenderTest {
 
         ConciergeDataHandoffSender.send("buy_now", mapOf("orderId" to "abc-123"), null, null)
         callbackSlot.captured.call(
-            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, ConciergeConstants.EventSource.DATA_HANDOFF)
+            Event.Builder("resp", ConciergeConstants.EventType.CONCIERGE, EventSource.RESPONSE_CONTENT)
                 .setEventData(mapOf(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to true))
                 .build()
         )
