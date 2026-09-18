@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -32,13 +33,16 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,8 +50,36 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 
-/** Test tag on the [ExtendedProductCard] CTA button so UI tests can target it unambiguously. */
+/** Test tag on the [ExtendedProductCard] primary CTA button so UI tests can target it unambiguously. */
 internal const val CTA_BUTTON_TEST_TAG = "ExtendedProductCardCtaButton"
+
+/** Test tag on the [ExtendedProductCard] secondary CTA button so UI tests can target it unambiguously. */
+internal const val SECONDARY_CTA_BUTTON_TEST_TAG = "ExtendedProductCardSecondaryCtaButton"
+
+/** Kept separate from the buttons' own padding so a theme with 0 padding doesn't collapse the gap. */
+private val PRODUCT_DETAIL_CTA_ROW_SPACING = 8.dp
+
+internal enum class ProductCardCtaRole { PRIMARY, SECONDARY }
+
+internal data class ProductDetailCta(
+    val button: ProductActionButton,
+    val role: ProductCardCtaRole
+)
+
+/** Trims text/url so a padded value can't pass validation here and then fail to parse at tap time. */
+internal fun productDetailCtas(element: MultimodalElement): List<ProductDetailCta> =
+    listOfNotNull(
+        validatedProductDetailCta(primaryActionButton(element), ProductCardCtaRole.PRIMARY),
+        validatedProductDetailCta(secondaryActionButton(element), ProductCardCtaRole.SECONDARY)
+    )
+
+private fun validatedProductDetailCta(button: ProductActionButton?, role: ProductCardCtaRole): ProductDetailCta? {
+    if (button == null) return null
+    val text = button.text.trim()
+    val url = button.url?.trim().orEmpty()
+    if (text.isEmpty() || url.isEmpty()) return null
+    return ProductDetailCta(button.copy(text = text, url = url), role)
+}
 
 /**
  * Composable that displays a single product card containing a fixed-size image, badge,
@@ -243,41 +275,103 @@ internal fun ExtendedProductCard(
                     }
                 }
 
-                // Product Card CTA Button
-                // Only shown when there's a label AND a destination to send it to. In addition to these requirements,
-                // the presence of a subtitle will prevent it from showing as well since at the card's fixed 367dp
-                // height there isn't room for a 2-line subtitle plus the button without clipping.
-                val cta = remember(element) { primaryActionButton(element) }
-                if (subtitle.isNullOrBlank() && cta != null && !cta.url.isNullOrBlank()) {
-                    val ctaStyle = ConciergeStyles.productCardCtaButtonStyle
-                    Card(
+                // Independent of subtitle presence -- overflow scrolls (see Column above), not clips.
+                val ctas = remember(element) { productDetailCtas(element) }
+                if (ctas.isNotEmpty()) {
+                    // A lone CTA keeps its intrinsic width; only 2+ CTAs share the row equally.
+                    val shareRowWidth = ctas.size > 1
+                    Row(
                         modifier = Modifier
-                            .padding(top = ctaStyle.containerTopSpacing)
-                            .wrapContentWidth()
-                            .testTag(CTA_BUTTON_TEST_TAG)
-                            .clickable(onClickLabel = cta.text, role = Role.Button) { onActionClick(cta) },
-                        colors = CardDefaults.cardColors(containerColor = ctaStyle.backgroundColor),
-                        shape = ctaStyle.shape,
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            .padding(top = ConciergeStyles.productCardCtaButtonStyle.containerTopSpacing)
+                            .then(if (shareRowWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()),
+                        horizontalArrangement = Arrangement.spacedBy(PRODUCT_DETAIL_CTA_ROW_SPACING)
                     ) {
-                        Box(
-                            modifier = Modifier.padding(
-                                horizontal = ctaStyle.horizontalPadding,
-                                vertical = ctaStyle.verticalPadding
-                            ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = cta.text,
-                                style = ctaStyle.textStyle,
-                                color = ctaStyle.textColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        ctas.forEach { cta ->
+                            key(cta.role) {
+                                ProductDetailCtaButton(
+                                    cta = cta,
+                                    modifier = if (shareRowWidth) Modifier.weight(1f) else Modifier.wrapContentWidth(),
+                                    onClick = { onActionClick(cta.button) }
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+/** Renders one CTA: filled for primary, outlined for secondary. */
+@Composable
+private fun ProductDetailCtaButton(
+    cta: ProductDetailCta,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val backgroundColor: Color
+    val textColor: Color
+    val borderColor: Color?
+    val borderWidth: Dp?
+    val shape: Shape
+    val horizontalPadding: Dp
+    val verticalPadding: Dp
+    val textStyle: TextStyle
+    val testTag: String
+
+    when (cta.role) {
+        ProductCardCtaRole.PRIMARY -> {
+            val style = ConciergeStyles.productCardCtaButtonStyle
+            backgroundColor = style.backgroundColor
+            textColor = style.textColor
+            borderColor = null
+            borderWidth = null
+            shape = style.shape
+            horizontalPadding = style.horizontalPadding
+            verticalPadding = style.verticalPadding
+            textStyle = style.textStyle
+            testTag = CTA_BUTTON_TEST_TAG
+        }
+        ProductCardCtaRole.SECONDARY -> {
+            val style = ConciergeStyles.productCardSecondaryCtaButtonStyle
+            backgroundColor = style.backgroundColor
+            textColor = style.textColor
+            borderColor = style.borderColor
+            borderWidth = style.borderWidth
+            shape = style.shape
+            horizontalPadding = style.horizontalPadding
+            verticalPadding = style.verticalPadding
+            textStyle = style.textStyle
+            testTag = SECONDARY_CTA_BUTTON_TEST_TAG
+        }
+    }
+
+    Card(
+        modifier = modifier
+            .testTag(testTag)
+            .then(
+                if (borderColor != null && borderWidth != null) {
+                    Modifier.border(borderWidth, borderColor, shape)
+                } else Modifier
+            )
+            .clickable(onClickLabel = cta.button.text, role = Role.Button, onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = shape,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = cta.button.text,
+                style = textStyle,
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

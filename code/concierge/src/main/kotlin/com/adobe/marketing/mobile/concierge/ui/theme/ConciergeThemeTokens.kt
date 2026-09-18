@@ -160,6 +160,8 @@ data class ConciergeLayout(
     val productCardCtaButtonVerticalPadding: Double? = null,
     val productCardCtaButtonFontSize: Double? = null,
     val productCardCtaButtonFontWeight: Int? = null,
+    // Secondary CTA border width only -- radius/padding/font are shared with the primary button.
+    val productCardSecondaryCtaButtonBorderWidth: Double? = null,
 
     // Thinking animation layout
     val thinkingDotSize: Double? = null,

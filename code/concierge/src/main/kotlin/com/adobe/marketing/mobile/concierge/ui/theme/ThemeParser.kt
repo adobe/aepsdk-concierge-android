@@ -394,6 +394,10 @@ internal object ThemeParser {
             // Product card CTA button colors from CSS themes
             productCardCtaButtonBackground = themeColors.productCardCtaButton?.backgroundColor?.toComposeColor(),
             productCardCtaButtonText = themeColors.productCardCtaButton?.textColor?.toComposeColor(),
+            // Product card secondary CTA button colors from CSS themes
+            productCardSecondaryCtaButtonBackground = themeColors.productCardSecondaryCtaButton?.backgroundColor?.toComposeColor(),
+            productCardSecondaryCtaButtonText = themeColors.productCardSecondaryCtaButton?.textColor?.toComposeColor(),
+            productCardSecondaryCtaButtonBorder = themeColors.productCardSecondaryCtaButton?.borderColor?.toComposeColor(),
             // Thinking animation colors from CSS themes
             thinkingDotColor = themeColors.thinking?.dotColor?.toComposeColor()
         )
