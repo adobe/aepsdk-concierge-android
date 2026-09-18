@@ -80,6 +80,18 @@ class ConciergeDataHandoffSenderTest {
     }
 
     @Test
+    fun `send uses the configured response timeout`() {
+        val timeoutSlot = slot<Long>()
+        every {
+            MobileCore.dispatchEventWithResponseCallback(any(), capture(timeoutSlot), any())
+        } returns Unit
+
+        ConciergeDataHandoffSender.send("buy_now", mapOf("orderId" to "abc-123"), null) { _, _ -> }
+
+        assertEquals(ConciergeConstants.DataHandoff.RESPONSE_TIMEOUT_MS, timeoutSlot.captured)
+    }
+
+    @Test
     fun `send invokes completion with accepted true from the response event`() {
         val callbackSlot = captureCallback()
         var resultAccepted: Boolean? = null
@@ -100,7 +112,7 @@ class ConciergeDataHandoffSenderTest {
     }
 
     @Test
-    fun `send invokes completion with accepted false and rejectReason from the response event`() {
+    fun `send invokes completion with chat in progress from the response event`() {
         val callbackSlot = captureCallback()
         var resultAccepted: Boolean? = null
         var resultReason: ConciergeDataHandoffRejectReason? = null
@@ -114,14 +126,14 @@ class ConciergeDataHandoffSenderTest {
                 .setEventData(
                     mapOf(
                         ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED to false,
-                        ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON to "missing_routing_hint"
+                        ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON to "chat_in_progress"
                     )
                 )
                 .build()
         )
 
         assertEquals(false, resultAccepted)
-        assertEquals(ConciergeDataHandoffRejectReason.MISSING_ROUTING_HINT, resultReason)
+        assertEquals(ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS, resultReason)
     }
 
     @Test

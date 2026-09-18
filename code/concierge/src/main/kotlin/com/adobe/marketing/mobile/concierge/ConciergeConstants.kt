@@ -87,8 +87,9 @@ object ConciergeConstants {
     }
 
     object DataHandoff {
-        // Mirrors MobileCore's own internal dispatchEventWithResponseCallback default timeout.
-        internal const val RESPONSE_TIMEOUT_MS = 5000L
+        // The callback waits for the active chat session to finish the service response.
+        internal const val DELIVERY_TIMEOUT_MS = 90_000L
+        internal const val RESPONSE_TIMEOUT_MS = DELIVERY_TIMEOUT_MS + 5_000L
 
         internal object EventName {
             const val REQUEST = "Concierge Data Handoff Event"
@@ -123,6 +124,11 @@ object ConciergeConstants {
             const val INVALID_XDM_FIELD_KEY = "invalid_xdm_field_key"
             const val RESERVED_KEY_COLLISION = "reserved_key_collision"
             const val INVALID_XDM_FIELD_VALUE = "invalid_xdm_field_value"
+            const val NO_ACTIVE_SESSION = "no_active_session"
+            const val CHAT_IN_PROGRESS = "chat_in_progress"
+            const val DELIVERY_FAILED = "delivery_failed"
+            const val EMPTY_RESPONSE = "empty_response"
+            const val DELIVERY_TIMEOUT = "delivery_timeout"
             // Client-side only: the extension never responded (e.g. dispatch failure or timeout),
             // as opposed to responding with a validation-based rejection above.
             const val NO_RESPONSE = "no_response"

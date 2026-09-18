@@ -129,12 +129,13 @@ Concierge.setAuthTokenProvider(
 
 Use `Concierge.sendDataHandoff(...)` when your app needs to hand the SDK data that did not
 originate in the chat UI—for example, the result of a native checkout flow that completed outside
-of chat. The SDK forwards the data to the Brand Concierge agent pipeline without requiring the user
-to type or say a chat message.
+of chat. The SDK forwards the data to the Brand Concierge agent pipeline and renders its response
+through the active chat transcript without requiring the user to type or say a chat message.
 
-> **Prerequisite:** Initialize `ConciergeChat` or bind `ConciergeChatView` with a non-empty
-> `surfaces` list before calling this API. The handoff does not open or render chat, but uses the
-> same configured surfaces to route the request to Brand Concierge.
+> **Prerequisite:** Keep a configured `ConciergeChat` or `ConciergeChatView` rendered with a
+> non-empty `surfaces` list while calling this API. The active chat session provides both the
+> routing surfaces and the transcript that receives the service response. A handoff made without
+> an active chat session fails with `NO_ACTIVE_SESSION`.
 
 ```kotlin
 import com.adobe.marketing.mobile.concierge.Concierge
@@ -152,34 +153,34 @@ Concierge.sendDataHandoff(
     ),
     localMessage = "Your order is confirmed!"
 ) { accepted, rejectReason ->
-    // accepted == true  -> the SDK received and validated the payload's shape.
-    // accepted == false -> rejected; check rejectReason and fix the payload before retrying.
+    // accepted == true  -> Brand Concierge completed and rendered the response.
+    // accepted == false -> validation or delivery failed; inspect rejectReason before retrying.
 }
 ```
 
 ### `Concierge.sendDataHandoff(routingHint, xdmFields, localMessage, completion)`
 
-- **`routingHint`** *(required)*: A keyword consumed only by Brand Concierge's current
-  phrase-based router (for example, `"successful-checkout"`). The end user never sees it, and it is
-  not conversational content.
+- **`routingHint`** *(required)*: A string consumed only by Brand Concierge's current phrase-based
+  router (for example, `"successful-checkout"`). The end user never sees it, and it is not
+  conversational content. Pass an empty or blank string when the XDM fields alone determine
+  routing; the SDK forwards it as an empty service query.
 - **`xdmFields`** *(required)*: Arbitrary XDM-shaped data merged into the root of the outbound XDM
   object alongside the SDK-owned identity map. Use nested Kotlin maps and lists, for example
   `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
   every key must be a `String`; and values must be JSON-safe: `String`, `Boolean`, finite `Int`,
   `Long`, `Float`, or `Double`, or maps/lists containing those values. Do not use `identityMap` as
   a top-level key because the SDK owns and populates it.
-- **`localMessage`**: Optional text intended for a local, non-networked chat message distinct from
-  the data forwarded to Brand Concierge. The SDK accepts this value, but does not currently render
-  it in the chat transcript.
+- **`localMessage`**: Optional text for a local, non-networked chat message distinct from the data
+  forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts.
 - **`completion`**: Optional `ConciergeDataHandoffCallback`, called exactly once on a background
-  thread. `accepted` reports only whether the SDK received and validated the payload's shape; it
-  does not confirm that Brand Concierge received or processed the data. When `accepted` is `false`,
-  `rejectReason` is a typed `ConciergeDataHandoffRejectReason`:
+  thread. `accepted` is `true` only after Brand Concierge completes a response stream with
+  renderable content. When `accepted` is `false`, `rejectReason` is a typed
+  `ConciergeDataHandoffRejectReason`:
 
   | Reject reason | Meaning |
   | --- | --- |
   | `MISSING_EVENT_DATA` | No payload reached the extension. This indicates an internal wiring issue and is not normally caller-triggered. |
-  | `MISSING_ROUTING_HINT` | `routingHint` was empty or blank. |
+  | `MISSING_ROUTING_HINT` | `routingHint` was missing from the underlying event payload. |
   | `INVALID_ROUTING_HINT_TYPE` | `routingHint` was not a string in the underlying event payload. |
   | `MISSING_XDM_FIELDS` | `xdmFields` was missing from the underlying event payload. |
   | `INVALID_XDM_FIELDS_TYPE` | `xdmFields` was not a map in the underlying event payload. |
@@ -187,9 +188,16 @@ Concierge.sendDataHandoff(
   | `INVALID_XDM_FIELD_KEY` | `xdmFields` contained a key that was not a string. |
   | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
   | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
+  | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. |
+  | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. |
+  | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. |
+  | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. |
+  | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. |
   | `NO_RESPONSE` | The extension did not respond, for example because the request timed out. |
 
-The SDK starts the accepted handoff asynchronously and does not yet deduplicate repeated calls.
+Chat messages use a finite FIFO queue. Data handoffs never join that queue: if a chat message or
+another handoff is active or waiting, the SDK immediately reports `CHAT_IN_PROGRESS` and does not
+render `localMessage` or call the service. Retry the handoff after the active request completes.
 
 ---
 

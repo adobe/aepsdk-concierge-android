@@ -15,16 +15,14 @@ import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.services.Log
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Handles inbound data handoff request events (see [ConciergeExtension.isDataHandoffEvent]):
- * decodes and answers accept/reject immediately. `accepted == true` only confirms the SDK
- * validated the payload's shape — there is no delivery-confirmation signal today, so an accepted
- * event is forwarded to [forwarder] fire-and-forget with no outcome reported back to the host
- * app.
+ * Handles inbound data handoff request events (see [ConciergeExtension.isDataHandoffEvent]) and
+ * reports their final validation or delivery outcome.
  */
 internal class ConciergeDataHandoffEventHandler internal constructor(
-    private val forwarder: ConciergeDataHandoffForwarder = BrandConciergeDataHandoffForwarder.instance
+    private val forwarder: ConciergeDataHandoffForwarder = ActiveConciergeDataHandoffForwarder
 ) {
 
     companion object {
@@ -41,14 +39,23 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
     }
 
     private fun handleDecoded(triggerEvent: Event, result: ConciergeDataHandoffEvent) {
-        respondAccepted(triggerEvent)
+        val responded = AtomicBoolean(false)
+        val respond = { deliveryResult: DataHandoffDeliveryResult ->
+            if (responded.compareAndSet(false, true)) {
+                when (deliveryResult) {
+                    DataHandoffDeliveryResult.Delivered -> respondAccepted(triggerEvent)
+                    is DataHandoffDeliveryResult.Failed -> respondRejected(triggerEvent, deliveryResult.reason.rawValue)
+                }
+            }
+        }
         try {
-            forwarder.forward(result)
+            forwarder.forward(result, respond)
         } catch (e: Exception) {
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME, SELF_TAG,
                 "Forwarder threw for a data handoff event (routingHint=${result.routingHint}): ${e.message}"
             )
+            respond(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED))
         }
     }
 

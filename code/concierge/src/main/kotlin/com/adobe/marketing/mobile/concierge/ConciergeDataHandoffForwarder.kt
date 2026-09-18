@@ -11,47 +11,71 @@
 
 package com.adobe.marketing.mobile.concierge
 
-import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
-import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.services.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 
 /**
- * Seam for forwarding an accepted [ConciergeDataHandoffEvent] to Brand Concierge. Fire-and-forget
- * — there is no delivery-confirmation signal today (accept/reject only confirms the SDK validated
- * the payload's shape, not that Brand Concierge received it).
+ * Delivers a data handoff through an active chat session.
  */
 internal interface ConciergeDataHandoffForwarder {
-    fun forward(result: ConciergeDataHandoffEvent)
+    fun forward(
+        result: ConciergeDataHandoffEvent,
+        completion: (DataHandoffDeliveryResult) -> Unit
+    )
 }
 
-internal class BrandConciergeDataHandoffForwarder internal constructor(
-    private val conversationService: ConversationService = ConciergeConversationServiceClient(),
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-) : ConciergeDataHandoffForwarder {
-    companion object {
-        private const val SELF_TAG = "BrandConciergeDataHandoffForwarder"
+/** The final delivery result for a decoded data handoff. */
+internal sealed class DataHandoffDeliveryResult {
+    object Delivered : DataHandoffDeliveryResult()
+    data class Failed(val reason: ConciergeDataHandoffRejectReason) : DataHandoffDeliveryResult()
+}
 
-        internal val instance: BrandConciergeDataHandoffForwarder by lazy {
-            BrandConciergeDataHandoffForwarder()
-        }
-    }
+/**
+ * Routes data handoffs to the chat host currently rendered by the app. Keeping this registry at
+ * the UI boundary means the service response uses the same transcript and request queue as a user
+ * message rather than starting an independent background conversation.
+ *
+ * Holds at most one active forwarder. If two chat hosts are rendered at once (e.g. two Activities,
+ * or an Activity and a Fragment, each with their own [com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel]),
+ * the most recently registered one wins and the other silently stops receiving handoffs — only one
+ * configured chat surface should be kept active at a time.
+ */
+internal object ActiveConciergeDataHandoffForwarder : ConciergeDataHandoffForwarder {
+    private const val SELF_TAG = "ActiveConciergeDataHandoffForwarder"
 
-    override fun forward(result: ConciergeDataHandoffEvent) {
-        scope.launch {
-            try {
-                conversationService.sendDataHandoff(result.routingHint, result.xdmFields).collect()
-            } catch (e: Exception) {
+    private var activeForwarder: ConciergeDataHandoffForwarder? = null
+
+    internal fun register(forwarder: ConciergeDataHandoffForwarder) {
+        synchronized(this) {
+            val previous = activeForwarder
+            if (previous != null && previous !== forwarder) {
                 Log.warning(
                     ConciergeConstants.EXTENSION_NAME,
                     SELF_TAG,
-                    "Failed to forward data handoff event (routingHint=${result.routingHint}): ${e.message}"
+                    "Replacing an already-active data handoff session; only one configured chat " +
+                        "surface should be active at a time."
                 )
             }
+            activeForwarder = forwarder
         }
+    }
+
+    internal fun unregister(forwarder: ConciergeDataHandoffForwarder) {
+        synchronized(this) {
+            if (activeForwarder === forwarder) {
+                activeForwarder = null
+            }
+        }
+    }
+
+    override fun forward(
+        result: ConciergeDataHandoffEvent,
+        completion: (DataHandoffDeliveryResult) -> Unit
+    ) {
+        val forwarder = synchronized(this) { activeForwarder }
+        if (forwarder == null) {
+            completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            return
+        }
+        forwarder.forward(result, completion)
     }
 }

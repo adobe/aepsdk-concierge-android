@@ -233,7 +233,12 @@ internal class ConciergeConversationServiceClient(
             JSONArray().put(JSONObject().put("id", state.experienceCloudId ?: "null"))
         )
         return JSONObject().put("identityMap", identityMap).apply {
-            xdmFields.forEach { (key, value) -> put(key, value.toJsonValue()) }
+            xdmFields.forEach { (key, value) ->
+                require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
+                    "XDM fields must not overwrite reserved key '$key'."
+                }
+                put(key, value.toJsonValue())
+            }
         }
     }
 

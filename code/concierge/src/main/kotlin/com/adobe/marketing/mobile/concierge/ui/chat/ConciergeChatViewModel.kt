@@ -20,8 +20,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.MobileCore
+import com.adobe.marketing.mobile.concierge.ActiveConciergeDataHandoffForwarder
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffForwarder
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
+import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationService
@@ -61,6 +66,12 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -70,10 +81,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
+        private const val MAX_PENDING_CONVERSATION_REQUESTS = 64
 
         /**
          * User-facing fallback shown in the chat when a conversation cannot be completed
@@ -289,6 +304,102 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private var responseStartedDispatched = false
 
+    private sealed class ConversationRequest {
+        data class Chat(val message: String) : ConversationRequest()
+        class DataHandoff(
+            val handoff: ConciergeDataHandoffEvent,
+            private val completion: (DataHandoffDeliveryResult) -> Unit,
+            private val onCompleted: (DataHandoff) -> Unit,
+            private val onReservationReleased: () -> Unit
+        ) : ConversationRequest() {
+            private val completed = AtomicBoolean(false)
+            private val reservationReleased = AtomicBoolean(false)
+
+            @Volatile
+            var requestJob: Job? = null
+
+            @Volatile
+            var timeoutJob: Job? = null
+
+            @Volatile
+            private var terminalResult: DataHandoffDeliveryResult? = null
+
+            val isCompleted: Boolean
+                get() = completed.get()
+
+            val timedOut: Boolean
+                get() = terminalResult ==
+                    DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT)
+
+            fun complete(result: DataHandoffDeliveryResult) {
+                if (markCompleted(result)) {
+                    completion(result)
+                }
+            }
+
+            fun completeAfterReleasingReservation(result: DataHandoffDeliveryResult) {
+                if (markCompleted(result)) {
+                    releaseReservation()
+                    completion(result)
+                }
+            }
+
+            fun timeout() {
+                completeAfterReleasingReservation(
+                    DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT)
+                )
+                requestJob?.cancel()
+            }
+
+            fun releaseReservation() {
+                if (reservationReleased.compareAndSet(false, true)) {
+                    onReservationReleased()
+                }
+            }
+
+            private fun markCompleted(result: DataHandoffDeliveryResult): Boolean {
+                if (!completed.compareAndSet(false, true)) {
+                    return false
+                }
+                terminalResult = result
+                timeoutJob?.cancel()
+                onCompleted(this)
+                return true
+            }
+        }
+    }
+
+    private enum class ConversationStreamResult {
+        DELIVERED,
+        EMPTY,
+        FAILED
+    }
+
+    private val conversationRequests = Channel<ConversationRequest>(MAX_PENDING_CONVERSATION_REQUESTS)
+
+    // reserveDataHandoffSlot() only ever admits one data handoff at a time, so this is never
+    // more than a single in-flight request.
+    @Volatile
+    private var currentDataHandoff: ConversationRequest.DataHandoff? = null
+
+    // Total conversation requests (chat or data handoff) currently queued or processing.
+    // Chat messages increment/decrement this unconditionally as a queue-depth count; a data
+    // handoff instead requires it to be exactly 0 to be admitted at all (reserveDataHandoffSlot),
+    // making this field double as both a FIFO depth counter and a single-occupant exclusivity gate.
+    private val pendingConversationRequests = AtomicInteger(0)
+
+    @Volatile
+    private var isDataHandoffSessionActive = false
+
+    private val dataHandoffForwarder = object : ConciergeDataHandoffForwarder {
+        override fun forward(
+            result: ConciergeDataHandoffEvent,
+            completion: (DataHandoffDeliveryResult) -> Unit
+        ) {
+            enqueueDataHandoff(result, completion)
+        }
+    }
+
     constructor(application: Application) : this(
         application,
         AndroidSpeechCapturing(application),
@@ -323,6 +434,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.chatService = chatService
         this.dispatch = dispatch
         speechCapturing.setListener(captureListener)
+        startConversationProcessor()
 
         // Initialize welcome card state based on config and user history
         checkAndShowWelcomeCard()
@@ -630,7 +742,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Processing error: $message"
         )
-        _state.update { currentState ->
+        _state.update {
             ChatScreenState.Error(DEFAULT_CONVERSATION_ERROR_MESSAGE)
         }
     }
@@ -652,68 +764,244 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
 
-        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(messageText))
-        responseStartedDispatched = false
+        pendingConversationRequests.incrementAndGet()
+        if (conversationRequests.trySend(ConversationRequest.Chat(messageText)).isFailure) {
+            pendingConversationRequests.decrementAndGet()
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Unable to queue chat message because the conversation queue is full or closed."
+            )
+            handleProcessingError("Unable to queue chat message")
+            return
+        }
 
-        // Dismiss welcome card when user sends their first message
+        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(messageText))
         if (_showWelcomeCard.value) {
             dismissWelcomeCard()
         }
-
-        // Mark user as returning (has seen and interacted with welcome)
         markUserAsReturning()
-
-        // Add user message to the list
-        val userMessage = ChatMessage(
-            content = MessageContent.Text(messageText),
-            isFromUser = true,
-            timestamp = System.currentTimeMillis()
-        )
-
-        _messages.update { currentMessages ->
-            currentMessages + userMessage
-        }
-        // Reset input state after sending (text clearing is handled in ChatInputField)
         _inputState.update { UserInputState.Empty }
+        _state.update { ChatScreenState.Processing() }
+    }
+
+    private fun startConversationProcessor() {
+        viewModelScope.launch {
+            for (request in conversationRequests) {
+                when (request) {
+                    is ConversationRequest.Chat -> {
+                        try {
+                            processChatRequest(request.message)
+                        } finally {
+                            pendingConversationRequests.decrementAndGet()
+                        }
+                    }
+                    is ConversationRequest.DataHandoff -> {
+                        try {
+                            processDataHandoffRequest(request)
+                        } finally {
+                            request.releaseReservation()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Runs [block], rethrowing [CancellationException] but reporting any other exception via
+     * [handleConversationError] and returning [onError]'s value instead.
+     */
+    private suspend fun <T> reportingConversationErrors(
+        errorPrefix: String,
+        onError: () -> T,
+        block: suspend () -> T
+    ): T = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        handleConversationError("$errorPrefix: ${e.message}")
+        onError()
+    }
+
+    private suspend fun processChatRequest(messageText: String) {
+        responseStartedDispatched = false
+
+        appendUserMessage(messageText)
 
         // Transition to processing state
         _state.update {
             ChatScreenState.Processing()
         }
 
-        // Start the conversation stream from the API
-        initiateConversation(messageText.trim())
+        reportingConversationErrors("Failed to send message", onError = {}) {
+            streamConversation(chatService.chat(messageText.trim()), removeEmptyPlaceholder = false)
+        }
     }
 
-    /**
-     * Handles the streaming conversation response from the API
-     * @param messageText The original user message
-     */
-    private fun initiateConversation(messageText: String) {
-        viewModelScope.launch {
-            var assistantMessage: ChatMessage
-            val contentBuilder = StringBuilder()
+    private fun appendUserMessage(messageText: String) {
+        _messages.update { currentMessages ->
+            currentMessages + ChatMessage(
+                content = MessageContent.Text(messageText),
+                isFromUser = true,
+                timestamp = System.currentTimeMillis()
+            )
+        }
+    }
 
-            try {
-                // Create initial empty assistant message once the stream begins
-                assistantMessage = ChatMessage(
-                    content = MessageContent.Text(""),
-                    isFromUser = false,
-                    timestamp = System.currentTimeMillis(),
-                    citations = emptyList()
-                )
-                _messages.update { currentMessages -> currentMessages + assistantMessage }
+    internal fun enqueueDataHandoff(
+        result: ConciergeDataHandoffEvent,
+        completion: (DataHandoffDeliveryResult) -> Unit
+    ) {
+        if (!isDataHandoffSessionActive) {
+            completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            return
+        }
+        if (!reserveDataHandoffSlot()) {
+            completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS))
+            return
+        }
 
-                chatService.chat(messageText).collect { parsedMessage ->
-                    onParsedMessage(parsedMessage, contentBuilder)
+        val request = ConversationRequest.DataHandoff(
+            result,
+            completion,
+            { handoff -> if (currentDataHandoff === handoff) currentDataHandoff = null },
+            { pendingConversationRequests.decrementAndGet() }
+        )
+        currentDataHandoff = request
+        if (!isDataHandoffSessionActive) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            return
+        }
+        request.timeoutJob = viewModelScope.launch {
+            delay(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
+            request.timeout()
+        }
+        if (conversationRequests.trySend(request).isFailure) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED))
+        }
+    }
+
+    private fun reserveDataHandoffSlot(): Boolean = pendingConversationRequests.compareAndSet(0, 1)
+
+    private suspend fun processDataHandoffRequest(request: ConversationRequest.DataHandoff) {
+        if (request.isCompleted) {
+            return
+        }
+        if (!isDataHandoffSessionActive) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            return
+        }
+
+        responseStartedDispatched = false
+        request.handoff.localMessage?.let(::appendUserMessage)
+        _state.update {
+            ChatScreenState.Processing()
+        }
+
+        val result = try {
+            supervisorScope {
+                val responseJob = async {
+                    streamConversation(
+                        chatService.sendDataHandoff(request.handoff.routingHint, request.handoff.xdmFields),
+                        removeEmptyPlaceholder = true
+                    )
                 }
-            } catch (e: Exception) {
-                Log.error(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Error processing conversation : ${e.message}"
-                )
-                handleConversationError("Failed to process response: ${e.message}")
+                request.requestJob = responseJob
+                if (request.isCompleted) {
+                    responseJob.cancel()
+                }
+                when (responseJob.await()) {
+                    ConversationStreamResult.DELIVERED -> DataHandoffDeliveryResult.Delivered
+                    ConversationStreamResult.EMPTY ->
+                        DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE)
+                    ConversationStreamResult.FAILED ->
+                        DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED)
+                }
+            }
+        } catch (e: CancellationException) {
+            if (request.isCompleted) {
+                if (request.timedOut) {
+                    handleConversationError("Data handoff timed out")
+                } else {
+                    // Cancelled by deactivateDataHandoffSession() (the app closed chat) - not a
+                    // failure, so clean up the placeholder silently instead of showing an error.
+                    removeLastAssistantPlaceholder()
+                    resetProcessingStateToIdle()
+                }
+                return
+            }
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            throw e
+        } catch (e: Exception) {
+            handleConversationError(
+                "Failed to forward data handoff (routingHint=${request.handoff.routingHint}): ${e.message}"
+            )
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED)
+        } finally {
+            request.requestJob = null
+        }
+        request.completeAfterReleasingReservation(result)
+    }
+
+    private suspend fun streamConversation(
+        conversation: Flow<ParsedConversationMessage>,
+        removeEmptyPlaceholder: Boolean
+    ): ConversationStreamResult {
+        val contentBuilder = StringBuilder()
+        var hasVisibleContent = false
+        var hasError = false
+
+        // Create an empty assistant message once the request reaches the front of the queue.
+        val assistantMessage = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            citations = emptyList()
+        )
+        _messages.update { currentMessages -> currentMessages + assistantMessage }
+
+        return reportingConversationErrors(
+            "Failed to process response",
+            onError = { ConversationStreamResult.FAILED }
+        ) {
+            conversation.collect { parsedMessage ->
+                if (parsedMessage.state == ConversationState.ERROR) {
+                    hasError = true
+                }
+                hasVisibleContent = hasVisibleContent ||
+                    parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                // ConversationState.ERROR is reported via onParsedMessage's own ERROR branch
+                // (handleConversationError), so the stream isn't cut short here.
+                onParsedMessage(parsedMessage, contentBuilder)
+            }
+            when {
+                hasError -> ConversationStreamResult.FAILED
+                hasVisibleContent -> {
+                    finishConversation()
+                    ConversationStreamResult.DELIVERED
+                }
+                else -> {
+                    if (removeEmptyPlaceholder) {
+                        removeLastAssistantPlaceholder()
+                    }
+                    finishConversation()
+                    ConversationStreamResult.EMPTY
+                }
+            }
+        }
+    }
+
+    private fun finishConversation() {
+        _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(feedback = currentState.feedback)
+                else -> currentState
             }
         }
     }
@@ -1022,8 +1310,10 @@ class ConciergeChatViewModel : AndroidViewModel {
                 state = ConversationState.COMPLETED,
             )
         )
+        resetProcessingStateToIdle()
+    }
 
-        // Return to idle state
+    private fun resetProcessingStateToIdle() {
         _state.update { currentState ->
             when (currentState) {
                 is ChatScreenState.Processing -> ChatScreenState.Idle(
@@ -1184,6 +1474,23 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     fun closeConcierge() {
         _isConciergeActive.value = false
+        deactivateDataHandoffSession()
+    }
+
+    internal fun activateDataHandoffSession() {
+        isDataHandoffSessionActive = true
+        ActiveConciergeDataHandoffForwarder.register(dataHandoffForwarder)
+    }
+
+    internal fun deactivateDataHandoffSession() {
+        isDataHandoffSessionActive = false
+        ActiveConciergeDataHandoffForwarder.unregister(dataHandoffForwarder)
+        currentDataHandoff?.let { request ->
+            request.completeAfterReleasingReservation(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)
+            )
+            request.requestJob?.cancel()
+        }
     }
 
     /**
@@ -1213,6 +1520,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     override fun onCleared() {
+        deactivateDataHandoffSession()
+        conversationRequests.close()
         super.onCleared()
         imageProvider.clear()
         speechCapturing.setListener(null)

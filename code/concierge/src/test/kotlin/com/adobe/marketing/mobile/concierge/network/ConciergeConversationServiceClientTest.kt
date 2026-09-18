@@ -1194,6 +1194,23 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `data handoff cannot overwrite the SDK owned identityMap during serialization`() = runTest {
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        try {
+            client.sendDataHandoff(
+                routingHint = "buy_now",
+                xdmFields = mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "caller-id"))))
+            ).toList()
+            fail("Expected identityMap collision to fail before the request is sent")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message.orEmpty().contains("identityMap"))
+        }
+
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+    }
+
+    @Test
     fun `chat request escapes special characters in surface values`() = runTest {
         every { mockStateRepository.state } returns
             MutableStateFlow(testState.copy(surfaces = listOf("""web://a"b""")))

@@ -13,8 +13,8 @@
 package com.adobe.marketing.mobile.concierge
 
 /**
- * Why the SDK rejected a [Concierge.sendDataHandoff] call, or ([NO_RESPONSE]) when no response
- * arrived at all.
+ * Why the SDK rejected or could not deliver a [Concierge.sendDataHandoff] call, or
+ * ([NO_RESPONSE]) when no extension response arrived at all.
  *
  * @property rawValue the wire-format string this case represents.
  */
@@ -22,7 +22,7 @@ enum class ConciergeDataHandoffRejectReason(val rawValue: String) {
     /** The SDK received no event data at all for this request. */
     MISSING_EVENT_DATA(ConciergeConstants.DataHandoff.RejectReason.MISSING_EVENT_DATA),
 
-    /** `routingHint` was missing or blank. */
+    /** `routingHint` was missing. */
     MISSING_ROUTING_HINT(ConciergeConstants.DataHandoff.RejectReason.MISSING_ROUTING_HINT),
 
     /** `routingHint` was present but not a `String`. */
@@ -45,6 +45,21 @@ enum class ConciergeDataHandoffRejectReason(val rawValue: String) {
 
     /** `xdmFields` contained a value that isn't JSON-safe. */
     INVALID_XDM_FIELD_VALUE(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE),
+
+    /** No rendered Concierge chat session was available to receive the handoff. */
+    NO_ACTIVE_SESSION(ConciergeConstants.DataHandoff.RejectReason.NO_ACTIVE_SESSION),
+
+    /** A chat turn or another handoff is active or waiting to run. */
+    CHAT_IN_PROGRESS(ConciergeConstants.DataHandoff.RejectReason.CHAT_IN_PROGRESS),
+
+    /** Brand Concierge returned an error or the request could not be completed. */
+    DELIVERY_FAILED(ConciergeConstants.DataHandoff.RejectReason.DELIVERY_FAILED),
+
+    /** Brand Concierge completed the stream without any renderable response content. */
+    EMPTY_RESPONSE(ConciergeConstants.DataHandoff.RejectReason.EMPTY_RESPONSE),
+
+    /** Brand Concierge did not complete the handoff within the delivery timeout. */
+    DELIVERY_TIMEOUT(ConciergeConstants.DataHandoff.RejectReason.DELIVERY_TIMEOUT),
 
     /** The extension never responded (e.g. the call timed out). */
     NO_RESPONSE(ConciergeConstants.DataHandoff.RejectReason.NO_RESPONSE);
