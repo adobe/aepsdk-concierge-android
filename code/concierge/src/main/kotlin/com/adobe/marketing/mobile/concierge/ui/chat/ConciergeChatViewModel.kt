@@ -836,7 +836,11 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         reportingConversationErrors("Failed to send message", onError = {}) {
-            streamConversation(chatService.chat(messageText.trim()), removeEmptyPlaceholder = false)
+            streamConversation(
+                chatService.chat(messageText.trim()),
+                removeEmptyPlaceholder = false,
+                renderErrorsInChat = true
+            )
         }
     }
 
@@ -908,7 +912,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 val responseJob = async {
                     streamConversation(
                         chatService.sendDataHandoff(request.handoff.routingHint, request.handoff.xdmFields),
-                        removeEmptyPlaceholder = true
+                        removeEmptyPlaceholder = true,
+                        renderErrorsInChat = false
                     )
                 }
                 request.requestJob = responseJob
@@ -925,23 +930,28 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
         } catch (e: CancellationException) {
             if (request.isCompleted) {
+                // A handoff timeout or a chat-close deactivation both cancel the stream. Neither is
+                // a user-typed chat failure, so it's reported to the app via the completion callback,
+                // not as an in-chat error. streamConversation already dropped its placeholder on
+                // cancellation, so here we only return the UI to Idle.
                 if (request.timedOut) {
-                    handleConversationError("Data handoff timed out")
-                } else {
-                    // Cancelled by deactivateDataHandoffSession() (the app closed chat) - not a
-                    // failure, so clean up the placeholder silently instead of showing an error.
-                    removeLastAssistantPlaceholder()
-                    resetProcessingStateToIdle()
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Data handoff timed out")
                 }
+                resetProcessingStateToIdle()
                 return
             }
             request.releaseReservation()
             request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
             throw e
         } catch (e: Exception) {
-            handleConversationError(
+            // Reached only when the service call throws synchronously before streamConversation runs,
+            // so there is no placeholder to remove - just reset state and report the failure.
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
                 "Failed to forward data handoff (routingHint=${request.handoff.routingHint}): ${e.message}"
             )
+            resetProcessingStateToIdle()
             DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED)
         } finally {
             request.requestJob = null
@@ -949,9 +959,17 @@ class ConciergeChatViewModel : AndroidViewModel {
         request.completeAfterReleasingReservation(result)
     }
 
+    /**
+     * Consumes a conversation stream into the transcript.
+     *
+     * @param renderErrorsInChat when true (user-typed chat), a stream error is surfaced as a
+     * generic error message in the transcript; when false (data handoff), failures are reported
+     * only via the caller's completion callback, so the in-progress turn is discarded silently.
+     */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
-        removeEmptyPlaceholder: Boolean
+        removeEmptyPlaceholder: Boolean,
+        renderErrorsInChat: Boolean
     ): ConversationStreamResult {
         val contentBuilder = StringBuilder()
         var hasVisibleContent = false
@@ -966,22 +984,28 @@ class ConciergeChatViewModel : AndroidViewModel {
         )
         _messages.update { currentMessages -> currentMessages + assistantMessage }
 
-        return reportingConversationErrors(
-            "Failed to process response",
-            onError = { ConversationStreamResult.FAILED }
-        ) {
+        return try {
             conversation.collect { parsedMessage ->
                 if (parsedMessage.state == ConversationState.ERROR) {
                     hasError = true
+                    // onParsedMessage's ERROR branch renders the generic error message; skip it
+                    // for a data handoff so the failure surfaces only via the completion callback.
+                    if (renderErrorsInChat) {
+                        onParsedMessage(parsedMessage, contentBuilder)
+                    }
+                } else {
+                    hasVisibleContent = hasVisibleContent ||
+                        parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                    onParsedMessage(parsedMessage, contentBuilder)
                 }
-                hasVisibleContent = hasVisibleContent ||
-                    parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
-                // ConversationState.ERROR is reported via onParsedMessage's own ERROR branch
-                // (handleConversationError), so the stream isn't cut short here.
-                onParsedMessage(parsedMessage, contentBuilder)
             }
             when {
-                hasError -> ConversationStreamResult.FAILED
+                hasError -> {
+                    if (!renderErrorsInChat) {
+                        discardAssistantTurn()
+                    }
+                    ConversationStreamResult.FAILED
+                }
                 hasVisibleContent -> {
                     finishConversation()
                     ConversationStreamResult.DELIVERED
@@ -994,7 +1018,37 @@ class ConciergeChatViewModel : AndroidViewModel {
                     ConversationStreamResult.EMPTY
                 }
             }
+        } catch (e: CancellationException) {
+            // This turn's placeholder is streamConversation's responsibility, so drop it here for a
+            // handoff (e.g. timeout/deactivation cancellation) before propagating - the caller then
+            // only has to reset state, and never removes a message it doesn't own. Chat keeps its
+            // placeholder (its scope is usually shutting down).
+            if (!renderErrorsInChat) {
+                removeLastAssistantPlaceholder()
+            }
+            throw e
+        } catch (e: Exception) {
+            if (renderErrorsInChat) {
+                handleConversationError("Failed to process response: ${e.message}")
+            } else {
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Data handoff stream failed: ${e.message}"
+                )
+                discardAssistantTurn()
+            }
+            ConversationStreamResult.FAILED
         }
+    }
+
+    /**
+     * Silently removes the in-progress assistant placeholder and returns the UI to Idle. Only call
+     * this where [streamConversation] has actually added a placeholder as the last message.
+     */
+    private fun discardAssistantTurn() {
+        removeLastAssistantPlaceholder()
+        resetProcessingStateToIdle()
     }
 
     private fun finishConversation() {

@@ -17,8 +17,11 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.EventSource
+import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEventHandler
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
@@ -319,6 +322,51 @@ class ConciergeChatViewModelTest {
             assertEquals(DataHandoffDeliveryResult.Delivered, deliveryResult)
         } finally {
             vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff event flows through the handler and active session to a correlated accepted response`() = runTest {
+        // Exercises the full production chain end-to-end, not each link in isolation:
+        // ConciergeDataHandoffEventHandler.handle -> ActiveConciergeDataHandoffForwarder singleton
+        // -> this VM's registered forwarder -> enqueueDataHandoff -> streamed delivery -> response.
+        mockkStatic(MobileCore::class)
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoffXdm = mapOf("orderId" to "abc-123")
+        every { chatClient.sendDataHandoff("buy_now", handoffXdm) } returns flow {
+            emit(ParsedConversationMessage("Thanks for your order!", ConversationState.COMPLETED))
+        }
+        val dispatchedResponses = mutableListOf<Event>()
+        every { MobileCore.dispatchEvent(capture(dispatchedResponses)) } returns Unit
+
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.activateDataHandoffSession()
+        try {
+            val requestEvent = Event.Builder(
+                ConciergeConstants.DataHandoff.EventName.REQUEST,
+                ConciergeConstants.EventType.CONCIERGE,
+                EventSource.REQUEST_CONTENT
+            ).setEventData(
+                mapOf(
+                    ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
+                    ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to handoffXdm
+                )
+            ).build()
+
+            // Default constructor wires the real ActiveConciergeDataHandoffForwarder singleton.
+            ConciergeDataHandoffEventHandler().handle(requestEvent)
+            advanceUntilIdle()
+
+            verify(exactly = 1) { chatClient.sendDataHandoff("buy_now", handoffXdm) }
+            val response = dispatchedResponses.single()
+            assertEquals(true, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+            // The response must correlate back to the request, or the caller's
+            // dispatchEventWithResponseCallback never fires.
+            assertEquals(requestEvent.uniqueIdentifier, response.responseID)
+        } finally {
+            vm.deactivateDataHandoffSession()
+            unmockkStatic(MobileCore::class)
         }
     }
 
@@ -778,6 +826,170 @@ class ConciergeChatViewModelTest {
                 ),
                 deliveryResults
             )
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff failure does not render an error bubble in chat`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        // localMessage renders immediately; the forward then fails mid-stream.
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"), "Order placed")
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
+            throw IllegalStateException("service failure")
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        var deliveryResult: DataHandoffDeliveryResult? = null
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+            advanceUntilIdle()
+
+            assertEquals(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED),
+                deliveryResult
+            )
+            // Only the local message remains - no generic error bubble, no leftover placeholder.
+            assertEquals(listOf("Order placed"), vm.messages.value.map { it.text })
+            assertEquals(ChatScreenState.Idle(), vm.state.value)
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff timeout does not render an error bubble in chat`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
+            awaitCancellation()
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        var deliveryResult: DataHandoffDeliveryResult? = null
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+            runCurrent()
+            advanceTimeBy(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
+            advanceUntilIdle()
+
+            assertEquals(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT),
+                deliveryResult
+            )
+            // No localMessage was set and the forward timed out, so the transcript stays empty.
+            assertTrue(vm.messages.value.isEmpty())
+            assertEquals(ChatScreenState.Idle(), vm.state.value)
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff that streams an error frame reports failure without an error bubble`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"), "Order placed")
+        // A mid-stream ERROR frame (not a thrown exception) - the distinct hasError branch.
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
+            emit(ParsedConversationMessage("raw-server-detail", ConversationState.ERROR))
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        var deliveryResult: DataHandoffDeliveryResult? = null
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+            advanceUntilIdle()
+
+            assertEquals(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED),
+                deliveryResult
+            )
+            // Only the local message remains: the ERROR frame renders no bubble and leaves no placeholder.
+            assertEquals(listOf("Order placed"), vm.messages.value.map { it.text })
+            assertEquals(ChatScreenState.Idle(), vm.state.value)
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff failure does not remove a prior turn's assistant message`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi") } returns flow {
+            emit(ParsedConversationMessage("Previous answer", ConversationState.COMPLETED))
+        }
+        // No localMessage; the service call throws synchronously, so streamConversation never runs
+        // and no placeholder is created for this turn.
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } throws
+            IllegalStateException("boom")
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.processEvent(ChatEvent.SendMessage("Hi"))
+            advanceUntilIdle()
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
+
+            var deliveryResult: DataHandoffDeliveryResult? = null
+            vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+            advanceUntilIdle()
+
+            assertEquals(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED),
+                deliveryResult
+            )
+            // The failed handoff must not delete the previous turn's assistant answer.
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff timeout removes only its own partial bubble, not a prior turn`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi") } returns flow {
+            emit(ParsedConversationMessage("Previous answer", ConversationState.COMPLETED))
+        }
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
+        // Streams partial content, then stalls until the delivery timeout cancels it.
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
+            emit(ParsedConversationMessage("Working on it", ConversationState.IN_PROGRESS))
+            awaitCancellation()
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.processEvent(ChatEvent.SendMessage("Hi"))
+            advanceUntilIdle()
+
+            var deliveryResult: DataHandoffDeliveryResult? = null
+            vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+            runCurrent()
+            // The partial handoff bubble is present mid-stream, on top of the prior turn.
+            assertEquals(listOf("Hi", "Previous answer", "Working on it"), vm.messages.value.map { it.text })
+
+            advanceTimeBy(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
+            advanceUntilIdle()
+
+            assertEquals(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT),
+                deliveryResult
+            )
+            // Only the handoff's own partial bubble is removed; the prior turn survives.
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
+            assertEquals(ChatScreenState.Idle(), vm.state.value)
         } finally {
             vm.deactivateDataHandoffSession()
         }

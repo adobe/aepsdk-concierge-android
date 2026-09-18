@@ -96,6 +96,34 @@ class ConciergeDataHandoffEventHandlerTest {
     }
 
     @Test
+    fun `handle correlates the response back to the triggering event`() {
+        val event = buildDataHandoffEvent()
+
+        val slots = mutableListOf<Event>()
+        handler.handle(event)
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+
+        // Without inResponseToEvent correlation the caller's dispatchEventWithResponseCallback
+        // never fires, and the extension could re-ingest its own response.
+        assertEquals(event.uniqueIdentifier, slots.single().responseID)
+    }
+
+    @Test
+    fun `handle correlates a rejected response back to the triggering event`() {
+        val event = Event.Builder(
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
+            ConciergeConstants.EventType.CONCIERGE,
+            EventSource.REQUEST_CONTENT
+        ).setEventData(emptyMap()).build()
+
+        val slots = mutableListOf<Event>()
+        handler.handle(event)
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+
+        assertEquals(event.uniqueIdentifier, slots.single().responseID)
+    }
+
+    @Test
     fun `handle forwards the decoded payload to the forwarder on accept`() {
         var forwarded: ConciergeDataHandoffEvent? = null
         val recordingForwarder = object : ConciergeDataHandoffForwarder {
