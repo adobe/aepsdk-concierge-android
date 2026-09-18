@@ -60,6 +60,7 @@ class BrandConciergeDataHandoffForwarderTest {
         advanceUntilIdle()
 
         assertTrue(service.sendDataHandoffCalled)
+        assertTrue(service.flowCollected)
     }
 
     private class RecordingConversationService : ConversationService {
@@ -84,6 +85,7 @@ class BrandConciergeDataHandoffForwarderTest {
 
     private class FailingConversationService : ConversationService {
         var sendDataHandoffCalled = false
+        var flowCollected = false
 
         override fun chat(message: String): Flow<ParsedConversationMessage> = emptyFlow()
 
@@ -92,7 +94,10 @@ class BrandConciergeDataHandoffForwarderTest {
             xdmFields: Map<String, Any>
         ): Flow<ParsedConversationMessage> {
             sendDataHandoffCalled = true
-            return flow { throw IOException("network failure") }
+            return flow {
+                flowCollected = true
+                throw IOException("network failure")
+            }
         }
 
         override suspend fun sendFeedback(feedback: Feedback): Boolean = true
