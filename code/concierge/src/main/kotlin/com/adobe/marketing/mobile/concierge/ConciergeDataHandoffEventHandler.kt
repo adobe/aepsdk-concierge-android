@@ -24,7 +24,7 @@ import com.adobe.marketing.mobile.services.Log
  * app.
  */
 internal class ConciergeDataHandoffEventHandler internal constructor(
-    private val forwarder: ConciergeDataHandoffForwarder = NotImplementedDataHandoffForwarder
+    private val forwarder: ConciergeDataHandoffForwarder = BrandConciergeDataHandoffForwarder.instance
 ) {
 
     companion object {

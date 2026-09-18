@@ -11,7 +11,14 @@
 
 package com.adobe.marketing.mobile.concierge
 
+import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.services.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 /**
  * Seam for forwarding an accepted [ConciergeDataHandoffEvent] to Brand Concierge. Fire-and-forget
@@ -22,19 +29,29 @@ internal interface ConciergeDataHandoffForwarder {
     fun forward(result: ConciergeDataHandoffEvent)
 }
 
-/**
- * Default forwarder while the real Brand Concierge forward is still pending —
- * `ConciergeChatService`'s XDM plumbing for this doesn't exist yet. A no-op (beyond logging) so a
- * follow-up implementation can swap in without changing any caller.
- */
-internal object NotImplementedDataHandoffForwarder : ConciergeDataHandoffForwarder {
-    private const val SELF_TAG = "NotImplementedDataHandoffForwarder"
+internal class BrandConciergeDataHandoffForwarder internal constructor(
+    private val conversationService: ConversationService = ConciergeConversationServiceClient(),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+) : ConciergeDataHandoffForwarder {
+    companion object {
+        private const val SELF_TAG = "BrandConciergeDataHandoffForwarder"
+
+        internal val instance: BrandConciergeDataHandoffForwarder by lazy {
+            BrandConciergeDataHandoffForwarder()
+        }
+    }
 
     override fun forward(result: ConciergeDataHandoffEvent) {
-        Log.debug(
-            ConciergeConstants.EXTENSION_NAME,
-            SELF_TAG,
-            "Data handoff forwarding not yet implemented; routingHint=${result.routingHint}"
-        )
+        scope.launch {
+            try {
+                conversationService.sendDataHandoff(result.routingHint, result.xdmFields).collect()
+            } catch (e: Exception) {
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    SELF_TAG,
+                    "Failed to forward data handoff event (routingHint=${result.routingHint}): ${e.message}"
+                )
+            }
+        }
     }
 }

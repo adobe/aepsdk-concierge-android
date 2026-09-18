@@ -48,6 +48,8 @@ import java.util.TimeZone
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Seam for supplying conversation responses to [ConciergeChatViewModel]. Production uses
@@ -56,6 +58,10 @@ import kotlin.coroutines.resumeWithException
  */
 internal interface ConversationService {
     fun chat(message: String): Flow<ParsedConversationMessage>
+    fun sendDataHandoff(
+        routingHint: String,
+        xdmFields: Map<String, Any>
+    ): Flow<ParsedConversationMessage>
     suspend fun sendFeedback(feedback: Feedback): Boolean
     fun cleanup()
 }
@@ -104,8 +110,19 @@ internal class ConciergeConversationServiceClient(
      *
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
-    override fun chat(message: String): Flow<ParsedConversationMessage> = flow {
-        val requestBody = createRequestBody(message, stateRepository.state.value)
+    override fun chat(message: String): Flow<ParsedConversationMessage> = conversation(message)
+
+    override fun sendDataHandoff(
+        routingHint: String,
+        xdmFields: Map<String, Any>
+    ): Flow<ParsedConversationMessage> = conversation(routingHint, xdmFields)
+
+    private fun conversation(
+        message: String,
+        xdmFields: Map<String, Any> = emptyMap()
+    ): Flow<ParsedConversationMessage> = flow {
+        val state = stateRepository.state.value
+        val requestBody = createRequestBody(message, state, xdmFields)
         val request = createConversationServiceRequest(endpoint, requestBody)
 
         val connection = connect(request)
@@ -175,7 +192,11 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the JSON request body for the conversation request.
      */
-    private fun createRequestBody(message: String, state: ConciergeState): String {
+    private fun createRequestBody(
+        message: String,
+        state: ConciergeState,
+        xdmFields: Map<String, Any>
+    ): String {
         val surfaces = state.surfaces
         check(surfaces.any { it.isNotBlank() }) {
             "Unable to create Concierge request payload. No surfaces were provided."
@@ -199,19 +220,40 @@ internal class ConciergeConversationServiceClient(
                             $conversationFields
                         }
                     },
-                    "xdm": {
-                        "identityMap": {
-                            "ECID": [
-                                {
-                                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
-                                }
-                            ]
-                        }
-                    }
+                    "xdm": ${createXdmObject(state, xdmFields)}
                 }
             ]
         }
     """.trimIndent()
+    }
+
+    private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
+        val identityMap = JSONObject().put(
+            "ECID",
+            JSONArray().put(JSONObject().put("id", state.experienceCloudId ?: "null"))
+        )
+        return JSONObject().put("identityMap", identityMap).apply {
+            xdmFields.forEach { (key, value) -> put(key, value.toJsonValue()) }
+        }
+    }
+
+    private fun Any.toJsonValue(): Any = when (this) {
+        is Map<*, *> -> JSONObject().apply {
+            forEach { (key, value) ->
+                put(
+                    key as? String ?: throw IllegalArgumentException("XDM object keys must be strings"),
+                    value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null")
+                )
+            }
+        }
+
+        is List<*> -> JSONArray().apply {
+            forEach { value ->
+                put(value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null"))
+            }
+        }
+
+        else -> this
     }
 
     /**

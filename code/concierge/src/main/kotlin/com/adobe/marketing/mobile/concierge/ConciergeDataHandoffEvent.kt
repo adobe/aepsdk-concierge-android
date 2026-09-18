@@ -22,8 +22,7 @@ package com.adobe.marketing.mobile.concierge
  * extension side. The response reports accept/reject only (see
  * [ConciergeConstants.DataHandoff.ResponseKey]) — `accepted == true` confirms the SDK received
  * and validated the payload's shape; it is not confirmation that Brand Concierge received or
- * processed it. The forward to Brand Concierge is not yet implemented — accepted events are not
- * yet delivered anywhere.
+ * processed it. Accepted events are forwarded to Brand Concierge without affecting the chat UI.
  *
  * @property routingHint A keyword the user never sees, consumed by Brand Concierge's
  * phrase-based routing. Required.
@@ -107,7 +106,11 @@ internal data class ConciergeDataHandoffEvent(
             val localMessage = (data[keys.LOCAL_MESSAGE] as? String)?.takeIf { it.isNotBlank() }
 
             return DataHandoffDecodeResult.Success(
-                ConciergeDataHandoffEvent(routingHint = routingHint, xdmFields = xdmFields, localMessage = localMessage)
+                ConciergeDataHandoffEvent(
+                    routingHint = routingHint,
+                    xdmFields = xdmFields,
+                    localMessage = localMessage
+                )
             )
         }
 

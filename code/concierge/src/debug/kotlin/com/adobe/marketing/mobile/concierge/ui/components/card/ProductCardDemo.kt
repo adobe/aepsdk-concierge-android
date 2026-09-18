@@ -104,6 +104,11 @@ private class DemoConversationServiceClient : ConversationService {
         )
     )
 
+    override fun sendDataHandoff(
+        routingHint: String,
+        xdmFields: Map<String, Any>
+    ): Flow<ParsedConversationMessage> = chat(routingHint)
+
     override suspend fun sendFeedback(feedback: Feedback): Boolean = true
 
     override fun cleanup() = Unit

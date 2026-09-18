@@ -125,6 +125,74 @@ Concierge.setAuthTokenProvider(
 
 ---
 
+## Data handoff
+
+Use `Concierge.sendDataHandoff(...)` when your app needs to hand the SDK data that did not
+originate in the chat UI—for example, the result of a native checkout flow that completed outside
+of chat. The SDK forwards the data to the Brand Concierge agent pipeline without requiring the user
+to type or say a chat message.
+
+> **Prerequisite:** Initialize `ConciergeChat` or bind `ConciergeChatView` with a non-empty
+> `surfaces` list before calling this API. The handoff does not open or render chat, but uses the
+> same configured surfaces to route the request to Brand Concierge.
+
+```kotlin
+import com.adobe.marketing.mobile.concierge.Concierge
+
+Concierge.sendDataHandoff(
+    routingHint = "successful-checkout",
+    xdmFields = mapOf(
+        "commerce" to mapOf(
+            "order" to mapOf(
+                "purchaseID" to orderId,
+                "priceTotal" to 129.99,
+                "currencyCode" to "USD"
+            )
+        )
+    ),
+    localMessage = "Your order is confirmed!"
+) { accepted, rejectReason ->
+    // accepted == true  -> the SDK received and validated the payload's shape.
+    // accepted == false -> rejected; check rejectReason and fix the payload before retrying.
+}
+```
+
+### `Concierge.sendDataHandoff(routingHint, xdmFields, localMessage, completion)`
+
+- **`routingHint`** *(required)*: A keyword consumed only by Brand Concierge's current
+  phrase-based router (for example, `"successful-checkout"`). The end user never sees it, and it is
+  not conversational content.
+- **`xdmFields`** *(required)*: Arbitrary XDM-shaped data merged into the root of the outbound XDM
+  object alongside the SDK-owned identity map. Use nested Kotlin maps and lists, for example
+  `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
+  every key must be a `String`; and values must be JSON-safe: `String`, `Boolean`, finite `Int`,
+  `Long`, `Float`, or `Double`, or maps/lists containing those values. Do not use `identityMap` as
+  a top-level key because the SDK owns and populates it.
+- **`localMessage`**: Optional text intended for a local, non-networked chat message distinct from
+  the data forwarded to Brand Concierge. The SDK accepts this value, but does not currently render
+  it in the chat transcript.
+- **`completion`**: Optional `ConciergeDataHandoffCallback`, called exactly once on a background
+  thread. `accepted` reports only whether the SDK received and validated the payload's shape; it
+  does not confirm that Brand Concierge received or processed the data. When `accepted` is `false`,
+  `rejectReason` is a typed `ConciergeDataHandoffRejectReason`:
+
+  | Reject reason | Meaning |
+  | --- | --- |
+  | `MISSING_EVENT_DATA` | No payload reached the extension. This indicates an internal wiring issue and is not normally caller-triggered. |
+  | `MISSING_ROUTING_HINT` | `routingHint` was empty or blank. |
+  | `INVALID_ROUTING_HINT_TYPE` | `routingHint` was not a string in the underlying event payload. |
+  | `MISSING_XDM_FIELDS` | `xdmFields` was missing from the underlying event payload. |
+  | `INVALID_XDM_FIELDS_TYPE` | `xdmFields` was not a map in the underlying event payload. |
+  | `EMPTY_XDM_FIELDS` | `xdmFields` was empty. |
+  | `INVALID_XDM_FIELD_KEY` | `xdmFields` contained a key that was not a string. |
+  | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
+  | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
+  | `NO_RESPONSE` | The extension did not respond, for example because the request timed out. |
+
+The SDK starts the accepted handoff asynchronously and does not yet deduplicate repeated calls.
+
+---
+
 ## Integration
 
 ### Managed Integration

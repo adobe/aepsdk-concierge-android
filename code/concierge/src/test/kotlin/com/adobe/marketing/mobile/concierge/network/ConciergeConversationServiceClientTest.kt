@@ -45,6 +45,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
+import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -990,6 +991,26 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `data handoff with no surfaces configured fails without sending a request`() = runTest {
+        val stateWithNoSurfaces = testState.copy(surfaces = emptyList())
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithNoSurfaces)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        try {
+            client.sendDataHandoff("successful-checkout", mapOf("orderId" to "order-123")).toList()
+            fail("Expected data handoff to fail when no surfaces are configured")
+        } catch (e: IllegalStateException) {
+            assertTrue(
+                "Failure should name the missing surfaces",
+                e.message.orEmpty().contains("surface", ignoreCase = true)
+            )
+        }
+
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+    }
+
+    @Test
     fun `chat request with a single surface emits one array element`() = runTest {
         val stateWithOneSurface = testState.copy(surfaces = listOf("surface1"))
         every { mockStateRepository.state } returns MutableStateFlow(stateWithOneSurface)
@@ -1144,6 +1165,32 @@ class ConciergeConversationServiceClientTest {
             "Each surface must be its own array element",
             body.contains("\"surfaces\":[\"surface1\",\"surface2\"]")
         )
+    }
+
+    @Test
+    fun `data handoff request merges XDM fields into the conversation event`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+
+        client.sendDataHandoff(
+            routingHint = "buy_now",
+            xdmFields = mapOf(
+                "order" to mapOf("id" to "abc-123", "total" to 42.5),
+                "items" to listOf("sku-1", "sku-2")
+            )
+        ).toList()
+
+        val body = capturedBody(requestSlot)
+        val event = JSONObject(body).getJSONArray("events").getJSONObject(0)
+        val xdm = event.getJSONObject("xdm")
+        assertEquals("buy_now", event.getJSONObject("query").getJSONObject("conversation").getString("message"))
+        assertEquals("test-ecid", xdm.getJSONObject("identityMap").getJSONArray("ECID").getJSONObject(0).getString("id"))
+        assertEquals("abc-123", xdm.getJSONObject("order").getString("id"))
+        assertEquals(42.5, xdm.getJSONObject("order").getDouble("total"), 0.0)
+        assertEquals("sku-1", xdm.getJSONArray("items").getString(0))
+        assertEquals("sku-2", xdm.getJSONArray("items").getString(1))
     }
 
     @Test

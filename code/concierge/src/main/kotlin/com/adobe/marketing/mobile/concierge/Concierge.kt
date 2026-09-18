@@ -12,6 +12,8 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Extension
+import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
+import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatView
 
 /** Public class containing APIs for the Brand Concierge extension. */
 object Concierge {
@@ -57,6 +59,10 @@ object Concierge {
      * Hands data to the SDK to forward toward the Brand Concierge agent pipeline,
      * outside of normal user-typed chat.
      *
+     * Configure a non-empty surface list through [ConciergeChat] or [ConciergeChatView] before
+     * calling this API. The handoff does not render chat, but uses those surfaces to route the
+     * request to Brand Concierge.
+     *
      * @param routingHint a keyword the end user never sees, consumed by Brand Concierge's
      * phrase-based router (e.g. "successful-checkout").
      * @param xdmFields arbitrary XDM data merged into the root of the outbound XDM object; the
@@ -78,4 +84,5 @@ object Concierge {
     ) {
         ConciergeDataHandoffSender.send(routingHint, xdmFields, localMessage, completion)
     }
+
 }

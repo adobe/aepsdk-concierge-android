@@ -31,7 +31,11 @@ class ConciergeDataHandoffEventHandlerTest {
     fun setup() {
         mockkStatic(MobileCore::class)
         every { MobileCore.dispatchEvent(any()) } returns Unit
-        handler = ConciergeDataHandoffEventHandler(forwarder = NotImplementedDataHandoffForwarder)
+        handler = ConciergeDataHandoffEventHandler(forwarder = NoOpDataHandoffForwarder)
+    }
+
+    private object NoOpDataHandoffForwarder : ConciergeDataHandoffForwarder {
+        override fun forward(result: ConciergeDataHandoffEvent) = Unit
     }
 
     @After
