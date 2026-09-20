@@ -360,9 +360,9 @@ private fun ProductDetailCtaButton(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            // No fillMaxWidth: weight(1f) already forces an exact width when shared; omitting it
+            // is what lets wrapContentWidth() shrink to intrinsic size for a lone CTA.
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             contentAlignment = Alignment.Center
         ) {
             Text(
