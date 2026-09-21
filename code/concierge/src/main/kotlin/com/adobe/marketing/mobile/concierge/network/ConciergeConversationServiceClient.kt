@@ -50,7 +50,6 @@ import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * Seam for supplying conversation responses to [ConciergeChatViewModel]. Production uses
@@ -241,10 +240,7 @@ internal class ConciergeConversationServiceClient(
     }
 
     private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
-        val identityMap = JSONObject().put(
-            "ECID",
-            JSONArray().put(JSONObject().put("id", state.experienceCloudId ?: "null"))
-        )
+        val identityMap = JSONObject(identityMapJson(state))
         return JSONObject().put("identityMap", identityMap).apply {
             xdmFields.forEach { (key, value) ->
                 require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
