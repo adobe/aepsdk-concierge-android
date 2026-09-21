@@ -17,6 +17,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeConversationSession
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -480,11 +481,13 @@ class ConciergeChatViewModelTrackingTest {
         chatClient: ConciergeConversationServiceClient = mockk(relaxed = true),
         dispatch: ((Event) -> Unit)? = null
     ): ConciergeChatViewModel {
+        // The session dispatches the pipeline's own tracking events (ResponseStarted,
+        // ResponseCompleted, CardsRendered, ErrorOccurred), so it shares the VM's sink.
         return ConciergeChatViewModel(
             app,
             FakeSpeechCapturing(),
             mockk<ImageProvider>(relaxed = true),
-            chatClient,
+            ConciergeConversationSession(chatService = chatClient, dispatch = dispatch),
             dispatch
         )
     }

@@ -11,10 +11,8 @@
 
 package com.adobe.marketing.mobile.concierge
 
-import com.adobe.marketing.mobile.services.Log
-
 /**
- * Delivers a data handoff through an active chat session.
+ * Delivers a data handoff into the conversation pipeline.
  */
 internal interface ConciergeDataHandoffForwarder {
     fun forward(
@@ -30,52 +28,19 @@ internal sealed class DataHandoffDeliveryResult {
 }
 
 /**
- * Routes data handoffs to the chat host currently rendered by the app. Keeping this registry at
- * the UI boundary means the service response uses the same transcript and request queue as a user
- * message rather than starting an independent background conversation.
+ * Forwards decoded data handoffs to the always-alive process conversation session.
  *
- * Holds at most one active forwarder. If two chat hosts are rendered at once (e.g. two Activities,
- * or an Activity and a Fragment, each with their own [com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel]),
- * the most recently registered one wins and the other silently stops receiving handoffs — only one
- * configured chat surface should be kept active at a time.
+ * @param session resolves the session to forward into. Defaults to the process-wide
+ * [ConciergeConversationSession.instance] and is resolved per call, not at construction, so
+ * building a forwarder never forces the singleton into existence.
  */
-internal object ActiveConciergeDataHandoffForwarder : ConciergeDataHandoffForwarder {
-    private const val SELF_TAG = "ActiveConciergeDataHandoffForwarder"
-
-    private var activeForwarder: ConciergeDataHandoffForwarder? = null
-
-    internal fun register(forwarder: ConciergeDataHandoffForwarder) {
-        synchronized(this) {
-            val previous = activeForwarder
-            if (previous != null && previous !== forwarder) {
-                Log.warning(
-                    ConciergeConstants.EXTENSION_NAME,
-                    SELF_TAG,
-                    "Replacing an already-active data handoff session; only one configured chat " +
-                        "surface should be active at a time."
-                )
-            }
-            activeForwarder = forwarder
-        }
-    }
-
-    internal fun unregister(forwarder: ConciergeDataHandoffForwarder) {
-        synchronized(this) {
-            if (activeForwarder === forwarder) {
-                activeForwarder = null
-            }
-        }
-    }
-
+internal class SessionDataHandoffForwarder(
+    private val session: () -> ConciergeConversationSession = { ConciergeConversationSession.instance }
+) : ConciergeDataHandoffForwarder {
     override fun forward(
         result: ConciergeDataHandoffEvent,
         completion: (DataHandoffDeliveryResult) -> Unit
     ) {
-        val forwarder = synchronized(this) { activeForwarder }
-        if (forwarder == null) {
-            completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
-            return
-        }
-        forwarder.forward(result, completion)
+        session().enqueueDataHandoff(result, completion)
     }
 }

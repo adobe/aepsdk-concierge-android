@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * reports their final validation or delivery outcome.
  */
 internal class ConciergeDataHandoffEventHandler internal constructor(
-    private val forwarder: ConciergeDataHandoffForwarder = ActiveConciergeDataHandoffForwarder
+    private val forwarder: ConciergeDataHandoffForwarder = SessionDataHandoffForwarder()
 ) {
 
     companion object {

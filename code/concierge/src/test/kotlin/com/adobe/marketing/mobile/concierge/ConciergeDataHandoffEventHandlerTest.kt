@@ -14,21 +14,37 @@ package com.adobe.marketing.mobile.concierge
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.MobileCore
+import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConversationState
+import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ConciergeDataHandoffEventHandlerTest {
 
     private lateinit var handler: ConciergeDataHandoffEventHandler
 
     @Before
     fun setup() {
+        Dispatchers.setMain(StandardTestDispatcher())
         mockkStatic(MobileCore::class)
         every { MobileCore.dispatchEvent(any()) } returns Unit
         handler = ConciergeDataHandoffEventHandler(forwarder = SuccessfulDataHandoffForwarder)
@@ -46,6 +62,39 @@ class ConciergeDataHandoffEventHandlerTest {
     @After
     fun tearDown() {
         unmockkStatic(MobileCore::class)
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `data handoff event flows through the handler and the conversation session to a correlated accepted response`() = runTest {
+        // Exercises the production chain end-to-end rather than each link in isolation:
+        // ConciergeDataHandoffEventHandler.handle -> SessionDataHandoffForwarder ->
+        // ConciergeConversationSession.enqueueDataHandoff -> streamed delivery -> correlated
+        // response. Only the session resolution is swapped; every link is the real one.
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoffXdm = mapOf("orderId" to "abc-123")
+        every { chatClient.sendDataHandoff("buy_now", handoffXdm) } returns flow {
+            emit(ParsedConversationMessage("Thanks for your order!", ConversationState.COMPLETED))
+        }
+        every { chatClient.cleanup() } just Runs
+        val session = ConciergeConversationSession(chatService = chatClient, dispatch = null)
+        val dispatchedResponses = mutableListOf<Event>()
+        every { MobileCore.dispatchEvent(capture(dispatchedResponses)) } returns Unit
+
+        val requestEvent = buildDataHandoffEvent(routingHint = "buy_now", xdmFields = handoffXdm)
+        ConciergeDataHandoffEventHandler(
+            forwarder = SessionDataHandoffForwarder { session }
+        ).handle(requestEvent)
+        advanceUntilIdle()
+
+        verify(exactly = 1) { chatClient.sendDataHandoff("buy_now", handoffXdm) }
+        val response = dispatchedResponses.single()
+        assertEquals(true, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+        // The response must correlate back to the request, or the caller's
+        // dispatchEventWithResponseCallback never fires.
+        assertEquals(requestEvent.uniqueIdentifier, response.responseID)
+
+        session.shutdown()
     }
 
     private fun buildDataHandoffEvent(
