@@ -25,6 +25,7 @@ import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.ServiceProvider
+import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -173,6 +174,18 @@ internal class ConciergeConversationServiceClient(
     }
 
     /**
+     * Serializes the identityMap verbatim for the request body's `xdm.identityMap`, so every
+     * namespace (not just ECID) is forwarded. [JSONObject] escapes keys and values, keeping
+     * customer-supplied ids injection-safe. Returns an empty object when the map is unavailable.
+     */
+    private fun identityMapJson(state: ConciergeState): String {
+        // JSONObject.toString() returns null (rather than throwing) if the map can't be
+        // serialized; fall back to an empty object in that case.
+        val json: String? = JSONObject(state.identityMap.orEmpty()).toString()
+        return json ?: "{}"
+    }
+
+    /**
      * Creates the JSON request body for the conversation request.
      */
     private fun createRequestBody(message: String, state: ConciergeState): String {
@@ -200,13 +213,7 @@ internal class ConciergeConversationServiceClient(
                         }
                     },
                     "xdm": {
-                        "identityMap": {
-                            "ECID": [
-                                {
-                                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
-                                }
-                            ]
-                        }
+                        "identityMap": ${identityMapJson(state)}
                     }
                 }
             ]
@@ -434,11 +441,7 @@ internal class ConciergeConversationServiceClient(
             }
         },
         "xdm": {
-            "identityMap": {
-                "ECID": [{
-                    "id": "${state.experienceCloudId?.escapedForJson() ?: "null"}"
-                }]
-            },
+            "identityMap": ${identityMapJson(state)},
             "conversation": {
                 $xdmConversationFields
             },

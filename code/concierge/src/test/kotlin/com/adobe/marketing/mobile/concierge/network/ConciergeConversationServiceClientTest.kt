@@ -62,6 +62,8 @@ class ConciergeConversationServiceClientTest {
 
     private val testState = ConciergeState(
         experienceCloudId = "test-ecid",
+        // EdgeIdentity carries the ECID inside the identityMap; mirror that real shape here.
+        identityMap = mapOf("ECID" to listOf(mapOf("id" to "test-ecid"))),
         configurationReady = true,
         surfaces = testSurfaces,
         conciergeServer = "https://test-server.com",
@@ -345,6 +347,121 @@ class ConciergeConversationServiceClientTest {
         assertTrue(req.url.contains("requestId="))
         val bodyStr = String(req.body ?: ByteArray(0), StandardCharsets.UTF_8)
         // TODO: Finalize and verify full body structure
+    }
+
+    @Test
+    fun `chat request carries full identityMap verbatim across all namespaces`() = runTest {
+        val stateWithIdentityMap = testState.copy(
+            experienceCloudId = "test-ecid",
+            identityMap = mapOf(
+                "ECID" to listOf(mapOf("id" to "test-ecid", "authenticatedState" to "ambiguous")),
+                "hashedEmail" to listOf(
+                    mapOf("id" to "5e884898da28047151d0e56f8dc62927", "authenticatedState" to "authenticated")
+                ),
+                "CustomNamespace" to listOf(mapOf("id" to "custom-id-999"))
+            )
+        )
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithIdentityMap)
+
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello").toList()
+
+        // JSONObject key order is not guaranteed, so assert on order-independent fragments.
+        val body = capturedBody(requestSlot)
+        assertTrue("Body should contain ECID namespace", body.contains("\"ECID\""))
+        assertTrue("Body should contain hashedEmail namespace", body.contains("\"hashedEmail\""))
+        assertTrue("Body should contain CustomNamespace", body.contains("\"CustomNamespace\""))
+        assertTrue("Body should contain hashedEmail value", body.contains("5e884898da28047151d0e56f8dc62927"))
+        assertTrue("Body should contain custom id", body.contains("custom-id-999"))
+        assertTrue("Body should preserve authenticatedState", body.contains("authenticatedState"))
+    }
+
+    @Test
+    fun `chat request forwards an ECID-only identityMap without regression`() = runTest {
+        // Baseline case: no extra identities set, so the map carries only the auto-generated ECID.
+        val ecidOnlyState = testState.copy(
+            experienceCloudId = "ecid-baseline",
+            identityMap = mapOf(
+                "ECID" to listOf(
+                    mapOf("id" to "ecid-baseline", "authenticatedState" to "ambiguous", "primary" to false)
+                )
+            )
+        )
+        every { mockStateRepository.state } returns MutableStateFlow(ecidOnlyState)
+
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue("ECID namespace must be present", body.contains("\"ECID\""))
+        assertTrue("ECID value must be forwarded", body.contains("\"id\":\"ecid-baseline\""))
+        assertFalse("No other namespace should appear", body.contains("hashedEmail"))
+    }
+
+    @Test
+    fun `chat request sends an empty identityMap when none is available`() = runTest {
+        // Degenerate case: no map means nothing to forward (unreachable — the gate requires an ECID).
+        every { mockStateRepository.state } returns MutableStateFlow(testState.copy(identityMap = null))
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Body should contain an empty identityMap when none is available",
+            body.contains("\"identityMap\":{}")
+        )
+    }
+
+    @Test
+    fun `chat request sends an empty identityMap when serialization fails`() = runTest {
+        // A NaN value is not serializable by JSONObject, forcing the fallback branch.
+        every { mockStateRepository.state } returns
+            MutableStateFlow(testState.copy(identityMap = mapOf("ECID" to Double.NaN)))
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue(
+            "Body should fall back to an empty identityMap when serialization fails",
+            body.contains("\"identityMap\":{}")
+        )
+    }
+
+    @Test
+    fun `chat request carries both the full identityMap and the auth token data part`() = runTest {
+        val stateWithIdentityMap = testState.copy(
+            experienceCloudId = "test-ecid",
+            identityMap = mapOf(
+                "hashedEmail" to listOf(mapOf("id" to "5e884898da28047151d0e56f8dc62927"))
+            )
+        )
+        every { mockStateRepository.state } returns MutableStateFlow(stateWithIdentityMap)
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
+
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello").toList()
+
+        val body = capturedBody(requestSlot)
+        assertTrue("identityMap should carry hashedEmail", body.contains("\"hashedEmail\""))
+        assertTrue(
+            "Auth data part should still be present alongside the identityMap",
+            body.contains("\"data\":{\"type\":\"auth\",\"payload\":{\"token\":\"token-abc\"}}")
+        )
     }
 
     @Test
@@ -891,7 +1008,8 @@ class ConciergeConversationServiceClientTest {
 
         val requestBody = String(requestSlot.captured.body, StandardCharsets.UTF_8)
         assertTrue(requestBody.contains("\"ECID\""))
-        assertTrue(requestBody.contains("\"id\": \"test-ecid\""))
+        // identityMap is serialized compactly by JSONObject (no space after the colon).
+        assertTrue(requestBody.contains("\"id\":\"test-ecid\""))
     }
 
     @Test

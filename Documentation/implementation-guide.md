@@ -90,9 +90,17 @@ Brand Concierge expects the following keys to be present in the Configuration sh
 - **`concierge.configId`**: String (datastream ID)
 - **`concierge.region`**: String, optional (region identifier, e.g. `va6`, inserted into the Brand Concierge request path; omit to use the default unqualified endpoint)
 
-ECID is read from Edge Identity shared state.
+The full Edge Identity `identityMap` (including the ECID) is read from Edge Identity shared state and forwarded to Brand Concierge requests.
 
 Another option for validation is to use Adobe Assurance. Refer to the [Mobile SDK validation guide](https://developer.adobe.com/client-sdks/home/getting-started/validate/).
+
+---
+
+## Identities
+
+Brand Concierge forwards the full Edge Identity `identityMap` on every chat and feedback request. The ECID is always included automatically. To send additional identities (e.g. a hashed email, `CRMID`, or a custom namespace), set them via the Edge Identity extension's [`updateIdentities`](https://developer.adobe.com/client-sdks/edge/identity-for-edge-network/api-reference/#updateidentities) API — they are forwarded verbatim, so lowercasing/hashing is the app's responsibility.
+
+Namespace priority and identity-graph rules are configured server-side in Adobe Experience Platform; the SDK does not interpret or relabel namespaces.
 
 ---
 
