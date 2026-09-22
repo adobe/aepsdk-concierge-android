@@ -1739,10 +1739,17 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Closes the Concierge chat interface (dialog mode).
      * ChatClosed tracking is handled by the [DisposableEffect] onDispose in the [ConciergeChat]
      * composable, which fires when the chat composable leaves composition.
+     *
+     * The data handoff session is deliberately *not* torn down here. Its lifetime belongs to that
+     * same [DisposableEffect], which is the only signal that works in every integration mode: in
+     * dialog mode closing removes the chat from composition, so onDispose deactivates anyway,
+     * while in direct-Compose and [ConciergeChatView] embedding the chat stays composed and
+     * still owns a live transcript. Deactivating here would leave those modes permanently
+     * rejecting handoffs with [ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION], because
+     * [openConcierge] has no matching re-activation and the effect never re-runs.
      */
     fun closeConcierge() {
         _isConciergeActive.value = false
-        deactivateDataHandoffSession()
     }
 
     internal fun activateDataHandoffSession() {

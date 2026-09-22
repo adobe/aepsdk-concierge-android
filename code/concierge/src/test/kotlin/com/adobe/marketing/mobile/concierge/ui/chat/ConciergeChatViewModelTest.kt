@@ -866,6 +866,38 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `closing the chat dialog leaves the data handoff session active for embedded hosts`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
+            emit(ParsedConversationMessage(messageContent = "Thanks!", state = ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        vm.activateDataHandoffSession()
+
+        // Direct-Compose and ConciergeChatView hosts keep the chat composed across this call, so
+        // the DisposableEffect that owns the handoff session never re-runs. Deactivating here
+        // would strand them rejecting every later handoff with NO_ACTIVE_SESSION.
+        vm.closeConcierge()
+
+        var deliveryResult: DataHandoffDeliveryResult? = null
+        vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, deliveryResult)
+
+        // Leaving composition still tears the session down.
+        vm.deactivateDataHandoffSession()
+        var afterDispose: DataHandoffDeliveryResult? = null
+        vm.enqueueDataHandoff(handoff) { afterDispose = it }
+        assertEquals(
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION),
+            afterDispose
+        )
+    }
+
+    @Test
     fun `data handoff reports empty response and renders it as a terminal non-error turn`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
