@@ -16,7 +16,9 @@ import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,7 +71,9 @@ private data class HandoffPreset(
     val xdmFields: () -> Map<String, Any>,
     val localMessage: String?,
     /** Only offered while the mock service is on, which is what simulates the outcome. */
-    val mockOnly: Boolean = false
+    val mockOnly: Boolean = false,
+    /** Reject reason this preset is meant to produce, rendered under [label] on its button. */
+    val expectation: String? = null
 )
 
 /** The outcome of the most recent [Concierge.sendDataHandoff] call, for the status field. */
@@ -115,36 +120,40 @@ private val PRESETS = listOf(
         localMessage = null
     ),
     HandoffPreset(
-        label = "Invalid Payload (expect reject)",
+        label = "Invalid Payload",
         routingHint = "invalid-demo",
         // identityMap is an SDK-reserved top-level XDM key; sending it should be rejected with
         // RESERVED_KEY_COLLISION, exercising the reject path.
         xdmFields = { mapOf("identityMap" to mapOf("email" to listOf(mapOf("id" to "test@example.com")))) },
-        localMessage = null
+        localMessage = null,
+        expectation = "RESERVED_KEY_COLLISION"
     ),
     // The three below fail *after* the handoff is accepted, which is the part the SDK renders no
     // error UI for: localMessage stays on screen, nothing follows it, and only the completion
     // callback says why. They are the only way to see in the demo what a user is left looking at.
     HandoffPreset(
-        label = "Mock: Service Error (expect DELIVERY_FAILED)",
+        label = "Mock: Service Error",
         routingHint = MockDataHandoffRoutingHints.STREAM_ERROR,
         xdmFields = { mapOf("orderId" to "DEMO-FAIL-1001") },
         localMessage = "Thank you for your purchase!",
-        mockOnly = true
+        mockOnly = true,
+        expectation = "DELIVERY_FAILED"
     ),
     HandoffPreset(
-        label = "Mock: Empty Response (expect EMPTY_RESPONSE)",
+        label = "Mock: Empty Response",
         routingHint = MockDataHandoffRoutingHints.EMPTY_RESPONSE,
         xdmFields = { mapOf("orderId" to "DEMO-EMPTY-1001") },
         localMessage = "Thank you for your purchase!",
-        mockOnly = true
+        mockOnly = true,
+        expectation = "EMPTY_RESPONSE"
     ),
     HandoffPreset(
-        label = "Mock: Silent Service (expect DELIVERY_TIMEOUT)",
+        label = "Mock: Silent Service",
         routingHint = MockDataHandoffRoutingHints.SILENT,
         xdmFields = { mapOf("orderId" to "DEMO-SILENT-1001") },
         localMessage = "Thank you for your purchase!",
-        mockOnly = true
+        mockOnly = true,
+        expectation = "DELIVERY_TIMEOUT"
     )
 )
 
@@ -206,7 +215,7 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
                 .background(Color(0xFFF5F5F5))
                 .padding(innerPadding)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -252,33 +261,45 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
                     )
                 }
 
-                PRESETS.filter { mockEnabled || !it.mockOnly }.forEach { preset ->
-                    Button(
-                        onClick = {
-                            sending = true
-                            statusText = "Sending \"${preset.label}\"..."
-                            completionStatus = CompletionStatus.Pending
-                            Concierge.sendDataHandoff(
-                                routingHint = preset.routingHint,
-                                xdmFields = preset.xdmFields(),
-                                localMessage = preset.localMessage
-                            ) { accepted, rejectReason ->
-                                sending = false
-                                statusText = "\"${preset.label}\" ${if (accepted) "accepted" else "rejected"}"
-                                completionStatus = if (accepted) {
-                                    CompletionStatus.Accepted
-                                } else {
-                                    CompletionStatus.Rejected(rejectReason)
-                                }
-                            }
-                        },
-                        enabled = !sending,
+                // Two per row, compact: the embedded chat below needs the vertical space more
+                // than the buttons do, and the list grows with every failure preset.
+                PRESETS.filter { mockEnabled || !it.mockOnly }.chunked(2).forEach { pair ->
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(preset.label)
+                        pair.forEach { preset ->
+                            PresetButton(
+                                preset = preset,
+                                enabled = !sending,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    sending = true
+                                    statusText = "Sending \"${preset.label}\"..."
+                                    completionStatus = CompletionStatus.Pending
+                                    Concierge.sendDataHandoff(
+                                        routingHint = preset.routingHint,
+                                        xdmFields = preset.xdmFields(),
+                                        localMessage = preset.localMessage
+                                    ) { accepted, rejectReason ->
+                                        sending = false
+                                        statusText =
+                                            "\"${preset.label}\" ${if (accepted) "accepted" else "rejected"}"
+                                        completionStatus = if (accepted) {
+                                            CompletionStatus.Accepted
+                                        } else {
+                                            CompletionStatus.Rejected(rejectReason)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        // Keeps a lone trailing button half-width instead of stretching it.
+                        if (pair.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -299,3 +320,45 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
 }
 
 private fun ConciergeDataHandoffRejectReason?.describe(): String = this?.name ?: "no response"
+
+/**
+ * One preset button, sized to share a row with a second one: the label on top, and the reject
+ * reason the preset is meant to produce underneath, so the status field above can be read against
+ * what was expected.
+ */
+@Composable
+private fun PresetButton(
+    preset: HandoffPreset,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(48.dp),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0))
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = preset.label,
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
+            preset.expectation?.let { expectation ->
+                Text(
+                    text = expectation,
+                    fontSize = 9.sp,
+                    lineHeight = 11.sp,
+                    color = Color(0xCCFFFFFF),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
