@@ -52,17 +52,23 @@ import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
+import com.adobe.marketing.mobile.concierge.ui.chat.MockDataHandoffRoutingHints
 import com.adobe.marketing.mobile.concierge.ui.chat.createMockDataHandoffChatViewModel
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
+import java.util.UUID
 
 private val SURFACES = listOf("web://dsg-stage-setup.awesome-sites.corp.adobe.com/")
 
 private data class HandoffPreset(
     val label: String,
     val routingHint: String,
-    val xdmFields: Map<String, Any>,
-    val localMessage: String?
+    // A supplier rather than a static Map so fields like a freshly minted correlationId are
+    // rebuilt on every send instead of reused from one fixed value across taps.
+    val xdmFields: () -> Map<String, Any>,
+    val localMessage: String?,
+    /** Only offered while the mock service is on, which is what simulates the outcome. */
+    val mockOnly: Boolean = false
 )
 
 /** The outcome of the most recent [Concierge.sendDataHandoff] call, for the status field. */
@@ -78,21 +84,34 @@ private val PRESETS = listOf(
     HandoffPreset(
         label = "Successful Checkout",
         routingHint = "successful-checkout",
-        xdmFields = mapOf(
-            "commerce" to mapOf(
-                "order" to mapOf("purchaseID" to "TEST-ORDER-1001", "priceTotal" to 129.99)
+        // Nested under "_dsg" -> "coachCheckout" so the merged XDM object's field paths match
+        // the _dsg.coachCheckout.* schema. failureReasonCode is omitted - it only applies when
+        // status == "failed".
+        xdmFields = {
+            mapOf(
+                "_dsg" to mapOf(
+                    "coachCheckout" to mapOf(
+                        "correlationId" to UUID.randomUUID().toString(),
+                        "status" to "completed",
+                        "eCode" to "ECODE-DEMO-001",
+                        "confirmationNumber" to "CONF-DEMO-1001",
+                        "quantity" to 1
+                    )
+                )
             )
-        ),
+        },
         localMessage = "Thank you for your purchase!"
     ),
     HandoffPreset(
         label = "Product Interest",
         routingHint = "product-interest",
-        xdmFields = mapOf(
-            "productListItems" to listOf(
-                mapOf("SKU" to "TEST-SKU-42", "name" to "Trail Running Shoes")
+        xdmFields = {
+            mapOf(
+                "productListItems" to listOf(
+                    mapOf("SKU" to "TEST-SKU-42", "name" to "Trail Running Shoes")
+                )
             )
-        ),
+        },
         localMessage = null
     ),
     HandoffPreset(
@@ -100,8 +119,32 @@ private val PRESETS = listOf(
         routingHint = "invalid-demo",
         // identityMap is an SDK-reserved top-level XDM key; sending it should be rejected with
         // RESERVED_KEY_COLLISION, exercising the reject path.
-        xdmFields = mapOf("identityMap" to mapOf("email" to listOf(mapOf("id" to "test@example.com")))),
+        xdmFields = { mapOf("identityMap" to mapOf("email" to listOf(mapOf("id" to "test@example.com")))) },
         localMessage = null
+    ),
+    // The three below fail *after* the handoff is accepted, which is the part the SDK renders no
+    // error UI for: localMessage stays on screen, nothing follows it, and only the completion
+    // callback says why. They are the only way to see in the demo what a user is left looking at.
+    HandoffPreset(
+        label = "Mock: Service Error (expect DELIVERY_FAILED)",
+        routingHint = MockDataHandoffRoutingHints.STREAM_ERROR,
+        xdmFields = { mapOf("orderId" to "DEMO-FAIL-1001") },
+        localMessage = "Thank you for your purchase!",
+        mockOnly = true
+    ),
+    HandoffPreset(
+        label = "Mock: Empty Response (expect EMPTY_RESPONSE)",
+        routingHint = MockDataHandoffRoutingHints.EMPTY_RESPONSE,
+        xdmFields = { mapOf("orderId" to "DEMO-EMPTY-1001") },
+        localMessage = "Thank you for your purchase!",
+        mockOnly = true
+    ),
+    HandoffPreset(
+        label = "Mock: Silent Service (expect DELIVERY_TIMEOUT)",
+        routingHint = MockDataHandoffRoutingHints.SILENT,
+        xdmFields = { mapOf("orderId" to "DEMO-SILENT-1001") },
+        localMessage = "Thank you for your purchase!",
+        mockOnly = true
     )
 )
 
@@ -209,7 +252,7 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
                     )
                 }
 
-                PRESETS.forEach { preset ->
+                PRESETS.filter { mockEnabled || !it.mockOnly }.forEach { preset ->
                     Button(
                         onClick = {
                             sending = true
@@ -217,7 +260,7 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
                             completionStatus = CompletionStatus.Pending
                             Concierge.sendDataHandoff(
                                 routingHint = preset.routingHint,
-                                xdmFields = preset.xdmFields,
+                                xdmFields = preset.xdmFields(),
                                 localMessage = preset.localMessage
                             ) { accepted, rejectReason ->
                                 sending = false
