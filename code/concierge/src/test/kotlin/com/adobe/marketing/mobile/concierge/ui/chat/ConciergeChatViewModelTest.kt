@@ -583,6 +583,35 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `data handoff deactivated before the processor picks it up returns the chat to idle`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
+            awaitCancellation()
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        var deliveryResult: DataHandoffDeliveryResult? = null
+
+        vm.activateDataHandoffSession()
+        // Enqueue marks the chat busy synchronously, then the session is torn down before the
+        // processor coroutine ever runs, so the request is already completed when it is dequeued.
+        // Whoever set Processing has to clear it, or the composer stays disabled for the rest of
+        // the ViewModel's life and the user cannot type again after reopening the chat.
+        vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+        vm.deactivateDataHandoffSession()
+        advanceUntilIdle()
+
+        assertEquals(
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION),
+            deliveryResult
+        )
+        assertEquals(ChatScreenState.Idle(), vm.state.value)
+        assertTrue(vm.messages.value.isEmpty())
+        verify(exactly = 0) { chatClient.sendDataHandoff(any(), any()) }
+    }
+
+    @Test
     fun `chat is marked busy the moment a data handoff reserves the queue`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
@@ -833,12 +862,18 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `data handoff reports empty response and renders it as a failed turn`() = runTest {
+    fun `data handoff reports empty response and renders it as a terminal non-error turn`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"), "Order placed")
         every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow { }
-        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = ConciergeChatViewModel(
+            app,
+            fakeSpeech,
+            DefaultImageProvider(),
+            chatClient
+        ) { dispatchedEvents += it }
         var deliveryResult: DataHandoffDeliveryResult? = null
 
         vm.activateDataHandoffSession()
@@ -847,9 +882,14 @@ class ConciergeChatViewModelTest {
             advanceUntilIdle()
 
             // The caller is told EMPTY_RESPONSE, so the transcript must say the same thing rather
-            // than leaving localMessage sitting there with no reply at all.
+            // than leaving localMessage sitting there with no reply at all. Distinct copy from a
+            // failed turn: the request was delivered and answered, there was just nothing to show.
             assertEquals(
-                listOf("Order placed", "Sorry, I encountered an error. Please try again."),
+                listOf(
+                    "Order placed",
+                    "Sorry, I wasn't able to get a response from the Concierge Service. " +
+                        "\n\nPlease try again later."
+                ),
                 vm.messages.value.map { it.text }
             )
             assertEquals(
@@ -857,6 +897,13 @@ class ConciergeChatViewModelTest {
                 deliveryResult
             )
             assertEquals(ChatScreenState.Idle(), vm.state.value)
+            // Nothing errored, so no ErrorOccurred telemetry - matching iOS, which only tracks
+            // the stream-error branch.
+            assertTrue(
+                dispatchedEvents.none {
+                    it.name == ConciergeConstants.TrackingEvent.Name.ERROR_OCCURRED
+                }
+            )
         } finally {
             vm.deactivateDataHandoffSession()
         }
