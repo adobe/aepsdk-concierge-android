@@ -88,6 +88,27 @@ class ConciergeTest {
     }
 
     @Test
+    fun `sendDataHandoff omitting routingHint dispatches an empty routing hint`() {
+        mockkStatic(MobileCore::class)
+        try {
+            val eventSlot = slot<Event>()
+            every { MobileCore.dispatchEventWithResponseCallback(capture(eventSlot), any(), any()) } returns Unit
+
+            // Callers whose XDM fields alone determine routing can skip the hint entirely.
+            Concierge.sendDataHandoff(xdmFields = mapOf("orderId" to "abc-123"))
+
+            val event = eventSlot.captured
+            assertEquals("", event.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT))
+            assertEquals(
+                mapOf("orderId" to "abc-123"),
+                event.eventData?.get(ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS)
+            )
+        } finally {
+            unmockkStatic(MobileCore::class)
+        }
+    }
+
+    @Test
     fun `setAuthTokenProvider makes the provider token available to the SDK`() {
         Concierge.setAuthTokenProvider(provider = { "athlete-token" })
 

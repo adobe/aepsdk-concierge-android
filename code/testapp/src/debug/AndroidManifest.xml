@@ -22,6 +22,13 @@
             android:label="Product Card Demo"
             android:theme="@style/Theme.AEPSDKBrandConciergeAgent" />
 
+        <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.DataHandoffDemoActivity"
+            android:exported="false"
+            android:label="Data Handoff Demo"
+            android:theme="@style/Theme.AEPSDKBrandConciergeAgent"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>

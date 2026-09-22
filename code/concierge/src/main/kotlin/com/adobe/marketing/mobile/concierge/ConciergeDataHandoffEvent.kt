@@ -19,21 +19,18 @@ package com.adobe.marketing.mobile.concierge
  * request [com.adobe.marketing.mobile.Event]'s data (type [ConciergeConstants.EventType.CONCIERGE],
  * source `com.adobe.marketing.mobile.EventSource.REQUEST_CONTENT`, name
  * [ConciergeConstants.DataHandoff.EventName.REQUEST]) and [fromEventData] decodes it back on the
- * extension side. The response reports accept/reject only (see
- * [ConciergeConstants.DataHandoff.ResponseKey]) — `accepted == true` confirms the SDK received
- * and validated the payload's shape; it is not confirmation that Brand Concierge received or
- * processed it. The forward to Brand Concierge is not yet implemented — accepted events are not
- * yet delivered anywhere.
+ * extension side. The response reports the final validation or delivery outcome (see
+ * [ConciergeConstants.DataHandoff.ResponseKey]). A successfully delivered handoff renders its
+ * response through the active Concierge chat session.
  *
  * @property routingHint A keyword the user never sees, consumed by Brand Concierge's
- * phrase-based routing. Required.
+ * phrase-based routing. It may be blank when the XDM fields alone determine routing.
  * @property xdmFields Arbitrary XDM data merged into the root of the outbound `xdm` object.
  * Required and must be non-empty. Every key must be a `String`; top-level keys colliding with
  * [ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS] are rejected, as is any value that isn't
  * JSON-safe (`String`, `Boolean`, finite `Int`/`Long`/`Double`/`Float`, or a `Map`/`List` of
  * further JSON-safe values, up to a bounded nesting depth).
- * @property localMessage Message to render immediately in chat when set. Currently accepted and
- * decoded, but not rendered.
+ * @property localMessage Message to render in chat immediately before its queued handoff starts.
  */
 internal data class ConciergeDataHandoffEvent(
     val routingHint: String,
@@ -69,16 +66,19 @@ internal data class ConciergeDataHandoffEvent(
             val keys = ConciergeConstants.DataHandoff.EventData.Key
             val reasons = ConciergeConstants.DataHandoff.RejectReason
 
-            if (keys.ROUTING_HINT !in data) {
-                return DataHandoffDecodeResult.Rejected(reasons.MISSING_ROUTING_HINT)
+            // Absent or blank both mean "no hint" - xdmFields alone can carry enough routing
+            // context on its own, so neither is rejected. A present, wrong-typed value still is -
+            // including an explicit null, which Map.get() can't tell apart from an absent key
+            // without checking containsKey first.
+            val routingHint = when (val rawRoutingHint = data[keys.ROUTING_HINT]) {
+                null -> if (keys.ROUTING_HINT in data) {
+                    return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
+                } else {
+                    ""
+                }
+                is String -> rawRoutingHint
+                else -> return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
             }
-            val routingHint = data[keys.ROUTING_HINT] as? String
-                ?: return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
-            if (routingHint.isBlank()) {
-                // Blank routingHint is treated as absent.
-                return DataHandoffDecodeResult.Rejected(reasons.MISSING_ROUTING_HINT)
-            }
-
             if (keys.XDM_FIELDS !in data) {
                 return DataHandoffDecodeResult.Rejected(reasons.MISSING_XDM_FIELDS)
             }
@@ -107,7 +107,11 @@ internal data class ConciergeDataHandoffEvent(
             val localMessage = (data[keys.LOCAL_MESSAGE] as? String)?.takeIf { it.isNotBlank() }
 
             return DataHandoffDecodeResult.Success(
-                ConciergeDataHandoffEvent(routingHint = routingHint, xdmFields = xdmFields, localMessage = localMessage)
+                ConciergeDataHandoffEvent(
+                    routingHint = routingHint.takeUnless { it.isBlank() }.orEmpty(),
+                    xdmFields = xdmFields,
+                    localMessage = localMessage
+                )
             )
         }
 

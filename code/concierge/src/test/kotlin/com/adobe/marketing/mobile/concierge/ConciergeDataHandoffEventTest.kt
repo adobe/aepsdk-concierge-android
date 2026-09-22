@@ -101,19 +101,49 @@ class ConciergeDataHandoffEventTest {
     }
 
     @Test
-    fun `fromEventData rejects missing routingHint`() {
+    fun `fromEventData accepts a missing routingHint as an empty service query`() {
+        // xdmFields alone can carry enough routing context, so an absent key is treated the same
+        // as a present-but-blank one - it is not a rejection.
         val data = mapOf(
             ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123")
         )
 
         val result = ConciergeDataHandoffEvent.fromEventData(data)
 
-        require(result is DataHandoffDecodeResult.Rejected)
-        assertEquals("missing_routing_hint", result.reason)
+        require(result is DataHandoffDecodeResult.Success)
+        assertEquals("", result.result.routingHint)
     }
 
     @Test
-    fun `fromEventData rejects blank routingHint`() {
+    fun `fromEventData still rejects a present but wrong-typed routingHint`() {
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to 42,
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123")
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Rejected)
+        assertEquals("invalid_routing_hint_type", result.reason)
+    }
+
+    @Test
+    fun `fromEventData rejects a present but explicitly null routingHint, distinct from an absent key`() {
+        // A key present with a null value is a caller explicitly supplying a non-string, not the
+        // same "no hint given" case as the key being absent altogether.
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to null,
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123")
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Rejected)
+        assertEquals("invalid_routing_hint_type", result.reason)
+    }
+
+    @Test
+    fun `fromEventData accepts blank routingHint as an empty service query`() {
         val data = mapOf(
             ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "   ",
             ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("orderId" to "abc-123")
@@ -121,8 +151,8 @@ class ConciergeDataHandoffEventTest {
 
         val result = ConciergeDataHandoffEvent.fromEventData(data)
 
-        require(result is DataHandoffDecodeResult.Rejected)
-        assertEquals("missing_routing_hint", result.reason)
+        require(result is DataHandoffDecodeResult.Success)
+        assertEquals("", result.result.routingHint)
     }
 
     @Test

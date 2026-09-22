@@ -251,8 +251,10 @@ fun ConciergeChat(
     // ChatClosed fires when this composable leaves composition — which covers the close button,
     // back-press dialog dismissal, and XML view detachment — with no double-tracking.
     DisposableEffect(Unit) {
+        viewModel.activateDataHandoffSession()
         viewModel.trackChatOpened()
         onDispose {
+            viewModel.deactivateDataHandoffSession()
             viewModel.trackChatClosed()
         }
     }

@@ -182,12 +182,21 @@ class ConciergeAuthTokenHolderTest {
             Thread { ConciergeAuthTokenHolder.resolveToken() }.also { it.start() }
         }
         // Deterministically confirm the pool itself is saturated (all threads actively running)
-        // before allowing the brief buffer below for the remaining calls to land in the queue.
+        // before confirming the remaining calls have landed in the queue.
         assertTrue(
             "All $poolSize pool threads should be running the provider",
             runningLatch.await(2, TimeUnit.SECONDS)
         )
-        Thread.sleep(200)
+        // Every saturating caller ends up parked in Future.get(timeout), which is the first thing
+        // it does after submit() returns - so all of them reporting TIMED_WAITING is a positive
+        // signal that the pool and queue are now full. A fixed sleep here instead raced with
+        // thread startup on a loaded machine: one late submit left a queue slot free, the measured
+        // call below was accepted into it rather than rejected, and it then waited out its own
+        // 5s timeout - still null, but far past the fail-fast bound this test asserts.
+        assertTrue(
+            "All $totalCapacity saturating calls should have been submitted",
+            awaitAll(saturatingThreads, Thread.State.TIMED_WAITING, timeoutMillis = 5000L)
+        )
 
         val start = System.currentTimeMillis()
         val result = ConciergeAuthTokenHolder.resolveToken()
@@ -198,6 +207,23 @@ class ConciergeAuthTokenHolderTest {
 
         blockLatch.countDown()
         saturatingThreads.forEach { it.join(6000) }
+    }
+
+    /**
+     * Waits until every thread in [threads] reports [state], or [timeoutMillis] elapses. Used to
+     * gate on work that has no observable completion signal of its own.
+     */
+    private fun awaitAll(
+        threads: List<Thread>,
+        state: Thread.State,
+        timeoutMillis: Long
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        while (System.currentTimeMillis() < deadline) {
+            if (threads.all { it.state == state }) return true
+            Thread.sleep(10)
+        }
+        return threads.all { it.state == state }
     }
 
     @Test

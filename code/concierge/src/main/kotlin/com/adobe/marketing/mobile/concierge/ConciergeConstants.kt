@@ -87,8 +87,21 @@ object ConciergeConstants {
     }
 
     object DataHandoff {
-        // Mirrors MobileCore's own internal dispatchEventWithResponseCallback default timeout.
-        internal const val RESPONSE_TIMEOUT_MS = 5000L
+        // Two caps bound a handoff turn, mirroring the iOS SDK.
+        //
+        // FIRST_CHUNK_TIMEOUT_MS bounds silence: a backend that accepts the request and then never
+        // streams anything fails fast instead of holding the chat hostage for the full turn budget.
+        // It is disarmed by the first streamed chunk, after which only the turn cap applies.
+        //
+        // DELIVERY_TIMEOUT_MS bounds a turn that *is* streaming, so a slow-but-healthy response
+        // still completes. A single flat cap cannot serve both: low enough to fail a wedged
+        // backend quickly is too low for a long legitimate response.
+        internal const val FIRST_CHUNK_TIMEOUT_MS = 10_000L
+        internal const val DELIVERY_TIMEOUT_MS = 60_000L
+
+        // The callback waits for the active chat session to finish the service response, so the
+        // hub dispatch budget has to outlast the turn cap rather than pre-empt it.
+        internal const val RESPONSE_TIMEOUT_MS = DELIVERY_TIMEOUT_MS + 5_000L
 
         internal object EventName {
             const val REQUEST = "Concierge Data Handoff Event"
@@ -115,7 +128,6 @@ object ConciergeConstants {
 
         object RejectReason {
             const val MISSING_EVENT_DATA = "missing_event_data"
-            const val MISSING_ROUTING_HINT = "missing_routing_hint"
             const val INVALID_ROUTING_HINT_TYPE = "invalid_routing_hint_type"
             const val MISSING_XDM_FIELDS = "missing_xdm_fields"
             const val INVALID_XDM_FIELDS_TYPE = "invalid_xdm_fields_type"
@@ -123,6 +135,11 @@ object ConciergeConstants {
             const val INVALID_XDM_FIELD_KEY = "invalid_xdm_field_key"
             const val RESERVED_KEY_COLLISION = "reserved_key_collision"
             const val INVALID_XDM_FIELD_VALUE = "invalid_xdm_field_value"
+            const val NO_ACTIVE_SESSION = "no_active_session"
+            const val CHAT_IN_PROGRESS = "chat_in_progress"
+            const val DELIVERY_FAILED = "delivery_failed"
+            const val EMPTY_RESPONSE = "empty_response"
+            const val DELIVERY_TIMEOUT = "delivery_timeout"
             // Client-side only: the extension never responded (e.g. dispatch failure or timeout),
             // as opposed to responding with a validation-based rejection above.
             const val NO_RESPONSE = "no_response"

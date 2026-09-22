@@ -49,6 +49,7 @@ import java.util.TimeZone
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import org.json.JSONArray
 
 /**
  * Seam for supplying conversation responses to [ConciergeChatViewModel]. Production uses
@@ -57,8 +58,28 @@ import kotlin.coroutines.resumeWithException
  */
 internal interface ConversationService {
     fun chat(message: String): Flow<ParsedConversationMessage>
+    fun sendDataHandoff(
+        routingHint: String,
+        xdmFields: Map<String, Any>
+    ): Flow<ParsedConversationMessage>
     suspend fun sendFeedback(feedback: Feedback): Boolean
     fun cleanup()
+}
+
+/**
+ * A conversation flow that can notify its collector immediately before the network request starts.
+ *
+ * Data handoffs use this boundary to start their first-response timeout after request preparation
+ * (including auth-token resolution), rather than charging that preparation time to the service.
+ */
+internal interface RequestStartedFlow<T> : Flow<T> {
+    fun onRequestStarted(callback: () -> Unit): Flow<T>
+}
+
+private class DefaultRequestStartedFlow<T>(
+    private val flowFactory: (() -> Unit) -> Flow<T>
+) : RequestStartedFlow<T>, Flow<T> by flowFactory({}) {
+    override fun onRequestStarted(callback: () -> Unit): Flow<T> = flowFactory(callback)
 }
 
 internal class ConciergeConversationServiceClient(
@@ -71,7 +92,11 @@ internal class ConciergeConversationServiceClient(
         private const val TAG = "ConciergeConversationServiceClient"
 
         private const val DEFAULT_CONNECT_TIMEOUT = 30
-        private const val DEFAULT_READ_TIMEOUT = 60
+
+        // Inactivity budget between streamed reads. Kept below the data-handoff turn ceiling
+        // (ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS) so a stalled socket surfaces as a
+        // read failure rather than being masked by the turn cap, and aligned with the iOS SDK.
+        private const val DEFAULT_READ_TIMEOUT = 15
     }
     
     // Shared StateFlow that continuously tracks state updates
@@ -105,46 +130,60 @@ internal class ConciergeConversationServiceClient(
      *
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
-    override fun chat(message: String): Flow<ParsedConversationMessage> = flow {
-        val requestBody = createRequestBody(message, stateRepository.state.value)
-        val request = createConversationServiceRequest(endpoint, requestBody)
+    override fun chat(message: String): Flow<ParsedConversationMessage> = conversation(message)
 
-        val connection = connect(request)
-        var eventOrDataReceived = false
+    override fun sendDataHandoff(
+        routingHint: String,
+        xdmFields: Map<String, Any>
+    ): Flow<ParsedConversationMessage> = conversation(routingHint, xdmFields)
 
-        processResponse(connection).collect { event ->
-            when (event) {
-                is StreamingEvent.EventReceived -> {
-                    val parsed = ConversationResponseParser.parseConversationData(event.data)
-                    eventOrDataReceived = true
-                    parsed.forEach { emit(it) }
-                }
+    private fun conversation(
+        message: String,
+        xdmFields: Map<String, Any> = emptyMap()
+    ): Flow<ParsedConversationMessage> = DefaultRequestStartedFlow { onRequestStarted ->
+        flow {
+            val state = stateRepository.state.value
+            val requestBody = createRequestBody(message, state, xdmFields)
+            val request = createConversationServiceRequest(endpoint, requestBody)
 
-                is StreamingEvent.DataReceived -> {
-                    val parsed = ConversationResponseParser.parseConversationData(event.data)
-                    eventOrDataReceived = true
-                    parsed.forEach { emit(it) }
-                }
+            onRequestStarted()
+            val connection = connect(request)
+            var eventOrDataReceived = false
 
-                is StreamingEvent.Closed -> {
-                    // We need to emit a final COMPLETED for the case where
-                    // the stream closes without data/event indicating completion
-                    // We don't have a message to pass here, so we can use an empty string
-                    if (!eventOrDataReceived) {
-                        emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+            processResponse(connection).collect { event ->
+                when (event) {
+                    is StreamingEvent.EventReceived -> {
+                        val parsed = ConversationResponseParser.parseConversationData(event.data)
+                        eventOrDataReceived = true
+                        parsed.forEach { emit(it) }
+                    }
+
+                    is StreamingEvent.DataReceived -> {
+                        val parsed = ConversationResponseParser.parseConversationData(event.data)
+                        eventOrDataReceived = true
+                        parsed.forEach { emit(it) }
+                    }
+
+                    is StreamingEvent.Closed -> {
+                        // We need to emit a final COMPLETED for the case where
+                        // the stream closes without data/event indicating completion
+                        // We don't have a message to pass here, so we can use an empty string
+                        if (!eventOrDataReceived) {
+                            emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+                        }
+                    }
+
+                    is StreamingEvent.Retry -> {
+                        // TODO: Implement retry logic if needed
+                    }
+
+                    else -> {
+                        // ignore Started/Closed here; Error is rethrown by processResponse
                     }
                 }
-
-                is StreamingEvent.Retry -> {
-                    // TODO: Implement retry logic if needed
-                }
-
-                else -> {
-                    // ignore Started/Closed here; Error is rethrown by processResponse
-                }
             }
-        }
-    }.flowOn(Dispatchers.IO)
+        }.flowOn(Dispatchers.IO)
+    }
 
     /**
      * Resolves the app-supplied auth token and renders it as the `data` field of the enclosing
@@ -188,7 +227,11 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the JSON request body for the conversation request.
      */
-    private fun createRequestBody(message: String, state: ConciergeState): String {
+    private fun createRequestBody(
+        message: String,
+        state: ConciergeState,
+        xdmFields: Map<String, Any>
+    ): String {
         val surfaces = state.surfaces
         check(surfaces.any { it.isNotBlank() }) {
             "Unable to create Concierge request payload. No surfaces were provided."
@@ -212,13 +255,42 @@ internal class ConciergeConversationServiceClient(
                             $conversationFields
                         }
                     },
-                    "xdm": {
-                        "identityMap": ${identityMapJson(state)}
-                    }
+                    "xdm": ${createXdmObject(state, xdmFields)}
                 }
             ]
         }
     """.trimIndent()
+    }
+
+    private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
+        val identityMap = JSONObject(identityMapJson(state))
+        return JSONObject().put("identityMap", identityMap).apply {
+            xdmFields.forEach { (key, value) ->
+                require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
+                    "XDM fields must not overwrite reserved key '$key'."
+                }
+                put(key, value.toJsonValue())
+            }
+        }
+    }
+
+    private fun Any.toJsonValue(): Any = when (this) {
+        is Map<*, *> -> JSONObject().apply {
+            forEach { (key, value) ->
+                put(
+                    key as? String ?: throw IllegalArgumentException("XDM object keys must be strings"),
+                    value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null")
+                )
+            }
+        }
+
+        is List<*> -> JSONArray().apply {
+            forEach { value ->
+                put(value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null"))
+            }
+        }
+
+        else -> this
     }
 
     /**

@@ -12,6 +12,8 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Extension
+import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
+import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatView
 
 /** Public class containing APIs for the Brand Concierge extension. */
 object Concierge {
@@ -57,21 +59,26 @@ object Concierge {
      * Hands data to the SDK to forward toward the Brand Concierge agent pipeline,
      * outside of normal user-typed chat.
      *
+     * Keep a configured [ConciergeChat] or [ConciergeChatView] rendered while calling this API.
+     * The active chat session provides both routing surfaces and the transcript that renders the
+     * handoff response.
+     *
      * @param routingHint a keyword the end user never sees, consumed by Brand Concierge's
-     * phrase-based router (e.g. "successful-checkout").
+     * phrase-based router (e.g. "successful-checkout"). Defaults to an empty string, which
+     * forwards an empty service query for callers whose XDM fields already determine routing.
      * @param xdmFields arbitrary XDM data merged into the root of the outbound XDM object; the
      * SDK does not interpret its contents. Must be non-empty, JSON-safe, and must not use
      * `identityMap` (or any other SDK-reserved top-level XDM key).
-     * @param localMessage text to render immediately in chat, distinct from the data forwarded to
-     * Brand Concierge. Currently accepted and decoded, but not rendered.
+     * @param localMessage text to render in chat when this handoff starts, distinct from the data
+     * forwarded to Brand Concierge. The handoff is rejected with [ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS]
+     * when a chat turn or another handoff is active or waiting; callers can retry after it completes.
      * @param completion invoked exactly once with the outcome, on a background thread.
-     * `accepted == true` confirms the SDK validated the payload's shape; it does not confirm
-     * delivery to Brand Concierge.
+     * `accepted == true` confirms the service response completed and rendered successfully.
      */
     @JvmStatic
     @JvmOverloads
     fun sendDataHandoff(
-        routingHint: String,
+        routingHint: String = "",
         xdmFields: Map<String, Any>,
         localMessage: String? = null,
         completion: ConciergeDataHandoffCallback? = null

@@ -31,7 +31,16 @@ class ConciergeDataHandoffEventHandlerTest {
     fun setup() {
         mockkStatic(MobileCore::class)
         every { MobileCore.dispatchEvent(any()) } returns Unit
-        handler = ConciergeDataHandoffEventHandler(forwarder = NotImplementedDataHandoffForwarder)
+        handler = ConciergeDataHandoffEventHandler(forwarder = SuccessfulDataHandoffForwarder)
+    }
+
+    private object SuccessfulDataHandoffForwarder : ConciergeDataHandoffForwarder {
+        override fun forward(
+            result: ConciergeDataHandoffEvent,
+            completion: (DataHandoffDeliveryResult) -> Unit
+        ) {
+            completion(DataHandoffDeliveryResult.Delivered)
+        }
     }
 
     @After
@@ -69,11 +78,13 @@ class ConciergeDataHandoffEventHandlerTest {
 
         val response = slots.single()
         assertEquals(false, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
-        assertEquals("missing_routing_hint", response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON))
+        // A missing routingHint is no longer itself a rejection - xdmFields is the next, and
+        // still required, field an empty payload is missing.
+        assertEquals("missing_xdm_fields", response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON))
     }
 
     @Test
-    fun `handle dispatches accepted response for a valid payload`() {
+    fun `handle dispatches accepted response after successful delivery`() {
         val event = buildDataHandoffEvent()
 
         val slots = mutableListOf<Event>()
@@ -87,11 +98,43 @@ class ConciergeDataHandoffEventHandlerTest {
     }
 
     @Test
+    fun `handle correlates the response back to the triggering event`() {
+        val event = buildDataHandoffEvent()
+
+        val slots = mutableListOf<Event>()
+        handler.handle(event)
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+
+        // Without inResponseToEvent correlation the caller's dispatchEventWithResponseCallback
+        // never fires, and the extension could re-ingest its own response.
+        assertEquals(event.uniqueIdentifier, slots.single().responseID)
+    }
+
+    @Test
+    fun `handle correlates a rejected response back to the triggering event`() {
+        val event = Event.Builder(
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
+            ConciergeConstants.EventType.CONCIERGE,
+            EventSource.REQUEST_CONTENT
+        ).setEventData(emptyMap()).build()
+
+        val slots = mutableListOf<Event>()
+        handler.handle(event)
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+
+        assertEquals(event.uniqueIdentifier, slots.single().responseID)
+    }
+
+    @Test
     fun `handle forwards the decoded payload to the forwarder on accept`() {
         var forwarded: ConciergeDataHandoffEvent? = null
         val recordingForwarder = object : ConciergeDataHandoffForwarder {
-            override fun forward(result: ConciergeDataHandoffEvent) {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
                 forwarded = result
+                completion(DataHandoffDeliveryResult.Delivered)
             }
         }
         val recordingHandler = ConciergeDataHandoffEventHandler(forwarder = recordingForwarder)
@@ -105,10 +148,121 @@ class ConciergeDataHandoffEventHandlerTest {
     }
 
     @Test
+    fun `handle waits for delivery before dispatching a response`() {
+        var deliveryCompletion: ((DataHandoffDeliveryResult) -> Unit)? = null
+        val delayedForwarder = object : ConciergeDataHandoffForwarder {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
+                deliveryCompletion = completion
+            }
+        }
+        val delayedHandler = ConciergeDataHandoffEventHandler(forwarder = delayedForwarder)
+
+        delayedHandler.handle(buildDataHandoffEvent())
+
+        verify(exactly = 0) { MobileCore.dispatchEvent(any()) }
+        deliveryCompletion?.invoke(DataHandoffDeliveryResult.Delivered)
+
+        val slots = mutableListOf<Event>()
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+        assertEquals(true, slots.single().eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+    }
+
+    @Test
+    fun `handle dispatches the typed delivery failure returned by the forwarder`() {
+        val failingForwarder = object : ConciergeDataHandoffForwarder {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
+                completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE))
+            }
+        }
+        val failingHandler = ConciergeDataHandoffEventHandler(forwarder = failingForwarder)
+
+        failingHandler.handle(buildDataHandoffEvent())
+
+        val slots = mutableListOf<Event>()
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+        val response = slots.single()
+        assertEquals(false, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+        assertEquals(
+            ConciergeDataHandoffRejectReason.EMPTY_RESPONSE.rawValue,
+            response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON)
+        )
+    }
+
+    @Test
+    fun `handle never forwards the underlying failure message to the response event`() {
+        val detailedForwarder = object : ConciergeDataHandoffForwarder {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
+                completion(
+                    DataHandoffDeliveryResult.Failed(
+                        ConciergeDataHandoffRejectReason.DELIVERY_FAILED,
+                        message = "raw service detail that must stay off the wire"
+                    )
+                )
+            }
+        }
+        val detailedHandler = ConciergeDataHandoffEventHandler(forwarder = detailedForwarder)
+
+        detailedHandler.handle(buildDataHandoffEvent())
+
+        val slots = mutableListOf<Event>()
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+        val response = slots.single()
+        // The message is a local diagnostic only. The host app's callback (and the wire format
+        // backing it) carries just the typed reason, exactly as it did before this field existed.
+        assertEquals(
+            setOf(
+                ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED,
+                ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON
+            ),
+            response.eventData?.keys
+        )
+        assertEquals(
+            ConciergeDataHandoffRejectReason.DELIVERY_FAILED.rawValue,
+            response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON)
+        )
+    }
+
+    @Test
+    fun `handle dispatches chat in progress returned by the forwarder`() {
+        val busyForwarder = object : ConciergeDataHandoffForwarder {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
+                completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS))
+            }
+        }
+        val busyHandler = ConciergeDataHandoffEventHandler(forwarder = busyForwarder)
+
+        busyHandler.handle(buildDataHandoffEvent())
+
+        val slots = mutableListOf<Event>()
+        verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
+        val response = slots.single()
+        assertEquals(false, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+        assertEquals(
+            ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS.rawValue,
+            response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON)
+        )
+    }
+
+    @Test
     fun `handle does not forward a rejected payload`() {
         var forwardCalled = false
         val recordingForwarder = object : ConciergeDataHandoffForwarder {
-            override fun forward(result: ConciergeDataHandoffEvent) {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
                 forwardCalled = true
             }
         }
@@ -125,9 +279,12 @@ class ConciergeDataHandoffEventHandlerTest {
     }
 
     @Test
-    fun `handle still dispatches the accepted response when the forwarder throws`() {
+    fun `handle reports a delivery failure when the forwarder throws`() {
         val throwingForwarder = object : ConciergeDataHandoffForwarder {
-            override fun forward(result: ConciergeDataHandoffEvent) {
+            override fun forward(
+                result: ConciergeDataHandoffEvent,
+                completion: (DataHandoffDeliveryResult) -> Unit
+            ) {
                 throw IllegalStateException("boom")
             }
         }
@@ -140,6 +297,10 @@ class ConciergeDataHandoffEventHandlerTest {
         verify(exactly = 1) { MobileCore.dispatchEvent(capture(slots)) }
 
         val response = slots.single()
-        assertEquals(true, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+        assertEquals(false, response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.ACCEPTED))
+        assertEquals(
+            ConciergeDataHandoffRejectReason.DELIVERY_FAILED.rawValue,
+            response.eventData?.get(ConciergeConstants.DataHandoff.ResponseKey.REJECT_REASON)
+        )
     }
 }

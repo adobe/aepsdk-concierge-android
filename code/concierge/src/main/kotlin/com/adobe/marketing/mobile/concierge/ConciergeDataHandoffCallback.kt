@@ -20,10 +20,11 @@ package com.adobe.marketing.mobile.concierge
 fun interface ConciergeDataHandoffCallback {
 
     /**
-     * @param accepted whether the SDK validated the payload's shape. This is not a
-     * delivery-confirmation signal — there is no independent signal today that Brand Concierge
-     * received or processed the payload.
+     * @param accepted whether the handoff was validated, rendered through the active chat session,
+     * and completed successfully by Brand Concierge.
      * @param rejectReason the reason when [accepted] is false, or null when [accepted] is true.
+     * `CHAT_IN_PROGRESS` indicates that the caller can retry after the current chat turn or
+     * handoff completes.
      */
     fun onResult(accepted: Boolean, rejectReason: ConciergeDataHandoffRejectReason?)
 }
