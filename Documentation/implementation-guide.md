@@ -188,22 +188,22 @@ Concierge.sendDataHandoff(
   renderable content. When `accepted` is `false`, `rejectReason` is a typed
   `ConciergeDataHandoffRejectReason`:
 
-  | Reject reason | Meaning | Renders in chat |
-  | --- | --- | --- |
-  | `MISSING_EVENT_DATA` | No payload reached the extension. This indicates an internal wiring issue and is not normally caller-triggered. | No |
-  | `INVALID_ROUTING_HINT_TYPE` | `routingHint` was not a string in the underlying event payload. A missing or blank `routingHint` is accepted, not rejected (see above). | No |
-  | `MISSING_XDM_FIELDS` | `xdmFields` was missing from the underlying event payload. | No |
-  | `INVALID_XDM_FIELDS_TYPE` | `xdmFields` was not a map in the underlying event payload. | No |
-  | `EMPTY_XDM_FIELDS` | `xdmFields` was empty. | No |
-  | `INVALID_XDM_FIELD_KEY` | `xdmFields` contained a key that was not a string. | No |
-  | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. | No |
-  | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. | No |
-  | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. | No |
-  | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. | No |
-  | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. | No |
-  | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. | No |
-  | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. | No |
-  | `NO_RESPONSE` | The extension did not respond, for example because the request timed out. | No |
+  | Reject reason | Meaning |
+  | --- | --- |
+  | `MISSING_EVENT_DATA` | No payload reached the extension. This indicates an internal wiring issue and is not normally caller-triggered. |
+  | `INVALID_ROUTING_HINT_TYPE` | `routingHint` was not a string in the underlying event payload. A missing or blank `routingHint` is accepted, not rejected (see above). |
+  | `MISSING_XDM_FIELDS` | `xdmFields` was missing from the underlying event payload. |
+  | `INVALID_XDM_FIELDS_TYPE` | `xdmFields` was not a map in the underlying event payload. |
+  | `EMPTY_XDM_FIELDS` | `xdmFields` was empty. |
+  | `INVALID_XDM_FIELD_KEY` | `xdmFields` contained a key that was not a string. |
+  | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
+  | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
+  | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. |
+  | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. |
+  | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. |
+  | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. |
+  | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. |
+  | `NO_RESPONSE` | The extension did not respond, for example because the request timed out. |
 
 Chat messages use a finite FIFO queue. Data handoffs never join that queue: if a chat message or
 another handoff is active or waiting, the SDK immediately reports `CHAT_IN_PROGRESS` and does not
