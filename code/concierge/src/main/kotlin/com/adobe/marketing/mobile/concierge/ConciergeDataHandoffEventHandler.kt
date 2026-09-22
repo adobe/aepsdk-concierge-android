@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * reports their final validation or delivery outcome.
  */
 internal class ConciergeDataHandoffEventHandler internal constructor(
-    private val forwarder: ConciergeDataHandoffForwarder = SessionDataHandoffForwarder()
+    private val forwarder: ConciergeDataHandoffForwarder = ActiveConciergeDataHandoffForwarder
 ) {
 
     companion object {
@@ -44,7 +44,19 @@ internal class ConciergeDataHandoffEventHandler internal constructor(
             if (responded.compareAndSet(false, true)) {
                 when (deliveryResult) {
                     DataHandoffDeliveryResult.Delivered -> respondAccepted(triggerEvent)
-                    is DataHandoffDeliveryResult.Failed -> respondRejected(triggerEvent, deliveryResult.reason.rawValue)
+                    is DataHandoffDeliveryResult.Failed -> {
+                        // The host app's callback only ever receives the typed reason; the
+                        // underlying detail (when there is one) goes to the log only, so an
+                        // integrator debugging a failure has somewhere to look for the cause.
+                        deliveryResult.message?.let { detail ->
+                            Log.debug(
+                                ConciergeConstants.EXTENSION_NAME, SELF_TAG,
+                                "Data handoff failed (routingHint=${result.routingHint}, " +
+                                    "reason=${deliveryResult.reason.rawValue}): $detail"
+                            )
+                        }
+                        respondRejected(triggerEvent, deliveryResult.reason.rawValue)
+                    }
                 }
             }
         }

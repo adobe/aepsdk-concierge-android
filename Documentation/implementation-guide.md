@@ -188,8 +188,7 @@ Concierge.sendDataHandoff(
   | Reject reason | Meaning |
   | --- | --- |
   | `MISSING_EVENT_DATA` | No payload reached the extension. This indicates an internal wiring issue and is not normally caller-triggered. |
-  | `MISSING_ROUTING_HINT` | `routingHint` was missing from the underlying event payload. |
-  | `INVALID_ROUTING_HINT_TYPE` | `routingHint` was not a string in the underlying event payload. |
+  | `INVALID_ROUTING_HINT_TYPE` | `routingHint` was not a string in the underlying event payload. A missing or blank `routingHint` is accepted, not rejected (see above). |
   | `MISSING_XDM_FIELDS` | `xdmFields` was missing from the underlying event payload. |
   | `INVALID_XDM_FIELDS_TYPE` | `xdmFields` was not a map in the underlying event payload. |
   | `EMPTY_XDM_FIELDS` | `xdmFields` was empty. |

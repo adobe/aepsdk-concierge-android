@@ -17,7 +17,6 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
-import com.adobe.marketing.mobile.concierge.ConciergeConversationSession
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -441,6 +440,32 @@ class ConciergeChatViewModelTrackingTest {
     }
 
     @Test
+    fun `cardClicked drops unrecognized keys from the raw card element`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val vm = makeViewModel(dispatch = { dispatched.add(it) })
+
+        val element = MultimodalElement(
+            id = "e1",
+            content = mapOf(
+                "productName" to "Photoshop",
+                "productPageURL" to "https://adobe.com/ps",
+                // Not part of the known product-key allowlist - must not leak into the tracking
+                // payload sent to Edge.
+                "internalDebugId" to "row-42",
+                "rawServerMetadata" to mapOf("secret" to "value")
+            )
+        )
+        vm.processEvent(MessageInteractionEvent.ProductImageClick(element))
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.CARD_CLICKED }
+        @Suppress("UNCHECKED_CAST")
+        val dict = event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ELEMENT) as? Map<String, Any>
+        assertEquals("Photoshop", dict?.get("productName"))
+        assertTrue(dict != null && "internalDebugId" !in dict)
+        assertTrue(dict != null && "rawServerMetadata" !in dict)
+    }
+
+    @Test
     fun `cardClicked for action button reports product name, not button label`() = runTest {
         val dispatched = mutableListOf<Event>()
         val vm = makeViewModel(dispatch = { dispatched.add(it) })
@@ -481,13 +506,11 @@ class ConciergeChatViewModelTrackingTest {
         chatClient: ConciergeConversationServiceClient = mockk(relaxed = true),
         dispatch: ((Event) -> Unit)? = null
     ): ConciergeChatViewModel {
-        // The session dispatches the pipeline's own tracking events (ResponseStarted,
-        // ResponseCompleted, CardsRendered, ErrorOccurred), so it shares the VM's sink.
         return ConciergeChatViewModel(
             app,
             FakeSpeechCapturing(),
             mockk<ImageProvider>(relaxed = true),
-            ConciergeConversationSession(chatService = chatClient, dispatch = dispatch),
+            chatClient,
             dispatch
         )
     }

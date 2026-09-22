@@ -48,7 +48,7 @@ class ConciergeChatTest {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = emptyList(),
-                        chatState = ChatScreenState.Idle,
+                        chatState = ChatScreenState.Idle(),
                         isInputEmpty = true,
                         inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
@@ -82,7 +82,7 @@ class ConciergeChatTest {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = emptyList(),
-                        chatState = ChatScreenState.Idle,
+                        chatState = ChatScreenState.Idle(),
                         isInputEmpty = true,
                         inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
@@ -114,7 +114,7 @@ class ConciergeChatTest {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = messages,
-                        chatState = ChatScreenState.Idle,
+                        chatState = ChatScreenState.Idle(),
                         isInputEmpty = true,
                         inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
@@ -142,7 +142,7 @@ class ConciergeChatTest {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = emptyList(),
-                        chatState = ChatScreenState.Processing,
+                        chatState = ChatScreenState.Processing(),
                         isInputEmpty = true,
                         inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
@@ -169,7 +169,7 @@ class ConciergeChatTest {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = emptyList(),
-                        chatState = ChatScreenState.Idle,
+                        chatState = ChatScreenState.Idle(),
                         isInputEmpty = true,
                         inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,
@@ -205,7 +205,7 @@ class ConciergeChatTest {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = emptyList(),
-                        chatState = ChatScreenState.Idle,
+                        chatState = ChatScreenState.Idle(),
                         isInputEmpty = true,
                         inputStateFlow = MutableStateFlow(UserInputState.Empty),
                         hasAudioPermission = true,

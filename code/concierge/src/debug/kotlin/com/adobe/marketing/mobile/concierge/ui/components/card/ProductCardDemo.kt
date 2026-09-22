@@ -27,7 +27,6 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
-import com.adobe.marketing.mobile.concierge.ConciergeConversationSession
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
@@ -62,20 +61,14 @@ fun ProductCardDemoScreen() {
     val application = context.applicationContext as Application
 
     // Obtain via viewModel() (not remember) so the ViewModel is owned by the host's ViewModelStore
-    // and its onCleared() runs -- releasing speech capture and this demo-only session on exit.
+    // and its onCleared() runs -- releasing speech capture and the chat service on exit.
     val viewModel: ConciergeChatViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
                 ConciergeChatViewModel(
                     application,
                     AndroidSpeechCapturing(application),
-                    // A demo-only session so the fake client drives this screen instead of the
-                    // process-wide conversation the real chat surfaces share.
-                    ConciergeConversationSession(
-                        chatService = DemoConversationServiceClient(),
-                        dispatch = null
-                    ),
-                    ownsSession = true
+                    DemoConversationServiceClient()
                 )
             }
         }

@@ -66,11 +66,19 @@ internal data class ConciergeDataHandoffEvent(
             val keys = ConciergeConstants.DataHandoff.EventData.Key
             val reasons = ConciergeConstants.DataHandoff.RejectReason
 
-            if (keys.ROUTING_HINT !in data) {
-                return DataHandoffDecodeResult.Rejected(reasons.MISSING_ROUTING_HINT)
+            // Absent or blank both mean "no hint" - xdmFields alone can carry enough routing
+            // context on its own, so neither is rejected. A present, wrong-typed value still is -
+            // including an explicit null, which Map.get() can't tell apart from an absent key
+            // without checking containsKey first.
+            val routingHint = when (val rawRoutingHint = data[keys.ROUTING_HINT]) {
+                null -> if (keys.ROUTING_HINT in data) {
+                    return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
+                } else {
+                    ""
+                }
+                is String -> rawRoutingHint
+                else -> return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
             }
-            val routingHint = data[keys.ROUTING_HINT] as? String
-                ?: return DataHandoffDecodeResult.Rejected(reasons.INVALID_ROUTING_HINT_TYPE)
             if (keys.XDM_FIELDS !in data) {
                 return DataHandoffDecodeResult.Rejected(reasons.MISSING_XDM_FIELDS)
             }

@@ -43,21 +43,29 @@ internal data class Feedback(
  * Represents the overall state of the chat screen.
  */
 internal sealed class ChatScreenState {
+    abstract val feedback: Feedback?
 
     /**
      * Chat is in idle state, waiting for user interaction.
      */
-    object Idle : ChatScreenState()
+    data class Idle(
+        override val feedback: Feedback? = null
+    ) : ChatScreenState()
 
     /**
      * Chat is actively processing a user message.
      */
-    object Processing : ChatScreenState()
+    data class Processing(
+        override val feedback: Feedback? = null
+    ) : ChatScreenState()
 
     /**
      * Chat is in an error state.
      */
-    data class Error(val error: String) : ChatScreenState()
+    data class Error(
+        val error: String,
+        override val feedback: Feedback? = null
+    ) : ChatScreenState()
 }
 
 /**

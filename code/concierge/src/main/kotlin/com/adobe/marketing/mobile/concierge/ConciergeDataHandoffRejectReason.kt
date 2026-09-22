@@ -22,10 +22,11 @@ enum class ConciergeDataHandoffRejectReason(val rawValue: String) {
     /** The SDK received no event data at all for this request. */
     MISSING_EVENT_DATA(ConciergeConstants.DataHandoff.RejectReason.MISSING_EVENT_DATA),
 
-    /** `routingHint` was missing. */
-    MISSING_ROUTING_HINT(ConciergeConstants.DataHandoff.RejectReason.MISSING_ROUTING_HINT),
-
-    /** `routingHint` was present but not a `String`. */
+    /**
+     * `routingHint` was present but not a `String`. A missing or blank `routingHint` is accepted
+     * and forwarded as an empty service query instead, since `xdmFields` alone can carry enough
+     * routing context - only a present, wrong-typed value is rejected.
+     */
     INVALID_ROUTING_HINT_TYPE(ConciergeConstants.DataHandoff.RejectReason.INVALID_ROUTING_HINT_TYPE),
 
     /** `xdmFields` was missing. */

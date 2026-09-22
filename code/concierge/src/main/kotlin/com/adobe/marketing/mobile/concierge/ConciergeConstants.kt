@@ -116,7 +116,6 @@ object ConciergeConstants {
 
         object RejectReason {
             const val MISSING_EVENT_DATA = "missing_event_data"
-            const val MISSING_ROUTING_HINT = "missing_routing_hint"
             const val INVALID_ROUTING_HINT_TYPE = "invalid_routing_hint_type"
             const val MISSING_XDM_FIELDS = "missing_xdm_fields"
             const val INVALID_XDM_FIELDS_TYPE = "invalid_xdm_fields_type"

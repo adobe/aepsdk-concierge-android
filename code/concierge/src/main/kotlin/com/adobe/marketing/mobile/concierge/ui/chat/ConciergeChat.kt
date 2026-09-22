@@ -217,7 +217,6 @@ fun ConciergeChat(
     handleLink: LinkHandler? = null
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val feedback by viewModel.feedback.collectAsStateWithLifecycle()
     val isInputEmpty by viewModel.isInputEmpty.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val webviewOverlay by viewModel.webviewOverlay.collectAsStateWithLifecycle(initialValue = null)
@@ -252,8 +251,10 @@ fun ConciergeChat(
     // ChatClosed fires when this composable leaves composition — which covers the close button,
     // back-press dialog dismissal, and XML view detachment — with no double-tracking.
     DisposableEffect(Unit) {
+        viewModel.activateDataHandoffSession()
         viewModel.trackChatOpened()
         onDispose {
+            viewModel.deactivateDataHandoffSession()
             viewModel.trackChatClosed()
         }
     }
@@ -270,7 +271,6 @@ fun ConciergeChat(
         ConciergeChat(
             messages = messages,
             chatState = state,
-            feedback = feedback,
             isInputEmpty = isInputEmpty,
             inputStateFlow = viewModel.inputState,
             hasAudioPermission = hasAudioPermission,
@@ -288,7 +288,7 @@ fun ConciergeChat(
 
     // Feedback as bottom sheet (`displayMode` "action") — outside Dialog for full-screen sheet
     ModalFeedbackOverlay(
-        feedback = feedback,
+        feedback = state.feedback,
         onDismiss = { resolvedEvent(FeedbackEvent.DismissFeedbackDialog) },
         onSubmit = { resolvedEvent(FeedbackEvent.SubmitFeedback(it)) }
     )
@@ -307,7 +307,6 @@ internal fun ConciergeChat(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
     chatState: ChatScreenState,
-    feedback: Feedback? = null,
     isInputEmpty: Boolean,
     inputStateFlow: StateFlow<UserInputState>,
     hasAudioPermission: Boolean,
@@ -428,12 +427,12 @@ internal fun ConciergeChat(
 
         // Feedback dialog overlay (modal mode; bottom sheet is rendered at outer composable level)
         if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION) {
-            feedback?.let { openFeedback ->
+            chatState.feedback?.let { feedback ->
                 FeedbackDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.Center),
-                    feedback = openFeedback,
+                    feedback = feedback,
                     onDismiss = {
                         onEvent(FeedbackEvent.DismissFeedbackDialog)
                     },
