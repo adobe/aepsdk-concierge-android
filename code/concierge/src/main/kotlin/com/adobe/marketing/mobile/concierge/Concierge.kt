@@ -85,5 +85,4 @@ object Concierge {
     ) {
         ConciergeDataHandoffSender.send(routingHint, xdmFields, localMessage, completion)
     }
-
 }
