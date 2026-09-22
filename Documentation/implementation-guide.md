@@ -200,14 +200,17 @@ Concierge.sendDataHandoff(
   | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. | No |
   | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. | No |
   | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. | No |
-  | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. | Yes |
-  | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. | Yes |
-  | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. | Yes |
+  | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. | No |
+  | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. | No |
+  | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. | No |
   | `NO_RESPONSE` | The extension did not respond, for example because the request timed out. | No |
 
 Chat messages use a finite FIFO queue. Data handoffs never join that queue: if a chat message or
 another handoff is active or waiting, the SDK immediately reports `CHAT_IN_PROGRESS` and does not
 render `localMessage` or call the service. Retry the handoff after the active request completes.
+After an accepted handoff starts, delivery failures, empty responses, and timeouts do not add an
+error message to the transcript. An already-rendered `localMessage` remains visible, and the host
+app owns any failure UI based on the completion result.
 
 ---
 

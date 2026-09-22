@@ -31,6 +31,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
+import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
@@ -63,6 +64,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -731,10 +733,7 @@ class ConciergeChatViewModelTest {
                 deliveryResult
             )
             assertEquals(ChatScreenState.Idle(), vm.state.value)
-            assertEquals(
-                listOf("Sorry, I encountered an error. Please try again."),
-                vm.messages.value.map { it.text }
-            )
+            assertTrue(vm.messages.value.isEmpty())
 
             // The shared processor coroutine must still be alive for a later request.
             every { chatClient.chat("hello") } returns flow {
@@ -744,7 +743,7 @@ class ConciergeChatViewModelTest {
             advanceUntilIdle()
 
             assertEquals(
-                listOf("Sorry, I encountered an error. Please try again.", "hello", "hi"),
+                listOf("hello", "hi"),
                 vm.messages.value.map { it.text }
             )
         } finally {
@@ -898,7 +897,7 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `data handoff reports empty response and renders it as a terminal non-error turn`() = runTest {
+    fun `data handoff reports empty response without rendering failure UI`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"), "Order placed")
@@ -917,17 +916,9 @@ class ConciergeChatViewModelTest {
             vm.enqueueDataHandoff(handoff) { deliveryResult = it }
             advanceUntilIdle()
 
-            // The caller is told EMPTY_RESPONSE, so the transcript must say the same thing rather
-            // than leaving localMessage sitting there with no reply at all. Distinct copy from a
-            // failed turn: the request was delivered and answered, there was just nothing to show.
-            assertEquals(
-                listOf(
-                    "Order placed",
-                    "Sorry, I wasn't able to get a response from the Concierge Service. " +
-                        "\n\nPlease try again later."
-                ),
-                vm.messages.value.map { it.text }
-            )
+            // Handoff failures are silent. The already-rendered local message remains and the host
+            // app owns any EMPTY_RESPONSE UI.
+            assertEquals(listOf("Order placed"), vm.messages.value.map { it.text })
             assertEquals(
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE),
                 deliveryResult
@@ -982,7 +973,7 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `data handoff failure renders a generic error bubble, like any other failed turn`() = runTest {
+    fun `data handoff failure preserves local message without rendering failure UI`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         // localMessage renders immediately; the forward then fails mid-stream.
@@ -1002,13 +993,10 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED, "service failure"),
                 deliveryResult
             )
-            // A failed handoff is a finished turn: the local message stays, and the placeholder is
-            // replaced with the same generic copy a failed chat message gets - the raw service
-            // detail never reaches the transcript.
+            // The local message stays, while failure UX remains the host app's responsibility.
             val messages = vm.messages.value
-            assertEquals(listOf("Order placed", "Sorry, I encountered an error. Please try again."), messages.map { it.text })
+            assertEquals(listOf("Order placed"), messages.map { it.text })
             assertTrue(!messages[0].isFromUser)
-            assertTrue(!messages[1].isFromUser)
             assertEquals(ChatScreenState.Idle(), vm.state.value)
         } finally {
             vm.deactivateDataHandoffSession()
@@ -1016,14 +1004,20 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `data handoff timeout renders a generic error bubble like every other failed turn`() = runTest {
+    fun `data handoff timeout does not render failure UI`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
         every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
             awaitCancellation()
         }
-        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = ConciergeChatViewModel(
+            app,
+            fakeSpeech,
+            DefaultImageProvider(),
+            chatClient
+        ) { dispatchedEvents += it }
         var deliveryResult: DataHandoffDeliveryResult? = null
 
         vm.activateDataHandoffSession()
@@ -1037,15 +1031,13 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT),
                 deliveryResult
             )
-            // A timed-out handoff is a *finished, failed* turn, so it renders exactly like a
-            // service error or a failed chat turn. Leaving the transcript untouched here would
-            // force host apps to render their own error UI for DELIVERY_TIMEOUT but not for
-            // DELIVERY_FAILED.
-            assertEquals(
-                listOf("Sorry, I encountered an error. Please try again."),
-                vm.messages.value.map { it.text }
-            )
+            assertTrue(vm.messages.value.isEmpty())
             assertEquals(ChatScreenState.Idle(), vm.state.value)
+            assertTrue(
+                dispatchedEvents.any {
+                    it.name == ConciergeConstants.TrackingEvent.Name.ERROR_OCCURRED
+                }
+            )
         } finally {
             vm.deactivateDataHandoffSession()
         }
@@ -1088,6 +1080,52 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `data handoff first-chunk cap starts after request preparation`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"))
+        val preparationDelay = ConciergeConstants.DataHandoff.FIRST_CHUNK_TIMEOUT_MS + 1
+        val requestFlow = object :
+            RequestStartedFlow<ParsedConversationMessage>,
+            Flow<ParsedConversationMessage> by flow({}) {
+            override fun onRequestStarted(callback: () -> Unit): Flow<ParsedConversationMessage> = flow {
+                delay(preparationDelay)
+                callback()
+                awaitCancellation()
+            }
+        }
+        every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns requestFlow
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+        var deliveryResult: DataHandoffDeliveryResult? = null
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.enqueueDataHandoff(handoff) { deliveryResult = it }
+            runCurrent()
+
+            // Request preparation (including auth resolution in production) does not consume the
+            // service-silence budget.
+            advanceTimeBy(preparationDelay)
+            runCurrent()
+            assertNull(deliveryResult)
+
+            advanceTimeBy(ConciergeConstants.DataHandoff.FIRST_CHUNK_TIMEOUT_MS - 1)
+            runCurrent()
+            assertNull(deliveryResult)
+
+            advanceTimeBy(1)
+            advanceUntilIdle()
+            assertEquals(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT),
+                deliveryResult
+            )
+            assertEquals(ChatScreenState.Idle(), vm.state.value)
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
     fun `data handoff that starts streaming survives past the first-chunk cap`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
@@ -1116,13 +1154,14 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
-    fun `data handoff that streams an error frame renders a generic error bubble`() = runTest {
+    fun `data handoff that streams an error frame preserves local message without failure UI`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         val handoff = ConciergeDataHandoffEvent("checkout", mapOf("orderId" to "abc-123"), "Order placed")
         // A mid-stream ERROR frame (not a thrown exception) - the distinct hasError branch.
         every { chatClient.sendDataHandoff("checkout", handoff.xdmFields) } returns flow {
             emit(ParsedConversationMessage("raw-server-detail", ConversationState.ERROR))
+            awaitCancellation()
         }
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
         var deliveryResult: DataHandoffDeliveryResult? = null
@@ -1136,11 +1175,9 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED, "raw-server-detail"),
                 deliveryResult
             )
-            // The local message stays, and the ERROR frame's raw detail is replaced with the same
-            // generic copy any other failed turn gets - never shown to the user directly.
+            // The local message stays and the ERROR frame's raw detail is never shown.
             val messages = vm.messages.value
-            assertEquals(listOf("Order placed", "Sorry, I encountered an error. Please try again."), messages.map { it.text })
-            assertTrue(!messages.last().text.contains("raw-server-detail"))
+            assertEquals(listOf("Order placed"), messages.map { it.text })
             assertEquals(ChatScreenState.Idle(), vm.state.value)
         } finally {
             vm.deactivateDataHandoffSession()
@@ -1175,12 +1212,8 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED, "boom"),
                 deliveryResult
             )
-            // The failed handoff must not delete the previous turn's assistant answer; it appends
-            // its own error bubble on top of it.
-            assertEquals(
-                listOf("Hi", "Previous answer", "Sorry, I encountered an error. Please try again."),
-                vm.messages.value.map { it.text }
-            )
+            // The failed handoff must not alter the previous turn.
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
         } finally {
             vm.deactivateDataHandoffSession()
         }
@@ -1219,12 +1252,8 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT),
                 deliveryResult
             )
-            // Only the handoff's own partial bubble is replaced by the error copy; the prior turn
-            // survives untouched.
-            assertEquals(
-                listOf("Hi", "Previous answer", "Sorry, I encountered an error. Please try again."),
-                vm.messages.value.map { it.text }
-            )
+            // Only the handoff's own partial bubble is removed; the prior turn survives untouched.
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
             assertEquals(ChatScreenState.Idle(), vm.state.value)
         } finally {
             vm.deactivateDataHandoffSession()
@@ -1277,14 +1306,8 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT),
                 deliveryResult
             )
-            // The whole turn is rolled back - card and CTA both gone, not just the last message -
-            // and replaced by the single generic error bubble. Before this fix, removing only the
-            // last message would have left the card carousel on screen for a turn the app was
-            // told had failed.
-            assertEquals(
-                listOf("Hi", "Previous answer", "Sorry, I encountered an error. Please try again."),
-                vm.messages.value.map { it.text }
-            )
+            // The whole turn is rolled back - card and CTA both gone, not just the last message.
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
             assertEquals(ChatScreenState.Idle(), vm.state.value)
         } finally {
             vm.deactivateDataHandoffSession()
@@ -1331,13 +1354,8 @@ class ConciergeChatViewModelTest {
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED, "raw-server-detail"),
                 deliveryResult
             )
-            // The card and CTA from the partial response are both gone - not left behind, and not
-            // clobbered in place - and a single generic error bubble replaces the whole turn,
-            // exactly like the timeout case above.
-            assertEquals(
-                listOf("Hi", "Previous answer", "Sorry, I encountered an error. Please try again."),
-                vm.messages.value.map { it.text }
-            )
+            // The card and CTA from the partial response are both gone and the prior turn remains.
+            assertEquals(listOf("Hi", "Previous answer"), vm.messages.value.map { it.text })
             assertEquals(ChatScreenState.Idle(), vm.state.value)
         } finally {
             vm.deactivateDataHandoffSession()

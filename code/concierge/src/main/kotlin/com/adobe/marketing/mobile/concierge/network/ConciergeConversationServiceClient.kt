@@ -66,6 +66,22 @@ internal interface ConversationService {
     fun cleanup()
 }
 
+/**
+ * A conversation flow that can notify its collector immediately before the network request starts.
+ *
+ * Data handoffs use this boundary to start their first-response timeout after request preparation
+ * (including auth-token resolution), rather than charging that preparation time to the service.
+ */
+internal interface RequestStartedFlow<T> : Flow<T> {
+    fun onRequestStarted(callback: () -> Unit): Flow<T>
+}
+
+private class DefaultRequestStartedFlow<T>(
+    private val flowFactory: (() -> Unit) -> Flow<T>
+) : RequestStartedFlow<T>, Flow<T> by flowFactory({}) {
+    override fun onRequestStarted(callback: () -> Unit): Flow<T> = flowFactory(callback)
+}
+
 internal class ConciergeConversationServiceClient(
     private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
     private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
@@ -124,47 +140,50 @@ internal class ConciergeConversationServiceClient(
     private fun conversation(
         message: String,
         xdmFields: Map<String, Any> = emptyMap()
-    ): Flow<ParsedConversationMessage> = flow {
-        val state = stateRepository.state.value
-        val requestBody = createRequestBody(message, state, xdmFields)
-        val request = createConversationServiceRequest(endpoint, requestBody)
+    ): Flow<ParsedConversationMessage> = DefaultRequestStartedFlow { onRequestStarted ->
+        flow {
+            val state = stateRepository.state.value
+            val requestBody = createRequestBody(message, state, xdmFields)
+            val request = createConversationServiceRequest(endpoint, requestBody)
 
-        val connection = connect(request)
-        var eventOrDataReceived = false
+            onRequestStarted()
+            val connection = connect(request)
+            var eventOrDataReceived = false
 
-        processResponse(connection).collect { event ->
-            when (event) {
-                is StreamingEvent.EventReceived -> {
-                    val parsed = ConversationResponseParser.parseConversationData(event.data)
-                    eventOrDataReceived = true
-                    parsed.forEach { emit(it) }
-                }
+            processResponse(connection).collect { event ->
+                when (event) {
+                    is StreamingEvent.EventReceived -> {
+                        val parsed = ConversationResponseParser.parseConversationData(event.data)
+                        eventOrDataReceived = true
+                        parsed.forEach { emit(it) }
+                    }
 
-                is StreamingEvent.DataReceived -> {
-                    val parsed = ConversationResponseParser.parseConversationData(event.data)
-                    eventOrDataReceived = true
-                    parsed.forEach { emit(it) }
-                }
+                    is StreamingEvent.DataReceived -> {
+                        val parsed = ConversationResponseParser.parseConversationData(event.data)
+                        eventOrDataReceived = true
+                        parsed.forEach { emit(it) }
+                    }
 
-                is StreamingEvent.Closed -> {
-                    // We need to emit a final COMPLETED for the case where
-                    // the stream closes without data/event indicating completion
-                    // We don't have a message to pass here, so we can use an empty string
-                    if (!eventOrDataReceived) {
-                        emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+                    is StreamingEvent.Closed -> {
+                        // We need to emit a final COMPLETED for the case where
+                        // the stream closes without data/event indicating completion
+                        // We don't have a message to pass here, so we can use an empty string
+                        if (!eventOrDataReceived) {
+                            emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+                        }
+                    }
+
+                    is StreamingEvent.Retry -> {
+                        // TODO: Implement retry logic if needed
+                    }
+
+                    else -> {
+                        // ignore Started/Closed here; Error is rethrown by processResponse
                     }
                 }
-
-                is StreamingEvent.Retry -> {
-                    // TODO: Implement retry logic if needed
-                }
-
-                else -> {
-                    // ignore Started/Closed here; Error is rethrown by processResponse
-                }
             }
-        }
-    }.flowOn(Dispatchers.IO)
+        }.flowOn(Dispatchers.IO)
+    }
 
     /**
      * Resolves the app-supplied auth token and renders it as the `data` field of the enclosing

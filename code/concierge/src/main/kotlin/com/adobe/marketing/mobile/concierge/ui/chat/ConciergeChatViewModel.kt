@@ -36,6 +36,7 @@ import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
+import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -67,6 +68,8 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -78,7 +81,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -98,17 +103,6 @@ class ConciergeChatViewModel : AndroidViewModel {
          */
         private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
             "Sorry, I encountered an error. Please try again."
-
-        /**
-         * User-facing fallback shown when a data handoff's stream completes successfully but
-         * carries nothing renderable — no text, no cards, no CTAs. Distinct from
-         * [DEFAULT_CONVERSATION_ERROR_MESSAGE] because nothing actually failed: the request was
-         * delivered and answered, there was simply nothing to show. Matches the iOS SDK's copy
-         * for the same case.
-         */
-        private const val DEFAULT_EMPTY_RESPONSE_MESSAGE =
-            "Sorry, I wasn't able to get a response from the Concierge Service. " +
-                "\n\nPlease try again later."
 
         /**
          * Initializes the welcome config using the parser example
@@ -337,6 +331,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             var firstChunkJob: Job? = null
 
             private val firstChunkReceived = AtomicBoolean(false)
+            private val firstChunkTimeoutArmed = AtomicBoolean(false)
 
             @Volatile
             private var terminalResult: DataHandoffDeliveryResult? = null
@@ -366,6 +361,24 @@ class ConciergeChatViewModel : AndroidViewModel {
                     DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT)
                 )
                 requestJob?.cancel()
+            }
+
+            fun armFirstChunkTimeout(scope: CoroutineScope) {
+                if (!firstChunkTimeoutArmed.compareAndSet(false, true)) return
+                if (isCompleted || firstChunkReceived.get()) return
+
+                // RequestStartedFlow invokes this from its IO flow immediately before connect().
+                // Start undispatched so the delay deadline is registered before that callback
+                // returns, rather than waiting for the main dispatcher to run this coroutine.
+                val job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    delay(ConciergeConstants.DataHandoff.FIRST_CHUNK_TIMEOUT_MS)
+                    timeout()
+                }
+                firstChunkJob = job
+                if (isCompleted || firstChunkReceived.get()) {
+                    job.cancel()
+                    firstChunkJob = null
+                }
             }
 
             /**
@@ -997,19 +1010,11 @@ class ConciergeChatViewModel : AndroidViewModel {
             delay(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
             request.timeout()
         }
-        // Second, tighter cap: a service that accepts the request and then streams nothing fails
-        // here rather than holding the chat busy for the whole turn budget. Disarmed by the first
-        // streamed chunk, so a slow-but-healthy response still gets the full turn ceiling.
-        request.firstChunkJob = viewModelScope.launch {
-            delay(ConciergeConstants.DataHandoff.FIRST_CHUNK_TIMEOUT_MS)
-            request.timeout()
-        }
-        // The request can be completed (e.g. by deactivation) before the assignments above land,
-        // in which case markCompleted cancelled still-null jobs; cancel them here instead so the
-        // timers don't outlive the request they were bounding.
+        // The request can be completed (e.g. by deactivation) before the assignment above lands,
+        // in which case markCompleted cancelled a still-null job; cancel it here instead so the
+        // timer doesn't outlive the request it was bounding.
         if (request.isCompleted) {
             request.timeoutJob?.cancel()
-            request.firstChunkJob?.cancel()
         }
         if (conversationRequests.trySend(request).isFailure) {
             request.releaseReservation()
@@ -1042,17 +1047,24 @@ class ConciergeChatViewModel : AndroidViewModel {
             ChatScreenState.Processing(feedback = currentState.feedback)
         }
 
-        // Same snapshot streamConversation takes, captured here too so the paths that unwind
-        // *outside* the stream (timeout cancellation, a synchronous service throw) can render the
-        // failure over exactly this turn. Safe to read here because the conversation processor is
-        // serial, so nothing else appends between this line and the stream starting.
-        val turnStartIndex = _messages.value.size
-
         val result = try {
             supervisorScope {
                 val responseJob = async {
+                    val conversation = chatService.sendDataHandoff(
+                        request.handoff.routingHint,
+                        request.handoff.xdmFields
+                    )
+                    val timedConversation = if (conversation is RequestStartedFlow<*>) {
+                        @Suppress("UNCHECKED_CAST")
+                        (conversation as RequestStartedFlow<ParsedConversationMessage>)
+                            .onRequestStarted { request.armFirstChunkTimeout(viewModelScope) }
+                    } else {
+                        // Custom/debug services have no request-preparation boundary. Their flow
+                        // starts the request when collection starts, so arm the cap there.
+                        conversation.onStart { request.armFirstChunkTimeout(viewModelScope) }
+                    }
                     streamConversation(
-                        chatService.sendDataHandoff(request.handoff.routingHint, request.handoff.xdmFields),
+                        timedConversation,
                         isDataHandoff = true
                     )
                 }
@@ -1073,13 +1085,14 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
         } catch (e: CancellationException) {
             if (request.isCompleted) {
-                // A handoff timeout and a chat-close deactivation both cancel the stream, and
-                // streamConversation already rolled this turn back on the way out. They differ in
-                // what should be left behind: a timeout is a failed *turn* the user is still
-                // looking at, so it renders like any other failure; a deactivation means the chat
-                // is going away, so there is nobody to show anything to.
+                // streamConversation already removed this turn's placeholder and partial response.
+                // Handoff failures stay silent; localMessage was appended before turnStartIndex
+                // and remains visible, matching iOS.
                 if (request.timedOut) {
-                    renderTurnFailure(turnStartIndex, "Data handoff timed out")
+                    handleConversationError(
+                        "Data handoff timed out",
+                        renderInTranscript = false
+                    )
                 } else {
                     resetProcessingStateToIdle()
                 }
@@ -1096,7 +1109,10 @@ class ConciergeChatViewModel : AndroidViewModel {
                 TAG,
                 "Failed to forward data handoff (routingHint=${request.handoff.routingHint}): ${e.message}"
             )
-            renderTurnFailure(turnStartIndex, "Failed to forward data handoff: ${e.message}")
+            handleConversationError(
+                "Failed to forward data handoff: ${e.message}",
+                renderInTranscript = false
+            )
             DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED, e.message)
         } finally {
             request.requestJob = null
@@ -1105,49 +1121,18 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
-     * Rolls the turn starting at [turnStartIndex] back to a single fresh assistant placeholder and
-     * lets [handleConversationError] replace it with the generic error copy, returning the chat to
-     * Idle.
-     *
-     * Used by the data handoff paths that unwind outside [streamConversation] so that every
-     * handoff *failure* - a service error or a timeout - looks identical in the transcript. A host
-     * app should never have to render its own error UI for some [ConciergeDataHandoffRejectReason]s
-     * but not others, and this matches both the behavior of an ordinary failed chat turn and the
-     * iOS SDK. An empty response is handled separately in [streamConversation]: it is terminal but
-     * not a failure, so it gets its own copy and no error tracking.
-     */
-    private fun renderTurnFailure(turnStartIndex: Int, detail: String) {
-        _messages.update { currentMessages ->
-            val start = turnStartIndex.coerceIn(0, currentMessages.size)
-            currentMessages.take(start) + ChatMessage(
-                content = MessageContent.Text(""),
-                isFromUser = false,
-                timestamp = System.currentTimeMillis(),
-                citations = emptyList()
-            )
-        }
-        handleConversationError(detail)
-    }
-
-    /**
      * Consumes a conversation stream into the transcript.
      *
-     * A failure - a mid-stream ERROR frame or a thrown exception - is always a *finished* turn:
-     * the whole turn (placeholder, plus any ordered-element messages a partial response already
-     * appended) is rolled back to a single fresh placeholder, which the generic error message then
-     * replaces, and the chat returns to Idle - exactly like a user-typed chat failure, and
-     * identically for chat and data handoffs alike. The caller's completion callback still reports
-     * the typed rejection reason on top of that.
+     * A failure - a mid-stream ERROR frame or a thrown exception - is always a finished turn. For
+     * typed chat, the whole turn is replaced with generic error copy. For a data handoff, everything
+     * added by the streamed response is removed and failure UX is left to the host app. The caller's
+     * completion callback still reports the typed rejection reason.
      *
-     * @param isDataHandoff when true, an empty response is also a *terminal* turn: it is rolled
-     * back and rendered with [DEFAULT_EMPTY_RESPONSE_MESSAGE], because a handoff caller is told
-     * `EMPTY_RESPONSE` and must not have to render its own UI for that one reason. It is not
-     * treated as an error - nothing failed - so it emits no `ErrorOccurred` tracking event. A
-     * cancelled handoff turn is rolled back too and the caller decides what to leave behind (a
-     * timeout renders the failure, a chat-close deactivation does not). Chat instead leaves a
-     * cancelled turn's partial content in place, since cancellation there means the ViewModel
-     * itself is being torn down, and leaves an empty COMPLETED response as whatever had already
-     * streamed, since that's a normal (if content-less) outcome for chat.
+     * @param isDataHandoff when true, failures, empty responses, and cancellations roll back
+     * everything the streamed response added and leave no failure bubble. Any `localMessage`
+     * remains because it was already shown before this turn began. Chat instead renders its
+     * failures and leaves an empty COMPLETED response as whatever had already streamed, since
+     * that's a normal (if content-less) outcome for typed chat.
      */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
@@ -1175,7 +1160,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         _messages.update { currentMessages -> currentMessages + assistantMessage }
 
         return try {
-            conversation.collect { parsedMessage ->
+            conversation.takeWhile { parsedMessage ->
                 // Any emission proves the service isn't wedged, so stand the first-chunk cap down
                 // and let the turn ceiling alone bound the rest of the response.
                 if (isDataHandoff) {
@@ -1186,19 +1171,28 @@ class ConciergeChatViewModel : AndroidViewModel {
                     failureDetail = parsedMessage.messageContent.ifBlank { null }
                     // A partial response may have already appended ordered-element messages
                     // (cards, CTAs) before this error arrived on the same stream. Roll the whole
-                    // turn back to a single fresh placeholder, in one atomic update, so the
-                    // generic error text below always replaces just that placeholder - for chat
-                    // and handoff alike - instead of clobbering whatever trailing message happens
-                    // to be last and leaving the rest on screen for a turn reported as failed.
-                    _messages.update { currentMessages -> currentMessages.take(turnStartIndex) + assistantMessage }
-                    // onParsedMessage's ERROR branch renders the generic error message and
-                    // returns to Idle, so nothing further is needed once collection ends.
-                    onParsedMessage(parsedMessage, contentBuilder)
+                    // turn back to a single fresh placeholder so typed chat can replace it with
+                    // generic error copy. Handoffs remove that placeholder below and stay silent.
+                    if (isDataHandoff) {
+                        truncateMessagesTo(turnStartIndex)
+                        handleConversationError(
+                            "Conversation error: ${parsedMessage.messageContent}",
+                            renderInTranscript = false
+                        )
+                    } else {
+                        _messages.update { currentMessages ->
+                            currentMessages.take(turnStartIndex) + assistantMessage
+                        }
+                        onParsedMessage(parsedMessage, contentBuilder)
+                    }
+                    false
                 } else {
-                    hasVisibleContent = hasVisibleContent ||
-                        parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
-                    onParsedMessage(parsedMessage, contentBuilder)
+                    true
                 }
+            }.collect { parsedMessage ->
+                hasVisibleContent = hasVisibleContent ||
+                    parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                onParsedMessage(parsedMessage, contentBuilder)
             }
             when {
                 hasError -> ConversationStreamResult.Failed(failureDetail)
@@ -1208,21 +1202,15 @@ class ConciergeChatViewModel : AndroidViewModel {
                 }
                 else -> {
                     if (isDataHandoff) {
-                        // A handoff whose stream completes with nothing renderable is reported to
-                        // the caller as EMPTY_RESPONSE, so say so in the transcript instead of
-                        // silently leaving localMessage with no reply. Deliberately not routed
-                        // through handleConversationError: nothing failed - the request was
-                        // delivered and answered - so this emits no ErrorOccurred tracking event
-                        // and uses its own copy, matching iOS.
+                        // The caller receives EMPTY_RESPONSE; the transcript stays unchanged and
+                        // the host app owns failure UX.
                         Log.warning(
                             ConciergeConstants.EXTENSION_NAME,
                             TAG,
                             "Conversation completed with no renderable content"
                         )
-                        _messages.update { currentMessages ->
-                            currentMessages.take(turnStartIndex) + assistantMessage
-                        }
-                        renderTurnMessage(DEFAULT_EMPTY_RESPONSE_MESSAGE)
+                        truncateMessagesTo(turnStartIndex)
+                        resetProcessingStateToIdle()
                     } else {
                         finishConversation()
                     }
@@ -1231,15 +1219,20 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
         } catch (e: CancellationException) {
             // This turn's content is streamConversation's responsibility, so roll it back here for
-            // a handoff (e.g. timeout/deactivation cancellation) before propagating - the caller
-            // then only has to decide whether to render the failure, and never removes a message
-            // it doesn't own. Chat keeps its partial content (its scope is usually shutting down).
+            // a handoff (e.g. timeout/deactivation cancellation) before propagating. Chat keeps its
+            // partial content (its scope is usually shutting down).
             if (isDataHandoff) {
                 truncateMessagesTo(turnStartIndex)
             }
             throw e
         } catch (e: Exception) {
-            handleConversationError("Failed to process response: ${e.message}")
+            if (isDataHandoff) {
+                truncateMessagesTo(turnStartIndex)
+            }
+            handleConversationError(
+                "Failed to process response: ${e.message}",
+                renderInTranscript = !isDataHandoff
+            )
             ConversationStreamResult.Failed(e.message)
         }
     }
@@ -1560,20 +1553,25 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Handles errors during conversation
      * @param errorMessage The error message to display
      */
-    private fun handleConversationError(errorMessage: String) {
+    private fun handleConversationError(
+        errorMessage: String,
+        renderInTranscript: Boolean = true
+    ) {
         // Keep the raw technical detail for diagnostics (logs + telemetry only)...
         Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
-        // ...but never surface the raw exception to the user. Show generic copy instead.
-        renderTurnMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
+        if (renderInTranscript) {
+            // Never surface the raw exception to the user. Show generic copy instead.
+            renderTurnMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
+        } else {
+            resetProcessingStateToIdle()
+        }
     }
 
     /**
      * Replaces this turn's assistant placeholder with [message] and returns the chat to Idle.
      *
-     * Split out from [handleConversationError] so a terminal-but-not-failed outcome — an empty
-     * data handoff response — can render its own copy without also emitting an `ErrorOccurred`
-     * tracking event for something that did not error.
+     * Split out from [handleConversationError] so rendering and state reset stay atomic.
      */
     private fun renderTurnMessage(message: String) {
         replaceAssistantMessageContent(

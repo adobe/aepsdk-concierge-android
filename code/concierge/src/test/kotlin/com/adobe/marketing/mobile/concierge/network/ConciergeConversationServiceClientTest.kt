@@ -50,6 +50,7 @@ import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
+import java.util.Collections
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -1402,6 +1403,33 @@ class ConciergeConversationServiceClientTest {
             "Auth data part should sit alongside the message in query.conversation",
             body.contains("\"message\":\"hello\",\"data\":{\"type\":\"auth\",\"payload\":{\"token\":\"token-abc\"}}")
         )
+    }
+
+    @Test
+    fun `request-start callback runs after auth resolution and before network connection`() = runTest {
+        val order = Collections.synchronizedList(mutableListOf<String>())
+        ConciergeAuthTokenHolder.setProvider(provider = {
+            order += "auth"
+            "token-abc"
+        })
+        every { networkService.connectAsync(any(), any()) } answers {
+            order += "connect"
+            val connection = mockk<HttpConnecting>(relaxed = true)
+            every { connection.responseCode } returns 200
+            every { connection.responseMessage } returns "OK"
+            every { connection.inputStream } returns ByteArrayInputStream(ByteArray(0))
+            secondArg<NetworkCallback>().call(connection)
+        }
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        val conversation = client.sendDataHandoff("checkout", mapOf("orderId" to "abc-123"))
+
+        assertTrue(conversation is RequestStartedFlow<*>)
+        @Suppress("UNCHECKED_CAST")
+        (conversation as RequestStartedFlow<ParsedConversationMessage>)
+            .onRequestStarted { order += "request-started" }
+            .toList()
+
+        assertEquals(listOf("auth", "request-started", "connect"), order)
     }
 
     @Test
