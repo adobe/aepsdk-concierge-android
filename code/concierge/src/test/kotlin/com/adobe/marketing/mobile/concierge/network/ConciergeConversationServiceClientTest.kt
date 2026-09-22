@@ -341,7 +341,7 @@ class ConciergeConversationServiceClientTest {
         assertEquals("application/json", req.headers["Content-Type"])
         // default timeouts
         assertEquals(30, req.connectTimeout)
-        assertEquals(60, req.readTimeout)
+        assertEquals(15, req.readTimeout)
         // sanity checks on URL params
         assertTrue(req.url.contains("configId="))
         assertTrue(req.url.contains("sessionId="))
@@ -833,7 +833,7 @@ class ConciergeConversationServiceClientTest {
         assertEquals(HttpMethod.POST, request.method)
         assertEquals("application/json", request.headers["Content-Type"])
         assertEquals(30, request.connectTimeout)
-        assertEquals(60, request.readTimeout)
+        assertEquals(15, request.readTimeout)
     }
 
     @Test

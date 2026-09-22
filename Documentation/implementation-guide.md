@@ -168,10 +168,12 @@ Concierge.sendDataHandoff(
 
 ### `Concierge.sendDataHandoff(routingHint, xdmFields, localMessage, completion)`
 
-- **`routingHint`** *(required)*: A string consumed only by Brand Concierge's current phrase-based
+- **`routingHint`**: A string consumed only by Brand Concierge's current phrase-based
   router (for example, `"successful-checkout"`). The end user never sees it, and it is not
-  conversational content. Pass an empty or blank string when the XDM fields alone determine
-  routing; the SDK forwards it as an empty service query.
+  conversational content. Defaults to an empty string; pass an empty or blank string when the XDM
+  fields alone determine routing, and the SDK forwards it as an empty service query. Because it is
+  the first parameter, `@JvmOverloads` generates no Java overload that omits it — Java callers pass
+  `""` explicitly, Kotlin callers use named arguments.
 - **`xdmFields`** *(required)*: Arbitrary XDM-shaped data merged into the root of the outbound XDM
   object alongside the SDK-owned identity map. Use nested Kotlin maps and lists, for example
   `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
@@ -179,7 +181,8 @@ Concierge.sendDataHandoff(
   `Long`, `Float`, or `Double`, or maps/lists containing those values. Do not use `identityMap` as
   a top-level key because the SDK owns and populates it.
 - **`localMessage`**: Optional text for a local, non-networked chat message distinct from the data
-  forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts.
+  forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts,
+  as an agent-attributed message rather than a user message.
 - **`completion`**: Optional `ConciergeDataHandoffCallback`, called exactly once on a background
   thread. `accepted` is `true` only after Brand Concierge completes a response stream with
   renderable content. When `accepted` is `false`, `rejectReason` is a typed

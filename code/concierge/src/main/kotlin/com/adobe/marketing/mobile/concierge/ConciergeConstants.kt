@@ -87,8 +87,20 @@ object ConciergeConstants {
     }
 
     object DataHandoff {
-        // The callback waits for the active chat session to finish the service response.
-        internal const val DELIVERY_TIMEOUT_MS = 90_000L
+        // Two caps bound a handoff turn, mirroring the iOS SDK.
+        //
+        // FIRST_CHUNK_TIMEOUT_MS bounds silence: a backend that accepts the request and then never
+        // streams anything fails fast instead of holding the chat hostage for the full turn budget.
+        // It is disarmed by the first streamed chunk, after which only the turn cap applies.
+        //
+        // DELIVERY_TIMEOUT_MS bounds a turn that *is* streaming, so a slow-but-healthy response
+        // still completes. A single flat cap cannot serve both: low enough to fail a wedged
+        // backend quickly is too low for a long legitimate response.
+        internal const val FIRST_CHUNK_TIMEOUT_MS = 10_000L
+        internal const val DELIVERY_TIMEOUT_MS = 60_000L
+
+        // The callback waits for the active chat session to finish the service response, so the
+        // hub dispatch budget has to outlast the turn cap rather than pre-empt it.
         internal const val RESPONSE_TIMEOUT_MS = DELIVERY_TIMEOUT_MS + 5_000L
 
         internal object EventName {

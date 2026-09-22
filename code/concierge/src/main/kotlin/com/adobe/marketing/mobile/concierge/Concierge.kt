@@ -64,8 +64,8 @@ object Concierge {
      * handoff response.
      *
      * @param routingHint a keyword the end user never sees, consumed by Brand Concierge's
-     * phrase-based router (e.g. "successful-checkout"), or an empty string when the XDM fields
-     * determine routing.
+     * phrase-based router (e.g. "successful-checkout"). Defaults to an empty string, which
+     * forwards an empty service query for callers whose XDM fields already determine routing.
      * @param xdmFields arbitrary XDM data merged into the root of the outbound XDM object; the
      * SDK does not interpret its contents. Must be non-empty, JSON-safe, and must not use
      * `identityMap` (or any other SDK-reserved top-level XDM key).
@@ -78,7 +78,7 @@ object Concierge {
     @JvmStatic
     @JvmOverloads
     fun sendDataHandoff(
-        routingHint: String,
+        routingHint: String = "",
         xdmFields: Map<String, Any>,
         localMessage: String? = null,
         completion: ConciergeDataHandoffCallback? = null

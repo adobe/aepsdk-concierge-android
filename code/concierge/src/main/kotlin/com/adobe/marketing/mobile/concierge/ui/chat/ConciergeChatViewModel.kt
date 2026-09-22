@@ -334,6 +334,11 @@ class ConciergeChatViewModel : AndroidViewModel {
             var timeoutJob: Job? = null
 
             @Volatile
+            var firstChunkJob: Job? = null
+
+            private val firstChunkReceived = AtomicBoolean(false)
+
+            @Volatile
             private var terminalResult: DataHandoffDeliveryResult? = null
 
             val isCompleted: Boolean
@@ -363,6 +368,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                 requestJob?.cancel()
             }
 
+            /**
+             * Disarms the first-chunk cap. Once the service has streamed anything at all it is
+             * demonstrably not wedged, so only the turn ceiling should still bound the request.
+             * Idempotent - called for every chunk, acts on the first.
+             */
+            fun noteChunkReceived() {
+                if (firstChunkReceived.compareAndSet(false, true)) {
+                    firstChunkJob?.cancel()
+                    firstChunkJob = null
+                }
+            }
+
             fun releaseReservation() {
                 if (reservationReleased.compareAndSet(false, true)) {
                     onReservationReleased()
@@ -375,6 +392,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 }
                 terminalResult = result
                 timeoutJob?.cancel()
+                firstChunkJob?.cancel()
                 onCompleted(this)
                 return true
             }
@@ -921,6 +939,29 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
+    /**
+     * Appends [messageText] as an agent-styled bubble.
+     *
+     * Used for a data handoff's `localMessage`. It is deliberately *not* a user message: nobody
+     * typed it, app code fired the handoff after some real-world event, so attributing it to the
+     * user misrepresents the transcript and makes the recommendations that follow read as though
+     * the user asked for them. Matches the iOS SDK, which appends the same string with
+     * `.basic(isUserMessage: false)`.
+     *
+     * Marked [ChatMessage.sseComplete] because it is static, complete copy that never streams,
+     * and left feedback-ineligible - it is host-supplied text, not a model response.
+     */
+    private fun appendAgentMessage(messageText: String) {
+        _messages.update { currentMessages ->
+            currentMessages + ChatMessage(
+                content = MessageContent.Text(messageText),
+                isFromUser = false,
+                timestamp = System.currentTimeMillis(),
+                sseComplete = true
+            )
+        }
+    }
+
     internal fun enqueueDataHandoff(
         result: ConciergeDataHandoffEvent,
         completion: (DataHandoffDeliveryResult) -> Unit
@@ -956,11 +997,19 @@ class ConciergeChatViewModel : AndroidViewModel {
             delay(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
             request.timeout()
         }
-        // The request can be completed (e.g. by deactivation) before the assignment above lands,
-        // in which case markCompleted cancelled a still-null job; cancel it here instead so the
-        // timer doesn't outlive the request it was bounding.
+        // Second, tighter cap: a service that accepts the request and then streams nothing fails
+        // here rather than holding the chat busy for the whole turn budget. Disarmed by the first
+        // streamed chunk, so a slow-but-healthy response still gets the full turn ceiling.
+        request.firstChunkJob = viewModelScope.launch {
+            delay(ConciergeConstants.DataHandoff.FIRST_CHUNK_TIMEOUT_MS)
+            request.timeout()
+        }
+        // The request can be completed (e.g. by deactivation) before the assignments above land,
+        // in which case markCompleted cancelled still-null jobs; cancel them here instead so the
+        // timers don't outlive the request they were bounding.
         if (request.isCompleted) {
             request.timeoutJob?.cancel()
+            request.firstChunkJob?.cancel()
         }
         if (conversationRequests.trySend(request).isFailure) {
             request.releaseReservation()
@@ -987,7 +1036,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         responseStartedDispatched = false
-        request.handoff.localMessage?.let(::appendUserMessage)
+        request.handoff.localMessage?.let(::appendAgentMessage)
         // Carry forward any feedback dialog left open on an earlier turn.
         _state.update { currentState ->
             ChatScreenState.Processing(feedback = currentState.feedback)
@@ -1127,6 +1176,11 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         return try {
             conversation.collect { parsedMessage ->
+                // Any emission proves the service isn't wedged, so stand the first-chunk cap down
+                // and let the turn ceiling alone bound the rest of the response.
+                if (isDataHandoff) {
+                    currentDataHandoff?.noteChunkReceived()
+                }
                 if (parsedMessage.state == ConversationState.ERROR) {
                     hasError = true
                     failureDetail = parsedMessage.messageContent.ifBlank { null }

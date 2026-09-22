@@ -76,7 +76,11 @@ internal class ConciergeConversationServiceClient(
         private const val TAG = "ConciergeConversationServiceClient"
 
         private const val DEFAULT_CONNECT_TIMEOUT = 30
-        private const val DEFAULT_READ_TIMEOUT = 60
+
+        // Inactivity budget between streamed reads. Kept below the data-handoff turn ceiling
+        // (ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS) so a stalled socket surfaces as a
+        // read failure rather than being masked by the turn cap, and aligned with the iOS SDK.
+        private const val DEFAULT_READ_TIMEOUT = 15
     }
     
     // Shared StateFlow that continuously tracks state updates
