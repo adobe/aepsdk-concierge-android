@@ -61,6 +61,11 @@ internal object ConciergeStyles {
         const val FONT_WEIGHT = 600
     }
 
+    /** Secondary CTA shares [ProductCardCtaButtonDefaults]'s radius/padding/font; only border width differs. */
+    object ProductCardSecondaryCtaButtonDefaults {
+        const val BORDER_WIDTH = 1.0
+    }
+
     /**
      * Helper function to apply theme typography (font family and line height) to a TextStyle
      */
@@ -799,6 +804,48 @@ internal object ConciergeStyles {
                     lineHeight = fontSize * 1.4f
                 ),
                 textColor = themeColors.productCardCtaButtonText ?: Color.White
+            )
+        }
+
+    /** Outlined counterpart to [ProductCardCtaButtonStyle]; shares its radius/padding/font. */
+    @Immutable
+    data class ProductCardSecondaryCtaButtonStyle(
+        val shape: Shape,
+        val backgroundColor: Color,
+        val textColor: Color,
+        val borderColor: Color,
+        val borderWidth: Dp,
+        val horizontalPadding: Dp,
+        val verticalPadding: Dp,
+        val textStyle: TextStyle
+    )
+
+    val productCardSecondaryCtaButtonStyle: ProductCardSecondaryCtaButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            val ctaLayout = ConciergeTheme.tokens?.cssLayout
+            val borderRadius = ctaLayout?.productCardCtaButtonBorderRadius?.dp
+                ?: ProductCardCtaButtonDefaults.BORDER_RADIUS.dp
+            val fontWeight = ctaLayout?.productCardCtaButtonFontWeight?.let { FontWeight(it) }
+                ?: FontWeight(ProductCardCtaButtonDefaults.FONT_WEIGHT)
+            val fontSize = ctaLayout?.productCardCtaButtonFontSize?.sp
+                ?: ProductCardCtaButtonDefaults.FONT_SIZE.sp
+            return ProductCardSecondaryCtaButtonStyle(
+                shape = RoundedCornerShape(borderRadius),
+                backgroundColor = themeColors.productCardSecondaryCtaButtonBackground ?: Color.Transparent,
+                textColor = themeColors.productCardSecondaryCtaButtonText ?: Color(0xFFBB5811),
+                borderColor = themeColors.productCardSecondaryCtaButtonBorder ?: Color(0xFFBB5811),
+                borderWidth = ctaLayout?.productCardSecondaryCtaButtonBorderWidth?.dp
+                    ?: ProductCardSecondaryCtaButtonDefaults.BORDER_WIDTH.dp,
+                horizontalPadding = ctaLayout?.productCardCtaButtonHorizontalPadding?.dp
+                    ?: ProductCardCtaButtonDefaults.HORIZONTAL_PADDING.dp,
+                verticalPadding = ctaLayout?.productCardCtaButtonVerticalPadding?.dp
+                    ?: ProductCardCtaButtonDefaults.VERTICAL_PADDING.dp,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize,
+                    fontWeight = fontWeight,
+                    lineHeight = fontSize * 1.4f
+                )
             )
         }
 
