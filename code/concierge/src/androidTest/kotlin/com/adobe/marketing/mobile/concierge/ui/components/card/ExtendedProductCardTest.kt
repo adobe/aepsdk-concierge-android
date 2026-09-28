@@ -667,6 +667,43 @@ class ExtendedProductCardTest {
         )
     }
 
+    @Test
+    fun extendedProductCard_ctaButtons_anchorToCardBottom_whenContentIsShort() {
+        val element = MultimodalElement(
+            id = "short-content-cta-bottom",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Short",
+                "primaryText" to "Buy now",
+                "primaryUrl" to "https://example.com/checkout",
+                "secondaryText" to "Learn more",
+                "secondaryUrl" to "https://example.com/learn-more"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // Default contentPaddingBottom.
+        val expectedBottom = cardMaxHeight - 16.dp
+        listOf(CTA_BUTTON_TEST_TAG, SECONDARY_CTA_BUTTON_TEST_TAG).forEach { tag ->
+            val bottom = composeTestRule.onNodeWithTag(tag).getBoundsInRoot().bottom
+            assertTrue(
+                "Expected $tag bottom ($bottom) to be anchored at the card bottom ($expectedBottom)",
+                kotlin.math.abs(bottom.value - expectedBottom.value) < 1f
+            )
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Drop shadow rendering (--multimodal-card-box-shadow)
     // -----------------------------------------------------------------------

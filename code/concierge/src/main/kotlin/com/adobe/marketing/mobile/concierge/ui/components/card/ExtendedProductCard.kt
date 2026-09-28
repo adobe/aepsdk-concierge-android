@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -31,6 +32,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -89,7 +91,8 @@ private fun validatedProductDetailCta(button: ProductActionButton?, role: Produc
  * [ExtendedProductCardStyle.imageHeight]; every other element renders only when present.
  * The card height grows with its content, clamped between [ExtendedProductCardStyle.cardMinHeight]
  * and [ExtendedProductCardStyle.cardMaxHeight]; content that exceeds the available height
- * scrolls internally.
+ * scrolls internally. CTAs are anchored to the bottom of the card when content is shorter
+ * than the card.
  *
  * When placed in a carousel, the caller passes a fixed height via [modifier] so every card
  * shares the tallest card's height. [measureOnly] lets the carousel's measurement pass skip
@@ -115,7 +118,7 @@ internal fun ExtendedProductCard(
     val imageWidth = style.imageWidth
     val imageHeight = style.imageHeight
 
-    Card(
+    Surface(
         modifier = modifier
             .width(style.cardWidth)
             .heightIn(min = style.cardMinHeight, max = style.cardMaxHeight)
@@ -137,8 +140,7 @@ internal fun ExtendedProductCard(
             )
             .clickable { onCardClick(element) },
         shape = style.cardShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = style.cardBackgroundColor)
+        color = style.cardBackgroundColor
     ) {
         Column(
             modifier = Modifier
@@ -211,8 +213,7 @@ internal fun ExtendedProductCard(
                     .padding(
                         start = style.contentPadding,
                         end = style.contentPadding,
-                        top = style.contentPaddingTop,
-                        bottom = style.contentPaddingBottom
+                        top = style.contentPaddingTop
                     ),
                 verticalArrangement = Arrangement.Top
             ) {
@@ -274,30 +275,39 @@ internal fun ExtendedProductCard(
                         }
                     }
                 }
+            }
 
-                // Independent of subtitle presence -- overflow scrolls (see Column above), not clips.
-                val ctas = remember(element) { productDetailCtas(element) }
-                if (ctas.isNotEmpty()) {
-                    // A lone CTA keeps its intrinsic width; only 2+ CTAs share the row equally.
-                    val shareRowWidth = ctas.size > 1
-                    Row(
-                        modifier = Modifier
-                            .padding(top = ConciergeStyles.productCardCtaButtonStyle.containerTopSpacing)
-                            .then(if (shareRowWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth()),
-                        horizontalArrangement = Arrangement.spacedBy(PRODUCT_DETAIL_CTA_ROW_SPACING)
-                    ) {
-                        ctas.forEach { cta ->
-                            key(cta.role) {
-                                ProductDetailCtaButton(
-                                    cta = cta,
-                                    modifier = if (shareRowWidth) Modifier.weight(1f) else Modifier.wrapContentWidth(),
-                                    onClick = { onActionClick(cta.button) }
-                                )
-                            }
+            // Leftover card height above the CTAs.
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Independent of subtitle presence -- overflow scrolls (see Column above), not clips.
+            val ctas = remember(element) { productDetailCtas(element) }
+            if (ctas.isNotEmpty()) {
+                // A lone CTA keeps its intrinsic width; only 2+ CTAs share the row equally.
+                val shareRowWidth = ctas.size > 1
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = style.contentPadding,
+                            end = style.contentPadding,
+                            top = ConciergeStyles.productCardCtaButtonStyle.containerTopSpacing
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(PRODUCT_DETAIL_CTA_ROW_SPACING)
+                ) {
+                    ctas.forEach { cta ->
+                        key(cta.role) {
+                            ProductDetailCtaButton(
+                                cta = cta,
+                                modifier = if (shareRowWidth) Modifier.weight(1f) else Modifier.wrapContentWidth(),
+                                onClick = { onActionClick(cta.button) }
+                            )
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(style.contentPaddingBottom))
         }
     }
 }
