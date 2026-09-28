@@ -70,6 +70,15 @@ object FnbPromptFormatter {
             """{"action":"showMoreLocations","orderId":${idValue(action.orderId)}}""" +
             "\n$CART_ACTION_END"
 
+    /** A location picked from the location product cards: BC calls tapin2 products for it. */
+    fun formatSelectLocation(action: FnbAction.SelectLocation): String {
+        val title = displayName(action.title)
+        val lead = if (title.isEmpty()) "Show me the menu for this stand." else "Show me the menu at $title."
+        return "$lead\n\n$CART_ACTION_START\n" +
+            """{"action":"showMenu","locationId":${idValue(action.locationId)}}""" +
+            "\n$CART_ACTION_END"
+    }
+
     /**
      * Hand-built rather than org.json so key order is deterministic; every value is a number,
      * boolean, or [safeId] string, none of which need escaping.

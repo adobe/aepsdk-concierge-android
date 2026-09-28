@@ -53,6 +53,13 @@ sealed interface FnbAction {
     @Immutable
     data class ShowMoreRestaurants(val orderId: String) : FnbAction
 
+    /**
+     * A location picked from the out-of-the-box location product cards (via [FnbLinks]).
+     * @property locationId tapin2 `location.id`.
+     */
+    @Immutable
+    data class SelectLocation(val locationId: String, val title: String) : FnbAction
+
     /** Cart view "Proceed to checkout": the host opens the tapin2 Review page at [checkoutUrl]. */
     @Immutable
     data class Checkout(val orderId: String, val checkoutUrl: String) : FnbAction
@@ -72,8 +79,8 @@ fun interface FnbActionHandler {
 
 /**
  * Production handler.
- * - [FnbAction.SubmitCart], [FnbAction.RemoveCartItem], [FnbAction.ShowMoreRestaurants] become a
- *   user turn through [Concierge.sendMessage].
+ * - [FnbAction.SubmitCart], [FnbAction.RemoveCartItem], [FnbAction.ShowMoreRestaurants],
+ *   [FnbAction.SelectLocation] become a user turn through [Concierge.sendMessage].
  * - [FnbAction.Checkout] is opened by the host via [openUrl] (e.g. a Custom Tab rather than the
  *   SDK's WebView, which payment pages often break in). The URL is re-checked against
  *   [allowedCheckoutHosts] first.
@@ -88,6 +95,7 @@ class ConciergeFnbActionHandler(
             is FnbAction.SubmitCart -> send(FnbPromptFormatter.format(action), onResult)
             is FnbAction.RemoveCartItem -> send(FnbPromptFormatter.formatRemove(action), onResult)
             is FnbAction.ShowMoreRestaurants -> send(FnbPromptFormatter.formatShowMore(action), onResult)
+            is FnbAction.SelectLocation -> send(FnbPromptFormatter.formatSelectLocation(action), onResult)
             is FnbAction.Checkout -> onResult(
                 if (CheckoutUrlPolicy.isAllowed(action.checkoutUrl, allowedCheckoutHosts) && openUrl(action.checkoutUrl)) {
                     FnbActionResult.Accepted

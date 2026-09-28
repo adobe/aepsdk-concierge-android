@@ -121,6 +121,7 @@ private fun FnbGalleryScreen() {
                 is FnbAction.SubmitCart -> FnbPromptFormatter.format(action)
                 is FnbAction.RemoveCartItem -> FnbPromptFormatter.formatRemove(action)
                 is FnbAction.ShowMoreRestaurants -> FnbPromptFormatter.formatShowMore(action)
+                is FnbAction.SelectLocation -> FnbPromptFormatter.formatSelectLocation(action)
                 is FnbAction.Checkout -> "Open checkout: ${action.checkoutUrl}"
             }
             Log.d(TAG, prompt)

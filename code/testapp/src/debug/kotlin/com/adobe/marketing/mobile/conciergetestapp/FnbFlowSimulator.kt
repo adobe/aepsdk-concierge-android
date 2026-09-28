@@ -28,8 +28,9 @@ import org.json.JSONObject
  * - `[ORDER_DETAILS]` is read as the tapin2 `cart/add` body; `submitId` is stripped (a replay is
  *   skipped, since `cart/add` merges quantities), and `orderId` + `deliveryMethod` are added
  *   from "BC state";
- * - one tapin2 order per conversation: the first add creates `id`/`guid`, later adds reuse
- *   them, and a repeated product with the same modifiers and note merges into its line;
+ * - one tapin2 order per conversation, spanning stands: the first add creates `id`/`guid`, later
+ *   adds reuse them, and a repeated product at the same stand with the same modifiers and note
+ *   merges into its line;
  * - prices come from the menu, not the widget's display prices (tapin2 re-prices), with
  *   per-line `taxAdded` at `venue.taxRate`;
  * - `cartView.entity_info` is a subset of the tapin2 order with tapin2's names.
@@ -39,6 +40,10 @@ import org.json.JSONObject
  */
 internal class FnbFlowSimulator(
     private val catalog: MenuUiModel,
+    /** tapin2 locations (`id` → `{id, title, section}`) for `distinctLocations`; defaults to the catalog's stand. */
+    private val locations: Map<Long, JSONObject> = catalog.locationId.toLongOrNull()
+        ?.let { mapOf(it to JSONObject().put("id", it).put("title", catalog.locationName).put("section", "")) }
+        .orEmpty(),
     private val venueTitle: String = "Golden 1 Concierge",
     private val taxRate: BigDecimal = BigDecimal("8.5"),
     private var nextOrderId: Long = 695685,
@@ -59,7 +64,7 @@ internal class FnbFlowSimulator(
         val modifier: String,
         val note: String
     ) {
-        val key: String get() = "$productId|${modifierIds.sorted()}|$note"
+        val key: String get() = "$locationId|$productId|${modifierIds.sorted()}|$note"
     }
 
     /** One `add_to_cart` round trip: the body BCOS sent to tapin2, and the element it returned. */
@@ -160,7 +165,8 @@ internal class FnbFlowSimulator(
             "venue" to linkedMapOf("id" to catalog.venueId.toLongOrNull(), "title" to venueTitle, "taxRate" to taxRate.toDouble(), "maxAlcoholPerOrder" to null),
             "items" to lines.map { it.first },
             "distinctLocations" to locationIds.map { id ->
-                linkedMapOf("id" to id, "title" to if (id.toString() == catalog.locationId) catalog.locationName else "", "section" to catalog.locationName.substringAfterLast(' '))
+                val location = locations[id]
+                linkedMapOf("id" to id, "title" to location?.optString("title").orEmpty(), "section" to location?.optString("section").orEmpty())
             },
             "subtotalNet" to subtotal.toDouble(),
             "taxAddedNet" to tax.toDouble(),
