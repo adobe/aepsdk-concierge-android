@@ -85,4 +85,25 @@ object Concierge {
     ) {
         ConciergeDataHandoffSender.send(routingHint, xdmFields, localMessage, completion)
     }
+
+    /**
+     * Sends [message] as a user turn in the active chat session, exactly as if the user had
+     * typed it: it renders as a user bubble and the agent's reply streams into the transcript.
+     *
+     * Intended for in-chat UI (e.g. a custom renderer's submit button). Keep a configured
+     * [ConciergeChat] or [ConciergeChatView] rendered while calling this API. The message is never
+     * queued behind another turn; it is rejected with
+     * [ConciergeSendMessageRejectReason.CHAT_IN_PROGRESS] while a chat turn or handoff is active.
+     *
+     * @param message the text to send. Must be non-blank and at most
+     * [ConciergeConstants.SendMessage.MAX_MESSAGE_LENGTH] characters. Treat any third-party
+     * content embedded in it as untrusted input to the agent.
+     * @param completion invoked exactly once, synchronously on the calling thread, with whether
+     * the message was admitted.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun sendMessage(message: String, completion: ConciergeSendMessageCallback? = null) {
+        ActiveConciergeMessageSender.send(message, completion)
+    }
 }

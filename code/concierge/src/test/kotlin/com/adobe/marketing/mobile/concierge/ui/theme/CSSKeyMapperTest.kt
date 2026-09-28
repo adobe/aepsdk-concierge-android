@@ -42,9 +42,49 @@ class CSSKeyMapperTest {
     }
 
     @Test
-    fun `apply ignores unknown key and returns theme unchanged`() {
+    fun `apply retains unknown double-dash key in cssVariables and leaves typed tokens unchanged`() {
         val result = CSSKeyMapper.apply("--unknown-key-xyz", "someValue", emptyTheme)
+        assertEquals(mapOf("--unknown-key-xyz" to "someValue"), result.cssVariables)
+        assertEquals(emptyTheme, result.copy(cssVariables = emptyMap()))
+    }
+
+    @Test
+    fun `apply does not retain unknown key without double-dash prefix`() {
+        val result = CSSKeyMapper.apply("unknown-key-xyz", "someValue", emptyTheme)
         assertEquals(emptyTheme, result)
+    }
+
+    @Test
+    fun `apply does not retain blank or oversized custom values`() {
+        assertEquals(emptyTheme, CSSKeyMapper.apply("--fnb-x", "   ", emptyTheme))
+        val oversized = "a".repeat(CSSKeyMapper.MAX_CSS_VARIABLE_VALUE_LENGTH + 1)
+        assertEquals(emptyTheme, CSSKeyMapper.apply("--fnb-x", oversized, emptyTheme))
+    }
+
+    @Test
+    fun `apply trims retained custom values and lets a later value replace an earlier one`() {
+        val first = CSSKeyMapper.apply("--fnb-x", " #FFF ", emptyTheme)
+        assertEquals("#FFF", first.cssVariables["--fnb-x"])
+        val second = CSSKeyMapper.apply("--fnb-x", "#000", first)
+        assertEquals(mapOf("--fnb-x" to "#000"), second.cssVariables)
+    }
+
+    @Test
+    fun `apply caps the number of retained custom variables`() {
+        var theme = emptyTheme
+        repeat(CSSKeyMapper.MAX_CSS_VARIABLES + 10) { i ->
+            theme = CSSKeyMapper.apply("--custom-$i", "v$i", theme)
+        }
+        assertEquals(CSSKeyMapper.MAX_CSS_VARIABLES, theme.cssVariables.size)
+        // Existing keys can still be updated once the cap is reached.
+        theme = CSSKeyMapper.apply("--custom-0", "updated", theme)
+        assertEquals("updated", theme.cssVariables["--custom-0"])
+    }
+
+    @Test
+    fun `apply does not retain known keys in cssVariables`() {
+        val result = CSSKeyMapper.apply("--color-primary", "#EB1000", emptyTheme)
+        assertTrue(result.cssVariables.isEmpty())
     }
 
     @Test

@@ -214,6 +214,46 @@ app owns any failure UI based on the completion result.
 
 ---
 
+## Send a message
+
+Use `Concierge.sendMessage(...)` when in-chat UI your app renders (for example, a custom
+renderer's submit button) needs to send a user turn on the user's behalf. The message renders as a
+user bubble and the agent's reply streams into the transcript, exactly as if the user had typed it.
+The composer's in-progress draft is left untouched.
+
+> **Prerequisite:** Keep a configured `ConciergeChat` or `ConciergeChatView` rendered while calling
+> this API; otherwise the call fails with `NO_ACTIVE_SESSION`.
+
+```kotlin
+import com.adobe.marketing.mobile.concierge.Concierge
+
+Concierge.sendMessage("Add 2 garlic fries to my order") { accepted, rejectReason ->
+    // accepted == true  -> the message was added to the transcript and queued for Brand Concierge.
+    // accepted == false -> inspect rejectReason; CHAT_IN_PROGRESS can be retried after the reply.
+}
+```
+
+### `Concierge.sendMessage(message, completion)`
+
+- **`message`** *(required)*: Non-blank text of at most `ConciergeConstants.SendMessage.MAX_MESSAGE_LENGTH`
+  (4000) characters. Treat any third-party content you embed (for example, vendor product names)
+  as untrusted input to the agent: sanitize it, and have the agent re-validate ids server-side.
+- **`completion`**: Optional `ConciergeSendMessageCallback`, called exactly once, synchronously on
+  the calling thread. `accepted` reports admission into the chat, not completion of the agent's
+  reply. When `accepted` is `false`, `rejectReason` is a `ConciergeSendMessageRejectReason`:
+
+  | Reject reason | Meaning |
+  | --- | --- |
+  | `EMPTY_MESSAGE` | `message` was empty or whitespace. |
+  | `MESSAGE_TOO_LONG` | `message` exceeded the maximum length. |
+  | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available. |
+  | `CHAT_IN_PROGRESS` | A chat turn or data handoff is active or waiting. Retry after it completes. |
+  | `DELIVERY_FAILED` | The chat session could not queue the message, for example while shutting down. |
+
+Like data handoffs, programmatic messages never queue behind another turn.
+
+---
+
 ## Integration
 
 ### Managed Integration
