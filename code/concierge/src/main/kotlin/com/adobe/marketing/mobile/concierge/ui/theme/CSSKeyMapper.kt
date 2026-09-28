@@ -153,6 +153,15 @@ internal object CSSKeyMapper {
     private fun updateProductCardCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeProductCardCtaButtonColors?, String) -> ConciergeProductCardCtaButtonColors) =
         updateNestedColors(cssValue, theme, { it?.productCardCtaButton }, { c, v -> c?.copy(productCardCtaButton = v) ?: ConciergeThemeColors(productCardCtaButton = v) }, updater)
 
+    private fun updateProductCardSecondaryCtaButtonColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeProductCardSecondaryCtaButtonColors?, String) -> ConciergeProductCardSecondaryCtaButtonColors) =
+        updateNestedColors(
+            cssValue,
+            theme,
+            { it?.productCardSecondaryCtaButton },
+            { c, v -> c?.copy(productCardSecondaryCtaButton = v) ?: ConciergeThemeColors(productCardSecondaryCtaButton = v) },
+            updater
+        )
+
     private fun updateCitationColors(cssValue: String, theme: ConciergeThemeTokens, updater: (ConciergeCitationColors?, String) -> ConciergeCitationColors) =
         updateNestedColors(cssValue, theme, { it?.citation }, { c, v -> c?.copy(citation = v) ?: ConciergeThemeColors(citation = v) }, updater)
 
@@ -1034,6 +1043,33 @@ internal object CSSKeyMapper {
         "product-card-cta-button-text-color" to { cssValue, theme ->
             updateProductCardCtaButtonColors(cssValue, theme) { existing, color ->
                 existing?.copy(textColor = color) ?: ConciergeProductCardCtaButtonColors(textColor = color)
+            }
+        },
+
+        // Layout - Product card secondary CTA button (radius/padding/font are shared with the primary button)
+        "product-card-secondary-cta-button-border-width" to { cssValue, theme ->
+            updateLayout(theme) { layout ->
+                val width = CSSValueConverter.parsePxValue(cssValue)
+                    ?: ConciergeStyles.ProductCardSecondaryCtaButtonDefaults.BORDER_WIDTH
+                layout?.copy(productCardSecondaryCtaButtonBorderWidth = width)
+                    ?: ConciergeLayout(productCardSecondaryCtaButtonBorderWidth = width)
+            }
+        },
+
+        // Colors - Product card secondary CTA button (using helper)
+        "product-card-secondary-cta-button-background-color" to { cssValue, theme ->
+            updateProductCardSecondaryCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(backgroundColor = color) ?: ConciergeProductCardSecondaryCtaButtonColors(backgroundColor = color)
+            }
+        },
+        "product-card-secondary-cta-button-text-color" to { cssValue, theme ->
+            updateProductCardSecondaryCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(textColor = color) ?: ConciergeProductCardSecondaryCtaButtonColors(textColor = color)
+            }
+        },
+        "product-card-secondary-cta-button-border-color" to { cssValue, theme ->
+            updateProductCardSecondaryCtaButtonColors(cssValue, theme) { existing, color ->
+                existing?.copy(borderColor = color) ?: ConciergeProductCardSecondaryCtaButtonColors(borderColor = color)
             }
         },
 

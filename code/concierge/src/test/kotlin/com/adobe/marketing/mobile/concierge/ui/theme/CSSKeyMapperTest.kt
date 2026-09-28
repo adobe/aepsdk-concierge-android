@@ -1125,6 +1125,71 @@ class CSSKeyMapperTest {
     }
 
     // -----------------------------------------------------------------------
+    // Layout - Product card secondary CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-border-width`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-width", "2px", emptyTheme)
+        assertEquals(2.0, result.cssLayout?.productCardSecondaryCtaButtonBorderWidth)
+    }
+
+    @Test
+    fun `apply falls back to ProductCardSecondaryCtaButton border width default for malformed value`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-width", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardSecondaryCtaButtonDefaults.BORDER_WIDTH,
+            result.cssLayout?.productCardSecondaryCtaButtonBorderWidth
+        )
+    }
+
+    @Test
+    fun `supportedCSSKeys contains product card secondary cta button border width key`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("product-card-secondary-cta-button-border-width"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Colors - Product card secondary CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-background-color`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-background-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.productCardSecondaryCtaButton?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-text-color`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-text-color", "#BB5811", emptyTheme)
+        assertEquals("#BB5811", result.colors?.productCardSecondaryCtaButton?.textColor)
+    }
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-border-color`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-color", "#BB5811", emptyTheme)
+        assertEquals("#BB5811", result.colors?.productCardSecondaryCtaButton?.borderColor)
+    }
+
+    @Test
+    fun `apply preserves other product-card-secondary-cta-button colors when setting one`() {
+        var theme = CSSKeyMapper.apply("--product-card-secondary-cta-button-background-color", "#FFFFFF", emptyTheme)
+        theme = CSSKeyMapper.apply("--product-card-secondary-cta-button-text-color", "#BB5811", theme)
+        theme = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-color", "#BB5811", theme)
+        assertEquals("#FFFFFF", theme.colors?.productCardSecondaryCtaButton?.backgroundColor)
+        assertEquals("#BB5811", theme.colors?.productCardSecondaryCtaButton?.textColor)
+        assertEquals("#BB5811", theme.colors?.productCardSecondaryCtaButton?.borderColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains product card secondary cta button color keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("product-card-secondary-cta-button-background-color"))
+        assertTrue(keys.contains("product-card-secondary-cta-button-text-color"))
+        assertTrue(keys.contains("product-card-secondary-cta-button-border-color"))
+    }
+
+    // -----------------------------------------------------------------------
     // Existing theme fields are preserved on incremental apply
     // -----------------------------------------------------------------------
 

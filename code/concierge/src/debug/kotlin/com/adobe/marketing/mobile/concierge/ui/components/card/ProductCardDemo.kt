@@ -34,6 +34,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardCtaButtonColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardSecondaryCtaButtonColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
@@ -114,12 +115,9 @@ private class DemoConversationServiceClient : ConversationService {
     override fun cleanup() = Unit
 }
 
-/**
- * Sample product cards covering the CTA button (no subtitle + primary action) alongside cards
- * without a CTA, so the demo shows the button's payload-gated behavior in the real carousel.
- */
+/** Sample product cards covering the CTA row's payload-gated behavior in the real carousel. */
 private val demoProductCards = listOf(
-    // Title + price, no subtitle, with a primary action -> CTA button renders.
+    // Primary only -> single CTA at intrinsic width.
     MultimodalElement(
         id = "demo-1",
         url = "https://picsum.photos/id/20/190/190",
@@ -130,7 +128,7 @@ private val demoProductCards = listOf(
             "primaryUrl" to "https://example.com/buy/trail-runner"
         )
     ),
-    // Title + price + was price + badge, no subtitle, with a primary action -> CTA button renders.
+    // Primary + secondary -> both CTAs render side by side.
     MultimodalElement(
         id = "demo-2",
         url = "https://picsum.photos/id/60/190/190",
@@ -140,10 +138,39 @@ private val demoProductCards = listOf(
             "productWasPrice" to "\$199.99",
             "productBadge" to "Extended Sizes",
             "primaryText" to "Shop now",
-            "primaryUrl" to "https://example.com/buy/insulated-jacket"
+            "primaryUrl" to "https://example.com/buy/insulated-jacket",
+            "secondaryText" to "Learn more",
+            "secondaryUrl" to "https://example.com/details/insulated-jacket"
         )
     ),
-    // Title + subtitle + price -> subtitle present, so the CTA is intentionally suppressed.
+    // Secondary has a blank url -> dropped by validation, primary-only renders.
+    MultimodalElement(
+        id = "demo-4",
+        url = "https://picsum.photos/id/30/190/190",
+        content = mapOf(
+            "productName" to "Compression Socks",
+            "productPrice" to "\$24.99",
+            "primaryText" to "Buy now",
+            "primaryUrl" to "https://example.com/buy/compression-socks",
+            "secondaryText" to "Learn more",
+            "secondaryUrl" to "   "
+        )
+    ),
+    // Subtitle + both CTAs -> CTA visibility doesn't depend on subtitle presence.
+    MultimodalElement(
+        id = "demo-5",
+        url = "https://picsum.photos/id/40/190/190",
+        content = mapOf(
+            "productName" to "Parking Garage",
+            "productDescription" to "Covered, guaranteed spot",
+            "productPrice" to "\$45.00",
+            "primaryText" to "Book now",
+            "primaryUrl" to "https://example.com/book/parking-garage",
+            "secondaryText" to "Get directions",
+            "secondaryUrl" to "https://example.com/directions/parking-garage"
+        )
+    ),
+    // Title + subtitle + price, no actions provided -> no CTA row renders.
     MultimodalElement(
         id = "demo-3",
         url = "https://picsum.photos/id/50/190/190",
@@ -187,6 +214,12 @@ private val demoProductCardTheme = ConciergeThemeData(
                 // Generic red fill, purely for the demo -- not tied to any brand.
                 backgroundColor = "#D32F2F",
                 textColor = "#FFFFFF"
+            ),
+            productCardSecondaryCtaButton = ConciergeProductCardSecondaryCtaButtonColors(
+                // Outlined counterpart to the demo's red primary CTA.
+                backgroundColor = "#00000000",
+                textColor = "#D32F2F",
+                borderColor = "#D32F2F"
             )
         )
     )
