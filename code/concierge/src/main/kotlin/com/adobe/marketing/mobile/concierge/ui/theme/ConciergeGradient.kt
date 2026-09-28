@@ -82,7 +82,8 @@ internal fun Modifier.conciergeGradientBorder(width: Dp, gradient: ConciergeGrad
         val outline = shape.createOutline(size, layoutDirection, this)
         val brush = gradient.toBrush(size)
         val strokeWidthPx = width.toPx()
-        onDrawBehind {
+        onDrawWithContent {
+            drawContent()
             drawOutline(outline, brush = brush, style = Stroke(strokeWidthPx))
         }
     }

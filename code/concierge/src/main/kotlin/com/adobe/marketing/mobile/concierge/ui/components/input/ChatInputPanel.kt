@@ -69,6 +69,13 @@ internal fun ChatInputPanel(
 
     // Determine border appearance based on focus state
     val borderModifier = when {
+        isFocused && style.focusBorderWidth > 0.dp && style.borderGradient?.isRenderable == true -> {
+            Modifier.conciergeGradientBorder(
+                width = style.focusBorderWidth,
+                gradient = style.borderGradient,
+                shape = style.innerShape
+            )
+        }
         isFocused && style.focusBorderWidth > 0.dp && style.focusBorderColor != null -> {
             Modifier.border(
                 width = style.focusBorderWidth,

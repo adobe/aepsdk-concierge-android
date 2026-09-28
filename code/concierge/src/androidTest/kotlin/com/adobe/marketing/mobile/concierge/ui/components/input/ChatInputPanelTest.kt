@@ -16,9 +16,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -39,6 +42,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -210,15 +214,17 @@ class ChatInputPanelTest {
     }
 
     @Test
-    fun chatInputPanel_focusedWithOutlineGradient_prefersFocusBorderOverGradient() {
-        // The focus border always takes priority over the outline gradient -- this just exercises
-        // that branch alongside a configured gradient without crashing.
+    fun chatInputPanel_focusedWithOutlineGradient_rendersGradient() {
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(),
             tokens = ConciergeThemeTokens(
                 colors = ConciergeThemeColors(
                     input = ConciergeInputColors(
-                        outlineGradient = ConciergeGradientColors(startColor = "#12B0A0", endColor = "#6DD3C4")
+                        outlineGradient = ConciergeGradientColors(
+                            startColor = "#12B0A0",
+                            endColor = "#6DD3C4",
+                            angle = 90.0
+                        )
                     )
                 )
             )
@@ -227,6 +233,7 @@ class ChatInputPanelTest {
         composeTestRule.setContent {
             ConciergeTheme(theme = themeData) {
                 ChatInputPanel(
+                    modifier = Modifier.testTag("ChatInputPanel"),
                     text = "",
                     onTextChange = {},
                     inputState = UserInputState.Empty,
@@ -238,6 +245,22 @@ class ChatInputPanelTest {
         }
 
         composeTestRule.waitForIdle()
+
+        val pixels = composeTestRule.onNodeWithTag("ChatInputPanel").captureToImage().toPixelMap()
+        val leftBorder = pixels[1, pixels.height / 2]
+        val rightBorder = pixels[pixels.width - 2, pixels.height / 2]
+        assertTrue(
+            "expected the left focused border to use the gradient start color, was $leftBorder",
+            leftBorder.red < leftBorder.blue
+        )
+        assertTrue(
+            "expected the right focused border to use the gradient end color, was $rightBorder",
+            rightBorder.red < rightBorder.blue
+        )
+        assertTrue(
+            "expected distinct gradient colors across the focused border, left=$leftBorder right=$rightBorder",
+            leftBorder.blue < rightBorder.blue
+        )
     }
 
     @Test
