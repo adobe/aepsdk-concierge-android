@@ -91,8 +91,8 @@ private fun validatedProductDetailCta(button: ProductActionButton?, role: Produc
  * [ExtendedProductCardStyle.imageHeight]; every other element renders only when present.
  * The card height grows with its content, clamped between [ExtendedProductCardStyle.cardMinHeight]
  * and [ExtendedProductCardStyle.cardMaxHeight]; content that exceeds the available height
- * scrolls internally. CTAs are anchored to the bottom of the card when content is shorter
- * than the card.
+ * scrolls internally. The price and CTAs are anchored together to the bottom of the card when
+ * content is shorter than the card.
  *
  * When placed in a carousel, the caller passes a fixed height via [modifier] so every card
  * shares the tallest card's height. [measureOnly] lets the carousel's measurement pass skip
@@ -241,44 +241,48 @@ internal fun ExtendedProductCard(
                         modifier = Modifier.padding(top = style.titleSubtitleSpacing)
                     )
                 }
+            }
 
-                if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = style.sectionSpacing),
-                        verticalArrangement = Arrangement.Top
-                    ) {
-                        if (!productPrice.isNullOrBlank()) {
-                            Text(
-                                text = productPrice,
-                                color = style.priceColor,
-                                fontSize = style.priceFontSize,
-                                fontWeight = style.priceFontWeight,
-                                lineHeight = style.priceLineHeight,
-                                letterSpacing = style.priceLetterSpacing,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        if (!productWasPrice.isNullOrBlank()) {
-                            Text(
-                                text = style.wasPriceTextPrefix + productWasPrice,
-                                color = style.wasPriceColor,
-                                fontSize = style.wasPriceFontSize,
-                                fontWeight = style.wasPriceFontWeight,
-                                lineHeight = style.wasPriceLineHeight,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = style.priceSpacing)
-                            )
-                        }
+            // Leftover card height above the price and CTAs.
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (!productPrice.isNullOrBlank() || !productWasPrice.isNullOrBlank()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = style.contentPadding,
+                            end = style.contentPadding,
+                            top = style.sectionSpacing
+                        ),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    if (!productPrice.isNullOrBlank()) {
+                        Text(
+                            text = productPrice,
+                            color = style.priceColor,
+                            fontSize = style.priceFontSize,
+                            fontWeight = style.priceFontWeight,
+                            lineHeight = style.priceLineHeight,
+                            letterSpacing = style.priceLetterSpacing,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (!productWasPrice.isNullOrBlank()) {
+                        Text(
+                            text = style.wasPriceTextPrefix + productWasPrice,
+                            color = style.wasPriceColor,
+                            fontSize = style.wasPriceFontSize,
+                            fontWeight = style.wasPriceFontWeight,
+                            lineHeight = style.wasPriceLineHeight,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = style.priceSpacing)
+                        )
                     }
                 }
             }
-
-            // Leftover card height above the CTAs.
-            Spacer(modifier = Modifier.weight(1f))
 
             // Independent of subtitle presence -- overflow scrolls (see Column above), not clips.
             val ctas = remember(element) { productDetailCtas(element) }

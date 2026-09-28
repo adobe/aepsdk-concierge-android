@@ -13,7 +13,10 @@
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
@@ -702,6 +705,169 @@ class ExtendedProductCardTest {
                 kotlin.math.abs(bottom.value - expectedBottom.value) < 1f
             )
         }
+    }
+
+    @Test
+    fun extendedProductCard_price_anchorsToCardBottom_whenNoCtas() {
+        val element = MultimodalElement(
+            id = "price-no-cta",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Short",
+                "productPrice" to "$45.00",
+                "productWasPrice" to "$60.00"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // Default contentPaddingBottom.
+        val expectedBottom = cardMaxHeight - 16.dp
+        val bottom = composeTestRule.onNodeWithText("was $60.00", useUnmergedTree = true).getBoundsInRoot().bottom
+        assertTrue(
+            "Expected was-price bottom ($bottom) to be anchored at the card bottom ($expectedBottom)",
+            kotlin.math.abs(bottom.value - expectedBottom.value) < 1f
+        )
+    }
+
+    @Test
+    fun extendedProductCard_price_anchorsToCardBottom_whenNoWasPrice() {
+        val element = MultimodalElement(
+            id = "price-only",
+            url = "https://example.com/image.jpg",
+            content = mapOf(
+                "productName" to "Short",
+                "productPrice" to "$45.00"
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight)
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // Default contentPaddingBottom.
+        val expectedBottom = cardMaxHeight - 16.dp
+        val bottom = composeTestRule.onNodeWithText("$45.00", useUnmergedTree = true).getBoundsInRoot().bottom
+        assertTrue(
+            "Expected price bottom ($bottom) at the card bottom ($expectedBottom)",
+            kotlin.math.abs(bottom.value - expectedBottom.value) < 1f
+        )
+    }
+
+    @Test
+    fun extendedProductCard_priceAndCtas_alignAcrossCards_withDifferentSubtitle() {
+        fun element(id: String, price: String, subtitle: String?) = MultimodalElement(
+            id = id,
+            url = "https://example.com/image.jpg",
+            content = listOfNotNull(
+                "productName" to "Product Name",
+                subtitle?.let { "productDescription" to it },
+                "productPrice" to price,
+                "primaryText" to "Buy $id",
+                "primaryUrl" to "https://example.com/$id"
+            ).toMap()
+        )
+        val short = element("short", "$10.00", subtitle = null)
+        val long = element(
+            "long", "$20.00", "Subtitle text goes here to describe the product or campaign"
+        )
+        // Tall enough for the long card's content to fit without scrolling.
+        val tallCardHeight = 480.dp
+        val tallCardTheme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(productCardMaxHeight = tallCardHeight.value.toDouble())
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = tallCardTheme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        ExtendedProductCard(
+                            element = short,
+                            modifier = Modifier.height(tallCardHeight)
+                        )
+                        ExtendedProductCard(
+                            element = long,
+                            modifier = Modifier.height(tallCardHeight)
+                        )
+                    }
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val shortPriceTop = composeTestRule.onNodeWithText("$10.00", useUnmergedTree = true).getBoundsInRoot().top
+        val longPriceTop = composeTestRule.onNodeWithText("$20.00", useUnmergedTree = true).getBoundsInRoot().top
+        assertTrue(
+            "Expected prices to align (short=$shortPriceTop, long=$longPriceTop)",
+            kotlin.math.abs(shortPriceTop.value - longPriceTop.value) < 1f
+        )
+        val shortCtaTop = composeTestRule.onNodeWithText("Buy short", useUnmergedTree = true).getBoundsInRoot().top
+        val longCtaTop = composeTestRule.onNodeWithText("Buy long", useUnmergedTree = true).getBoundsInRoot().top
+        assertTrue(
+            "Expected CTAs to align (short=$shortCtaTop, long=$longCtaTop)",
+            kotlin.math.abs(shortCtaTop.value - longCtaTop.value) < 1f
+        )
+    }
+
+    @Test
+    fun extendedProductCard_ctas_alignAcrossCards_whenOnlyOneCardHasWasPrice() {
+        fun element(id: String, wasPrice: String?) = MultimodalElement(
+            id = id,
+            url = "https://example.com/image.jpg",
+            content = listOfNotNull(
+                "productName" to "Product Name",
+                "productPrice" to "$10.00",
+                wasPrice?.let { "productWasPrice" to it },
+                "primaryText" to "Buy $id",
+                "primaryUrl" to "https://example.com/$id"
+            ).toMap()
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        ExtendedProductCard(
+                            element = element("plain", wasPrice = null),
+                            modifier = Modifier.height(cardMaxHeight)
+                        )
+                        ExtendedProductCard(
+                            element = element("sale", wasPrice = "$20.00"),
+                            modifier = Modifier.height(cardMaxHeight)
+                        )
+                    }
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val plainCtaTop = composeTestRule.onNodeWithText("Buy plain", useUnmergedTree = true).getBoundsInRoot().top
+        val saleCtaTop = composeTestRule.onNodeWithText("Buy sale", useUnmergedTree = true).getBoundsInRoot().top
+        assertTrue(
+            "Expected CTAs to align (plain=$plainCtaTop, sale=$saleCtaTop)",
+            kotlin.math.abs(plainCtaTop.value - saleCtaTop.value) < 1f
+        )
     }
 
     // -----------------------------------------------------------------------
