@@ -29,7 +29,10 @@ internal sealed class ConciergeTrackingEvent {
 
     data class ChatClosed(val epochTime: Long, val durationMillis: Long) : ConciergeTrackingEvent()
 
-    data class QuerySubmitted(val query: String) : ConciergeTrackingEvent()
+    data class QuerySubmitted(
+        val query: String,
+        val xdmFields: Map<String, Any> = emptyMap()
+    ) : ConciergeTrackingEvent()
 
     data class PromptSuggestionClicked(val suggestion: String) : ConciergeTrackingEvent()
 
@@ -132,8 +135,12 @@ internal sealed class ConciergeTrackingEvent {
             when (this) {
                 is SessionInitialized -> Unit
 
-                is QuerySubmitted ->
+                is QuerySubmitted -> {
                     data[keys.QUERY] = query
+                    if (xdmFields.isNotEmpty()) {
+                        data[keys.XDM_FIELDS] = xdmFields
+                    }
+                }
 
                 is PromptSuggestionClicked ->
                     data[keys.SUGGESTION] = suggestion

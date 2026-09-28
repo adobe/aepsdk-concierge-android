@@ -191,6 +191,7 @@ object ConciergeConstants {
                 const val DURATION_MILLIS   = "durationMillis"
                 const val EVENT_TYPE        = "conciergeEventType"
                 const val QUERY             = "query"
+                const val XDM_FIELDS        = "xdmFields"
                 const val SUGGESTION        = "suggestion"
                 const val ELEMENT           = "element"
                 const val ELEMENTS          = "elements"

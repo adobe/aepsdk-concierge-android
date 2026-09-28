@@ -382,6 +382,27 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `chat request forwards held XDM fields alongside the SDK identityMap`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        val xdmFields = mapOf("loyalty" to mapOf("tier" to "gold"))
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello", xdmFields).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertEquals("gold", xdm.getJSONObject("loyalty").getString("tier"))
+        assertEquals(
+            "test-ecid",
+            xdm.getJSONObject("identityMap")
+                .getJSONArray("ECID")
+                .getJSONObject(0)
+                .getString("id")
+        )
+    }
+
+    @Test
     fun `chat request forwards an ECID-only identityMap without regression`() = runTest {
         // Baseline case: no extra identities set, so the map carries only the auto-generated ECID.
         val ecidOnlyState = testState.copy(

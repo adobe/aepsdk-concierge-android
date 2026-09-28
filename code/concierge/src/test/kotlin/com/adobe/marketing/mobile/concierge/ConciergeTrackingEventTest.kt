@@ -13,6 +13,7 @@ package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Event
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class ConciergeTrackingEventTest {
@@ -62,6 +63,21 @@ class ConciergeTrackingEventTest {
             "What tools do you offer?",
             event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.QUERY)
         )
+    }
+
+    @Test
+    fun `querySubmitted includes XDM context for Assurance`() {
+        val xdmFields = mapOf("loyalty" to mapOf("tier" to "gold"))
+        val event = ConciergeTrackingEvent.QuerySubmitted("hello", xdmFields).toEvent()
+
+        assertEquals(xdmFields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
+    }
+
+    @Test
+    fun `querySubmitted omits empty XDM context`() {
+        val event = ConciergeTrackingEvent.QuerySubmitted("hello").toEvent()
+
+        assertFalse(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS in event.eventData.orEmpty())
     }
 
     // MARK: - promptSuggestionClicked

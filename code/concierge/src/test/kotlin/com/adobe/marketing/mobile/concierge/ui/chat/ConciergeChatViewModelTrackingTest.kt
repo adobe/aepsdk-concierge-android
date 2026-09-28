@@ -17,6 +17,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -37,6 +38,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -60,6 +62,7 @@ class ConciergeChatViewModelTrackingTest {
 
     @Before
     fun setUp() {
+        ConciergeStateRepository.instance.clear()
         Dispatchers.setMain(testDispatcher)
         app = mockk(relaxed = true)
         mockkStatic(ContextCompat::class)
@@ -71,6 +74,7 @@ class ConciergeChatViewModelTrackingTest {
 
     @After
     fun tearDown() {
+        ConciergeStateRepository.instance.clear()
         unmockkStatic(ContextCompat::class)
         unmockkStatic(ServiceProvider::class)
         Dispatchers.resetMain()
@@ -116,6 +120,28 @@ class ConciergeChatViewModelTrackingTest {
             "What tools do you offer?",
             event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.QUERY)
         )
+    }
+
+    @Test
+    fun `querySubmitted carries the held XDM context snapshot`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+        every { chatClient.chat("Hi", any()) } returns flow { }
+        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        val event = dispatched.single {
+            it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED
+        }
+        assertEquals(
+            mapOf("tier" to "gold"),
+            event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS)
+                .let { (it as? Map<*, *>)?.get("loyalty") }
+        )
+        verify { chatClient.chat("Hi", mapOf("loyalty" to mapOf("tier" to "gold"))) }
     }
 
     @Test
@@ -511,7 +537,7 @@ class ConciergeChatViewModelTrackingTest {
             FakeSpeechCapturing(),
             mockk<ImageProvider>(relaxed = true),
             chatClient,
-            dispatch
+            dispatch = dispatch
         )
     }
 

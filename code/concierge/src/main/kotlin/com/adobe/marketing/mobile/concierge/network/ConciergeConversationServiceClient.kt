@@ -58,6 +58,7 @@ import org.json.JSONArray
  */
 internal interface ConversationService {
     fun chat(message: String): Flow<ParsedConversationMessage>
+    fun chat(message: String, xdmFields: Map<String, Any>): Flow<ParsedConversationMessage> = chat(message)
     fun sendDataHandoff(
         routingHint: String,
         xdmFields: Map<String, Any>
@@ -131,6 +132,9 @@ internal class ConciergeConversationServiceClient(
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
     override fun chat(message: String): Flow<ParsedConversationMessage> = conversation(message)
+
+    override fun chat(message: String, xdmFields: Map<String, Any>): Flow<ParsedConversationMessage> =
+        conversation(message, xdmFields)
 
     override fun sendDataHandoff(
         routingHint: String,

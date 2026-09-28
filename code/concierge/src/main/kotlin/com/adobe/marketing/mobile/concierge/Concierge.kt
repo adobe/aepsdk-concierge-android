@@ -56,6 +56,28 @@ object Concierge {
     }
 
     /**
+     * Applies an RFC 7396 JSON Merge Patch to XDM context included in every conversational turn.
+     *
+     * Context applies to normal chat messages and [sendDataHandoff] requests, but not feedback.
+     * Nested maps are recursively merged; lists and scalar values replace existing values. A null
+     * value removes the matching key at that level, for example:
+     * `mapOf("fan" to mapOf("seatSection" to null))` removes `fan.seatSection`.
+     *
+     * The context is held in memory for the current Concierge conversation session. It may be set
+     * before the first chat request and is cleared when an established session expires and a new
+     * session ID is created. There is no separate reset API; use null-valued patch entries to
+     * remove specific values.
+     *
+     * @param fields a JSON-safe object to merge into the held XDM context. The top-level
+     * `identityMap` key is reserved for the SDK.
+     * @throws IllegalArgumentException if a value is not JSON-compatible or `identityMap` is used.
+     */
+    @JvmStatic
+    fun updateXDMContext(fields: Map<String, Any?>) {
+        ConciergeStateRepository.instance.updateXDMContext(fields)
+    }
+
+    /**
      * Hands data to the SDK to forward toward the Brand Concierge agent pipeline,
      * outside of normal user-typed chat.
      *

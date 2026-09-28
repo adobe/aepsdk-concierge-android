@@ -102,6 +102,38 @@ Brand Concierge forwards the full Edge Identity `identityMap` on every chat and 
 
 Namespace priority and identity-graph rules are configured server-side in Adobe Experience Platform; the SDK does not interpret or relabel namespaces.
 
+## XDM context
+
+Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data that should accompany
+subsequent typed chat turns and data handoffs:
+
+```kotlin
+Concierge.updateXDMContext(
+    mapOf(
+        "loyalty" to mapOf("tier" to "gold"),
+        "commerce" to mapOf("currencyCode" to "USD")
+    )
+)
+```
+
+Updates use RFC 7396 JSON Merge Patch semantics. Nested maps merge recursively, lists and scalar
+values replace existing values, and a `null` value removes the matching key:
+
+```kotlin
+Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
+```
+
+The value must be JSON-compatible (strings, booleans, finite numbers, maps with string keys, or
+lists of those values). The top-level `identityMap` key is reserved and rejected; the SDK supplies
+the Edge Identity map. Context is held in memory for the active conversation session. Context set
+before the first chat turn is retained; when the session ID changes, all held context is cleared and
+the app is responsible for re-establishing it.
+`ConciergeStateRepository.clear()` also clears the context.
+
+For typed chat, a context snapshot is captured when the message is submitted and used consistently
+for the service request and the `QUERY_SUBMITTED` notification visible in Assurance. The SDK does
+not forward this app-supplied context to the production Edge tracking payload.
+
 ---
 
 ## Authentication

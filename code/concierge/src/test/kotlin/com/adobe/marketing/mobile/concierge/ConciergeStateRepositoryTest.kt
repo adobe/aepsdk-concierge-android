@@ -47,6 +47,111 @@ class ConciergeStateRepositoryTest {
         mockEvent = mockk(relaxed = true)
     }
 
+    @Test
+    fun `updateXDMContext recursively merges nested maps`() {
+        repository.updateXDMContext(mapOf("fan" to mapOf("seatSection" to "112", "seatRow" to "A")))
+        repository.updateXDMContext(mapOf("fan" to mapOf("seatRow" to "B")))
+
+        assertEquals(
+            mapOf("fan" to mapOf("seatSection" to "112", "seatRow" to "B")),
+            repository.snapshotXDMContext("session-1")
+        )
+    }
+
+    @Test
+    fun `updateXDMContext null removes nested key even below a missing object`() {
+        repository.updateXDMContext(mapOf("fan" to mapOf("seatSection" to null)))
+
+        assertEquals(mapOf("fan" to emptyMap<String, Any>()), repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `updateXDMContext null removes key and preserves sibling values`() {
+        repository.updateXDMContext(mapOf("fan" to mapOf("seatSection" to "112", "seatRow" to "A")))
+        repository.updateXDMContext(mapOf("fan" to mapOf("seatSection" to null)))
+
+        assertEquals(mapOf("fan" to mapOf("seatRow" to "A")), repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `updateXDMContext arrays replace previous values`() {
+        repository.updateXDMContext(mapOf("items" to listOf("a", "b")))
+        repository.updateXDMContext(mapOf("items" to listOf("c")))
+
+        assertEquals(mapOf("items" to listOf("c")), repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `updateXDMContext rejects reserved identityMap key without changing state`() {
+        try {
+            repository.updateXDMContext(mapOf("identityMap" to mapOf("ECID" to emptyList<Any>())))
+            throw AssertionError("Expected reserved key to be rejected")
+        } catch (exception: IllegalArgumentException) {
+            assertTrue(exception.message.orEmpty().contains("identityMap"))
+        }
+
+        assertEquals(emptyMap<String, Any>(), repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `updateXDMContext rejects unsupported values without changing state`() {
+        try {
+            repository.updateXDMContext(mapOf("value" to Any()))
+            throw AssertionError("Expected unsupported value to be rejected")
+        } catch (exception: IllegalArgumentException) {
+            assertTrue(exception.message.orEmpty().contains("Unsupported value type"))
+        }
+
+        assertEquals(emptyMap<String, Any>(), repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `first session preserves context set before its first request`() {
+        repository.updateXDMContext(mapOf("loggedIn" to true))
+
+        assertEquals(mapOf("loggedIn" to true), repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `same session id preserves held context across turns`() {
+        repository.updateXDMContext(mapOf("loggedIn" to true))
+        repository.snapshotXDMContext("session-1")
+        repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+
+        assertEquals(
+            mapOf("loggedIn" to true, "loyalty" to mapOf("tier" to "gold")),
+            repository.snapshotXDMContext("session-1")
+        )
+    }
+
+    @Test
+    fun `new session id clears all held context`() {
+        repository.updateXDMContext(mapOf("loggedIn" to true))
+        repository.snapshotXDMContext("session-1")
+
+        assertEquals(emptyMap<String, Any>(), repository.snapshotXDMContext("session-2"))
+    }
+
+    @Test
+    fun `new session id clears context updated after the previous turn`() {
+        repository.updateXDMContext(mapOf("loggedIn" to true))
+        repository.snapshotXDMContext("session-1")
+        // Mirrors iOS: an update landing after the last turn is still discarded by the rollover.
+        repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+
+        assertEquals(emptyMap<String, Any>(), repository.snapshotXDMContext("session-2"))
+    }
+
+    @Test
+    fun `snapshot is isolated from caller mutation`() {
+        repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+        val snapshot = repository.snapshotXDMContext("session-1")
+        @Suppress("UNCHECKED_CAST")
+        (snapshot["loyalty"] as MutableMap<String, Any>)["tier"] = "changed"
+
+        assertEquals(mapOf("loyalty" to mapOf("tier" to "gold")), repository.snapshotXDMContext("session-1"))
+    }
+
     // ========== Initial State Tests ==========
 
     @Test
@@ -905,4 +1010,3 @@ class ConciergeStateRepositoryTest {
         )
     }
 }
-

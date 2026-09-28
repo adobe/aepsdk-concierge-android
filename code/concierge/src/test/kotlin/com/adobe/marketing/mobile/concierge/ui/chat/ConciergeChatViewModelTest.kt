@@ -23,6 +23,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEventHandler
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
@@ -91,6 +92,7 @@ class ConciergeChatViewModelTest {
 
     @Before
     fun setUp() {
+        ConciergeStateRepository.instance.clear()
         Dispatchers.setMain(testDispatcher)
         app = mockk(relaxed = true)
         // Default: grant audio permission
@@ -119,6 +121,7 @@ class ConciergeChatViewModelTest {
 
     @After
     fun tearDown() {
+        ConciergeStateRepository.instance.clear()
         unmockkStatic(ContextCompat::class)
         unmockkStatic(ServiceProvider::class)
         unmockkStatic(Uri::class)
@@ -447,6 +450,45 @@ class ConciergeChatViewModelTest {
             advanceUntilIdle()
 
             assertEquals(listOf("chat"), callOrder)
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `data handoff merges held XDM context with its own fields winning on collision`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        ConciergeStateRepository.instance.updateXDMContext(
+            mapOf(
+                "loyalty" to mapOf("tier" to "gold"),
+                "commerce" to mapOf(
+                    "order" to mapOf("purchaseID" to "held-should-lose"),
+                    "cart" to mapOf("cartID" to "dropped-by-shallow-merge")
+                )
+            )
+        )
+        val handoff = ConciergeDataHandoffEvent(
+            "checkout",
+            mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "abc-123")))
+        )
+        // The merge is a shallow top-level combine, so a colliding key replaces the
+        // entire held subtree rather than deep-merging into it.
+        val expected = mapOf(
+            "loyalty" to mapOf("tier" to "gold"),
+            "commerce" to mapOf("order" to mapOf("purchaseID" to "abc-123"))
+        )
+        every { chatClient.sendDataHandoff("checkout", expected) } returns flow {
+            emit(ParsedConversationMessage("Done", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient)
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.enqueueDataHandoff(handoff) { }
+            advanceUntilIdle()
+
+            verify(exactly = 1) { chatClient.sendDataHandoff("checkout", expected) }
         } finally {
             vm.deactivateDataHandoffSession()
         }
