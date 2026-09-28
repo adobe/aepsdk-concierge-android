@@ -23,7 +23,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 
 /**
  * Theme keys the F&B widgets read from the `"theme"` block of theme.json (retained by the SDK in
- * `ConciergeThemeTokens.cssVariables`). See Documentation/fnb-theme-keys.md.
+ * `ConciergeThemeTokens.cssVariables`). This object is the key reference.
  */
 object FnbThemeKeys {
     // Colors: hex (#RGB, #RRGGBB, #RRGGBBAA) or "transparent"
