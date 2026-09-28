@@ -40,6 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -58,6 +62,14 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
 // referenced by class literal from `main`; keep this string in sync if the activity is renamed/moved.
 private const val PRODUCT_CARD_DEMO_ACTIVITY_CLASS =
     "com.adobe.marketing.mobile.conciergetestapp.ProductCardDemoActivity"
+
+// FQN of the debug-only FnbGalleryActivity; same reflective-launch constraint as above.
+private const val FNB_GALLERY_ACTIVITY_CLASS =
+    "com.adobe.marketing.mobile.conciergetestapp.FnbGalleryActivity"
+
+// FQN of the debug-only FnbFlowActivity (end-to-end happy path); same reflective-launch constraint.
+private const val FNB_FLOW_ACTIVITY_CLASS =
+    "com.adobe.marketing.mobile.conciergetestapp.FnbFlowActivity"
 
 @Composable
 fun MainScreen() {
@@ -88,13 +100,17 @@ fun MainScreen() {
     }
     
     // Apply theme at the root level
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
         ) {
+            // Centered when it fits, scrollable when the debug buttons push it past the screen.
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -223,6 +239,64 @@ fun MainScreen() {
                     ) {
                         Text(
                             text = "🛍️ Product Card Demo",
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent().setClassName(context, FNB_GALLERY_ACTIVITY_CLASS)
+                                )
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(
+                                    context,
+                                    "F&B gallery is unavailable in this build",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF6A1B9A)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "🍔 F&B Widget Gallery",
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent().setClassName(context, FNB_FLOW_ACTIVITY_CLASS)
+                                )
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(
+                                    context,
+                                    "F&B flow is unavailable in this build",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF00695C)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "🛒 F&B End-to-End Flow",
                             fontSize = 16.sp,
                             color = Color.White
                         )

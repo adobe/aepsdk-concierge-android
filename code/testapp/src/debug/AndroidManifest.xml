@@ -29,6 +29,18 @@
             android:theme="@style/Theme.AEPSDKBrandConciergeAgent"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.FnbGalleryActivity"
+            android:exported="false"
+            android:label="F&amp;B Widget Gallery"
+            android:theme="@style/Theme.AEPSDKBrandConciergeAgent" />
+
+        <activity
+            android:name="com.adobe.marketing.mobile.conciergetestapp.FnbFlowActivity"
+            android:exported="false"
+            android:label="F&amp;B End-to-End Flow"
+            android:theme="@style/Theme.AEPSDKBrandConciergeAgent" />
+
     </application>
 
 </manifest>
