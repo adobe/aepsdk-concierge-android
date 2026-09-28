@@ -14,7 +14,7 @@ package com.adobe.marketing.mobile.conciergetestapp.fnb.model
 
 import androidx.compose.runtime.Immutable
 
-/** UI model for the F&B menu widget; independent of the BCOS/tapin2 wire shape. */
+/** UI model for the F&B menu widget; independent of the tapin2 wire shape. */
 @Immutable
 data class MenuUiModel(
     val locationId: String,
@@ -22,11 +22,13 @@ data class MenuUiModel(
     val orderingAvailable: Boolean,
     val categories: List<MenuCategory>,
     val currencyCode: String = DEFAULT_CURRENCY_CODE,
-    /** tapin2 arena id, echoed on submit (`entity_info.venueId`). */
+    /** tapin2 arena id (`venueId`), echoed on submit. */
     val venueId: String = "",
-    /** tapin2 event id, echoed on submit (`entity_info.eventId`). */
+    /** tapin2 event id (`eventId`), echoed on submit. */
     val eventId: String = "",
-    val cartBar: CartBarConfig = CartBarConfig()
+    val cartBar: CartBarConfig = CartBarConfig(),
+    /** tapin2 `location.waitTime`; null when empty. */
+    val waitTime: String? = null
 ) {
     companion object {
         const val DEFAULT_CURRENCY_CODE = "USD"
@@ -52,28 +54,28 @@ data class MenuItem(
     val tag: String? = null,
     val isAlcohol: Boolean = false,
     val optionGroups: List<OptionGroup> = emptyList(),
-    /** False renders the tile as sold out and blocks adding. */
+    /** False renders the tile as sold out and blocks adding (tapin2 has no sold-out signal yet). */
     val available: Boolean = true,
-    /** Server-declared tile action: true for `OPEN_SHEET`, false for `INCREMENT`. */
+    /** True when `+` must open Customize (the product has modifier groups). */
     val opensSheet: Boolean = optionGroups.isNotEmpty(),
     val quantity: QuantityRule = QuantityRule(),
     /** Null when special instructions are not offered for this item. */
     val instructions: InstructionsConfig? = null,
-    /** Customize CTA label (`sheet.addToCart.label`). */
+    /** Customize CTA label (widget copy, [MenuOptions.addToCartLabel]). */
     val addToCartLabel: String = "Add to order"
 ) {
     val hasOptions: Boolean get() = optionGroups.isNotEmpty()
 }
 
-/** Customize quantity stepper bounds (`sheet.quantity`). */
+/** Customize quantity stepper bounds (a widget default; tapin2 has no per-product limit). */
 @Immutable
 data class QuantityRule(val min: Int = 1, val max: Int = 20, val default: Int = 1, val step: Int = 1)
 
-/** Free-text line note (`sheet.specialInstructions`). */
+/** Free-text line note config (a widget default; sent as `cart/add` `products[].note`). */
 @Immutable
 data class InstructionsConfig(val label: String, val placeholder: String, val maxLength: Int)
 
-/** Menu footer button (`cartBar` element). */
+/** Menu footer button copy and behavior (widget defaults). */
 @Immutable
 data class CartBarConfig(
     val label: String = "Add to cart",
@@ -94,7 +96,7 @@ data class OptionGroup(
     val minSelect: Int,
     val maxSelect: Int,
     val options: List<OptionChoice>,
-    /** Per-option quantity cap (`maxPerOption`); only 1 is supported by the UI today. */
+    /** Per-modifier cap: 1 when tapin2 `maxOnePerSelection` is true; only 1 is supported by the UI. */
     val maxPerOption: Int = 1
 ) {
     val isSingleSelect: Boolean get() = maxSelect == 1
@@ -108,3 +110,22 @@ data class OptionChoice(
     val isDefault: Boolean = false,
     val available: Boolean = true
 )
+
+/**
+ * Widget-side values tapin2 does not send (UI copy, limits, currency). Applied by the mapper so
+ * every field in the UI model has one source: tapin2 or these defaults.
+ */
+@Immutable
+data class MenuOptions(
+    val currencyCode: String = MenuUiModel.DEFAULT_CURRENCY_CODE,
+    val quantity: QuantityRule = QuantityRule(),
+    /** Null hides the note field; enable once tapin2 confirms `cart/add` accepts `products[].note`. */
+    val instructions: InstructionsConfig? = null,
+    val addToCartLabel: String = "Add to order",
+    val cartBar: CartBarConfig = CartBarConfig()
+) {
+    companion object {
+        val NOTES_ENABLED = InstructionsConfig(label = "Optional instructions", placeholder = "e.g. no ice, light ice…", maxLength = 140)
+    }
+}
+

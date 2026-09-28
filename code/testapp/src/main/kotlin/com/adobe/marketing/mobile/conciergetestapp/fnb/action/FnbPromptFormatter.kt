@@ -21,10 +21,11 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.FnbText
  *
  * Vendor-supplied names are untrusted LLM input, so they are only used in the human-readable
  * summary after sanitizing (single line, no delimiter characters, clamped). The machine-readable
- * [DETAILS_START]..[DETAILS_END] block is compact JSON shaped like the BCOS `add_to_cart` tool's
- * `items` argument (tapin2 `cart/add` `products[]`), so the agent can pass it through instead of
- * rebuilding modifier groups from the menu. It carries only ids, quantities, and booleans from a
- * restricted character set; `eventId`/`orderId` are resolved by BC, and tapin2 re-prices.
+ * [DETAILS_START]..[DETAILS_END] block is the tapin2 `POST /v2/cart/add` request body with tapin2's
+ * names (`venueId`, `eventId`, `products[{locationId, quantity, note, product{Id,
+ * modifierGroups[{isMultiSelect, modifiers[{id, isSelected}]}]}}]`), so BC forwards it as-is. BC
+ * owns `orderId` (conversation state) and `deliveryMethod` (enum unconfirmed), and strips the one
+ * non-tapin2 field, `submitId`, which it uses to skip replays. tapin2 re-prices.
  *
  * The exact template is an open contract question with BC; keep all wording in this file.
  */
@@ -59,14 +60,14 @@ object FnbPromptFormatter {
         val title = displayName(action.title)
         val lead = if (title.isEmpty()) "Please remove this item from my order." else "Please remove $title from my order."
         return "$lead\n\n$CART_ACTION_START\n" +
-            """{"action":"REMOVE_LINE","cartId":${idValue(action.cartId)},"lineId":${idValue(action.lineId)}}""" +
+            """{"action":"remove","orderId":${idValue(action.orderId)},"itemId":${idValue(action.itemId)}}""" +
             "\n$CART_ACTION_END"
     }
 
     /** "Show more restaurants" from the cart view; the existing order continues. */
     fun formatShowMore(action: FnbAction.ShowMoreRestaurants): String =
         "Show me more restaurants near my section. Keep my current order.\n\n$CART_ACTION_START\n" +
-            """{"action":"SHOW_MORE_LOCATIONS","cartId":${idValue(action.cartId)}}""" +
+            """{"action":"showMoreLocations","orderId":${idValue(action.orderId)}}""" +
             "\n$CART_ACTION_END"
 
     /**
@@ -75,17 +76,16 @@ object FnbPromptFormatter {
      */
     private fun detailsBlock(action: FnbAction.SubmitCart): String {
         val locationId = idValue(action.locationId)
-        val items = action.lines.joinToString(",") { line ->
-            val groups = line.selectedOptions.groupBy { it.groupId }.entries.joinToString(",") { (groupId, options) ->
+        val products = action.lines.joinToString(",") { line ->
+            val groups = line.selectedOptions.groupBy { it.groupId }.values.joinToString(",") { options ->
                 val modifiers = options.joinToString(",") { """{"id":${idValue(it.optionId)},"isSelected":true}""" }
-                """{"id":${idValue(groupId)},"isMultiSelect":${options.first().groupMultiSelect},"modifiers":[$modifiers]}"""
+                """{"isMultiSelect":${options.first().groupMultiSelect},"modifiers":[$modifiers]}"""
             }
-            val modifierGroups = if (groups.isEmpty()) "" else ""","modifierGroups":[$groups]"""
             val note = line.note?.let(::safeNote)?.takeIf { it.isNotEmpty() }?.let { ""","note":${jsonString(it)}""" }.orEmpty()
-            """{"locationId":$locationId,"productId":${idValue(line.itemId)},"quantity":${line.quantity}$modifierGroups$note}"""
+            """{"locationId":$locationId,"quantity":${line.quantity}$note,"product":{"Id":${idValue(line.itemId)},"modifierGroups":[$groups]}}"""
         }
-        return "$DETAILS_START\n{\"action\":\"SUBMIT_CART\",\"submitId\":\"${safeId(action.submitId)}\"," +
-            "\"venueId\":${idValue(action.venueId)},\"eventId\":${idValue(action.eventId)},\"items\":[$items]}\n$DETAILS_END"
+        return "$DETAILS_START\n{\"submitId\":\"${safeId(action.submitId)}\"," +
+            "\"venueId\":${idValue(action.venueId)},\"eventId\":${idValue(action.eventId)},\"products\":[$products]}\n$DETAILS_END"
     }
 
     /** The fan's own note: single line, no block delimiters, clamped. */

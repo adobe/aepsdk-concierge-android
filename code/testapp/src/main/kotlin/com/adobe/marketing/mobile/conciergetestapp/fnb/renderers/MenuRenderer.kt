@@ -67,6 +67,7 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartReducer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuCategory
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuItem
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CatalogMenuMapper
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuUiModel
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -77,8 +78,13 @@ import kotlinx.coroutines.launch
  * renders [MenuContent].
  */
 @Composable
-fun MenuRenderer(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier = Modifier) {
-    val model = remember(context.elements) { CatalogMenuMapper.map(context.elements.map { it.asMap() }) }
+fun MenuRenderer(
+    context: FnbRenderContext,
+    onAction: FnbActionHandler,
+    modifier: Modifier = Modifier,
+    options: MenuOptions = MenuOptions()
+) {
+    val model = remember(context.elements, options) { CatalogMenuMapper.map(context.elements.map { it.asMap() }, options) }
     if (model == null) {
         MenuUnavailable(modifier)
     } else {
@@ -374,6 +380,8 @@ private fun LocationHeader(model: MenuUiModel) {
         )
         if (!model.orderingAvailable) {
             Text("Ordering unavailable", color = theme.colors.textSecondary, fontSize = 12.sp)
+        } else {
+            model.waitTime?.let { Text(it, color = theme.colors.textSecondary, fontSize = 12.sp) }
         }
     }
 }

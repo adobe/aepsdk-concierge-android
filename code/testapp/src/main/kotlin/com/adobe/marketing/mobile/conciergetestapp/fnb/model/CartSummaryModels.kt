@@ -15,17 +15,16 @@ package com.adobe.marketing.mobile.conciergetestapp.fnb.model
 import androidx.compose.runtime.Immutable
 
 /**
- * UI model for the cart view (`fnb.cart`): the server's view of the fan's order after
- * `cart/add` (or an update/remove). All money is tapin2-computed and authoritative, unlike the
- * menu widget's display-only local cart.
+ * UI model for the cart view: the tapin2 order after `cart/add` (or an update/remove). All money
+ * is tapin2-computed and authoritative, unlike the menu widget's display-only local cart.
  */
 @Immutable
 data class CartSummaryUiModel(
-    /** tapin2 plain order id (BCOS `entity_info.cartId`), used by add/update/remove and status calls. */
-    val cartId: String,
-    /** tapin2 order GUID, used only for the checkout page. */
+    /** tapin2 order `id`; the `orderId` of later add/update/remove and status calls. */
+    val orderId: String,
+    /** tapin2 order `guid`; used only for the checkout page. */
     val guid: String?,
-    /** Short code shown to the fan (tapin2 `idLast3`), if present. */
+    /** tapin2 `idLast3`, the short order code shown to the fan. */
     val orderCode: String?,
     val venueName: String,
     val lines: List<CartSummaryLine>,
@@ -33,10 +32,11 @@ data class CartSummaryUiModel(
     val taxCents: Long,
     val feesCents: Long,
     val discountCents: Long,
+    val tipCents: Long,
     val totalCents: Long,
     val isPaid: Boolean,
     val containsAlcohol: Boolean,
-    /** tapin2 checkout (Review) page; null hides the checkout button. */
+    /** Built from `venueId`, `eventId`, `guid`; null hides the checkout button. */
     val checkoutUrl: String?,
     val currencyCode: String = MenuUiModel.DEFAULT_CURRENCY_CODE,
     val checkoutLabel: String = "Proceed to checkout",
@@ -48,19 +48,18 @@ data class CartSummaryUiModel(
 
 @Immutable
 data class CartSummaryLine(
-    /** tapin2 order line id (`lines[].lineId`), the key for remove/edit. */
-    val lineId: String,
+    /** tapin2 order line `items[].id`; the key for remove and update. */
+    val itemId: String,
     val productId: String,
     val title: String,
     val quantity: Int,
     val pricePerCents: Long,
     val subtotalCents: Long,
-    /** BCOS `modifiersSummary`, e.g. "Coke" or "No modifiers". */
+    /** From `items[].modifier` (or `modifiers[]`); "No modifiers" when empty. */
     val modifiersSummary: String,
     val locationId: String,
     val locationName: String,
-    /** Fan's special instructions echoed back, if any. */
+    /** tapin2 `items[].note`; null when empty. */
     val note: String? = null,
-    /** True when BCOS declared `actions.remove` for the line. */
     val removable: Boolean = true
 )

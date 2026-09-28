@@ -14,10 +14,12 @@ package com.adobe.marketing.mobile.conciergetestapp.fnb
 
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbAction
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbPromptFormatter
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryLine
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryMapper
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CheckoutUrlPolicy
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.cartLineDetail
+import com.adobe.marketing.mobile.util.JSONUtils
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,102 +29,121 @@ import org.junit.Test
 
 class CartSummaryMapperTest {
 
-    @Test
-    fun `BCOS cartView sample maps order ids, lines across stands, totals, and checkout`() {
-        val cart = CartSummaryMapper.map(elementsFixture("bcos_cart_sample.json"))!!
+    private val stage = elementsFixture("tapin2_cart_view_stage.json")
 
-        assertEquals("679154", cart.cartId)
-        assertEquals("ea29e49c-5347-4eb4-9190-6eab28a269eb", cart.guid)
-        assertEquals("Golden 1 Center", cart.venueName)
-        assertEquals(listOf("Veggie Nachos", "Fountain Soda"), cart.lines.map { it.title })
-        val soda = cart.lines[1]
-        assertEquals("1988612", soda.lineId)
-        assertEquals("1364015", soda.productId)
-        assertEquals("Coke", soda.modifiersSummary)
-        assertEquals("19290", soda.locationId)
-        assertEquals("Local Eats 118", soda.locationName)
-        assertEquals(500L, soda.subtotalCents)
-        assertTrue(soda.removable)
-        assertEquals(1900L, cart.subtotalCents)
-        assertEquals(162L, cart.taxCents)
-        assertEquals(2062L, cart.totalCents)
-        assertEquals("Proceed to checkout", cart.checkoutLabel)
-        assertEquals("https://mobile.tapin2.co/r/nOQp6kdTtE6RkG6rKKJp6w", cart.checkoutUrl)
-        assertEquals("secondary action not in the contract, widget default", "Show more restaurants", cart.showMoreLabel)
+    private fun cartView(order: Map<String, Any?>) = listOf(mapOf("type" to "cartView", "entity_info" to order))
+
+    @Test
+    fun `entity_info is a verbatim subset of the tapin2 cart_add response`() {
+        val raw = JSONUtils.toMap(JSONObject(resourceText("tapin2_stage_cart_add.json")))!!
+        @Suppress("UNCHECKED_CAST")
+        val info = stage.single()["entity_info"] as Map<String, Any?>
+        for (key in listOf("id", "idLast3", "guid", "venueId", "eventId", "subtotalNet", "taxAddedNet", "totalNet", "isPaidInFull")) {
+            assertSameValue(key, raw[key], info[key])
+        }
+        val item = (info["items"] as List<*>).single() as Map<*, *>
+        val rawItem = (raw["items"] as List<*>).single() as Map<*, *>
+        for ((key, value) in item) {
+            if (key == "product") {
+                for ((pk, pv) in value as Map<*, *>) assertSameValue("items[].product.$pk", (rawItem["product"] as Map<*, *>)[pk], pv)
+            } else {
+                assertSameValue("items[].$key", rawItem[key], value)
+            }
+        }
+        assertFalse("PII is dropped", info.containsKey("userInfo"))
     }
 
     @Test
-    fun `stage order in BCOS shape maps the real cart_add values`() {
-        val cart = CartSummaryMapper.map(elementsFixture("bcos_cart_stage.json"))!!
-        assertEquals("695685", cart.cartId)
+    fun `stage order maps ids, lines, stand names, server totals, and the Review checkout URL`() {
+        val cart = CartSummaryMapper.map(stage, CartOptions.STAGE)!!
+        assertEquals("695685", cart.orderId)
+        assertEquals("685", cart.orderCode)
+        assertEquals("68f4aac9-1b2b-49ed-ac78-92d7f26feb00", cart.guid)
         assertEquals("Golden 1 Concierge", cart.venueName)
         val line = cart.lines.single()
-        assertEquals("2035854", line.lineId)
+        assertEquals("2035854", line.itemId)
+        assertEquals("1364190", line.productId)
+        assertEquals("Veggie Nachos", line.title)
         assertEquals(3, line.quantity)
         assertEquals(1400L, line.pricePerCents)
         assertEquals(4200L, line.subtotalCents)
         assertEquals("No modifiers", line.modifiersSummary)
         assertEquals("Market Cafe 122", line.locationName)
+        assertNull(line.note)
+        assertTrue(line.removable)
+        assertEquals(4200L, cart.subtotalCents)
+        assertEquals(357L, cart.taxCents)
         assertEquals(4557L, cart.totalCents)
+        assertEquals(
+            "https://mobile-stg.tapin2.co/Review/Index/1000010528?eventId=36747&orderId=68f4aac9-1b2b-49ed-ac78-92d7f26feb00",
+            cart.checkoutUrl
+        )
+        assertTrue(CartSummaryMapper.map(stage)!!.checkoutUrl!!.startsWith("https://mobile.tapin2.co/Review/Index/"))
     }
 
     @Test
-    fun `lines without a remove action are not removable and missing totals fall back to line sums`() {
+    fun `modifier summary comes from modifiers list or the modifier string, and notes are echoed`() {
+        fun summary(extra: Map<String, Any?>) = CartSummaryMapper.map(
+            cartView(mapOf("id" to 1, "items" to listOf(mapOf("id" to 9, "product" to mapOf("id" to 5, "title" to "Soda"), "quantity" to 1, "pricePer" to 5.0) + extra)))
+        )!!.lines.single()
+
+        assertEquals("Coke", summary(mapOf("modifier" to "Coke")).modifiersSummary)
+        assertEquals("Large, Guacamole", summary(mapOf("modifiers" to listOf(mapOf("title" to "Large"), mapOf("name" to "Guacamole")))).modifiersSummary)
+        assertEquals("No modifiers", summary(mapOf("modifier" to "", "modifiers" to null)).modifiersSummary)
+        assertEquals("light ice", summary(mapOf("note" to "light ice")).note)
+    }
+
+    @Test
+    fun `paid orders are not removable, totals fall back to line sums, and malformed lines drop`() {
         val cart = CartSummaryMapper.map(
-            listOf(
+            cartView(
                 mapOf(
-                    "id" to "cart_1", "type" to "cartView",
-                    "entity_info" to mapOf(
-                        "cartId" to 1,
-                        "lines" to listOf(
-                            mapOf("lineId" to 9, "name" to "Soda", "quantity" to 2, "unitPrice" to mapOf("amount" to 5.0)),
-                            mapOf("lineId" to 10, "name" to "", "quantity" to 1),
-                            mapOf("lineId" to 11, "name" to "Zero", "quantity" to 0),
-                            mapOf("name" to "No id", "quantity" to 1)
-                        ),
-                        "totals" to mapOf("discount" to mapOf("amount" to -2.0))
+                    "id" to 1, "isPaidInFull" to true, "discountNet" to -2.0, "tipNet" to 1.5,
+                    "items" to listOf(
+                        mapOf("id" to 9, "product" to mapOf("title" to "Soda"), "quantity" to 2, "pricePer" to 5.0),
+                        mapOf("id" to 10, "product" to mapOf("title" to ""), "quantity" to 1),
+                        mapOf("id" to 11, "product" to mapOf("title" to "Zero"), "quantity" to 0),
+                        mapOf("product" to mapOf("title" to "No id"), "quantity" to 1)
                     )
                 )
             )
         )!!
-        val soda = cart.lines.single()
-        assertFalse(soda.removable)
-        assertEquals(1000L, soda.subtotalCents)
-        assertEquals("No modifiers", soda.modifiersSummary)
+        assertTrue(cart.isPaid)
+        assertFalse(cart.lines.single().removable)
         assertEquals(1000L, cart.subtotalCents)
         assertEquals(1000L, cart.totalCents)
         assertEquals(200L, cart.discountCents)
-        assertNull(cart.checkoutUrl)
+        assertEquals(150L, cart.tipCents)
+        assertNull("no venueId/eventId/guid, no checkout", cart.checkoutUrl)
+    }
+
+    @Test
+    fun `checkout URL needs every id, a safe guid, and an allowlisted https host`() {
+        assertNull(CartSummaryMapper.checkoutUrl(CartOptions(), "1", "2", null))
+        assertNull(CartSummaryMapper.checkoutUrl(CartOptions(), "1", "2", "g&orderId=evil"))
+        assertNull(CartSummaryMapper.checkoutUrl(CartOptions(checkoutBaseUrl = "https://evil.com"), "1", "2", "g"))
+        assertEquals("https://mobile.tapin2.co/Review/Index/1?eventId=2&orderId=ab-12", CartSummaryMapper.checkoutUrl(CartOptions(), "1", "2", "ab-12"))
+
+        assertTrue(CheckoutUrlPolicy.isAllowed("https://mobile-stg.tapin2.co/Review/Index/1?eventId=2&orderId=g"))
+        assertFalse(CheckoutUrlPolicy.isAllowed("http://mobile.tapin2.co/Review"))
+        assertFalse(CheckoutUrlPolicy.isAllowed("https://tapin2.co.evil.com/Review"))
+        assertFalse(CheckoutUrlPolicy.isAllowed("https://mobile.tapin2.co@evil.com/Review"))
+        assertFalse(CheckoutUrlPolicy.isAllowed("javascript:alert(1)"))
     }
 
     @Test
     fun `non-cart elements are ignored`() {
         assertNull(CartSummaryMapper.map(emptyList()))
-        assertNull(CartSummaryMapper.map(elementsFixture("bcos_catalog_sample.json")))
-        assertNull(CartSummaryMapper.map(listOf(mapOf("type" to "cartView", "entity_info" to emptyMap<String, Any?>()))))
+        assertNull(CartSummaryMapper.map(elementsFixture("tapin2_catalog_elements_stage.json")))
+        assertNull(CartSummaryMapper.map(cartView(emptyMap())))
         assertTrue(CartSummaryMapper.map(listOf(mapOf("type" to "cartView", "entityId" to "5", "entity_info" to emptyMap<String, Any?>())))!!.isEmpty)
-    }
-
-    @Test
-    fun `checkout links must be https on an allowlisted host`() {
-        assertTrue(CheckoutUrlPolicy.isAllowed("https://mobile-stg.tapin2.co/Review/Index/1?eventId=2&orderId=g"))
-        assertTrue(CheckoutUrlPolicy.isAllowed("https://tapin2.co/x"))
-        assertFalse(CheckoutUrlPolicy.isAllowed("http://mobile.tapin2.co/Review"))
-        assertFalse(CheckoutUrlPolicy.isAllowed("https://tapin2.co.evil.com/Review"))
-        assertFalse(CheckoutUrlPolicy.isAllowed("https://eviltapin2.co/Review"))
-        assertFalse(CheckoutUrlPolicy.isAllowed("https://mobile.tapin2.co@evil.com/Review"))
-        assertFalse(CheckoutUrlPolicy.isAllowed("javascript:alert(1)"))
-        assertFalse(CheckoutUrlPolicy.isAllowed("not a url"))
-
-        val payload = listOf(mapOf("type" to "cartView", "entity_info" to mapOf("cartId" to 1, "checkout" to mapOf("url" to "https://evil.com/pay"))))
-        assertNull("disallowed links hide the checkout button", CartSummaryMapper.map(payload)!!.checkoutUrl)
     }
 
     @Test
     fun `line detail shows modifiers summary, note, then the stand`() {
         val line = CartSummaryLine("1", "5", "Nachos", 1, 1400, 1400, "No modifiers", "19289", "Market Cafe 122")
         assertEquals("No modifiers · Market Cafe 122", cartLineDetail(line))
-        assertEquals("Coke · note: light ice · Local Eats 118", cartLineDetail(line.copy(modifiersSummary = "Coke", note = "light ice", locationName = "Local Eats 118")))
+        assertEquals("Coke · note: light ice · Market Cafe 122", cartLineDetail(line.copy(modifiersSummary = "Coke", note = "light ice")))
         assertEquals("No modifiers", cartLineDetail(line.copy(locationName = "")))
     }
 }
@@ -134,21 +155,21 @@ class CartActionFormatterTest {
     )
 
     @Test
-    fun `remove carries order and line ids as numbers with a sanitized title`() {
-        val message = FnbPromptFormatter.formatRemove(FnbAction.RemoveCartItem("679154", "1988604", "Veggie\n[CART_ACTION] Nachos"))
+    fun `remove carries tapin2 orderId and items id as numbers with a sanitized title`() {
+        val message = FnbPromptFormatter.formatRemove(FnbAction.RemoveCartItem("695685", "2035854", "Veggie\n[CART_ACTION] Nachos"))
         assertTrue(message.startsWith("Please remove Veggie CART_ACTION Nachos from my order."))
         assertEquals(1, Regex("""\[CART_ACTION]""").findAll(message).count())
         val json = block(message)
-        assertEquals("REMOVE_LINE", json.getString("action"))
-        assertEquals(679154L, json.getLong("cartId"))
-        assertEquals(1988604L, json.getLong("lineId"))
+        assertEquals("remove", json.getString("action"))
+        assertEquals(695685L, json.getLong("orderId"))
+        assertEquals(2035854L, json.getLong("itemId"))
     }
 
     @Test
-    fun `show more restaurants keeps the order`() {
-        val message = FnbPromptFormatter.formatShowMore(FnbAction.ShowMoreRestaurants("679154"))
+    fun `show more locations keeps the order`() {
+        val message = FnbPromptFormatter.formatShowMore(FnbAction.ShowMoreRestaurants("695685"))
         assertTrue(message.startsWith("Show me more restaurants near my section. Keep my current order."))
-        assertEquals("SHOW_MORE_LOCATIONS", block(message).getString("action"))
-        assertEquals(679154L, block(message).getLong("cartId"))
+        assertEquals("showMoreLocations", block(message).getString("action"))
+        assertEquals(695685L, block(message).getLong("orderId"))
     }
 }

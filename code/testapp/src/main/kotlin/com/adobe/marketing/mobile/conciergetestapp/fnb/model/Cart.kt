@@ -89,8 +89,8 @@ object CartReducer {
     }
 
     /**
-     * Whether `+` can add [item] without opening Customize: it must be available, declared
-     * `INCREMENT` (not `OPEN_SHEET`), and every required group must be met by defaults.
+     * Whether `+` can add [item] without opening Customize: it must be available, must not open
+     * the sheet (tapin2 products with modifier groups do), and every required group must be met by defaults.
      */
     fun canQuickAdd(item: MenuItem): Boolean =
         item.available && !item.opensSheet &&

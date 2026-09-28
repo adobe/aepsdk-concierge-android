@@ -33,7 +33,7 @@ sealed interface FnbAction {
     @Immutable
     data class SubmitCart(
         val submitId: String,
-        /** tapin2 arena and event, from the catalog cards' `entity_info`. */
+        /** tapin2 request ids (`venueId`, `eventId`) carried by the menu elements. */
         val venueId: String,
         val eventId: String,
         val locationId: String,
@@ -42,20 +42,20 @@ sealed interface FnbAction {
     ) : FnbAction
 
     /**
-     * Cart view "Remove" (`REMOVE_LINE`).
-     * @property cartId the tapin2 order id (BCOS calls it `cartId`).
-     * @property lineId the order line (`lines[].lineId`).
+     * Cart view "Remove".
+     * @property orderId the tapin2 order `id`.
+     * @property itemId the tapin2 order line `items[].id`.
      */
     @Immutable
-    data class RemoveCartItem(val cartId: String, val lineId: String, val title: String) : FnbAction
+    data class RemoveCartItem(val orderId: String, val itemId: String, val title: String) : FnbAction
 
     /** Cart view "Show more restaurants": asks BC for other stands; the order is kept. */
     @Immutable
-    data class ShowMoreRestaurants(val cartId: String) : FnbAction
+    data class ShowMoreRestaurants(val orderId: String) : FnbAction
 
-    /** Cart view "Proceed to checkout" (`PROCEED_TO_CHECKOUT`): the host opens [checkoutUrl]. */
+    /** Cart view "Proceed to checkout": the host opens the tapin2 Review page at [checkoutUrl]. */
     @Immutable
-    data class Checkout(val cartId: String, val checkoutUrl: String) : FnbAction
+    data class Checkout(val orderId: String, val checkoutUrl: String) : FnbAction
 }
 
 sealed interface FnbActionResult {

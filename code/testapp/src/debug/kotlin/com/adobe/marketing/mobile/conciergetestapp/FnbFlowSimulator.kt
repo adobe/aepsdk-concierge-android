@@ -12,171 +12,182 @@
 
 package com.adobe.marketing.mobile.conciergetestapp
 
-import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbAction
+import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbPromptFormatter
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuItem
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuUiModel
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
-import java.util.Locale
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.UUID
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
- * Happy-path stand-in for BC + BCOS + tapin2, so the widgets can be exercised end to end without
- * a backend. It plays the server's role faithfully where it matters:
- * - one tapin2 order per conversation: the first `cart/add` creates `orderId`/`guid`, later adds
- *   reuse them, and a repeated product (same options and note) merges into its line;
- * - prices come from the catalog, not from the widget's display prices (tapin2 re-prices);
- * - a replayed `submitId` is ignored (tapin2 would double the quantities);
- * - responses are shaped exactly like the BCOS `cartView` sample.
+ * Happy-path stand-in for BC + BCOS + tapin2. It consumes the widget's actual user-turn text,
+ * as BC would, and answers with tapin2-shaped data:
+ * - `[ORDER_DETAILS]` is read as the tapin2 `cart/add` body; `submitId` is stripped (a replay is
+ *   skipped, since `cart/add` merges quantities), and `orderId` + `deliveryMethod` are added
+ *   from "BC state";
+ * - one tapin2 order per conversation: the first add creates `id`/`guid`, later adds reuse
+ *   them, and a repeated product with the same modifiers and note merges into its line;
+ * - prices come from the menu, not the widget's display prices (tapin2 re-prices), with
+ *   per-line `taxAdded` at `venue.taxRate`;
+ * - `cartView.entity_info` is a subset of the tapin2 order with tapin2's names.
  *
- * Seed values mirror the stage data: order ids around 679154, line ids around 1988604, venue
- * "Golden 1 Center", 8.5% tax (tapin2 `venue.taxRate`).
+ * Seeds match the stage `cart/add` sample: order id 695685, line id 2035854, venue
+ * "Golden 1 Concierge", tax rate 8.5.
  */
 internal class FnbFlowSimulator(
     private val catalog: MenuUiModel,
-    private val venueName: String = "Golden 1 Center",
-    private val taxBasisPoints: Long = 850,
-    private val checkoutBase: String = "https://mobile-stg.tapin2.co",
-    private var nextOrderId: Long = 679154,
-    private var nextLineId: Long = 1988604,
+    private val venueTitle: String = "Golden 1 Concierge",
+    private val taxRate: BigDecimal = BigDecimal("8.5"),
+    private var nextOrderId: Long = 695685,
+    private var nextItemId: Long = 2035854,
     private val guidFactory: () -> String = { UUID.randomUUID().toString() }
 ) {
 
-    data class OrderLine(
-        val lineId: String,
-        val productId: String,
-        val name: String,
+    /** One tapin2 order line (`items[]`). */
+    data class Item(
+        val id: Long,
+        val locationId: Long,
+        val productId: Long,
+        val title: String,
+        val isAlcohol: Boolean,
         val quantity: Int,
-        val unitCents: Long,
-        val optionIds: List<String>,
-        val modifiersSummary: String,
-        val note: String?,
-        val locationId: String,
-        val locationLabel: String
+        val pricePer: BigDecimal,
+        val modifierIds: List<Long>,
+        val modifier: String,
+        val note: String
     ) {
-        val key: String get() = "$productId|${optionIds.sorted().joinToString(",")}|${note.orEmpty()}"
+        val key: String get() = "$productId|${modifierIds.sorted()}|$note"
     }
 
-    /** One `add_to_cart` round trip: what BCOS sent to tapin2, and the element it returned. */
-    data class AddResult(val cartAddRequest: Map<String, Any?>, val cartView: FnbElement, val duplicate: Boolean)
+    /** One `add_to_cart` round trip: the body BCOS sent to tapin2, and the element it returned. */
+    data class AddResult(val cartAddRequest: JSONObject, val cartView: FnbElement, val duplicate: Boolean)
 
-    var orderId: String? = null
+    var orderId: Long? = null
         private set
     var guid: String? = null
         private set
-    private val lines = mutableListOf<OrderLine>()
+    private val items = mutableListOf<Item>()
     private val handledSubmitIds = mutableSetOf<String>()
-    private val itemsById: Map<String, MenuItem> = catalog.categories.flatMap { it.items }.associateBy { it.id }
+    private val menuItems: Map<String, MenuItem> = catalog.categories.flatMap { it.items }.associateBy { it.id }
 
-    val orderLines: List<OrderLine> get() = lines.toList()
+    val orderItems: List<Item> get() = items.toList()
 
-    fun submit(action: FnbAction.SubmitCart): AddResult {
-        val request = cartAddRequest(action)
-        if (!handledSubmitIds.add(action.submitId)) return AddResult(request, cartView(), duplicate = true)
+    /** Handles a SUBMIT turn: reads `[ORDER_DETAILS]` and calls "tapin2 cart/add". */
+    fun submit(userTurn: String): AddResult {
+        val details = JSONObject(block(userTurn, FnbPromptFormatter.DETAILS_START, FnbPromptFormatter.DETAILS_END))
+        val submitId = details.optString("submitId")
+        // What BC forwards to tapin2: the body minus submitId, plus BC-owned orderId/deliveryMethod.
+        val request = JSONObject(details.toString()).apply {
+            remove("submitId")
+            put("orderId", orderId ?: JSONObject.NULL)
+            put("deliveryMethod", 1)
+        }
+        if (!handledSubmitIds.add(submitId)) return AddResult(request, cartView(), duplicate = true)
         if (orderId == null) {
-            orderId = (nextOrderId++).toString()
+            orderId = nextOrderId++
             guid = guidFactory()
         }
-        for (line in action.lines) {
-            val item = itemsById[line.itemId] ?: continue
-            val optionIds = line.selectedOptions.map { it.optionId }
-            val selected = item.optionGroups.flatMap { it.options }.filter { it.id in optionIds }
-            val candidate = OrderLine(
-                lineId = "",
-                productId = item.id,
-                name = item.name,
-                quantity = line.quantity,
-                unitCents = item.priceCents + selected.sumOf { it.priceDeltaCents },
-                optionIds = optionIds,
-                modifiersSummary = selected.joinToString(", ") { it.label }.ifEmpty { "No modifiers" },
-                note = line.note,
-                locationId = action.locationId,
-                locationLabel = action.locationName
+        val products = details.optJSONArray("products") ?: JSONArray()
+        for (i in 0 until products.length()) {
+            val entry = products.getJSONObject(i)
+            val product = entry.getJSONObject("product")
+            val menuItem = menuItems[product.get("Id").toString()] ?: continue
+            val modifierIds = selectedModifierIds(product.optJSONArray("modifierGroups"))
+            val choices = menuItem.optionGroups.flatMap { it.options }.filter { it.id.toLong() in modifierIds }
+            val candidate = Item(
+                id = 0,
+                locationId = entry.getLong("locationId"),
+                productId = menuItem.id.toLong(),
+                title = menuItem.name,
+                isAlcohol = menuItem.isAlcohol,
+                quantity = entry.getInt("quantity"),
+                pricePer = BigDecimal.valueOf(menuItem.priceCents + choices.sumOf { it.priceDeltaCents }, 2),
+                modifierIds = modifierIds,
+                modifier = choices.joinToString(", ") { it.label },
+                note = entry.optString("note", "")
             )
-            val index = lines.indexOfFirst { it.key == candidate.key }
+            val index = items.indexOfFirst { it.key == candidate.key }
             if (index >= 0) {
-                lines[index] = lines[index].copy(quantity = lines[index].quantity + candidate.quantity)
+                items[index] = items[index].copy(quantity = items[index].quantity + candidate.quantity)
             } else {
-                lines += candidate.copy(lineId = (nextLineId++).toString())
+                items += candidate.copy(id = nextItemId++)
             }
         }
         return AddResult(request, cartView(), duplicate = false)
     }
 
-    /** Returns the removed line's name, or null when it isn't on the order. */
-    fun remove(lineId: String): String? {
-        val index = lines.indexOfFirst { it.lineId == lineId }
-        if (index < 0) return null
-        return lines.removeAt(index).name
+    /** Handles a `[CART_ACTION]` remove turn; returns the removed title, or null. */
+    fun remove(userTurn: String): String? {
+        val action = JSONObject(block(userTurn, FnbPromptFormatter.CART_ACTION_START, FnbPromptFormatter.CART_ACTION_END))
+        if (action.optString("action") != "remove" || action.optLong("orderId") != orderId) return null
+        val index = items.indexOfFirst { it.id == action.optLong("itemId") }
+        return if (index < 0) null else items.removeAt(index).title
     }
 
-    val subtotalCents: Long get() = lines.sumOf { it.unitCents * it.quantity }
-    val taxCents: Long get() = (subtotalCents * taxBasisPoints + 5_000) / 10_000
-    val totalCents: Long get() = subtotalCents + taxCents
-
-    /** The tapin2 `POST /v2/cart/add` body BCOS would build from the submit's items. */
-    fun cartAddRequest(action: FnbAction.SubmitCart): Map<String, Any?> = linkedMapOf(
-        "venueId" to action.venueId.toLongOrNull(),
-        "eventId" to action.eventId.toLongOrNull(),
-        "orderId" to orderId,
-        "deliveryMethod" to 1,
-        "products" to action.lines.map { line ->
-            linkedMapOf(
-                "locationId" to action.locationId.toLongOrNull(),
-                "quantity" to line.quantity,
-                "note" to line.note,
-                "product" to linkedMapOf(
-                    "Id" to line.itemId.toLongOrNull(),
-                    "modifierGroups" to line.selectedOptions.groupBy { it.groupId }.map { (_, options) ->
-                        linkedMapOf(
-                            "isMultiSelect" to options.first().groupMultiSelect,
-                            "modifiers" to options.map { linkedMapOf("id" to it.optionId.toLongOrNull(), "isSelected" to true) }
-                        )
-                    }
-                )
-            )
-        }
-    )
-
-    /** The current order as a BCOS `cartView` element (same shape as the BCOS sample). */
+    /** The current tapin2 order as a `cartView` element (`entity_info` = order subset). */
     fun cartView(): FnbElement {
-        val id = orderId.orEmpty()
-        val info = linkedMapOf<String, Any?>(
-            "cartId" to id,
+        val lines = items.map { item ->
+            val subtotal = item.pricePer.multiply(BigDecimal(item.quantity))
+            val tax = subtotal.multiply(taxRate).movePointLeft(2).setScale(2, RoundingMode.HALF_UP)
+            linkedMapOf<String, Any?>(
+                "id" to item.id,
+                "locationId" to item.locationId,
+                "product" to linkedMapOf("id" to item.productId, "title" to item.title, "imageUrl" to menuItems[item.productId.toString()]?.imageUrl.orEmpty(), "isAlcohol" to item.isAlcohol),
+                "quantity" to item.quantity,
+                "pricePer" to item.pricePer.toDouble(),
+                "subtotal" to subtotal.toDouble(),
+                "taxAdded" to tax.toDouble(),
+                "total" to subtotal.add(tax).toDouble(),
+                "modifier" to item.modifier,
+                "modifiers" to null,
+                "note" to item.note
+            ) to (subtotal to tax)
+        }
+        val subtotal = lines.fold(BigDecimal.ZERO) { acc, (_, amounts) -> acc.add(amounts.first) }
+        val tax = lines.fold(BigDecimal.ZERO) { acc, (_, amounts) -> acc.add(amounts.second) }
+        val locationIds = items.map { it.locationId }.distinct()
+        val order = linkedMapOf<String, Any?>(
+            "id" to orderId,
+            "idLast3" to orderId?.toString()?.takeLast(3),
             "guid" to guid,
-            "venueId" to catalog.venueId,
-            "eventId" to catalog.eventId,
-            "venue" to mapOf("name" to venueName),
-            "lines" to lines.map { line ->
-                linkedMapOf(
-                    "lineId" to line.lineId,
-                    "entityId" to line.productId,
-                    "name" to line.name,
-                    "quantity" to line.quantity,
-                    "modifiersSummary" to line.modifiersSummary,
-                    "note" to line.note,
-                    "location" to mapOf("id" to line.locationId, "label" to line.locationLabel, "section" to line.locationLabel.substringAfterLast(' ')),
-                    "unitPrice" to money(line.unitCents),
-                    "lineTotal" to money(line.unitCents * line.quantity),
-                    "actions" to mapOf(
-                        "remove" to mapOf("action" to "REMOVE_LINE", "lineId" to line.lineId),
-                        "edit" to mapOf("action" to "EDIT_LINE", "lineId" to line.lineId, "entityId" to line.productId, "locationId" to line.locationId)
-                    )
-                )
+            "venueId" to catalog.venueId.toLongOrNull(),
+            "eventId" to catalog.eventId.toLongOrNull(),
+            "orderStatus" to 1,
+            "locationId" to (locationIds.firstOrNull() ?: catalog.locationId.toLongOrNull()),
+            "venue" to linkedMapOf("id" to catalog.venueId.toLongOrNull(), "title" to venueTitle, "taxRate" to taxRate.toDouble(), "maxAlcoholPerOrder" to null),
+            "items" to lines.map { it.first },
+            "distinctLocations" to locationIds.map { id ->
+                linkedMapOf("id" to id, "title" to if (id.toString() == catalog.locationId) catalog.locationName else "", "section" to catalog.locationName.substringAfterLast(' '))
             },
-            "totals" to mapOf("subtotal" to money(subtotalCents), "tax" to money(taxCents), "total" to money(totalCents)),
-            "checkout" to mapOf(
-                "label" to "Proceed to checkout",
-                "action" to "PROCEED_TO_CHECKOUT",
-                // The Review page (what tapin2 says checkout should be), not receiptUrl.
-                "url" to "$checkoutBase/Review/Index/${catalog.venueId}?eventId=${catalog.eventId}&orderId=${guid.orEmpty()}"
-            )
+            "subtotalNet" to subtotal.toDouble(),
+            "taxAddedNet" to tax.toDouble(),
+            "feeAddedNet" to 0.0,
+            "discountNet" to 0.0,
+            "tipNet" to 0.0,
+            "totalNet" to subtotal.add(tax).toDouble(),
+            "containsAlcohol" to items.any { it.isAlcohol },
+            "isPaidInFull" to false
         )
-        return FnbElement(id = "cart_$id", entityId = id, type = "cartView", cardType = "cartSummary", entityInfo = info)
+        val id = orderId?.toString().orEmpty()
+        return FnbElement(id = "cart_$id", entityId = id, type = "cartView", cardType = "cartSummary", entityInfo = order)
     }
 
-    private fun money(cents: Long): Map<String, Any?> = mapOf(
-        "amount" to cents / 100.0,
-        "currency" to catalog.currencyCode,
-        "display" to String.format(Locale.US, "$%d.%02d", cents / 100, cents % 100)
-    )
+    private fun selectedModifierIds(groups: JSONArray?): List<Long> {
+        if (groups == null) return emptyList()
+        val ids = mutableListOf<Long>()
+        for (g in 0 until groups.length()) {
+            val modifiers = groups.getJSONObject(g).optJSONArray("modifiers") ?: continue
+            for (m in 0 until modifiers.length()) {
+                val modifier = modifiers.getJSONObject(m)
+                if (modifier.optBoolean("isSelected")) ids += modifier.getLong("id")
+            }
+        }
+        return ids
+    }
+
+    private fun block(text: String, start: String, end: String): String =
+        text.substringAfter(start, "").substringBefore(end, "").trim().ifEmpty { "{}" }
 }

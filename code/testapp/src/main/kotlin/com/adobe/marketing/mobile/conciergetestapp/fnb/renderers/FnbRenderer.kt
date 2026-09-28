@@ -16,6 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionHandler
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartOptions
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
 
 /*
  * PLACEHOLDER renderer contract. The SDK's customer-renderer registry is not available yet; this
@@ -27,9 +29,10 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionHandler
  */
 
 /**
- * One element of `response.multimodalElements.elements[]` as BCOS sends it. All meaningful data
- * is in [entityInfo] (`entity_info`); [entityId] is the business entity (a product id for
- * `catalogItemCard`, the venue for `cartBar`).
+ * One element of `response.multimodalElements.elements[]` as BCOS sends it. [entityInfo]
+ * (`entity_info`) is a subset of a tapin2 object with tapin2's names: a products entry for
+ * `catalogItemCard`, the location for `cartBar`, the order for `cartView`. [entityId] is that
+ * entity's tapin2 id (`product.id`, the venue, the order `id`).
  */
 @Immutable
 data class FnbElement(
@@ -86,21 +89,22 @@ interface FnbRenderer {
 }
 
 /** The menu: all `catalogItemCard` elements of a message plus its `cartBar`, as one widget. */
-object MenuFnbRenderer : FnbRenderer {
+class MenuFnbRenderer(private val options: MenuOptions = MenuOptions()) : FnbRenderer {
     override val elementTypes: Set<String> = setOf("catalogItemCard", "cartBar")
 
     @Composable
     override fun Content(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier) {
-        MenuRenderer(context = context, onAction = onAction, modifier = modifier)
+        MenuRenderer(context = context, onAction = onAction, modifier = modifier, options = options)
     }
 }
 
-object CartFnbRenderer : FnbRenderer {
+/** The cart: the message's `cartView` element (the tapin2 order). */
+class CartFnbRenderer(private val options: CartOptions = CartOptions()) : FnbRenderer {
     override val elementTypes: Set<String> = setOf("cartView")
 
     @Composable
     override fun Content(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier) {
-        CartSummaryRenderer(context = context, onAction = onAction, modifier = modifier)
+        CartSummaryRenderer(context = context, onAction = onAction, modifier = modifier, options = options)
     }
 }
 
@@ -110,15 +114,16 @@ object CartFnbRenderer : FnbRenderer {
  * the menu (tabs, grid, shared cart, footer) is one widget built from many cards.
  */
 object FnbRenderers {
-    val all: List<FnbRenderer> = listOf(MenuFnbRenderer, CartFnbRenderer)
+    val all: List<FnbRenderer> = listOf(MenuFnbRenderer(), CartFnbRenderer())
 
-    fun forType(type: String): FnbRenderer? = all.firstOrNull { type in it.elementTypes }
+    fun forType(type: String, renderers: List<FnbRenderer> = all): FnbRenderer? =
+        renderers.firstOrNull { type in it.elementTypes }
 
     /** Splits a message's elements into renderer groups; unclaimed elements are dropped. */
-    fun group(elements: List<FnbElement>): List<Pair<FnbRenderer, List<FnbElement>>> {
+    fun group(elements: List<FnbElement>, renderers: List<FnbRenderer> = all): List<Pair<FnbRenderer, List<FnbElement>>> {
         val groups = mutableListOf<Pair<FnbRenderer, MutableList<FnbElement>>>()
         for (element in elements) {
-            val renderer = forType(element.type) ?: continue
+            val renderer = forType(element.type, renderers) ?: continue
             val last = groups.lastOrNull()
             if (last != null && last.first === renderer) last.second += element else groups += renderer to mutableListOf(element)
         }

@@ -64,11 +64,15 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbAction
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionHandler
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionResult
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbPromptFormatter
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CatalogMenuMapper
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuUiModel
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.CartFnbRenderer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderContext
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderers
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.MenuFnbRenderer
 import com.adobe.marketing.mobile.util.JSONUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,8 +80,9 @@ import org.json.JSONObject
 
 /**
  * Debug-only end-to-end happy path: a chat-style transcript driven by [FnbFlowSimulator] in place
- * of BC/BCOS/tapin2. Menu (stage catalog as BCOS cards) -> modifiers -> ADD TO CART -> updated
- * cart -> remove / show more / checkout. "Show data" reveals the payload at each step.
+ * of BC/BCOS/tapin2. Menu (stage products as tapin2-shaped elements) -> modifiers -> ADD TO CART
+ * -> updated cart (tapin2 order) -> remove / show more / checkout. "Show data" reveals the payload
+ * at each step.
  */
 class FnbFlowActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,21 +101,25 @@ private sealed interface FlowMessage {
 }
 
 private const val FLOW_TAG = "FnbFlow"
+
+/** Demo widget options: notes on (tapin2 has `items[].note`), stage checkout host. */
+private val FLOW_MENU_OPTIONS = MenuOptions(instructions = MenuOptions.NOTES_ENABLED)
+private val FLOW_RENDERERS = listOf(MenuFnbRenderer(FLOW_MENU_OPTIONS), CartFnbRenderer(CartOptions.STAGE))
 private const val REPLY_DELAY_MS = 700L
 
 @Composable
 private fun FnbFlowScreen() {
     val context = LocalContext.current
     var run by rememberSaveable { mutableIntStateOf(0) }
-    val catalogElements = remember { loadFlowElements(context, "fnb/bcos_catalog_stage.json") }
-    val catalog = remember(catalogElements) { CatalogMenuMapper.map(catalogElements.map { it.asMap() }) }
+    val catalogElements = remember { loadFlowElements(context, "fnb/tapin2_catalog_elements_stage.json") }
+    val catalog = remember(catalogElements) { CatalogMenuMapper.map(catalogElements.map { it.asMap() }, FLOW_MENU_OPTIONS) }
     val theme = remember { ConciergeThemeLoader.load(context, "themeDemo.json") ?: ConciergeThemeLoader.default() }
     val imageProvider = remember { GalleryImageProvider() }
 
     ConciergeTheme(theme = theme) {
         CompositionLocalProvider(LocalImageProvider provides imageProvider) {
             if (catalog == null) {
-                Text("Couldn't load bcos_catalog_stage.json", modifier = Modifier.safeDrawingPadding().padding(24.dp))
+                Text("Couldn't load tapin2_catalog_elements_stage.json", modifier = Modifier.safeDrawingPadding().padding(24.dp))
             } else {
                 // Keyed on `run` so "Restart" resets the order, transcript, and widget state.
                 androidx.compose.runtime.key(run) {
@@ -134,8 +143,9 @@ private fun FlowTranscript(catalogElements: List<FnbElement>, catalog: MenuUiMod
             FlowMessage.User("I'm in section 122. What can I get to eat?"),
             FlowMessage.Agent("${catalog.locationName} is the closest open stand to section 122. Here's its menu:"),
             FlowMessage.Payload(
-                "BCOS catalog elements (${catalogElements.size - 1} catalogItemCard + cartBar), first two shown",
-                catalogElements.take(2).joinToString("\n\n") { it.toJson() } + "\n\n… ${catalogElements.size - 2} more"
+                "Menu elements: ${catalogElements.size - 1} catalogItemCard (tapin2 products entries) + cartBar (tapin2 location). " +
+                    "Fountain Soda and cartBar shown",
+                (catalogElements.filter { it.entityId == "1364015" || it.type == "cartBar" }).joinToString("\n\n") { it.toJson() }
             ),
             FlowMessage.Elements("menu-0", catalogElements)
         )
@@ -157,16 +167,17 @@ private fun FlowTranscript(catalogElements: List<FnbElement>, catalog: MenuUiMod
                     val message = FnbPromptFormatter.format(action)
                     Log.d(FLOW_TAG, message)
                     messages += FlowMessage.User(message.substringBefore(FnbPromptFormatter.DETAILS_START).trim())
-                    messages += FlowMessage.Payload("Concierge.sendMessage (full user turn)", message)
+                    messages += FlowMessage.Payload("Concierge.sendMessage (full user turn; ORDER_DETAILS = cart/add body)", message)
                     onResult(FnbActionResult.Accepted)
                     reply {
-                        val result = simulator.submit(action)
+                        val result = simulator.submit(message)
                         messages += FlowMessage.Payload(
-                            "BCOS -> tapin2 POST /v2/cart/add" + if (result.duplicate) " (duplicate submitId, skipped)" else "",
-                            JSONObject(result.cartAddRequest).toString(2)
+                            "BC -> tapin2 POST /v2/cart/add (submitId stripped; orderId, deliveryMethod added)" +
+                                if (result.duplicate) " - duplicate submitId, skipped" else "",
+                            result.cartAddRequest.toString(2)
                         )
                         messages += FlowMessage.Agent("Added to your order. Here's your current cart:")
-                        messages += FlowMessage.Payload("BCOS cartView element", result.cartView.toJson())
+                        messages += FlowMessage.Payload("cartView element (entity_info = tapin2 order subset)", result.cartView.toJson())
                         messages += FlowMessage.Elements("cart-${messages.size}", listOf(result.cartView))
                         messages += FlowMessage.Agent("Add a drink or dessert, or are you ready to check out?")
                     }
@@ -177,11 +188,11 @@ private fun FlowTranscript(catalogElements: List<FnbElement>, catalog: MenuUiMod
                     messages += FlowMessage.Payload("Concierge.sendMessage (full user turn)", message)
                     onResult(FnbActionResult.Accepted)
                     reply {
-                        val removed = simulator.remove(action.lineId)
+                        val removed = simulator.remove(message)
                         val cart = simulator.cartView()
-                        messages += FlowMessage.Payload("BCOS -> tapin2 remove line ${action.lineId} (schema pending)", "{\"orderId\": ${action.cartId}, \"itemId\": ${action.lineId}}")
+                        messages += FlowMessage.Payload("BC -> tapin2 remove order line (schema pending)", "{\"orderId\": ${action.orderId}, \"itemId\": ${action.itemId}}")
                         messages += FlowMessage.Agent(if (removed != null) "Removed $removed. Here's your updated cart:" else "That item was already removed. Here's your cart:")
-                        messages += FlowMessage.Payload("BCOS cartView element", cart.toJson())
+                        messages += FlowMessage.Payload("cartView element (entity_info = tapin2 order subset)", cart.toJson())
                         messages += FlowMessage.Elements("cart-${messages.size}", listOf(cart))
                     }
                 }
@@ -193,7 +204,7 @@ private fun FlowTranscript(catalogElements: List<FnbElement>, catalog: MenuUiMod
                     reply {
                         messages += FlowMessage.Agent(
                             "The stage data has one stand near section 122, so here's ${catalog.locationName} again. " +
-                                "Your order #${action.cartId} is kept."
+                                "Your order #${action.orderId} is kept."
                         )
                         messages += FlowMessage.Elements("menu-${menuCount++}", catalogElements)
                     }
@@ -236,7 +247,7 @@ private fun FlowTranscript(catalogElements: List<FnbElement>, catalog: MenuUiMod
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("F&B end-to-end flow (simulated)", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = ConciergeTheme.colors.onSurface)
                 Text(
-                    "Stage menu as BCOS cards. A fake BC/tapin2 prices the order and returns BCOS cartView elements.",
+                    "tapin2 stage products as elements. A fake BC/tapin2 reads the widget's cart/add body and returns the tapin2 order.",
                     fontSize = 12.sp,
                     color = ConciergeTheme.colors.onSurfaceVariant
                 )
@@ -263,7 +274,7 @@ private fun FlowTranscript(catalogElements: List<FnbElement>, catalog: MenuUiMod
                 is FlowMessage.Elements -> {
                     val interactive = index == lastMenuIndex || index == lastCartIndex
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FnbRenderers.group(message.elements).forEachIndexed { groupIndex, (renderer, group) ->
+                        FnbRenderers.group(message.elements, FLOW_RENDERERS).forEachIndexed { groupIndex, (renderer, group) ->
                             renderer.Content(FnbRenderContext("${message.key}-$groupIndex", group, interactive), handler, Modifier)
                         }
                     }

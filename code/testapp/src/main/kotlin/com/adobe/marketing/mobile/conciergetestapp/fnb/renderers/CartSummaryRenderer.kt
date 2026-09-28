@@ -45,15 +45,21 @@ import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbAction
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionHandler
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionResult
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryLine
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryMapper
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryUiModel
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Renderer entry point for the BCOS `cartView` element: maps it once, then renders [CartSummaryContent]. */
+/** Renderer entry point for the `cartView` element (the tapin2 order): maps it once, then renders [CartSummaryContent]. */
 @Composable
-fun CartSummaryRenderer(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier = Modifier) {
-    val model = remember(context.elements) { CartSummaryMapper.map(context.elements.map { it.asMap() }) }
+fun CartSummaryRenderer(
+    context: FnbRenderContext,
+    onAction: FnbActionHandler,
+    modifier: Modifier = Modifier,
+    options: CartOptions = CartOptions()
+) {
+    val model = remember(context.elements, options) { CartSummaryMapper.map(context.elements.map { it.asMap() }, options) }
     if (model == null) {
         CartUnavailable(modifier)
     } else {
@@ -132,11 +138,11 @@ fun CartSummaryContent(
                 CartLineRow(
                     line = line,
                     currencyCode = model.currencyCode,
-                    removing = line.lineId in pending,
-                    canRemove = canAct && line.removable && line.lineId !in pending,
+                    removing = line.itemId in pending,
+                    canRemove = canAct && line.removable && line.itemId !in pending,
                     onRemove = {
-                        send(FnbAction.RemoveCartItem(model.cartId, line.lineId, line.title)) {
-                            pendingRemovals = (pending + line.lineId).joinToString(",")
+                        send(FnbAction.RemoveCartItem(model.orderId, line.itemId, line.title)) {
+                            pendingRemovals = (pending + line.itemId).joinToString(",")
                         }
                     }
                 )
@@ -165,14 +171,14 @@ fun CartSummaryContent(
             FnbPrimaryButton(
                 text = model.checkoutLabel,
                 enabled = canAct,
-                onClick = { send(FnbAction.Checkout(model.cartId, model.checkoutUrl)) }
+                onClick = { send(FnbAction.Checkout(model.orderId, model.checkoutUrl)) }
             )
         }
         model.showMoreLabel?.let { label ->
             FnbSecondaryButton(
                 text = label,
                 enabled = isInteractive && !busy,
-                onClick = { send(FnbAction.ShowMoreRestaurants(model.cartId)) }
+                onClick = { send(FnbAction.ShowMoreRestaurants(model.orderId)) }
             )
         }
     }
@@ -243,6 +249,7 @@ private fun Totals(model: CartSummaryUiModel) {
         TotalRow("Subtotal", model.subtotalCents, model.currencyCode)
         if (model.discountCents > 0) TotalRow("Discount", -model.discountCents, model.currencyCode)
         if (model.feesCents > 0) TotalRow("Fees", model.feesCents, model.currencyCode)
+        if (model.tipCents > 0) TotalRow("Tip", model.tipCents, model.currencyCode)
         TotalRow("Tax", model.taxCents, model.currencyCode)
         TotalRow("Total", model.totalCents, model.currencyCode, emphasized = true)
     }

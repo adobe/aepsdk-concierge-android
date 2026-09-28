@@ -59,6 +59,9 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionHandler
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbActionResult
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbPromptFormatter
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.CustomizeContent
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartOptions
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.CartFnbRenderer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderContext
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.MenuFnbRenderer
@@ -88,6 +91,11 @@ private enum class GalleryTransport(val label: String) {
 
 private const val TAG = "FnbGallery"
 
+private val GALLERY_RENDERERS = listOf(
+    MenuFnbRenderer(MenuOptions(instructions = MenuOptions.NOTES_ENABLED)),
+    CartFnbRenderer(CartOptions.STAGE)
+)
+
 @Composable
 private fun FnbGalleryScreen() {
     val context = LocalContext.current
@@ -97,10 +105,10 @@ private fun FnbGalleryScreen() {
     val log = remember { mutableStateListOf<String>() }
     val theme = remember(themeFile) { ConciergeThemeLoader.load(context, themeFile) ?: ConciergeThemeLoader.default() }
     val imageProvider = remember { GalleryImageProvider() }
-    val catalogSample = remember { loadElements(context, "fnb/bcos_catalog_sample.json") }
-    val catalogStage = remember { loadElements(context, "fnb/bcos_catalog_stage.json") }
-    val cartSample = remember { loadElements(context, "fnb/bcos_cart_sample.json") }
-    val cartStage = remember { loadElements(context, "fnb/bcos_cart_stage.json") }
+    val catalogStage = remember { loadElements(context, "fnb/tapin2_catalog_elements_stage.json") }
+    // Two cards (Veggie Nachos, Fountain Soda) + cartBar: a compact menu for the read-only demo.
+    val catalogSample = remember(catalogStage) { catalogStage.filter { it.entityId in setOf("1364190", "1364015") || it.type == "cartBar" } }
+    val cartStage = remember { loadElements(context, "fnb/tapin2_cart_view_stage.json") }
     val conciergeHandler = remember {
         ConciergeFnbActionHandler(openUrl = { url ->
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.isSuccess
@@ -176,10 +184,7 @@ private fun FnbGalleryScreen() {
                     )
                 }
 
-                item { SectionTitle("Menu: BCOS sample (2 catalogItemCard + cartBar)") }
-                item { ElementsGroup("catalog-sample-$generation", catalogSample, handler) }
-
-                item { SectionTitle("Menu: tapin2 stage as BCOS catalog cards (33 items + cartBar)") }
+                item { SectionTitle("Menu: tapin2 stage products as elements (33 catalogItemCard + cartBar)") }
                 item { ElementsGroup("catalog-stage-$generation", catalogStage, handler) }
 
                 item { SectionTitle("Menu: location paused (sample models)") }
@@ -198,24 +203,21 @@ private fun FnbGalleryScreen() {
 
                 item { SectionTitle("Menu: unmappable elements") }
                 item {
-                    MenuFnbRenderer.Content(
+                    MenuFnbRenderer().Content(
                         context = FnbRenderContext("empty-$generation", emptyList()),
                         onAction = handler,
                         modifier = Modifier
                     )
                 }
 
-                item { SectionTitle("Cart: BCOS sample (cartView, two stands)") }
-                item { ElementsGroup("cart-sample-$generation", cartSample, handler) }
-
-                item { SectionTitle("Cart: tapin2 stage order as BCOS cartView") }
+                item { SectionTitle("Cart: tapin2 stage cart/add order as cartView") }
                 item { ElementsGroup("cart-stage-$generation", cartStage, handler) }
 
-                item { SectionTitle("Cart: paid (proposed isPaid) and stale (isInteractive = false)") }
+                item { SectionTitle("Cart: paid (isPaidInFull) and stale (isInteractive = false)") }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        ElementsGroup("cart-paid-$generation", cartSample.map { if (it.type == "cartView") it.copy(entityInfo = it.entityInfo + ("isPaid" to true)) else it }, handler)
-                        ElementsGroup("cart-stale-$generation", cartSample, handler, isInteractive = false)
+                        ElementsGroup("cart-paid-$generation", cartStage.map { it.copy(entityInfo = it.entityInfo + ("isPaidInFull" to true)) }, handler)
+                        ElementsGroup("cart-stale-$generation", cartStage, handler, isInteractive = false)
                     }
                 }
 
@@ -284,7 +286,7 @@ private fun GalleryPanel(content: @Composable () -> Unit) {
 @Composable
 private fun ElementsGroup(key: String, elements: List<FnbElement>, handler: FnbActionHandler, isInteractive: Boolean = true) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        FnbRenderers.group(elements).forEachIndexed { index, (renderer, group) ->
+        FnbRenderers.group(elements, GALLERY_RENDERERS).forEachIndexed { index, (renderer, group) ->
             renderer.Content(FnbRenderContext("$key-$index", group, isInteractive), handler, Modifier)
         }
     }
