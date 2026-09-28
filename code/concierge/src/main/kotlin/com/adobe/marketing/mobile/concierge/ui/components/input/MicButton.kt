@@ -144,6 +144,10 @@ internal fun MicButton(
             )
         }
 
+        // Choose icon tint based on state and enabled flag
+        val baseIconColor = if (isRecording) style.recordingIconColor else style.iconColor
+        val tintColor = if (isEnabled) baseIconColor else baseIconColor.copy(alpha = 0.38f)
+
         IconButton(
             onClick = {
                 if (isEnabled) {
@@ -154,24 +158,25 @@ internal fun MicButton(
                 .size(iconSize)
                 .semantics { contentDescription = if (isRecording) "Recording in progress" else "Start voice input" }
         ) {
-            // Choose icon tint based on state and enabled flag
-            val baseIconColor = if (isRecording) style.recordingIconColor else style.iconColor
-            val tintColor = if (isEnabled) baseIconColor else baseIconColor.copy(alpha = 0.38f)
-
-            if (isRecording) {
-                AnimatedAudioWave(
-                    modifier = Modifier.size(iconSize),
-                    color = tintColor,
-                    gradient = dimIfDisabled(style.waveformGradient, isEnabled),
-                    audioLevel = (userInputState as? UserInputState.Recording)?.audioLevel ?: 0f
-                )
-            } else {
+            if (!isRecording) {
                 GradientTintableIcon(
                     tint = tintColor,
                     gradient = dimIfDisabled(style.iconGradient, isEnabled),
                     iconSize = iconSize
                 )
             }
+        }
+
+        // Drawn as a sibling rather than inside IconButton, whose content is clipped to a circle
+        // and would crop the outer bars. The Canvas has no pointer input, so taps still reach
+        // the button underneath.
+        if (isRecording) {
+            AnimatedAudioWave(
+                modifier = Modifier.size(iconSize),
+                color = tintColor,
+                gradient = dimIfDisabled(style.waveformGradient, isEnabled),
+                audioLevel = (userInputState as? UserInputState.Recording)?.audioLevel ?: 0f
+            )
         }
     }
 }
