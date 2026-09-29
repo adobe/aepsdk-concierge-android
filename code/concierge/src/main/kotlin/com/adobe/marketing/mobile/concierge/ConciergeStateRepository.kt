@@ -25,8 +25,10 @@ import kotlinx.coroutines.flow.update
 /**
  * Represents the state of the Concierge extension.
  *
- * @property experienceCloudId The Experience Cloud ID (ECID) from the EdgeIdentity extension.
- *                              Null indicates the ECID is not yet available or failed to load.
+ * @property experienceCloudId The Experience Cloud ID (ECID) derived from [identityMap]. Used as
+ *                              the identity readiness signal. Null if not yet available.
+ * @property identityMap The full identityMap from the EdgeIdentity extension, carried verbatim so
+ *                        every namespace (not just ECID) is forwarded. Null if not yet available.
  * @property configurationReady Indicates whether the configuration is ready.
  * @property surfaces List of surface URLs set via the [ConciergeChat] surfaces parameter.
  * @property conciergeServer Server URL from concierge.server configuration.
@@ -36,6 +38,7 @@ import kotlinx.coroutines.flow.update
  */
 internal data class ConciergeState(
     val experienceCloudId: String? = null,
+    val identityMap: Map<String, Any?>? = null,
     val configurationReady: Boolean = false,
     val surfaces: List<String> = emptyList(),
     val conciergeServer: String? = null,
@@ -93,13 +96,13 @@ internal class ConciergeStateRepository internal constructor(
     }
 
     /**
-     * Updates the Experience Cloud ID.
-     * This should be called by the ConciergeExtension when ECID becomes available.
+     * Stores the full EdgeIdentity identityMap verbatim, along with the derived ECID.
+     * This should be called by the ConciergeExtension when identity becomes available.
      *
      * @param api The ExtensionApi instance
      * @param event The event that triggered the update
      */
-    fun updateExperienceCloudId(api: ExtensionApi, event: Event) {
+    fun updateIdentity(api: ExtensionApi, event: Event) {
         val edgeIdentitySharedState = getXDMSharedState(
             api,
             ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
@@ -112,27 +115,32 @@ internal class ConciergeStateRepository internal constructor(
                 edgeIdentitySharedState,
                 ConciergeConstants.SharedState.EdgeIdentity.IDENTITY_MAP,
                 null
-            )
-        val ecids: MutableList<MutableMap<String?, Any?>?> =
-            DataReader.optTypedListOfMap(
-                Any::class.java,
-                identityMap,
-                ConciergeConstants.SharedState.EdgeIdentity.ECID,
-                null
-            )
+            )?.takeIf { it.isNotEmpty() }
 
-        val ecidMap = ecids.firstOrNull()
-
-        val ecid =
-            DataReader.optString(ecidMap, ConciergeConstants.SharedState.EdgeIdentity.ID, null)
-                ?.takeIf { it.isNotEmpty() }
-        _state.update { it.copy(experienceCloudId = ecid) }
+        _state.update {
+            it.copy(experienceCloudId = extractEcid(identityMap), identityMap = identityMap)
+        }
+        // Log namespace names only, never id values (PII).
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             LOG_TAG,
-            "Updated concierge state with ECID: $ecid"
-
+            "Updated concierge state with identityMap namespaces: ${identityMap?.keys}"
         )
+    }
+
+    /**
+     * Extracts the ECID from the [identityMap], or null when absent or empty.
+     */
+    private fun extractEcid(identityMap: Map<String, Any?>?): String? {
+        val ecidEntry = DataReader.optTypedListOfMap(
+            Any::class.java,
+            identityMap ?: return null,
+            ConciergeConstants.SharedState.EdgeIdentity.ECID,
+            null
+        )?.firstOrNull()
+
+        return DataReader.optString(ecidEntry, ConciergeConstants.SharedState.EdgeIdentity.ID, null)
+            ?.takeIf { it.isNotEmpty() }
     }
 
     /**

@@ -24,17 +24,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.translate
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.toBrush
+import kotlin.math.floor
+import kotlin.math.min
 import kotlin.math.sin
 
 private const val BAR_HEIGHT_FLOOR = 0.12
 private const val MAX_AMPLITUDE = 0.88
+
+// Relative bar heights, normalized to the tallest bar.
+private const val TALLEST_BAR = 10.5f
+private val WAVEFORM_BAR_PROFILE = floatArrayOf(3f, 7.88f, 6f, 10.5f, 7.5f, 3f)
+    .map { it / TALLEST_BAR }
+    .toFloatArray()
 
 /**
  * Computes the height fraction for a waveform bar at [index] given the elapsed [timeSeconds].
@@ -52,6 +60,21 @@ internal fun audioWaveBarScale(index: Int, timeSeconds: Double, audioLevel: Floa
 }
 
 /**
+ * Height multiplier for the bar at [index] out of [barCount], giving the waveform the
+ * silhouette defined by [WAVEFORM_BAR_PROFILE]. When [barCount] differs from the
+ * profile size, the profile is linearly resampled so the overall shape is preserved.
+ */
+internal fun audioWaveBarEnvelope(index: Int, barCount: Int): Float {
+    if (barCount <= 1) return 1f
+    val lastProfileIndex = WAVEFORM_BAR_PROFILE.size - 1
+    val position = index.coerceIn(0, barCount - 1) * lastProfileIndex / (barCount - 1f)
+    val lower = floor(position).toInt()
+    val upper = min(lower + 1, lastProfileIndex)
+    val fraction = position - lower
+    return WAVEFORM_BAR_PROFILE[lower] + (WAVEFORM_BAR_PROFILE[upper] - WAVEFORM_BAR_PROFILE[lower]) * fraction
+}
+
+/**
  * Returns [gradient]'s angle-aware linear-gradient brush when it's renderable (see
  * [ConciergeGradient.isRenderable]), otherwise falls back to a solid [color] fill.
  */
@@ -64,12 +87,14 @@ internal fun audioWaveBarBrush(color: Color, gradient: ConciergeGradient?, size:
 }
 
 /**
- * Animated audio waveform with 5 bars that pulse while recording, each bar staggered in phase
- * for a natural waveform look. Bars sit static and flat until voice is actually detected.
+ * Animated audio waveform with 6 bars that pulse while recording, each bar staggered in phase
+ * for a natural waveform look and shaped by [audioWaveBarEnvelope]. Bars sit static and flat
+ * until voice is actually detected.
  *
  * @param modifier Modifier for the composable
  * @param color The color of the waveform bars, used when no gradient is configured
- * @param gradient Optional gradient fill for the bars, used instead of [color] when renderable
+ * @param gradient Optional gradient fill used instead of [color] when renderable. Applied to each
+ * bar individually so every bar spans the full gradient regardless of its height
  * @param barCount Number of bars to render
  * @param audioLevel Normalized 0f..1f input level. Defaults to full amplitude; pass the live
  * level from [com.adobe.marketing.mobile.concierge.ui.state.UserInputState.Recording] so the
@@ -80,7 +105,7 @@ internal fun AnimatedAudioWave(
     modifier: Modifier = Modifier,
     color: Color,
     gradient: ConciergeGradient? = null,
-    barCount: Int = 5,
+    barCount: Int = 6,
     audioLevel: Float = 1f
 ) {
     var elapsedMillis by remember { mutableFloatStateOf(0f) }
@@ -102,7 +127,6 @@ internal fun AnimatedAudioWave(
     )
 
     Canvas(modifier = modifier) {
-        val brush = audioWaveBarBrush(color, gradient, size)
         val totalWidth = size.width
         val totalHeight = size.height
         val barWidth = totalWidth / (barCount * 2f - 1f) // bars + gaps
@@ -112,16 +136,21 @@ internal fun AnimatedAudioWave(
 
         for (index in 0 until barCount) {
             val scale = audioWaveBarScale(index, timeSeconds, smoothedAudioLevel)
-            val barHeight = totalHeight * scale
+            val envelope = audioWaveBarEnvelope(index, barCount)
+            val barHeight = (totalHeight * scale * envelope).coerceAtLeast(barWidth)
+            val barSize = Size(barWidth, barHeight)
             val x = index * (barWidth + gap)
             val y = (totalHeight - barHeight) / 2f
 
-            drawRoundRect(
-                brush = brush,
-                topLeft = Offset(x, y),
-                size = Size(barWidth, barHeight),
-                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
-            )
+            // Translate so each bar is drawn at the origin with a brush sized to that bar,
+            // giving every bar the full gradient along its own length.
+            translate(left = x, top = y) {
+                drawRoundRect(
+                    brush = audioWaveBarBrush(color, gradient, barSize),
+                    size = barSize,
+                    cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                )
+            }
         }
     }
 }

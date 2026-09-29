@@ -173,6 +173,7 @@ data class ConciergeThemeColors(
     val welcomePrompt: ConciergeWelcomePromptColors? = null,
     val ctaButton: ConciergeCtaButtonColors? = null,
     val productCardCtaButton: ConciergeProductCardCtaButtonColors? = null,
+    val productCardSecondaryCtaButton: ConciergeProductCardSecondaryCtaButtonColors? = null,
     val promptSuggestion: ConciergeWelcomePromptColors? = null,
     val thinking: ConciergeThinkingColors? = null
 )
@@ -289,6 +290,13 @@ data class ConciergeCtaButtonColors(
 data class ConciergeProductCardCtaButtonColors(
     val backgroundColor: String? = null,
     val textColor: String? = null
+)
+
+/** Outlined counterpart to [ConciergeProductCardCtaButtonColors] for the secondary CTA. */
+data class ConciergeProductCardSecondaryCtaButtonColors(
+    val backgroundColor: String? = null,
+    val textColor: String? = null,
+    val borderColor: String? = null
 )
 
 data class ConciergeThinkingColors(

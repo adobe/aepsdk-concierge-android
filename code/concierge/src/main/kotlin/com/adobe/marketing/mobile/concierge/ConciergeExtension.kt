@@ -55,6 +55,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
             ConciergeConstants.EventSource.NOTIFICATION,
             this::processEvent
         )
+        api.registerEventListener(
+            ConciergeConstants.EventType.CONCIERGE,
+            EventSource.REQUEST_CONTENT,
+            this::processEvent
+        )
     }
 
     override fun readyForEvent(event: Event): Boolean {
@@ -74,7 +79,7 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
                 SELF_TAG,
                 "Identity shared state event received."
             )
-            ConciergeStateRepository.instance.updateExperienceCloudId(api, event)
+            ConciergeStateRepository.instance.updateIdentity(api, event)
         } else if (event.isConsentSharedStateEvent()) {
             Log.trace(
                 EXTENSION_NAME,
@@ -100,6 +105,13 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
                 "Concierge notification event received."
             )
             ConciergeEventTracker.trackEvent(event)
+        } else if (event.isDataHandoffEvent()) {
+            Log.trace(
+                EXTENSION_NAME,
+                SELF_TAG,
+                "Data handoff event received."
+            )
+            ConciergeDataHandoffEventHandler.instance.handle(event)
         }
     }
 
@@ -133,6 +145,12 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
     internal fun Event.isConciergeNotification(): Boolean {
         return this.type == ConciergeConstants.EventType.CONCIERGE &&
                 this.source == ConciergeConstants.EventSource.NOTIFICATION
+    }
+
+    internal fun Event.isDataHandoffEvent(): Boolean {
+        return this.type == ConciergeConstants.EventType.CONCIERGE &&
+                this.source == EventSource.REQUEST_CONTENT &&
+                this.name == ConciergeConstants.DataHandoff.EventName.REQUEST
     }
 
     private fun getSharedState(extensionName: String, event: Event): SharedStateResult? {

@@ -72,7 +72,7 @@ class ConciergeExtensionTest {
     // ========== Event Processing Tests ==========
 
     @Test
-    fun `processEvent calls updateExperienceCloudId for identity shared state event`() {
+    fun `processEvent calls updateIdentity for identity shared state event`() {
         val event = Event.Builder(
             "Identity Event",
             EventType.HUB,
@@ -83,7 +83,7 @@ class ConciergeExtensionTest {
 
         extension.processEvent(event)
 
-        verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, event) }
+        verify(exactly = 1) { mockStateRepository.updateIdentity(mockApi, event) }
     }
 
     @Test
@@ -129,6 +129,80 @@ class ConciergeExtensionTest {
         assertEquals("brandconcierge", ConciergeConstants.EXTENSION_NAME)
         assertEquals("BrandConcierge", ConciergeConstants.EXTENSION_FRIENDLY_NAME)
         assertEquals(ConciergeConstants.VERSION, ExtensionHelper.getVersion(extension))
+    }
+
+    // ========== Data Handoff Event Listener Registration Tests ==========
+
+    @Test
+    fun `onRegistered registers a listener for the concierge request-content source`() {
+        ExtensionHelper.notifyRegistered(extension)
+
+        verify(exactly = 1) {
+            mockApi.registerEventListener(
+                ConciergeConstants.EventType.CONCIERGE,
+                EventSource.REQUEST_CONTENT,
+                any()
+            )
+        }
+    }
+
+    @Test
+    fun `isDataHandoffEvent returns true for a matching request-content event`() {
+        val event = Event.Builder(
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
+            ConciergeConstants.EventType.CONCIERGE,
+            EventSource.REQUEST_CONTENT
+        ).build()
+
+        val result = extension.run { event.isDataHandoffEvent() }
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `isDataHandoffEvent returns false for a request-content event with a different name`() {
+        val event = Event.Builder(
+            "Some Other Concierge Request",
+            ConciergeConstants.EventType.CONCIERGE,
+            EventSource.REQUEST_CONTENT
+        ).build()
+
+        val result = extension.run { event.isDataHandoffEvent() }
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `isDataHandoffEvent returns false for wrong event type`() {
+        val event = Event.Builder(
+            ConciergeConstants.DataHandoff.EventName.REQUEST,
+            EventType.ANALYTICS,
+            EventSource.REQUEST_CONTENT
+        ).build()
+
+        val result = extension.run { event.isDataHandoffEvent() }
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `processEvent routes a data handoff event to ConciergeDataHandoffEventHandler`() {
+        val mockHandler: ConciergeDataHandoffEventHandler = mockk(relaxed = true)
+        mockkObject(ConciergeDataHandoffEventHandler)
+        every { ConciergeDataHandoffEventHandler.instance } returns mockHandler
+        try {
+            val event = Event.Builder(
+                ConciergeConstants.DataHandoff.EventName.REQUEST,
+                ConciergeConstants.EventType.CONCIERGE,
+                EventSource.REQUEST_CONTENT
+            ).build()
+
+            extension.processEvent(event)
+
+            verify(exactly = 1) { mockHandler.handle(event) }
+        } finally {
+            unmockkObject(ConciergeDataHandoffEventHandler)
+        }
     }
 
     // ========== hasValidXdmSharedState Tests ==========
@@ -492,7 +566,7 @@ class ConciergeExtensionTest {
         extension.processEvent(identityEvent)
         extension.processEvent(configEvent)
 
-        verify(exactly = 1) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
+        verify(exactly = 1) { mockStateRepository.updateIdentity(mockApi, identityEvent) }
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 
@@ -509,7 +583,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
 
         // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
 
@@ -524,7 +598,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event)
 
         // Then - no repository methods should be called
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
 
@@ -629,7 +703,7 @@ class ConciergeExtensionTest {
         extension.processEvent(event1)
         extension.processEvent(event2)
 
-        verify(exactly = 2) { mockStateRepository.updateExperienceCloudId(mockApi, any()) }
+        verify(exactly = 2) { mockStateRepository.updateIdentity(mockApi, any()) }
     }
 
     @Test
@@ -719,7 +793,7 @@ class ConciergeExtensionTest {
 
         extension.processEvent(event)
 
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
         verify(exactly = 0) { mockStateRepository.updateConfiguration(any()) }
     }
 
@@ -767,7 +841,7 @@ class ConciergeExtensionTest {
 
         extension.processEvent(event)
 
-        verify(exactly = 0) { mockStateRepository.updateExperienceCloudId(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
     }
 
     @Test
@@ -829,7 +903,7 @@ class ConciergeExtensionTest {
         extension.processEvent(otherEvent)
         extension.processEvent(identityEvent)
 
-        verify(exactly = 2) { mockStateRepository.updateExperienceCloudId(mockApi, identityEvent) }
+        verify(exactly = 2) { mockStateRepository.updateIdentity(mockApi, identityEvent) }
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 }

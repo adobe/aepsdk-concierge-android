@@ -67,6 +67,43 @@ class AnimatedAudioWaveTest {
     }
 
     @Test
+    fun `envelope matches the bar profile at the default bar count`() {
+        val expected = floatArrayOf(3f, 7.88f, 6f, 10.5f, 7.5f, 3f).map { it / 10.5f }
+        expected.forEachIndexed { index, value ->
+            assertEquals(value, audioWaveBarEnvelope(index = index, barCount = 6), 0.001f)
+        }
+    }
+
+    @Test
+    fun `envelope resamples the profile for other bar counts`() {
+        assertEquals(3f / 10.5f, audioWaveBarEnvelope(index = 0, barCount = 3), 0.001f)
+        assertEquals(3f / 10.5f, audioWaveBarEnvelope(index = 2, barCount = 3), 0.001f)
+        // Midpoint lands halfway between the 6f and 10.5f profile entries.
+        assertEquals(8.25f / 10.5f, audioWaveBarEnvelope(index = 1, barCount = 3), 0.001f)
+    }
+
+    @Test
+    fun `envelope upsamples the profile when there are more bars than profile entries`() {
+        // 11 bars over a 6-entry profile: every even index lands exactly on a profile entry.
+        assertEquals(3f / 10.5f, audioWaveBarEnvelope(index = 0, barCount = 11), 0.001f)
+        assertEquals(10.5f / 10.5f, audioWaveBarEnvelope(index = 6, barCount = 11), 0.001f)
+        assertEquals(3f / 10.5f, audioWaveBarEnvelope(index = 10, barCount = 11), 0.001f)
+        // Odd index 1 sits halfway between the 3f and 7.88f entries.
+        assertEquals(5.44f / 10.5f, audioWaveBarEnvelope(index = 1, barCount = 11), 0.001f)
+    }
+
+    @Test
+    fun `envelope clamps out-of-range indices to the edge bars`() {
+        assertEquals(audioWaveBarEnvelope(index = 0, barCount = 6), audioWaveBarEnvelope(index = -1, barCount = 6), 0.001f)
+        assertEquals(audioWaveBarEnvelope(index = 5, barCount = 6), audioWaveBarEnvelope(index = 9, barCount = 6), 0.001f)
+    }
+
+    @Test
+    fun `envelope is full height for a single bar`() {
+        assertEquals(1f, audioWaveBarEnvelope(index = 0, barCount = 1), 0.001f)
+    }
+
+    @Test
     fun `brush falls back to solid color when no gradient is set`() {
         val brush = audioWaveBarBrush(color = Color.Red, gradient = null, size = Size(100f, 100f))
         assertEquals(SolidColor(Color.Red), brush)

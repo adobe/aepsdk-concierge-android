@@ -75,3 +75,6 @@ build/
 # Secrets properties
 app/secrets.properties
 aepsdk-brandconcierge-android/secrets.properties
+
+# Local Scout search index and memory
+.scout/

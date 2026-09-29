@@ -20,8 +20,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.MobileCore
+import com.adobe.marketing.mobile.concierge.ActiveConciergeDataHandoffForwarder
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffForwarder
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
+import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationService
@@ -31,6 +36,7 @@ import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
+import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -61,19 +67,34 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
         private const val TAG = "ConciergeChatViewModel"
+        private const val MAX_PENDING_CONVERSATION_REQUESTS = 64
 
         /**
          * User-facing fallback shown in the chat when a conversation cannot be completed
@@ -289,6 +310,141 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private var responseStartedDispatched = false
 
+    private sealed class ConversationRequest {
+        data class Chat(val message: String) : ConversationRequest()
+        class DataHandoff(
+            val handoff: ConciergeDataHandoffEvent,
+            private val completion: (DataHandoffDeliveryResult) -> Unit,
+            private val onCompleted: (DataHandoff) -> Unit,
+            private val onReservationReleased: () -> Unit
+        ) : ConversationRequest() {
+            private val completed = AtomicBoolean(false)
+            private val reservationReleased = AtomicBoolean(false)
+
+            @Volatile
+            var requestJob: Job? = null
+
+            @Volatile
+            var timeoutJob: Job? = null
+
+            @Volatile
+            var firstChunkJob: Job? = null
+
+            private val firstChunkReceived = AtomicBoolean(false)
+            private val firstChunkTimeoutArmed = AtomicBoolean(false)
+
+            @Volatile
+            private var terminalResult: DataHandoffDeliveryResult? = null
+
+            val isCompleted: Boolean
+                get() = completed.get()
+
+            val timedOut: Boolean
+                get() = terminalResult ==
+                    DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT)
+
+            fun complete(result: DataHandoffDeliveryResult) {
+                if (markCompleted(result)) {
+                    completion(result)
+                }
+            }
+
+            fun completeAfterReleasingReservation(result: DataHandoffDeliveryResult) {
+                if (markCompleted(result)) {
+                    releaseReservation()
+                    completion(result)
+                }
+            }
+
+            fun timeout() {
+                completeAfterReleasingReservation(
+                    DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_TIMEOUT)
+                )
+                requestJob?.cancel()
+            }
+
+            fun armFirstChunkTimeout(scope: CoroutineScope) {
+                if (!firstChunkTimeoutArmed.compareAndSet(false, true)) return
+                if (isCompleted || firstChunkReceived.get()) return
+
+                // RequestStartedFlow invokes this from its IO flow immediately before connect().
+                // Start undispatched so the delay deadline is registered before that callback
+                // returns, rather than waiting for the main dispatcher to run this coroutine.
+                val job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    delay(ConciergeConstants.DataHandoff.FIRST_CHUNK_TIMEOUT_MS)
+                    timeout()
+                }
+                firstChunkJob = job
+                if (isCompleted || firstChunkReceived.get()) {
+                    job.cancel()
+                    firstChunkJob = null
+                }
+            }
+
+            /**
+             * Disarms the first-chunk cap. Once the service has streamed anything at all it is
+             * demonstrably not wedged, so only the turn ceiling should still bound the request.
+             * Idempotent - called for every chunk, acts on the first.
+             */
+            fun noteChunkReceived() {
+                if (firstChunkReceived.compareAndSet(false, true)) {
+                    firstChunkJob?.cancel()
+                    firstChunkJob = null
+                }
+            }
+
+            fun releaseReservation() {
+                if (reservationReleased.compareAndSet(false, true)) {
+                    onReservationReleased()
+                }
+            }
+
+            private fun markCompleted(result: DataHandoffDeliveryResult): Boolean {
+                if (!completed.compareAndSet(false, true)) {
+                    return false
+                }
+                terminalResult = result
+                timeoutJob?.cancel()
+                firstChunkJob?.cancel()
+                onCompleted(this)
+                return true
+            }
+        }
+    }
+
+    private sealed class ConversationStreamResult {
+        object Delivered : ConversationStreamResult()
+        object Empty : ConversationStreamResult()
+
+        /** @param detail the underlying error text, when the stream provided one. */
+        data class Failed(val detail: String?) : ConversationStreamResult()
+    }
+
+    private val conversationRequests = Channel<ConversationRequest>(MAX_PENDING_CONVERSATION_REQUESTS)
+
+    // reserveDataHandoffSlot() only ever admits one data handoff at a time, so this is never
+    // more than a single in-flight request.
+    @Volatile
+    private var currentDataHandoff: ConversationRequest.DataHandoff? = null
+
+    // Total conversation requests (chat or data handoff) currently queued or processing.
+    // Chat messages increment/decrement this unconditionally as a queue-depth count; a data
+    // handoff instead requires it to be exactly 0 to be admitted at all (reserveDataHandoffSlot),
+    // making this field double as both a FIFO depth counter and a single-occupant exclusivity gate.
+    private val pendingConversationRequests = AtomicInteger(0)
+
+    @Volatile
+    private var isDataHandoffSessionActive = false
+
+    private val dataHandoffForwarder = object : ConciergeDataHandoffForwarder {
+        override fun forward(
+            result: ConciergeDataHandoffEvent,
+            completion: (DataHandoffDeliveryResult) -> Unit
+        ) {
+            enqueueDataHandoff(result, completion)
+        }
+    }
+
     constructor(application: Application) : this(
         application,
         AndroidSpeechCapturing(application),
@@ -323,6 +479,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.chatService = chatService
         this.dispatch = dispatch
         speechCapturing.setListener(captureListener)
+        startConversationProcessor()
 
         // Initialize welcome card state based on config and user history
         checkAndShowWelcomeCard()
@@ -631,7 +788,10 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Processing error: $message"
         )
         _state.update { currentState ->
-            ChatScreenState.Error(DEFAULT_CONVERSATION_ERROR_MESSAGE)
+            // An open feedback dialog belongs to an earlier, completed turn - it's unrelated to
+            // this failure, so carry it forward rather than silently closing it and discarding
+            // whatever the user was part-way through entering.
+            ChatScreenState.Error(DEFAULT_CONVERSATION_ERROR_MESSAGE, feedback = currentState.feedback)
         }
     }
 
@@ -652,68 +812,447 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
 
-        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(messageText))
-        responseStartedDispatched = false
+        pendingConversationRequests.incrementAndGet()
+        if (conversationRequests.trySend(ConversationRequest.Chat(messageText)).isFailure) {
+            pendingConversationRequests.decrementAndGet()
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Unable to queue chat message because the conversation queue is full or closed."
+            )
+            handleProcessingError("Unable to queue chat message")
+            return
+        }
 
-        // Dismiss welcome card when user sends their first message
+        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(messageText))
         if (_showWelcomeCard.value) {
             dismissWelcomeCard()
         }
-
-        // Mark user as returning (has seen and interacted with welcome)
         markUserAsReturning()
-
-        // Add user message to the list
-        val userMessage = ChatMessage(
-            content = MessageContent.Text(messageText),
-            isFromUser = true,
-            timestamp = System.currentTimeMillis()
-        )
-
-        _messages.update { currentMessages ->
-            currentMessages + userMessage
-        }
-        // Reset input state after sending (text clearing is handled in ChatInputField)
         _inputState.update { UserInputState.Empty }
-
-        // Transition to processing state
-        _state.update {
-            ChatScreenState.Processing()
-        }
-
-        // Start the conversation stream from the API
-        initiateConversation(messageText.trim())
+        // Carry forward any feedback dialog left open on an earlier turn.
+        _state.update { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
     }
 
     /**
-     * Handles the streaming conversation response from the API
-     * @param messageText The original user message
+     * Drains the shared conversation queue one request at a time.
+     *
+     * Every request is isolated: an escaping throw is contained here rather than ending the
+     * `for` loop, because this coroutine is the only consumer of [conversationRequests]. Losing it
+     * would strand every later chat message unprocessed and leave [pendingConversationRequests]
+     * permanently above zero, so every later handoff would be rejected with `CHAT_IN_PROGRESS`
+     * forever. A [CancellationException] is only allowed to stop the loop when this coroutine has
+     * genuinely been cancelled (the ViewModel is going away).
      */
-    private fun initiateConversation(messageText: String) {
+    private fun startConversationProcessor() {
         viewModelScope.launch {
-            var assistantMessage: ChatMessage
-            val contentBuilder = StringBuilder()
-
-            try {
-                // Create initial empty assistant message once the stream begins
-                assistantMessage = ChatMessage(
-                    content = MessageContent.Text(""),
-                    isFromUser = false,
-                    timestamp = System.currentTimeMillis(),
-                    citations = emptyList()
-                )
-                _messages.update { currentMessages -> currentMessages + assistantMessage }
-
-                chatService.chat(messageText).collect { parsedMessage ->
-                    onParsedMessage(parsedMessage, contentBuilder)
+            for (request in conversationRequests) {
+                when (request) {
+                    is ConversationRequest.Chat -> {
+                        try {
+                            processChatRequest(request.message)
+                        } catch (e: CancellationException) {
+                            if (!isActive) throw e
+                            Log.warning(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Chat request was cancelled: ${e.message}"
+                            )
+                            resetProcessingStateToIdle()
+                        } catch (e: Exception) {
+                            Log.warning(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Chat request failed unexpectedly: ${e.message}"
+                            )
+                            resetProcessingStateToIdle()
+                        } finally {
+                            pendingConversationRequests.decrementAndGet()
+                        }
+                    }
+                    is ConversationRequest.DataHandoff -> {
+                        try {
+                            processDataHandoffRequest(request)
+                        } catch (e: CancellationException) {
+                            request.complete(
+                                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)
+                            )
+                            if (!isActive) throw e
+                            Log.warning(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Data handoff request was cancelled: ${e.message}"
+                            )
+                            resetProcessingStateToIdle()
+                        } catch (e: Exception) {
+                            Log.warning(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "Data handoff request failed unexpectedly: ${e.message}"
+                            )
+                            request.complete(
+                                DataHandoffDeliveryResult.Failed(
+                                    ConciergeDataHandoffRejectReason.DELIVERY_FAILED,
+                                    e.message
+                                )
+                            )
+                            resetProcessingStateToIdle()
+                        } finally {
+                            request.releaseReservation()
+                        }
+                    }
                 }
-            } catch (e: Exception) {
-                Log.error(
-                    ConciergeConstants.EXTENSION_NAME,
-                    TAG,
-                    "Error processing conversation : ${e.message}"
-                )
-                handleConversationError("Failed to process response: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Runs [block], rethrowing [CancellationException] but reporting any other exception via
+     * [handleConversationError] and returning [onError]'s value instead.
+     */
+    private suspend fun <T> reportingConversationErrors(
+        errorPrefix: String,
+        onError: () -> T,
+        block: suspend () -> T
+    ): T = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        handleConversationError("$errorPrefix: ${e.message}")
+        onError()
+    }
+
+    private suspend fun processChatRequest(messageText: String) {
+        responseStartedDispatched = false
+
+        appendUserMessage(messageText)
+
+        // Transition to processing state, carrying forward any feedback dialog left open on an
+        // earlier turn.
+        _state.update { currentState ->
+            ChatScreenState.Processing(feedback = currentState.feedback)
+        }
+
+        reportingConversationErrors("Failed to send message", onError = {}) {
+            streamConversation(
+                chatService.chat(messageText.trim()),
+                isDataHandoff = false
+            )
+        }
+    }
+
+    private fun appendUserMessage(messageText: String) {
+        _messages.update { currentMessages ->
+            currentMessages + ChatMessage(
+                content = MessageContent.Text(messageText),
+                isFromUser = true,
+                timestamp = System.currentTimeMillis()
+            )
+        }
+    }
+
+    /**
+     * Appends [messageText] as an agent-styled bubble.
+     *
+     * Used for a data handoff's `localMessage`. It is deliberately *not* a user message: nobody
+     * typed it, app code fired the handoff after some real-world event, so attributing it to the
+     * user misrepresents the transcript and makes the recommendations that follow read as though
+     * the user asked for them. Matches the iOS SDK, which appends the same string with
+     * `.basic(isUserMessage: false)`.
+     *
+     * Marked [ChatMessage.sseComplete] because it is static, complete copy that never streams,
+     * and left feedback-ineligible - it is host-supplied text, not a model response.
+     */
+    private fun appendAgentMessage(messageText: String) {
+        _messages.update { currentMessages ->
+            currentMessages + ChatMessage(
+                content = MessageContent.Text(messageText),
+                isFromUser = false,
+                timestamp = System.currentTimeMillis(),
+                sseComplete = true
+            )
+        }
+    }
+
+    internal fun enqueueDataHandoff(
+        result: ConciergeDataHandoffEvent,
+        completion: (DataHandoffDeliveryResult) -> Unit
+    ) {
+        if (!isDataHandoffSessionActive) {
+            completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            return
+        }
+        if (!reserveDataHandoffSlot()) {
+            completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS))
+            return
+        }
+
+        val request = ConversationRequest.DataHandoff(
+            result,
+            completion,
+            { handoff -> if (currentDataHandoff === handoff) currentDataHandoff = null },
+            { pendingConversationRequests.decrementAndGet() }
+        )
+        currentDataHandoff = request
+        if (!isDataHandoffSessionActive) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            return
+        }
+        // Mark the chat busy as soon as the slot is reserved rather than waiting for the processor
+        // to pick the request up. Between those two points the reservation already rejects further
+        // handoffs with CHAT_IN_PROGRESS, so leaving the composer enabled would let a chat message
+        // slip into the queue behind the handoff and sit there - cleared from the input and absent
+        // from the transcript - until the handoff's turn finished.
+        _state.update { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
+        request.timeoutJob = viewModelScope.launch {
+            delay(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
+            request.timeout()
+        }
+        // The request can be completed (e.g. by deactivation) before the assignment above lands,
+        // in which case markCompleted cancelled a still-null job; cancel it here instead so the
+        // timer doesn't outlive the request it was bounding.
+        if (request.isCompleted) {
+            request.timeoutJob?.cancel()
+        }
+        if (conversationRequests.trySend(request).isFailure) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED))
+            resetProcessingStateToIdle()
+        }
+    }
+
+    private fun reserveDataHandoffSlot(): Boolean = pendingConversationRequests.compareAndSet(0, 1)
+
+    private suspend fun processDataHandoffRequest(request: ConversationRequest.DataHandoff) {
+        // enqueueDataHandoff marks the chat busy when it reserves the slot, so both of these
+        // early exits have to hand the composer back - nothing further in this function runs to
+        // do it for them, and a stuck Processing state outlives the handoff and the chat session.
+        if (request.isCompleted) {
+            resetProcessingStateToIdle()
+            return
+        }
+        if (!isDataHandoffSessionActive) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            resetProcessingStateToIdle()
+            return
+        }
+
+        responseStartedDispatched = false
+        request.handoff.localMessage?.let(::appendAgentMessage)
+        // Carry forward any feedback dialog left open on an earlier turn.
+        _state.update { currentState ->
+            ChatScreenState.Processing(feedback = currentState.feedback)
+        }
+
+        val result = try {
+            supervisorScope {
+                val responseJob = async {
+                    val conversation = chatService.sendDataHandoff(
+                        request.handoff.routingHint,
+                        request.handoff.xdmFields
+                    )
+                    val timedConversation = if (conversation is RequestStartedFlow<*>) {
+                        @Suppress("UNCHECKED_CAST")
+                        (conversation as RequestStartedFlow<ParsedConversationMessage>)
+                            .onRequestStarted { request.armFirstChunkTimeout(viewModelScope) }
+                    } else {
+                        // Custom/debug services have no request-preparation boundary. Their flow
+                        // starts the request when collection starts, so arm the cap there.
+                        conversation.onStart { request.armFirstChunkTimeout(viewModelScope) }
+                    }
+                    streamConversation(
+                        timedConversation,
+                        isDataHandoff = true
+                    )
+                }
+                request.requestJob = responseJob
+                if (request.isCompleted) {
+                    responseJob.cancel()
+                }
+                when (val streamResult = responseJob.await()) {
+                    is ConversationStreamResult.Delivered -> DataHandoffDeliveryResult.Delivered
+                    is ConversationStreamResult.Empty ->
+                        DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE)
+                    is ConversationStreamResult.Failed ->
+                        DataHandoffDeliveryResult.Failed(
+                            ConciergeDataHandoffRejectReason.DELIVERY_FAILED,
+                            streamResult.detail
+                        )
+                }
+            }
+        } catch (e: CancellationException) {
+            if (request.isCompleted) {
+                // streamConversation already removed this turn's placeholder and partial response.
+                // Handoff failures stay silent; localMessage was appended before turnStartIndex
+                // and remains visible, matching iOS.
+                if (request.timedOut) {
+                    handleConversationError(
+                        "Data handoff timed out",
+                        renderInTranscript = false
+                    )
+                } else {
+                    resetProcessingStateToIdle()
+                }
+                return
+            }
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            throw e
+        } catch (e: Exception) {
+            // Reached only when the service call throws synchronously before streamConversation
+            // runs, so this turn has nothing in the transcript yet beyond localMessage.
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Failed to forward data handoff (routingHint=${request.handoff.routingHint}): ${e.message}"
+            )
+            handleConversationError(
+                "Failed to forward data handoff: ${e.message}",
+                renderInTranscript = false
+            )
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.DELIVERY_FAILED, e.message)
+        } finally {
+            request.requestJob = null
+        }
+        request.completeAfterReleasingReservation(result)
+    }
+
+    /**
+     * Consumes a conversation stream into the transcript.
+     *
+     * A failure - a mid-stream ERROR frame or a thrown exception - is always a finished turn. For
+     * typed chat, the whole turn is replaced with generic error copy. For a data handoff, everything
+     * added by the streamed response is removed and failure UX is left to the host app. The caller's
+     * completion callback still reports the typed rejection reason.
+     *
+     * @param isDataHandoff when true, failures, empty responses, and cancellations roll back
+     * everything the streamed response added and leave no failure bubble. Any `localMessage`
+     * remains because it was already shown before this turn began. Chat instead renders its
+     * failures and leaves an empty COMPLETED response as whatever had already streamed, since
+     * that's a normal (if content-less) outcome for typed chat.
+     */
+    private suspend fun streamConversation(
+        conversation: Flow<ParsedConversationMessage>,
+        isDataHandoff: Boolean
+    ): ConversationStreamResult {
+        val contentBuilder = StringBuilder()
+        var hasVisibleContent = false
+        var hasError = false
+        var failureDetail: String? = null
+
+        // Snapshot the transcript length before this turn adds anything, so a cancelled or empty
+        // turn can be rolled back completely. appendOrderedElementMessages can append more than
+        // one trailing message for a single turn - one message per CTA, plus a card-carousel
+        // message - so removing only the last message can leave some of them on screen after a
+        // turn the caller was told failed.
+        val turnStartIndex = _messages.value.size
+
+        // Create an empty assistant message once the request reaches the front of the queue.
+        val assistantMessage = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            citations = emptyList()
+        )
+        _messages.update { currentMessages -> currentMessages + assistantMessage }
+
+        return try {
+            conversation.takeWhile { parsedMessage ->
+                // Any emission proves the service isn't wedged, so stand the first-chunk cap down
+                // and let the turn ceiling alone bound the rest of the response.
+                if (isDataHandoff) {
+                    currentDataHandoff?.noteChunkReceived()
+                }
+                if (parsedMessage.state == ConversationState.ERROR) {
+                    hasError = true
+                    failureDetail = parsedMessage.messageContent.ifBlank { null }
+                    // A partial response may have already appended ordered-element messages
+                    // (cards, CTAs) before this error arrived on the same stream. Roll the whole
+                    // turn back to a single fresh placeholder so typed chat can replace it with
+                    // generic error copy. Handoffs remove that placeholder below and stay silent.
+                    if (isDataHandoff) {
+                        truncateMessagesTo(turnStartIndex)
+                        handleConversationError(
+                            "Conversation error: ${parsedMessage.messageContent}",
+                            renderInTranscript = false
+                        )
+                    } else {
+                        _messages.update { currentMessages ->
+                            currentMessages.take(turnStartIndex) + assistantMessage
+                        }
+                        onParsedMessage(parsedMessage, contentBuilder)
+                    }
+                    false
+                } else {
+                    true
+                }
+            }.collect { parsedMessage ->
+                hasVisibleContent = hasVisibleContent ||
+                    parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                onParsedMessage(parsedMessage, contentBuilder)
+            }
+            when {
+                hasError -> ConversationStreamResult.Failed(failureDetail)
+                hasVisibleContent -> {
+                    finishConversation()
+                    ConversationStreamResult.Delivered
+                }
+                else -> {
+                    if (isDataHandoff) {
+                        // The caller receives EMPTY_RESPONSE; the transcript stays unchanged and
+                        // the host app owns failure UX.
+                        Log.warning(
+                            ConciergeConstants.EXTENSION_NAME,
+                            TAG,
+                            "Conversation completed with no renderable content"
+                        )
+                        truncateMessagesTo(turnStartIndex)
+                        resetProcessingStateToIdle()
+                    } else {
+                        finishConversation()
+                    }
+                    ConversationStreamResult.Empty
+                }
+            }
+        } catch (e: CancellationException) {
+            // This turn's content is streamConversation's responsibility, so roll it back here for
+            // a handoff (e.g. timeout/deactivation cancellation) before propagating. Chat keeps its
+            // partial content (its scope is usually shutting down).
+            if (isDataHandoff) {
+                truncateMessagesTo(turnStartIndex)
+            }
+            throw e
+        } catch (e: Exception) {
+            if (isDataHandoff) {
+                truncateMessagesTo(turnStartIndex)
+            }
+            handleConversationError(
+                "Failed to process response: ${e.message}",
+                renderInTranscript = !isDataHandoff
+            )
+            ConversationStreamResult.Failed(e.message)
+        }
+    }
+
+    /**
+     * Truncates the transcript back to [index], dropping everything a turn added. Used to roll
+     * back an empty or cancelled data handoff turn in one step, rather than removing a fixed
+     * number of trailing messages.
+     */
+    private fun truncateMessagesTo(index: Int) {
+        _messages.update { currentMessages ->
+            if (index in 0..currentMessages.size) currentMessages.take(index) else currentMessages
+        }
+    }
+
+    private fun finishConversation() {
+        _state.update { currentState ->
+            when (currentState) {
+                is ChatScreenState.Processing -> ChatScreenState.Idle(feedback = currentState.feedback)
+                else -> currentState
             }
         }
     }
@@ -734,9 +1273,12 @@ class ConciergeChatViewModel : AndroidViewModel {
             "Parsed message: ${parsedMessage.messageContent}, state: ${parsedMessage.state}"
         )
 
-        // Capture conversationId if present in the response
+        // Follow the backend's current conversationId rather than pinning to the first value
+        // ever seen - the backend rolls the session after an idle timeout, after which it
+        // answers on a new conversation, and pinning would tag later turns' tracking events and
+        // feedback with a conversation that has already ended.
         parsedMessage.conversationId?.let { conversationId ->
-            if (currentConversationId == null) {
+            if (currentConversationId != conversationId) {
                 currentConversationId = conversationId
                 Log.debug(TAG, "onParsedMessage", "Captured conversationId: $conversationId")
             }
@@ -1011,27 +1553,41 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Handles errors during conversation
      * @param errorMessage The error message to display
      */
-    private fun handleConversationError(errorMessage: String) {
+    private fun handleConversationError(
+        errorMessage: String,
+        renderInTranscript: Boolean = true
+    ) {
         // Keep the raw technical detail for diagnostics (logs + telemetry only)...
         Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
-        // ...but never surface the raw exception to the user. Show generic copy instead.
+        if (renderInTranscript) {
+            // Never surface the raw exception to the user. Show generic copy instead.
+            renderTurnMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
+        } else {
+            resetProcessingStateToIdle()
+        }
+    }
+
+    /**
+     * Replaces this turn's assistant placeholder with [message] and returns the chat to Idle.
+     *
+     * Split out from [handleConversationError] so rendering and state reset stay atomic.
+     */
+    private fun renderTurnMessage(message: String) {
         replaceAssistantMessageContent(
             ParsedConversationMessage(
-                messageContent = DEFAULT_CONVERSATION_ERROR_MESSAGE,
+                messageContent = message,
                 state = ConversationState.COMPLETED,
             )
         )
+        resetProcessingStateToIdle()
+    }
 
-        // Return to idle state
-        _state.update { currentState ->
-            when (currentState) {
-                is ChatScreenState.Processing -> ChatScreenState.Idle(
-                    feedback = currentState.feedback
-                )
-                else -> ChatScreenState.Idle()
-            }
-        }
+    private fun resetProcessingStateToIdle() {
+        // Always carry the current feedback forward - regardless of which state this is called
+        // from - rather than only when the current state happens to be Processing, which used to
+        // silently close a dialog opened (or still open) on any other state.
+        _state.update { currentState -> ChatScreenState.Idle(feedback = currentState.feedback) }
     }
 
     /**
@@ -1181,9 +1737,33 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Closes the Concierge chat interface (dialog mode).
      * ChatClosed tracking is handled by the [DisposableEffect] onDispose in the [ConciergeChat]
      * composable, which fires when the chat composable leaves composition.
+     *
+     * The data handoff session is deliberately *not* torn down here. Its lifetime belongs to that
+     * same [DisposableEffect], which is the only signal that works in every integration mode: in
+     * dialog mode closing removes the chat from composition, so onDispose deactivates anyway,
+     * while in direct-Compose and [ConciergeChatView] embedding the chat stays composed and
+     * still owns a live transcript. Deactivating here would leave those modes permanently
+     * rejecting handoffs with [ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION], because
+     * [openConcierge] has no matching re-activation and the effect never re-runs.
      */
     fun closeConcierge() {
         _isConciergeActive.value = false
+    }
+
+    internal fun activateDataHandoffSession() {
+        isDataHandoffSessionActive = true
+        ActiveConciergeDataHandoffForwarder.register(dataHandoffForwarder)
+    }
+
+    internal fun deactivateDataHandoffSession() {
+        isDataHandoffSessionActive = false
+        ActiveConciergeDataHandoffForwarder.unregister(dataHandoffForwarder)
+        currentDataHandoff?.let { request ->
+            request.completeAfterReleasingReservation(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)
+            )
+            request.requestJob?.cancel()
+        }
     }
 
     /**
@@ -1213,6 +1793,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     override fun onCleared() {
+        deactivateDataHandoffSession()
+        conversationRequests.close()
         super.onCleared()
         imageProvider.clear()
         speechCapturing.setListener(null)
