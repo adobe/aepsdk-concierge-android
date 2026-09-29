@@ -12,15 +12,26 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import android.os.Build
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.P])
 class ConciergeGradientTest {
 
     // ========== isRenderable Tests ==========
@@ -117,5 +128,29 @@ class ConciergeGradientTest {
             end = Offset(150f, 40f)
         )
         assertEquals(expected, brush)
+    }
+
+    @Test
+    fun `gradient border draws content before the gradient outline`() {
+        val gradient = ConciergeGradient(startColor = Color.Red, endColor = Color.Blue, angle = 90f)
+        var contentDrawCount = 0
+
+        CanvasDrawScope().draw(
+            density = Density(1f),
+            layoutDirection = LayoutDirection.Ltr,
+            canvas = Canvas(android.graphics.Canvas()),
+            size = Size(24f, 24f)
+        ) {
+            drawConciergeGradientBorder(
+                outline = RectangleShape.createOutline(size, layoutDirection, this),
+                brush = gradient.toBrush(size),
+                strokeWidthPx = 4f
+            ) {
+                contentDrawCount++
+                drawRect(Color.White)
+            }
+        }
+
+        assertEquals(1, contentDrawCount)
     }
 }
