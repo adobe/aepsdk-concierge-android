@@ -39,7 +39,7 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
  *   a menu, the `cart/add` order object for a cart). BC owns only the envelope; the renderer owns
  *   interpreting the body.
  *
- * The payload is read from `entity_info` (the SDK's element-data field), or `payload`.
+ * The payload is carried in `entity_info`.
  */
 @Immutable
 data class FnbElement(
@@ -56,7 +56,6 @@ data class FnbElement(
         const val ENTITY_ID = "entityId"
         const val RENDERER_ID = "rendererId"
         const val PAYLOAD = "entity_info"
-        const val PAYLOAD_ALT = "payload"
     }
 
     companion object {
@@ -68,7 +67,7 @@ data class FnbElement(
                 id = id,
                 entityId = raw[Keys.ENTITY_ID]?.toString().orEmpty(),
                 rendererId = rendererId,
-                payload = if (raw.containsKey(Keys.PAYLOAD)) raw[Keys.PAYLOAD] else raw[Keys.PAYLOAD_ALT]
+                payload = raw[Keys.PAYLOAD]
             )
         }
     }

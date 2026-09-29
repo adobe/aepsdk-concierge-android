@@ -48,7 +48,7 @@ class RendererEnvelopeTest {
         assertEquals("19289", element.entityId)
         assertEquals(FnbRendererIds.MENU, element.rendererId)
         assertTrue("payload is the same object", element.payload === payload)
-        assertEquals(payload, FnbElement.fromMap(mapOf("id" to "x", "rendererId" to "fnb.menu", "payload" to payload))!!.payload)
+        assertNull("only entity_info carries the payload", FnbElement.fromMap(mapOf("id" to "x", "rendererId" to "fnb.menu", "payload" to payload))!!.payload)
     }
 
     @Test
