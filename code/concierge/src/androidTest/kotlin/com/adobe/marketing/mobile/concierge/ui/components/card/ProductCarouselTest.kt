@@ -14,9 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.components.card
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -314,10 +314,15 @@ class ProductCarouselTest {
         }
 
         composeTestRule.waitForIdle()
-        val withCtaPriceTop = composeTestRule.onNodeWithText("$10.00", useUnmergedTree = true)
-            .getBoundsInRoot().top.value
-        val withoutCtaPriceTop = composeTestRule.onNodeWithText("$20.00", useUnmergedTree = true)
-            .getBoundsInRoot().top.value
+        // The carousel's measure pass also composes each card, leaving a zero-size copy in the
+        // semantics tree; read the bounds of the card that is actually laid out.
+        fun renderedPriceTop(price: String) = composeTestRule
+            .onAllNodesWithText(price, useUnmergedTree = true)
+            .fetchSemanticsNodes()
+            .single { it.boundsInRoot.width > 0f }
+            .boundsInRoot.top
+        val withCtaPriceTop = renderedPriceTop("$10.00")
+        val withoutCtaPriceTop = renderedPriceTop("$20.00")
 
         assertTrue(
             "Expected prices to align when one extended carousel card has a CTA " +

@@ -23,9 +23,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
@@ -976,6 +981,80 @@ class ExtendedProductCardTest {
             "Expected prices to align when one card reserves the carousel CTA slot " +
                 "(with=$withCtaPriceTop, without=$withoutCtaPriceTop)",
             kotlin.math.abs(withCtaPriceTop.value - withoutCtaPriceTop.value) < 1f
+        )
+    }
+
+    @Test
+    fun extendedProductCard_reservedCtaSlot_placeholderIsHiddenFromSemanticsAndNotClickable() {
+        val element = MultimodalElement(
+            id = "without-cta",
+            content = mapOf(
+                "productName" to "Product without action",
+                "productPrice" to "$20.00"
+            )
+        )
+        var clickedButtons = 0
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ExtendedProductCard(
+                        element = element,
+                        modifier = Modifier.height(cardMaxHeight),
+                        onActionClick = { clickedButtons++ },
+                        reserveCtaSlot = true
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(CTA_BUTTON_TEST_TAG).assertDoesNotExist()
+        composeTestRule.onNodeWithTag(SECONDARY_CTA_BUTTON_TEST_TAG).assertDoesNotExist()
+        composeTestRule.onAllNodes(hasClickAction() and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button), useUnmergedTree = true)
+            .assertCountEquals(0)
+        assertEquals(0, clickedButtons)
+    }
+
+    @Test
+    fun extendedProductCard_reservedCtaSlot_occupiesSpaceWhenCardHasNoCtas() {
+        fun element(id: String, price: String) = MultimodalElement(
+            id = id,
+            content = mapOf(
+                "productName" to "Product without action",
+                "productPrice" to price
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        ExtendedProductCard(
+                            element = element("reserved", "$10.00"),
+                            modifier = Modifier.height(cardMaxHeight),
+                            reserveCtaSlot = true
+                        )
+                        ExtendedProductCard(
+                            element = element("unreserved", "$20.00"),
+                            modifier = Modifier.height(cardMaxHeight),
+                            reserveCtaSlot = false
+                        )
+                    }
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val reservedPriceBottom = composeTestRule.onNodeWithText("$10.00", useUnmergedTree = true)
+            .getBoundsInRoot().bottom
+        val unreservedPriceBottom = composeTestRule.onNodeWithText("$20.00", useUnmergedTree = true)
+            .getBoundsInRoot().bottom
+        // The price is bottom-anchored, so a reserved (invisible) CTA slot pushes it up.
+        assertTrue(
+            "Expected the reserved CTA slot to take up space " +
+                "(reserved=$reservedPriceBottom, unreserved=$unreservedPriceBottom)",
+            reservedPriceBottom < unreservedPriceBottom
         )
     }
 

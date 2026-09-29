@@ -696,6 +696,14 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply product-card-description-max-lines preserves existing layout values`() {
+        val theme = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardMaxHeight = 468.0))
+        val result = CSSKeyMapper.apply("--product-card-description-max-lines", "6", theme)
+        assertEquals(6, result.cssLayout?.productCardDescriptionMaxLines)
+        assertEquals(468.0, result.cssLayout?.productCardMaxHeight)
+    }
+
+    @Test
     fun `product-card-description-max-lines defaults to two`() {
         assertEquals(2, ConciergeLayout().productCardDescriptionMaxLines)
     }

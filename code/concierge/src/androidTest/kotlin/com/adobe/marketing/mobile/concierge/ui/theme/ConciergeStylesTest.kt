@@ -936,6 +936,42 @@ class ConciergeStylesTest {
     }
 
     @Test
+    fun extendedProductCardStyle_noTokens_descriptionMaxLinesDefaultsToTwo() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(2, style!!.descriptionMaxLines)
+    }
+
+    @Test
+    fun extendedProductCardStyle_withThemeOverride_descriptionMaxLinesIsConfigurable() {
+        var style: ConciergeStyles.ExtendedProductCardStyle? = null
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 6)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                style = ConciergeStyles.extendedProductCardStyle
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        assertNotNull(style)
+        assertEquals(6, style!!.descriptionMaxLines)
+    }
+
+    @Test
     fun extendedProductCardStyle_noTokens_sectionAndPriceSpacingMatchSpecDefaults() {
         var style: ConciergeStyles.ExtendedProductCardStyle? = null
 
