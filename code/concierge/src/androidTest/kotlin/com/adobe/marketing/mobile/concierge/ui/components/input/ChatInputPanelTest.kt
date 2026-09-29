@@ -247,8 +247,8 @@ class ChatInputPanelTest {
         composeTestRule.waitForIdle()
 
         val pixels = composeTestRule.onNodeWithTag("ChatInputPanel").captureToImage().toPixelMap()
-        val leftBorder = pixels[1, pixels.height / 2]
-        val rightBorder = pixels[pixels.width - 2, pixels.height / 2]
+        val leftBorder = pixels[0, pixels.height / 2]
+        val rightBorder = pixels[pixels.width - 1, pixels.height / 2]
         assertTrue(
             "expected the left focused border to use the gradient start color, was $leftBorder",
             leftBorder.red < leftBorder.blue
