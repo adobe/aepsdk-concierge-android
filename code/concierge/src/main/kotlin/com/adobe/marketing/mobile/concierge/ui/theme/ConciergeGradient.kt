@@ -19,8 +19,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import kotlin.math.cos
@@ -82,10 +84,20 @@ internal fun Modifier.conciergeGradientBorder(width: Dp, gradient: ConciergeGrad
         val outline = shape.createOutline(size, layoutDirection, this)
         val brush = gradient.toBrush(size)
         val strokeWidthPx = width.toPx()
-        onDrawBehind {
-            drawOutline(outline, brush = brush, style = Stroke(strokeWidthPx))
+        onDrawWithContent {
+            drawConciergeGradientBorder(outline, brush, strokeWidthPx) { drawContent() }
         }
     }
+
+internal fun DrawScope.drawConciergeGradientBorder(
+    outline: Outline,
+    brush: Brush,
+    strokeWidthPx: Float,
+    drawContent: () -> Unit
+) {
+    drawContent()
+    drawOutline(outline, brush = brush, style = Stroke(strokeWidthPx))
+}
 
 /**
  * Draws a gradient fill matching [androidx.compose.foundation.background]'s solid-color
