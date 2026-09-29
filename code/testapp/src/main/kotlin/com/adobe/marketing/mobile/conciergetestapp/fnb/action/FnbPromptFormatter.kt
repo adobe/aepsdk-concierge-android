@@ -22,10 +22,11 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.FnbText
  * Vendor-supplied names are untrusted LLM input, so they are only used in the human-readable
  * summary after sanitizing (single line, no delimiter characters, clamped). The machine-readable
  * [DETAILS_START]..[DETAILS_END] block is the tapin2 `POST /v2/cart/add` request body with tapin2's
- * names (`venueId`, `eventId`, `products[{locationId, quantity, note, product{Id,
- * modifierGroups[{isMultiSelect, modifiers[{id, isSelected}]}]}}]`), so BC forwards it as-is. BC
- * owns `orderId` (conversation state) and `deliveryMethod` (enum unconfirmed), and strips the one
- * non-tapin2 field, `submitId`, which it uses to skip replays. tapin2 re-prices.
+ * names (`products[{locationId, quantity, note, product{Id, modifierGroups[{isMultiSelect,
+ * modifiers[{id, isSelected}]}]}}]`, plus `venueId`/`eventId` when the menu payload had them), so
+ * BC forwards it as-is. BC owns `orderId`, `deliveryMethod`, and (from the conversation session)
+ * `venueId`/`eventId` when absent; it strips the one non-tapin2 field, `submitId`, which it uses to
+ * skip replays. tapin2 re-prices.
  *
  * The exact template is an open contract question with BC; keep all wording in this file.
  */
@@ -93,8 +94,12 @@ object FnbPromptFormatter {
             val note = line.note?.let(::safeNote)?.takeIf { it.isNotEmpty() }?.let { ""","note":${jsonString(it)}""" }.orEmpty()
             """{"locationId":$locationId,"quantity":${line.quantity}$note,"product":{"Id":${idValue(line.itemId)},"modifierGroups":[$groups]}}"""
         }
-        return "$DETAILS_START\n{\"submitId\":\"${safeId(action.submitId)}\"," +
-            "\"venueId\":${idValue(action.venueId)},\"eventId\":${idValue(action.eventId)},\"products\":[$products]}\n$DETAILS_END"
+        // venueId/eventId only when the menu payload carried them; otherwise BC takes them from the session.
+        val ids = listOfNotNull(
+            safeId(action.venueId).takeIf { it.isNotEmpty() }?.let { "\"venueId\":${idValue(it)}," },
+            safeId(action.eventId).takeIf { it.isNotEmpty() }?.let { "\"eventId\":${idValue(it)}," }
+        ).joinToString("")
+        return "$DETAILS_START\n{\"submitId\":\"${safeId(action.submitId)}\",$ids\"products\":[$products]}\n$DETAILS_END"
     }
 
     /** The fan's own note: single line, no block delimiters, clamped. */

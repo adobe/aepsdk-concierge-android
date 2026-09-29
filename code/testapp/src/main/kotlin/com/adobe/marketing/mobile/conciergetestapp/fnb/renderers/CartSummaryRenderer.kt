@@ -51,7 +51,7 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryMapper
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryUiModel
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Renderer entry point for the `cartView` element (the tapin2 order): maps it once, then renders [CartSummaryContent]. */
+/** `fnb.cart` renderer entry point: maps the element payload (the tapin2 order) once, then renders [CartSummaryContent]. */
 @Composable
 fun CartSummaryRenderer(
     context: FnbRenderContext,
@@ -59,11 +59,13 @@ fun CartSummaryRenderer(
     modifier: Modifier = Modifier,
     options: CartOptions = CartOptions()
 ) {
-    val model = remember(context.elements, options) { CartSummaryMapper.map(context.elements.map { it.asMap() }, options) }
+    val model = remember(context.element, options) {
+        CartSummaryMapper.map(context.element.payload, options, entityId = context.element.entityId)
+    }
     if (model == null) {
         CartUnavailable(modifier)
     } else {
-        CartSummaryContent(context.groupKey, model, context.isInteractive, onAction, modifier)
+        CartSummaryContent(context.elementKey, model, context.isInteractive, onAction, modifier)
     }
 }
 

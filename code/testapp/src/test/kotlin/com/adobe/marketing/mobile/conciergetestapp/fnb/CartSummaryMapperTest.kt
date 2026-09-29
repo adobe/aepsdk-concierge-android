@@ -19,7 +19,6 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryLine
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryMapper
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CheckoutUrlPolicy
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.cartLineDetail
-import com.adobe.marketing.mobile.util.JSONUtils
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,33 +28,9 @@ import org.junit.Test
 
 class CartSummaryMapperTest {
 
-    private val stage = elementsFixture("tapin2_cart_view_stage.json")
-
-    private fun cartView(order: Map<String, Any?>) = listOf(mapOf("type" to "cartView", "entity_info" to order))
-
     @Test
-    fun `entity_info is a verbatim subset of the tapin2 cart_add response`() {
-        val raw = JSONUtils.toMap(JSONObject(resourceText("tapin2_stage_cart_add.json")))!!
-        @Suppress("UNCHECKED_CAST")
-        val info = stage.single()["entity_info"] as Map<String, Any?>
-        for (key in listOf("id", "idLast3", "guid", "venueId", "eventId", "subtotalNet", "taxAddedNet", "totalNet", "isPaidInFull")) {
-            assertSameValue(key, raw[key], info[key])
-        }
-        val item = (info["items"] as List<*>).single() as Map<*, *>
-        val rawItem = (raw["items"] as List<*>).single() as Map<*, *>
-        for ((key, value) in item) {
-            if (key == "product") {
-                for ((pk, pv) in value as Map<*, *>) assertSameValue("items[].product.$pk", (rawItem["product"] as Map<*, *>)[pk], pv)
-            } else {
-                assertSameValue("items[].$key", rawItem[key], value)
-            }
-        }
-        assertFalse("PII is dropped", info.containsKey("userInfo"))
-    }
-
-    @Test
-    fun `stage order maps ids, lines, stand names, server totals, and the Review checkout URL`() {
-        val cart = CartSummaryMapper.map(stage, CartOptions.STAGE)!!
+    fun `raw tapin2 cart_add response maps ids, lines, stand names, server totals, and the Review checkout URL`() {
+        val cart = CartSummaryMapper.map(stageOrder(), CartOptions.STAGE)!!
         assertEquals("695685", cart.orderId)
         assertEquals("685", cart.orderCode)
         assertEquals("68f4aac9-1b2b-49ed-ac78-92d7f26feb00", cart.guid)
@@ -78,33 +53,37 @@ class CartSummaryMapperTest {
             "https://mobile-stg.tapin2.co/Review/Index/1000010528?eventId=36747&orderId=68f4aac9-1b2b-49ed-ac78-92d7f26feb00",
             cart.checkoutUrl
         )
-        assertTrue(CartSummaryMapper.map(stage)!!.checkoutUrl!!.startsWith("https://mobile.tapin2.co/Review/Index/"))
+        assertTrue(CartSummaryMapper.map(stageOrder())!!.checkoutUrl!!.startsWith("https://mobile.tapin2.co/Review/Index/"))
+    }
+
+    @Test
+    fun `envelope entityId is used when the order omits id`() {
+        assertEquals("695685", CartSummaryMapper.map(stageOrder() - "id", entityId = "695685")!!.orderId)
+        assertNull(CartSummaryMapper.map(stageOrder() - "id"))
     }
 
     @Test
     fun `modifier summary comes from modifiers list or the modifier string, and notes are echoed`() {
-        fun summary(extra: Map<String, Any?>) = CartSummaryMapper.map(
-            cartView(mapOf("id" to 1, "items" to listOf(mapOf("id" to 9, "product" to mapOf("id" to 5, "title" to "Soda"), "quantity" to 1, "pricePer" to 5.0) + extra)))
+        fun line(extra: Map<String, Any?>) = CartSummaryMapper.map(
+            mapOf("id" to 1, "items" to listOf(mapOf("id" to 9, "product" to mapOf("id" to 5, "title" to "Soda"), "quantity" to 1, "pricePer" to 5.0) + extra))
         )!!.lines.single()
 
-        assertEquals("Coke", summary(mapOf("modifier" to "Coke")).modifiersSummary)
-        assertEquals("Large, Guacamole", summary(mapOf("modifiers" to listOf(mapOf("title" to "Large"), mapOf("name" to "Guacamole")))).modifiersSummary)
-        assertEquals("No modifiers", summary(mapOf("modifier" to "", "modifiers" to null)).modifiersSummary)
-        assertEquals("light ice", summary(mapOf("note" to "light ice")).note)
+        assertEquals("Coke", line(mapOf("modifier" to "Coke")).modifiersSummary)
+        assertEquals("Large, Guacamole", line(mapOf("modifiers" to listOf(mapOf("title" to "Large"), mapOf("name" to "Guacamole")))).modifiersSummary)
+        assertEquals("No modifiers", line(mapOf("modifier" to "", "modifiers" to null)).modifiersSummary)
+        assertEquals("light ice", line(mapOf("note" to "light ice")).note)
     }
 
     @Test
     fun `paid orders are not removable, totals fall back to line sums, and malformed lines drop`() {
         val cart = CartSummaryMapper.map(
-            cartView(
-                mapOf(
-                    "id" to 1, "isPaidInFull" to true, "discountNet" to -2.0, "tipNet" to 1.5,
-                    "items" to listOf(
-                        mapOf("id" to 9, "product" to mapOf("title" to "Soda"), "quantity" to 2, "pricePer" to 5.0),
-                        mapOf("id" to 10, "product" to mapOf("title" to ""), "quantity" to 1),
-                        mapOf("id" to 11, "product" to mapOf("title" to "Zero"), "quantity" to 0),
-                        mapOf("product" to mapOf("title" to "No id"), "quantity" to 1)
-                    )
+            mapOf(
+                "id" to 1, "isPaidInFull" to true, "discountNet" to -2.0, "tipNet" to 1.5,
+                "items" to listOf(
+                    mapOf("id" to 9, "product" to mapOf("title" to "Soda"), "quantity" to 2, "pricePer" to 5.0),
+                    mapOf("id" to 10, "product" to mapOf("title" to ""), "quantity" to 1),
+                    mapOf("id" to 11, "product" to mapOf("title" to "Zero"), "quantity" to 0),
+                    mapOf("product" to mapOf("title" to "No id"), "quantity" to 1)
                 )
             )
         )!!
@@ -132,11 +111,11 @@ class CartSummaryMapperTest {
     }
 
     @Test
-    fun `non-cart elements are ignored`() {
-        assertNull(CartSummaryMapper.map(emptyList()))
-        assertNull(CartSummaryMapper.map(elementsFixture("tapin2_catalog_elements_stage.json")))
-        assertNull(CartSummaryMapper.map(cartView(emptyMap())))
-        assertTrue(CartSummaryMapper.map(listOf(mapOf("type" to "cartView", "entityId" to "5", "entity_info" to emptyMap<String, Any?>())))!!.isEmpty)
+    fun `non-order payloads are ignored`() {
+        assertNull(CartSummaryMapper.map(null))
+        assertNull(CartSummaryMapper.map(stageProducts()))
+        assertNull(CartSummaryMapper.map(emptyMap<String, Any?>()))
+        assertTrue(CartSummaryMapper.map(emptyMap<String, Any?>(), entityId = "5")!!.isEmpty)
     }
 
     @Test

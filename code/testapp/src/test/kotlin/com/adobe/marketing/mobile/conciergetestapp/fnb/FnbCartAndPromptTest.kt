@@ -257,7 +257,14 @@ class FnbPromptFormatterTest {
     }
 
     @Test
-    fun `details carry venue and event ids from the catalog`() {
+    fun `venue and event ids are omitted when the menu payload had none, so BC uses the session`() {
+        val details = detailsJson(FnbPromptFormatter.format(submit(listOf(churros)).copy(venueId = "", eventId = "")))
+        assertFalse(details.has("venueId") || details.has("eventId"))
+        assertEquals(1, details.getJSONArray("products").length())
+    }
+
+    @Test
+    fun `details carry venue and event ids when the menu payload had them`() {
         val details = detailsJson(FnbPromptFormatter.format(submit(listOf(churros))))
         assertEquals("submit-123", details.getString("submitId"))
         assertEquals(1000010528L, details.getLong("venueId"))

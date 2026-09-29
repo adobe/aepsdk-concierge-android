@@ -14,16 +14,16 @@ package com.adobe.marketing.mobile.conciergetestapp
 
 import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbLinks
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererIds
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * What BCOS does with tapin2 responses in the demo (context_write hooks), written as code so the
- * demo, the tests, and the proposed JMESPath agree:
+ * What BC does with tapin2 responses in the demo, written as code so the demo and the tests agree:
  * - `get_section_locations` → one SDK out-of-the-box `productCard` per location (no custom
  *   renderer), linking to [FnbLinks.locationUrl];
- * - `GET …/locations/{id}/products` → `catalogItemCard` per entry (a verbatim tapin2 subset) plus
- *   one `cartBar` carrying the location.
+ * - `GET …/locations/{id}/products` → one `fnb.menu` element: the thin envelope
+ *   `{id, entityId: locationId, rendererId, entity_info: <tapin2 response body, untouched>}`.
  */
 internal object FnbBcosProjection {
 
@@ -59,55 +59,14 @@ internal object FnbBcosProjection {
         else -> "Section ${location.optString("section")}"
     }
 
-    /** Menu elements for one location's tapin2 products response. */
-    fun catalogElements(entries: List<JSONObject>, venueId: Long, eventId: Long): List<FnbElement> {
-        val kept = entries
-            .filter { e ->
-                val p = e.getJSONObject("product")
-                e.optBoolean("isVisible", true) && !e.optBoolean("hideInMobile", false) && e.optBoolean("isActive", true) &&
-                    p.optBoolean("isActive", true) && !p.optBoolean("isArchived", false) &&
-                    e.optJSONObject("category")?.optBoolean("isActive", true) != false
-            }
-            .sortedWith(compareBy({ it.getJSONObject("category").optInt("orderId") }, { it.optInt("orderId") }))
-        val cards = kept.map { e ->
-            val p = e.getJSONObject("product")
-            val info = linkedMapOf<String, Any?>(
-                "venueId" to venueId,
-                "eventId" to eventId,
-                "orderId" to e.opt("orderId"),
-                "isVisible" to e.opt("isVisible"),
-                "hideInMobile" to e.opt("hideInMobile"),
-                "isActive" to e.opt("isActive"),
-                "locationId" to e.opt("locationId"),
-                "categoryId" to e.opt("categoryId"),
-                "category" to pick(e.getJSONObject("category"), "id", "title", "orderId", "isActive"),
-                "product" to pick(p, "id", "title", "description", "price", "originalPrice", "eventPrice", "imageUrl", "isAlcohol", "isActive", "isArchived") +
-                    ("modifierGroups" to jsonList(p.optJSONArray("modifierGroups"))
-                        .filter { it.optBoolean("showPublic", true) }
-                        .map { g ->
-                            pick(g, "id", "title", "minQuantity", "maxQuantity", "maxOnePerSelection", "showPublic") +
-                                ("modifiers" to jsonList(g.optJSONArray("modifiers")).map { pick(it, "id", "title", "priceDiff", "isActive", "isArchived") })
-                        })
-            )
-            val id = p.get("id").toString()
-            FnbElement(id = id, entityId = id, type = "catalogItemCard", cardType = "catalogItem", entityInfo = info)
-        }
-        val location = kept.firstOrNull()?.getJSONObject("location") ?: return cards
-        val locationId = location.getLong("id")
-        val bar = FnbElement(
-            id = "cartbar_${venueId}_${eventId}_$locationId",
-            entityId = venueId.toString(),
-            type = "cartBar",
-            cardType = "stickyFooter",
-            entityInfo = linkedMapOf(
-                "venueId" to venueId,
-                "eventId" to eventId,
-                "locationId" to locationId,
-                "location" to pick(location, "id", "title", "section", "orderingEnabled", "isPaused", "pauseExpiration", "isActive", "isPickup", "isDelivery", "waitTime")
-            )
+    /** The `fnb.menu` element for one location: the tapin2 products response passed through as the payload. */
+    fun menuElement(entries: List<JSONObject>, locationId: Long): FnbElement =
+        FnbElement(
+            id = "menu_$locationId",
+            entityId = locationId.toString(),
+            rendererId = FnbRendererIds.MENU,
+            payload = entries.map { plain(it) }
         )
-        return cards + bar
-    }
 
     /**
      * Demo-only stand-in for `GET …/locations/{id}/products` at the dummy stands: the real stage
@@ -136,10 +95,8 @@ internal object FnbBcosProjection {
     fun jsonList(array: JSONArray?): List<JSONObject> =
         if (array == null) emptyList() else (0 until array.length()).mapNotNull { array.optJSONObject(it) }
 
-    /** Selects keys, converting nested JSON to Kotlin maps/lists and JSON null to null. */
-    private fun pick(obj: JSONObject, vararg keys: String): Map<String, Any?> = keys.associateWith { key -> plain(obj.opt(key)) }
-
-    private fun plain(value: Any?): Any? = when (value) {
+    /** Converts org.json values to Kotlin maps/lists (JSON null → null), as the SDK's parser would. */
+    fun plain(value: Any?): Any? = when (value) {
         null, JSONObject.NULL -> null
         is JSONObject -> value.keys().asSequence().associateWith { plain(value.opt(it)) }
         is JSONArray -> (0 until value.length()).map { plain(value.opt(it)) }

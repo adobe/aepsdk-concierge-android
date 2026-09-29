@@ -29,56 +29,66 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
  */
 
 /**
- * One element of `response.multimodalElements.elements[]` as BCOS sends it. [entityInfo]
- * (`entity_info`) is a subset of a tapin2 object with tapin2's names: a products entry for
- * `catalogItemCard`, the location for `cartBar`, the order for `cartView`. [entityId] is that
- * entity's tapin2 id (`product.id`, the venue, the order `id`).
+ * One element of `response.multimodalElements.elements[]`: BC's thin envelope around a
+ * customer/vendor API response.
+ *
+ * - [rendererId]: which customer-owned renderer draws it (resolved by [FnbRendererRegistry]).
+ * - [entityId]: the entity the element is about (tapin2 `location.id` for a menu, order `id` for
+ *   a cart).
+ * - [payload]: the tapin2 response body, passed through largely untouched (the products array for
+ *   a menu, the `cart/add` order object for a cart). BC owns only the envelope; the renderer owns
+ *   interpreting the body.
+ *
+ * The payload is read from `entity_info` (the SDK's element-data field), or `payload`.
  */
 @Immutable
 data class FnbElement(
     val id: String,
     val entityId: String,
-    val type: String,
-    val cardType: String,
-    val entityInfo: Map<String, Any?>
+    val rendererId: String,
+    val payload: Any?
 ) {
-    /** The raw element shape the mappers read (`{id, entityId, type, cardType, entity_info}`). */
     fun asMap(): Map<String, Any?> =
-        mapOf("id" to id, "entityId" to entityId, "type" to type, "cardType" to cardType, "entity_info" to entityInfo)
+        mapOf(Keys.ID to id, Keys.ENTITY_ID to entityId, Keys.RENDERER_ID to rendererId, Keys.PAYLOAD to payload)
+
+    object Keys {
+        const val ID = "id"
+        const val ENTITY_ID = "entityId"
+        const val RENDERER_ID = "rendererId"
+        const val PAYLOAD = "entity_info"
+        const val PAYLOAD_ALT = "payload"
+    }
 
     companion object {
-        /** Parses one raw element map; returns null when `id` or `type` is missing. */
-        @Suppress("UNCHECKED_CAST")
+        /** Parses one raw element map; returns null when `id` or `rendererId` is missing. */
         fun fromMap(raw: Map<String, Any?>): FnbElement? {
-            val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: return null
-            val type = (raw["type"] as? String)?.takeIf { it.isNotBlank() } ?: return null
+            val id = raw[Keys.ID]?.toString()?.takeIf { it.isNotBlank() } ?: return null
+            val rendererId = (raw[Keys.RENDERER_ID] as? String)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
             return FnbElement(
                 id = id,
-                entityId = raw["entityId"]?.toString().orEmpty(),
-                type = type,
-                cardType = (raw["cardType"] as? String).orEmpty(),
-                entityInfo = (raw["entity_info"] as? Map<String, Any?>).orEmpty()
+                entityId = raw[Keys.ENTITY_ID]?.toString().orEmpty(),
+                rendererId = rendererId,
+                payload = if (raw.containsKey(Keys.PAYLOAD)) raw[Keys.PAYLOAD] else raw[Keys.PAYLOAD_ALT]
             )
         }
     }
 }
 
 /**
- * @property groupKey stable key for one rendered group in one message (the SDK should derive it
- * from the message `interactionId` plus the first element id); keys saveable widget state.
- * @property elements the consecutive elements of one message that this renderer claimed, in order.
+ * @property elementKey stable key for this element in this message (the SDK should derive it from
+ * the message `interactionId` plus the element `id`); keys saveable widget state.
  * @property isInteractive false for historical/stale messages so they render read-only.
  */
 @Immutable
 data class FnbRenderContext(
-    val groupKey: String,
-    val elements: List<FnbElement>,
+    val elementKey: String,
+    val element: FnbElement,
     val isInteractive: Boolean = true
 )
 
+/** A customer-owned renderer: interprets one element's tapin2 payload and draws it. */
 interface FnbRenderer {
-    /** Element `type`s this renderer claims (e.g. `catalogItemCard`, `cartBar`). */
-    val elementTypes: Set<String>
+    val rendererId: String
 
     /**
      * Requires `LocalImageProvider` (provided by `ConciergeChat`) and reads theme values from the
@@ -88,9 +98,17 @@ interface FnbRenderer {
     fun Content(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier)
 }
 
-/** The menu: all `catalogItemCard` elements of a message plus its `cartBar`, as one widget. */
+/** Well-known renderer ids BC stamps on F&B elements. */
+object FnbRendererIds {
+    /** Payload: tapin2 `GET /v2/venues/{venueId}/locations/{locationId}/products` response (array). */
+    const val MENU = "fnb.menu"
+
+    /** Payload: tapin2 `POST /v2/cart/add` response (the order), also after remove/update. */
+    const val CART = "fnb.cart"
+}
+
 class MenuFnbRenderer(private val options: MenuOptions = MenuOptions()) : FnbRenderer {
-    override val elementTypes: Set<String> = setOf("catalogItemCard", "cartBar")
+    override val rendererId: String = FnbRendererIds.MENU
 
     @Composable
     override fun Content(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier) {
@@ -98,9 +116,8 @@ class MenuFnbRenderer(private val options: MenuOptions = MenuOptions()) : FnbRen
     }
 }
 
-/** The cart: the message's `cartView` element (the tapin2 order). */
 class CartFnbRenderer(private val options: CartOptions = CartOptions()) : FnbRenderer {
-    override val elementTypes: Set<String> = setOf("cartView")
+    override val rendererId: String = FnbRendererIds.CART
 
     @Composable
     override fun Content(context: FnbRenderContext, onAction: FnbActionHandler, modifier: Modifier) {
@@ -109,24 +126,18 @@ class CartFnbRenderer(private val options: CartOptions = CartOptions()) : FnbRen
 }
 
 /**
- * Customer-side lookup, standing in for the future SDK registry. [group] shows the dispatch the
- * SDK needs: consecutive elements claimed by the same renderer are handed over together, because
- * the menu (tabs, grid, shared cart, footer) is one widget built from many cards.
+ * Registry keyed by `rendererId`, standing in for the SDK's. At render time the SDK resolves each
+ * element's renderer here and runs it against that element; elements whose `rendererId` isn't
+ * registered fall through to the SDK's own rendering (or are skipped).
  */
-object FnbRenderers {
-    val all: List<FnbRenderer> = listOf(MenuFnbRenderer(), CartFnbRenderer())
+class FnbRendererRegistry(renderers: List<FnbRenderer>) {
+    private val byId: Map<String, FnbRenderer> = renderers.associateBy { it.rendererId }
 
-    fun forType(type: String, renderers: List<FnbRenderer> = all): FnbRenderer? =
-        renderers.firstOrNull { type in it.elementTypes }
+    fun resolve(rendererId: String): FnbRenderer? = byId[rendererId]
 
-    /** Splits a message's elements into renderer groups; unclaimed elements are dropped. */
-    fun group(elements: List<FnbElement>, renderers: List<FnbRenderer> = all): List<Pair<FnbRenderer, List<FnbElement>>> {
-        val groups = mutableListOf<Pair<FnbRenderer, MutableList<FnbElement>>>()
-        for (element in elements) {
-            val renderer = forType(element.type, renderers) ?: continue
-            val last = groups.lastOrNull()
-            if (last != null && last.first === renderer) last.second += element else groups += renderer to mutableListOf(element)
-        }
-        return groups
+    fun resolve(element: FnbElement): FnbRenderer? = resolve(element.rendererId)
+
+    companion object {
+        val DEFAULT = FnbRendererRegistry(listOf(MenuFnbRenderer(), CartFnbRenderer()))
     }
 }

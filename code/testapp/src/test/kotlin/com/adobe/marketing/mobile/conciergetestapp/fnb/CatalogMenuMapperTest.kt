@@ -17,7 +17,8 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CatalogMenuMapper
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.CartFnbRenderer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
-import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderers
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererIds
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererRegistry
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.MenuFnbRenderer
 import com.adobe.marketing.mobile.util.JSONUtils
 import org.json.JSONArray
@@ -28,69 +29,66 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Loads `{"multimodalElements": {"elements": [...]}}` fixtures as raw element maps. */
-@Suppress("UNCHECKED_CAST")
-internal fun elementsFixture(name: String): List<Map<String, Any?>> {
-    val root = JSONUtils.toMap(JSONObject(resourceText(name)))!!
-    return ((root["multimodalElements"] as Map<String, Any?>)["elements"] as List<*>).map { it as Map<String, Any?> }
-}
-
-/** tapin2 decimals parse as BigDecimal ("16.0000") or Double (16.0); compare numbers by value. */
-internal fun assertSameValue(message: String, expected: Any?, actual: Any?) {
-    if (expected is Number && actual is Number) {
-        assertEquals(message, java.math.BigDecimal(expected.toString()).stripTrailingZeros(), java.math.BigDecimal(actual.toString()).stripTrailingZeros())
-    } else {
-        assertEquals(message, expected, actual)
-    }
-}
-
 internal fun resourceText(name: String): String =
     CatalogMenuMapperTest::class.java.classLoader!!.getResourceAsStream("fnb/$name")!!.bufferedReader().use { it.readText() }
 
-class CatalogMenuMapperTest {
+/** The tapin2 stage products response, parsed as the SDK would hand it over (a list of maps). */
+internal fun stageProducts(): List<Any?> = JSONUtils.toList(JSONArray(resourceText("tapin2_stage_raw.json")))!!
 
-    private val elements = elementsFixture("tapin2_catalog_elements_stage.json")
-    private val menu = CatalogMenuMapper.map(elements)!!
-    private val items = menu.categories.flatMap { it.items }.associateBy { it.name }
+/** The tapin2 stage `cart/add` response as a map. */
+internal fun stageOrder(): Map<String, Any?> = JSONUtils.toMap(JSONObject(resourceText("tapin2_stage_cart_add.json")))!!
 
-    private fun card(product: Map<String, Any?>, extra: Map<String, Any?> = emptyMap(), category: Map<String, Any?> = mapOf("id" to 1, "title" to "C", "orderId" to 1)) =
-        mapOf("id" to product["id"].toString(), "type" to "catalogItemCard", "entity_info" to mapOf("product" to product, "category" to category) + extra)
+class RendererEnvelopeTest {
 
     @Test
-    fun `entity_info is a verbatim subset of the tapin2 products entries`() {
-        val raw = JSONUtils.toList(JSONArray(resourceText("tapin2_stage_raw.json")))!!.map {
-            @Suppress("UNCHECKED_CAST")
-            it as Map<String, Any?>
-        }.associateBy { (it["product"] as Map<*, *>)["id"].toString() }
-        val cards = elements.filter { it["type"] == "catalogItemCard" }
-        assertEquals(33, cards.size)
-        for (card in cards) {
-            val info = card["entity_info"] as Map<*, *>
-            val entry = raw.getValue(card["entityId"] as String)
-            for (key in listOf("orderId", "locationId", "categoryId", "isVisible", "hideInMobile")) assertSameValue(key, entry[key], info[key])
-            val product = info["product"] as Map<*, *>
-            val rawProduct = entry["product"] as Map<*, *>
-            for ((key, value) in product) {
-                if (key != "modifierGroups") assertSameValue("product.$key", rawProduct[key], value)
-            }
-            val category = info["category"] as Map<*, *>
-            for ((key, value) in category) assertSameValue("category.$key", (entry["category"] as Map<*, *>)[key], value)
-        }
+    fun `envelope parses id, entityId, rendererId and passes the payload through untouched`() {
+        val payload = stageProducts()
+        val element = FnbElement.fromMap(mapOf("id" to "menu_19289", "entityId" to 19289, "rendererId" to "fnb.menu", "entity_info" to payload))!!
+        assertEquals("menu_19289", element.id)
+        assertEquals("19289", element.entityId)
+        assertEquals(FnbRendererIds.MENU, element.rendererId)
+        assertTrue("payload is the same object", element.payload === payload)
+        assertEquals(payload, FnbElement.fromMap(mapOf("id" to "x", "rendererId" to "fnb.menu", "payload" to payload))!!.payload)
     }
 
     @Test
-    fun `stage elements map location from the cartBar and categories by category orderId`() {
+    fun `elements without id or rendererId are not custom-rendered`() {
+        assertNull(FnbElement.fromMap(mapOf("rendererId" to "fnb.menu")))
+        assertNull(FnbElement.fromMap(mapOf("id" to "x", "type" to "productCard")))
+        assertNull(FnbElement.fromMap(mapOf("id" to "x", "rendererId" to "  ")))
+    }
+
+    @Test
+    fun `registry resolves by rendererId and ignores unknown ids`() {
+        val registry = FnbRendererRegistry.DEFAULT
+        assertTrue(registry.resolve("fnb.menu") is MenuFnbRenderer)
+        assertTrue(registry.resolve(FnbElement("c", "1", "fnb.cart", null)) is CartFnbRenderer)
+        assertNull(registry.resolve("vendor.unknown"))
+    }
+}
+
+class CatalogMenuMapperTest {
+
+    private val menu = CatalogMenuMapper.map(stageProducts())!!
+    private val items = menu.categories.flatMap { it.items }.associateBy { it.name }
+
+    private fun entry(product: Map<String, Any?>, extra: Map<String, Any?> = emptyMap(), category: Map<String, Any?> = mapOf("id" to 1, "title" to "C", "orderId" to 1)) =
+        mapOf("product" to product, "category" to category) + extra
+
+    @Test
+    fun `raw tapin2 products response maps location, categories by category orderId, and all items`() {
         assertEquals("19289", menu.locationId)
         assertEquals("Market Cafe 122", menu.locationName)
-        assertEquals("1000010528", menu.venueId)
-        assertEquals("36747", menu.eventId)
         assertTrue(menu.orderingAvailable)
         assertNull("stage waitTime is empty", menu.waitTime)
+        assertEquals("", menu.venueId)
+        assertEquals("not in the tapin2 response; BC uses the session", "", menu.eventId)
         assertEquals(
             listOf("Beer", "Beverages", "Bowls (Burrito/Rice)", "Dessert", "Entrées", "Hot Dogs", "Nachos", "Sides"),
             menu.categories.map { it.label }
         )
         assertEquals(33, menu.categories.sumOf { it.items.size })
+        assertEquals("equal orderIds keep payload order", listOf("\"Light The Beam\" Churro", "Salt & Straw - Ancho Taco"), menu.categories[3].items.map { it.name })
     }
 
     @Test
@@ -124,9 +122,17 @@ class CatalogMenuMapperTest {
     }
 
     @Test
+    fun `venueId and eventId are used when tapin2 adds them to the entries`() {
+        val withIds = stageProducts().map { (it as Map<*, *>).entries.associate { (k, v) -> k.toString() to v } + mapOf("venueId" to 1000010528, "eventId" to 36747) }
+        val model = CatalogMenuMapper.map(withIds)!!
+        assertEquals("1000010528", model.venueId)
+        assertEquals("36747", model.eventId)
+    }
+
+    @Test
     fun `widget defaults come from MenuOptions`() {
         assertNull("notes off until tapin2 confirms products[].note", items.getValue("Fountain Soda").instructions)
-        val withNotes = CatalogMenuMapper.map(elements, MenuOptions(instructions = MenuOptions.NOTES_ENABLED, currencyCode = "CAD"))!!
+        val withNotes = CatalogMenuMapper.map(stageProducts(), MenuOptions(instructions = MenuOptions.NOTES_ENABLED, currencyCode = "CAD"))!!
         assertEquals(140, withNotes.categories.flatMap { it.items }.first().instructions!!.maxLength)
         assertEquals("CAD", withNotes.currencyCode)
     }
@@ -135,14 +141,14 @@ class CatalogMenuMapperTest {
     fun `hidden, inactive, archived, and duplicate entries are dropped and orderIds sort`() {
         val model = CatalogMenuMapper.map(
             listOf(
-                card(mapOf("id" to 2, "title" to "Second", "eventPrice" to 1.0), mapOf("orderId" to 2)),
-                card(mapOf("id" to 1, "title" to "First", "eventPrice" to 1.0), mapOf("orderId" to 1)),
-                card(mapOf("id" to 3, "title" to "Hidden", "eventPrice" to 1.0), mapOf("isVisible" to false)),
-                card(mapOf("id" to 4, "title" to "Web only", "eventPrice" to 1.0), mapOf("hideInMobile" to true)),
-                card(mapOf("id" to 5, "title" to "Inactive", "eventPrice" to 1.0, "isActive" to false)),
-                card(mapOf("id" to 6, "title" to "Archived", "eventPrice" to 1.0, "isArchived" to true)),
-                card(mapOf("id" to 7, "title" to "Inactive category", "eventPrice" to 1.0), category = mapOf("id" to 2, "title" to "X", "isActive" to false)),
-                card(mapOf("id" to 1, "title" to "First again (other menu)", "eventPrice" to 1.0), category = mapOf("id" to 3, "title" to "Y"))
+                entry(mapOf("id" to 2, "title" to "Second", "eventPrice" to 1.0), mapOf("orderId" to 2)),
+                entry(mapOf("id" to 1, "title" to "First", "eventPrice" to 1.0), mapOf("orderId" to 1)),
+                entry(mapOf("id" to 3, "title" to "Hidden", "eventPrice" to 1.0), mapOf("isVisible" to false)),
+                entry(mapOf("id" to 4, "title" to "Web only", "eventPrice" to 1.0), mapOf("hideInMobile" to true)),
+                entry(mapOf("id" to 5, "title" to "Inactive", "eventPrice" to 1.0, "isActive" to false)),
+                entry(mapOf("id" to 6, "title" to "Archived", "eventPrice" to 1.0, "isArchived" to true)),
+                entry(mapOf("id" to 7, "title" to "Inactive category", "eventPrice" to 1.0), category = mapOf("id" to 2, "title" to "X", "isActive" to false)),
+                entry(mapOf("id" to 1, "title" to "First again (other menu)", "eventPrice" to 1.0), category = mapOf("id" to 3, "title" to "Y"))
             )
         )!!
         assertEquals(listOf("First", "Second"), model.categories.single().items.map { it.name })
@@ -152,8 +158,10 @@ class CatalogMenuMapperTest {
     fun `price falls back to price, originalPrice becomes a was-price, and paused locations are unavailable`() {
         val model = CatalogMenuMapper.map(
             listOf(
-                card(mapOf("id" to 1, "title" to "Promo", "price" to 7.5, "originalPrice" to 9.0, "eventPrice" to null)),
-                mapOf("type" to "cartBar", "entity_info" to mapOf("location" to mapOf("id" to 9, "title" to "Stand", "isPaused" to true, "waitTime" to "10 min")))
+                entry(
+                    mapOf("id" to 1, "title" to "Promo", "price" to 7.5, "originalPrice" to 9.0, "eventPrice" to null),
+                    mapOf("location" to mapOf("id" to 9, "title" to "Stand", "isPaused" to true, "waitTime" to "10 min"))
+                )
             )
         )!!
         val promo = model.categories.single().items.single()
@@ -165,30 +173,20 @@ class CatalogMenuMapperTest {
     }
 
     @Test
-    fun `malformed elements degrade instead of throwing`() {
-        assertNull(CatalogMenuMapper.map(emptyList()))
-        assertNull(CatalogMenuMapper.map(listOf(mapOf("type" to "catalogItemCard", "entity_info" to "junk"))))
+    fun `non-array or malformed payloads degrade instead of throwing`() {
+        assertNull(CatalogMenuMapper.map(null))
+        assertNull(CatalogMenuMapper.map(emptyList<Any>()))
+        assertNull(CatalogMenuMapper.map(mapOf("products" to stageProducts())))
+        assertNull(CatalogMenuMapper.map(listOf("junk", 42, null)))
         val model = CatalogMenuMapper.map(
             listOf(
-                card(mapOf("id" to 1, "title" to "No price")),
-                card(mapOf("title" to "No id", "eventPrice" to 1)),
-                card(mapOf("id" to 2, "title" to "Negative", "eventPrice" to -1)),
-                card(mapOf("id" to 3, "title" to "Ok", "eventPrice" to "2.50", "modifierGroups" to "junk"))
+                entry(mapOf("id" to 1, "title" to "No price")),
+                entry(mapOf("title" to "No id", "eventPrice" to 1)),
+                entry(mapOf("id" to 2, "title" to "Negative", "eventPrice" to -1)),
+                entry(mapOf("id" to 3, "title" to "Ok", "eventPrice" to "2.50", "modifierGroups" to "junk"))
             )
         )!!
         assertEquals(listOf("3"), model.categories.single().items.map { it.id })
         assertEquals(250L, model.categories.single().items.single().priceCents)
-    }
-
-    @Test
-    fun `registry groups consecutive elements by claiming renderer`() {
-        val cart = elementsFixture("tapin2_cart_view_stage.json")
-        val all = (elements + cart).mapNotNull(FnbElement::fromMap) + FnbElement("x", "", "unknownType", "", emptyMap())
-        val groups = FnbRenderers.group(all)
-        assertEquals(2, groups.size)
-        assertTrue(groups[0].first is MenuFnbRenderer)
-        assertEquals(34, groups[0].second.size)
-        assertTrue(groups[1].first is CartFnbRenderer)
-        assertEquals(listOf("cartView"), groups[1].second.map { it.type })
     }
 }

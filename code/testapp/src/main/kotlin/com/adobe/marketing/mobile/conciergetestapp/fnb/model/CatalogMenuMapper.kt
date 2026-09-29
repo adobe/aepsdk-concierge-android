@@ -17,37 +17,33 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.cents
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.id
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.int
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.long
-import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.map
-import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.maps
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.obj
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.objs
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.name
 
 /**
- * Maps the menu elements into [MenuUiModel]. Every `entity_info` is a subset of a tapin2
- * `GET …/locations/{locationId}/products` object with tapin2's names, nesting and integer ids:
+ * Maps an `fnb.menu` element's payload, the tapin2
+ * `GET /v2/venues/{venueId}/locations/{locationId}/products` response body, into [MenuUiModel].
+ * The payload is tapin2's raw response (a root array of entries), read with tapin2's names:
  *
- * - `catalogItemCard` (one per products entry): `{ venueId, eventId, orderId, isVisible,
- *   hideInMobile, isActive, locationId, categoryId, category{id, title, orderId, isActive},
- *   product{id, title, description, price, originalPrice, eventPrice, imageUrl, isAlcohol,
- *   isActive, isArchived, modifierGroups[{id, title, minQuantity, maxQuantity,
- *   maxOnePerSelection, showPublic, modifiers[{id, title, priceDiff, isActive, isArchived}]}]} }`
- * - `cartBar` (once): `{ venueId, eventId, locationId, location{id, title, section,
- *   orderingEnabled, isPaused, pauseExpiration, isActive, isPickup, isDelivery, waitTime}} }`.
- *   A card may carry `location` itself as a fallback.
+ * `[{ orderId, isVisible, hideInMobile, isActive, locationId, categoryId,
+ *     location{id, title, orderingEnabled, isPaused, isActive, waitTime, ...},
+ *     category{id, title, orderId, isActive},
+ *     product{id, title, description, price, originalPrice, eventPrice, imageUrl, isAlcohol,
+ *       isActive, isArchived, modifierGroups[{id, title, minQuantity, maxQuantity,
+ *       maxOnePerSelection, showPublic, modifiers[{id, title, priceDiff, isActive, isArchived}]}]},
+ *     venueId?, eventId? }, ...]`
  *
- * `venueId`/`eventId` are the tapin2 request ids (products path, current event). Everything
- * tapin2 does not send (copy, limits, currency) comes from [MenuOptions]. Entries tapin2 marks
- * hidden or inactive are dropped even if BCOS already filtered them; grouping and ordering by
- * `category.orderId` then entry `orderId` happen here.
+ * `venueId`/`eventId` are not in the tapin2 response today (BC takes them from the conversation
+ * session); they are read if tapin2 adds them. Everything tapin2 does not send (copy, limits,
+ * currency) comes from [MenuOptions]. Hidden or inactive entries are dropped; grouping and ordering
+ * by `category.orderId` then entry `orderId` happen here. BC may trim fields, but the shape stays
+ * tapin2's.
  */
 object CatalogMenuMapper {
 
     object Keys {
-        const val TYPE = "type"
         const val ID = "id"
-        const val ENTITY_ID = "entityId"
-        const val ENTITY_INFO = "entity_info"
-        const val TYPE_CATALOG_ITEM = "catalogItemCard"
-        const val TYPE_CART_BAR = "cartBar"
 
         // tapin2 products entry
         const val VENUE_ID = "venueId"
@@ -89,28 +85,29 @@ object CatalogMenuMapper {
 
     private class Row(val categoryOrder: Long?, val itemOrder: Long?, val categoryId: String, val categoryTitle: String, val item: MenuItem)
 
-    /** Returns null when no orderable `catalogItemCard` remains. */
-    fun map(elements: List<Map<String, Any?>>, options: MenuOptions = MenuOptions()): MenuUiModel? {
-        val cards = elements.filter { it[Keys.TYPE] == Keys.TYPE_CATALOG_ITEM }.mapNotNull { map(it[Keys.ENTITY_INFO]) }
-        val bar = elements.firstOrNull { it[Keys.TYPE] == Keys.TYPE_CART_BAR }?.let { map(it[Keys.ENTITY_INFO]) }
+    /** Returns null when the payload is not a products array or no orderable entry remains. */
+    fun map(payload: Any?, options: MenuOptions = MenuOptions()): MenuUiModel? {
+        val entries = objs(payload)
 
         val seen = HashSet<String>()
         val rows = mutableListOf<Row>()
-        for (entry in cards) {
+        var firstKept: Map<String, Any?>? = null
+        for (entry in entries) {
             if (seen.size >= MAX_ITEMS) break
             if (!isOrderable(entry)) continue
-            val category = map(entry[Keys.CATEGORY]) ?: continue
+            val category = obj(entry[Keys.CATEGORY]) ?: continue
             val categoryId = id(category[Keys.ID]) ?: id(entry["categoryId"]) ?: continue
             val categoryTitle = name(category[Keys.TITLE])
             if (categoryTitle.isEmpty()) continue
-            val item = map(entry[Keys.PRODUCT])?.let { mapItem(it, options) } ?: continue
+            val item = obj(entry[Keys.PRODUCT])?.let { mapItem(it, options) } ?: continue
             // The same product can appear on several menus of one location; show it once.
             if (!seen.add(item.id)) continue
+            if (firstKept == null) firstKept = entry
             rows += Row(long(category[Keys.ORDER_ID]), long(entry[Keys.ORDER_ID]), categoryId, categoryTitle, item)
         }
         if (rows.isEmpty()) return null
 
-        // Stable sorts: equal orderIds keep element order.
+        // Stable sorts: equal orderIds keep payload order.
         val categories = rows
             .groupBy { it.categoryId }
             .values
@@ -124,26 +121,25 @@ object CatalogMenuMapper {
                 )
             }
 
-        val first = cards.firstOrNull()
-        val location = map(bar?.get(Keys.LOCATION)) ?: map(first?.get(Keys.LOCATION))
+        val location = obj(firstKept?.get(Keys.LOCATION))
         return MenuUiModel(
-            locationId = (id(location?.get(Keys.ID)) ?: id(bar?.get(Keys.LOCATION_ID)) ?: id(first?.get(Keys.LOCATION_ID))).orEmpty(),
+            locationId = (id(location?.get(Keys.ID)) ?: id(firstKept?.get(Keys.LOCATION_ID))).orEmpty(),
             locationName = name(location?.get(Keys.TITLE)),
             orderingAvailable = bool(location?.get(Keys.ORDERING_ENABLED)) != false &&
                 bool(location?.get(Keys.IS_PAUSED)) != true &&
                 bool(location?.get(Keys.IS_ACTIVE)) != false,
             categories = categories,
             currencyCode = options.currencyCode,
-            venueId = (id(bar?.get(Keys.VENUE_ID)) ?: id(first?.get(Keys.VENUE_ID))).orEmpty(),
-            eventId = (id(bar?.get(Keys.EVENT_ID)) ?: id(first?.get(Keys.EVENT_ID))).orEmpty(),
+            venueId = id(firstKept?.get(Keys.VENUE_ID)).orEmpty(),
+            eventId = id(firstKept?.get(Keys.EVENT_ID)).orEmpty(),
             cartBar = options.cartBar,
             waitTime = FnbText.sanitizeInline(location?.get(Keys.WAIT_TIME) as? String, 40).ifEmpty { null }
         )
     }
 
     private fun isOrderable(entry: Map<String, Any?>): Boolean {
-        val product = map(entry[Keys.PRODUCT]) ?: return false
-        val category = map(entry[Keys.CATEGORY])
+        val product = obj(entry[Keys.PRODUCT]) ?: return false
+        val category = obj(entry[Keys.CATEGORY])
         return bool(entry[Keys.IS_VISIBLE]) != false &&
             bool(entry[Keys.HIDE_IN_MOBILE]) != true &&
             bool(entry[Keys.IS_ACTIVE]) != false &&
@@ -158,7 +154,7 @@ object CatalogMenuMapper {
         if (title.isEmpty()) return null
         val price = cents(product[Keys.EVENT_PRICE]) ?: cents(product[Keys.PRICE]) ?: return null
         if (price < 0) return null
-        val groups = maps(product[Keys.MODIFIER_GROUPS])
+        val groups = objs(product[Keys.MODIFIER_GROUPS])
             .asSequence()
             .filter { bool(it[Keys.SHOW_PUBLIC]) != false }
             .mapNotNull(::mapOptionGroup)
@@ -184,7 +180,7 @@ object CatalogMenuMapper {
     private fun mapOptionGroup(group: Map<String, Any?>): OptionGroup? {
         val groupId = id(group[Keys.ID]) ?: return null
         val title = name(group[Keys.TITLE])
-        val choices = maps(group[Keys.MODIFIERS])
+        val choices = objs(group[Keys.MODIFIERS])
             .asSequence()
             .filter { bool(it[Keys.IS_ACTIVE]) != false && bool(it[Keys.IS_ARCHIVED]) != true }
             .mapNotNull { modifier ->

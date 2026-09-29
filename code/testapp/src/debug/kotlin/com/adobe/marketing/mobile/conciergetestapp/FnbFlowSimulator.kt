@@ -16,6 +16,7 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.action.FnbPromptFormatter
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuItem
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuUiModel
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererIds
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.util.UUID
@@ -33,13 +34,17 @@ import org.json.JSONObject
  *   merges into its line;
  * - prices come from the menu, not the widget's display prices (tapin2 re-prices), with
  *   per-line `taxAdded` at `venue.taxRate`;
- * - `cartView.entity_info` is a subset of the tapin2 order with tapin2's names.
+ * - the reply is an `fnb.cart` element whose payload is the tapin2 order (tapin2's names), as
+ *   `cart/add` would return it (relevant fields; PII omitted).
  *
  * Seeds match the stage `cart/add` sample: order id 695685, line id 2035854, venue
  * "Golden 1 Concierge", tax rate 8.5.
  */
 internal class FnbFlowSimulator(
     private val catalog: MenuUiModel,
+    /** Conversation-session ids BC adds to tool calls when the widget doesn't send them. */
+    private val sessionVenueId: Long = 1000010528,
+    private val sessionEventId: Long = 36747,
     /** tapin2 locations (`id` → `{id, title, section}`) for `distinctLocations`; defaults to the catalog's stand. */
     private val locations: Map<Long, JSONObject> = catalog.locationId.toLongOrNull()
         ?.let { mapOf(it to JSONObject().put("id", it).put("title", catalog.locationName).put("section", "")) }
@@ -68,7 +73,7 @@ internal class FnbFlowSimulator(
     }
 
     /** One `add_to_cart` round trip: the body BCOS sent to tapin2, and the element it returned. */
-    data class AddResult(val cartAddRequest: JSONObject, val cartView: FnbElement, val duplicate: Boolean)
+    data class AddResult(val cartAddRequest: JSONObject, val cartElement: FnbElement, val duplicate: Boolean)
 
     var orderId: Long? = null
         private set
@@ -87,10 +92,12 @@ internal class FnbFlowSimulator(
         // What BC forwards to tapin2: the body minus submitId, plus BC-owned orderId/deliveryMethod.
         val request = JSONObject(details.toString()).apply {
             remove("submitId")
+            if (!has("venueId")) put("venueId", sessionVenueId)
+            if (!has("eventId")) put("eventId", sessionEventId)
             put("orderId", orderId ?: JSONObject.NULL)
             put("deliveryMethod", 1)
         }
-        if (!handledSubmitIds.add(submitId)) return AddResult(request, cartView(), duplicate = true)
+        if (!handledSubmitIds.add(submitId)) return AddResult(request, cartElement(), duplicate = true)
         if (orderId == null) {
             orderId = nextOrderId++
             guid = guidFactory()
@@ -121,7 +128,7 @@ internal class FnbFlowSimulator(
                 items += candidate.copy(id = nextItemId++)
             }
         }
-        return AddResult(request, cartView(), duplicate = false)
+        return AddResult(request, cartElement(), duplicate = false)
     }
 
     /** Handles a `[CART_ACTION]` remove turn; returns the removed title, or null. */
@@ -132,8 +139,8 @@ internal class FnbFlowSimulator(
         return if (index < 0) null else items.removeAt(index).title
     }
 
-    /** The current tapin2 order as a `cartView` element (`entity_info` = order subset). */
-    fun cartView(): FnbElement {
+    /** The current tapin2 order as an `fnb.cart` element (payload = the order). */
+    fun cartElement(): FnbElement {
         val lines = items.map { item ->
             val subtotal = item.pricePer.multiply(BigDecimal(item.quantity))
             val tax = subtotal.multiply(taxRate).movePointLeft(2).setScale(2, RoundingMode.HALF_UP)
@@ -158,11 +165,11 @@ internal class FnbFlowSimulator(
             "id" to orderId,
             "idLast3" to orderId?.toString()?.takeLast(3),
             "guid" to guid,
-            "venueId" to catalog.venueId.toLongOrNull(),
-            "eventId" to catalog.eventId.toLongOrNull(),
+            "venueId" to sessionVenueId,
+            "eventId" to sessionEventId,
             "orderStatus" to 1,
             "locationId" to (locationIds.firstOrNull() ?: catalog.locationId.toLongOrNull()),
-            "venue" to linkedMapOf("id" to catalog.venueId.toLongOrNull(), "title" to venueTitle, "taxRate" to taxRate.toDouble(), "maxAlcoholPerOrder" to null),
+            "venue" to linkedMapOf("id" to sessionVenueId, "title" to venueTitle, "taxRate" to taxRate.toDouble(), "maxAlcoholPerOrder" to null),
             "items" to lines.map { it.first },
             "distinctLocations" to locationIds.map { id ->
                 val location = locations[id]
@@ -178,7 +185,7 @@ internal class FnbFlowSimulator(
             "isPaidInFull" to false
         )
         val id = orderId?.toString().orEmpty()
-        return FnbElement(id = "cart_$id", entityId = id, type = "cartView", cardType = "cartSummary", entityInfo = order)
+        return FnbElement(id = "cart_$id", entityId = id, rendererId = FnbRendererIds.CART, payload = order)
     }
 
     private fun selectedModifierIds(groups: JSONArray?): List<Long> {

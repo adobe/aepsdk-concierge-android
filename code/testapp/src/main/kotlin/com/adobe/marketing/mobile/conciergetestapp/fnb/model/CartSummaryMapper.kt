@@ -16,13 +16,14 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.bool
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.cents
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.id
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.int
-import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.map
-import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.maps
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.obj
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.objs
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.name
 
 /**
- * Maps the `cartView` element into [CartSummaryUiModel]. Its `entity_info` is a subset of the
- * tapin2 order returned by `POST /v2/cart/add` (and update/remove), with tapin2's names:
+ * Maps an `fnb.cart` element's payload, the tapin2 order returned by `POST /v2/cart/add` (and by
+ * update/remove), into [CartSummaryUiModel]. The payload is tapin2's response body, read with
+ * tapin2's names (other fields, including `userInfo`, are ignored; BC should drop PII):
  *
  * `{ id, idLast3, guid, venueId, eventId, orderStatus, locationId, venue{id, title, taxRate,
  *    maxAlcoholPerOrder}, items[{id, locationId, product{id, title, imageUrl, isAlcohol}, quantity,
@@ -36,11 +37,6 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.TapinReads.name
 object CartSummaryMapper {
 
     object Keys {
-        const val TYPE = "type"
-        const val ENTITY_ID = "entityId"
-        const val ENTITY_INFO = "entity_info"
-        const val TYPE_CART_VIEW = "cartView"
-
         const val ID = "id"
         const val ORDER_CODE = "idLast3"
         const val GUID = "guid"
@@ -74,15 +70,17 @@ object CartSummaryMapper {
     private const val MAX_MODIFIERS = 10
     private const val NO_MODIFIERS = "No modifiers"
 
-    /** Maps the first `cartView` element; null when there is none or it has no order id. */
-    fun map(elements: List<Map<String, Any?>>, options: CartOptions = CartOptions()): CartSummaryUiModel? {
-        val element = elements.firstOrNull { it[Keys.TYPE] == Keys.TYPE_CART_VIEW } ?: return null
-        val order = map(element[Keys.ENTITY_INFO]) ?: return null
-        val orderId = id(order[Keys.ID]) ?: id(element[Keys.ENTITY_ID]) ?: return null
-        val locations = (maps(order[Keys.DISTINCT_LOCATIONS]) + listOfNotNull(map(order[Keys.LOCATION])))
+    /**
+     * Returns null when the payload is not an order object or has no order id.
+     * @param entityId the envelope's `entityId`, used when the order omits `id`.
+     */
+    fun map(payload: Any?, options: CartOptions = CartOptions(), entityId: String? = null): CartSummaryUiModel? {
+        val order = obj(payload) ?: return null
+        val orderId = id(order[Keys.ID]) ?: id(entityId) ?: return null
+        val locations = (objs(order[Keys.DISTINCT_LOCATIONS]) + listOfNotNull(obj(order[Keys.LOCATION])))
             .mapNotNull { location -> id(location[Keys.ID])?.let { it to name(location[Keys.TITLE]) } }
             .toMap()
-        val lines = maps(order[Keys.ITEMS]).asSequence().mapNotNull { mapLine(it, locations) }.take(MAX_LINES).toList()
+        val lines = objs(order[Keys.ITEMS]).asSequence().mapNotNull { mapLine(it, locations) }.take(MAX_LINES).toList()
         val lineSum = lines.sumOf { it.subtotalCents }
         val guid = (order[Keys.GUID] as? String)?.trim()?.takeIf { it.isNotEmpty() }
         val isPaid = bool(order[Keys.IS_PAID]) == true
@@ -90,7 +88,7 @@ object CartSummaryMapper {
             orderId = orderId,
             guid = guid,
             orderCode = FnbText.sanitizeInline(order[Keys.ORDER_CODE]?.toString(), 12).ifEmpty { null },
-            venueName = name(map(order[Keys.VENUE])?.get(Keys.TITLE)),
+            venueName = name(obj(order[Keys.VENUE])?.get(Keys.TITLE)),
             lines = lines.map { it.copy(removable = !isPaid) },
             subtotalCents = money(order[Keys.SUBTOTAL_NET]) ?: lineSum,
             taxCents = money(order[Keys.TAX_NET]) ?: 0L,
@@ -117,7 +115,7 @@ object CartSummaryMapper {
 
     private fun mapLine(item: Map<String, Any?>, locations: Map<String, String>): CartSummaryLine? {
         val itemId = id(item[Keys.ID]) ?: return null
-        val product = map(item[Keys.PRODUCT])
+        val product = obj(item[Keys.PRODUCT])
         val title = name(product?.get(Keys.TITLE))
         if (title.isEmpty()) return null
         val quantity = int(item[Keys.QUANTITY])?.takeIf { it > 0 } ?: return null

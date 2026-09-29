@@ -28,10 +28,10 @@ object FnbLimits {
 internal object TapinReads {
 
     @Suppress("UNCHECKED_CAST")
-    fun map(value: Any?): Map<String, Any?>? =
+    fun obj(value: Any?): Map<String, Any?>? =
         (value as? Map<*, *>)?.takeIf { m -> m.keys.all { it is String } } as? Map<String, Any?>
 
-    fun maps(value: Any?): List<Map<String, Any?>> = (value as? List<*>).orEmpty().mapNotNull(::map)
+    fun objs(value: Any?): List<Map<String, Any?>> = (value as? List<*>).orEmpty().mapNotNull(::obj)
 
     /** Non-blank id string (at most 64 chars); integral numbers only. */
     fun id(value: Any?): String? = when (value) {

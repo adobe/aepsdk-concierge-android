@@ -22,9 +22,9 @@ data class MenuUiModel(
     val orderingAvailable: Boolean,
     val categories: List<MenuCategory>,
     val currencyCode: String = DEFAULT_CURRENCY_CODE,
-    /** tapin2 arena id (`venueId`), echoed on submit. */
+    /** tapin2 arena id, echoed on submit when the payload has it; empty → BC uses the session's. */
     val venueId: String = "",
-    /** tapin2 event id (`eventId`), echoed on submit. */
+    /** tapin2 event id, echoed on submit when the payload has it; empty → BC uses the session's. */
     val eventId: String = "",
     val cartBar: CartBarConfig = CartBarConfig(),
     /** tapin2 `location.waitTime`; null when empty. */

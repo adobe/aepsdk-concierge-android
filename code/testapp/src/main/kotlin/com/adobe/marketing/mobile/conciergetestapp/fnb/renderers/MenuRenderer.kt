@@ -74,8 +74,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 
 /**
- * Renderer entry point: maps the message's `catalogItemCard` + `cartBar` elements once, then
- * renders [MenuContent].
+ * `fnb.menu` renderer entry point: maps the element payload (the tapin2 products response) once,
+ * then renders [MenuContent].
  */
 @Composable
 fun MenuRenderer(
@@ -84,12 +84,12 @@ fun MenuRenderer(
     modifier: Modifier = Modifier,
     options: MenuOptions = MenuOptions()
 ) {
-    val model = remember(context.elements, options) { CatalogMenuMapper.map(context.elements.map { it.asMap() }, options) }
+    val model = remember(context.element, options) { CatalogMenuMapper.map(context.element.payload, options) }
     if (model == null) {
         MenuUnavailable(modifier)
     } else {
         MenuContent(
-            elementId = context.groupKey,
+            elementId = context.elementKey,
             model = model,
             isInteractive = context.isInteractive,
             onAction = onAction,

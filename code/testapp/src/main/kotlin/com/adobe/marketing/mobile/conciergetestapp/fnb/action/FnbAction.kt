@@ -33,7 +33,7 @@ sealed interface FnbAction {
     @Immutable
     data class SubmitCart(
         val submitId: String,
-        /** tapin2 request ids (`venueId`, `eventId`) carried by the menu elements. */
+        /** tapin2 `venueId`/`eventId` when the menu payload carried them; empty → BC uses the session's. */
         val venueId: String,
         val eventId: String,
         val locationId: String,

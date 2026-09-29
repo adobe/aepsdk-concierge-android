@@ -20,10 +20,12 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartLine
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartReducer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryMapper
+import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CartSummaryUiModel
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CatalogMenuMapper
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.CustomizeLogic
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuOptions
 import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuUiModel
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererIds
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,12 +35,12 @@ import org.junit.Test
 
 /**
  * Happy path through the same pipeline as the debug E2E screen: tapin2-shaped menu elements ->
- * widget cart -> user-turn text -> simulated BC/tapin2 -> tapin2-shaped cartView -> cart model.
+ * widget cart -> user-turn text -> simulated BC/tapin2 -> fnb.cart element (tapin2 order) -> cart model.
  */
 class FnbFlowSimulatorTest {
 
     private val catalog: MenuUiModel =
-        CatalogMenuMapper.map(elementsFixture("tapin2_catalog_elements_stage.json"), MenuOptions(instructions = MenuOptions.NOTES_ENABLED))!!
+        CatalogMenuMapper.map(stageProducts(), MenuOptions(instructions = MenuOptions.NOTES_ENABLED))!!
     private val items = catalog.categories.flatMap { it.items }.associateBy { it.name }
     private val simulator = FnbFlowSimulator(catalog, guidFactory = { "68f4aac9-1b2b-49ed-ac78-92d7f26feb00" })
     private var submits = 0
@@ -47,7 +49,10 @@ class FnbFlowSimulatorTest {
         FnbAction.SubmitCart(submitId, catalog.venueId, catalog.eventId, catalog.locationId, catalog.locationName, lines)
     )
 
-    private fun cartOf(result: FnbFlowSimulator.AddResult) = CartSummaryMapper.map(listOf(result.cartView.asMap()), CartOptions.STAGE)!!
+    private fun cartOf(result: FnbFlowSimulator.AddResult): CartSummaryUiModel {
+        assertEquals(FnbRendererIds.CART, result.cartElement.rendererId)
+        return CartSummaryMapper.map(result.cartElement.payload, CartOptions.STAGE, result.cartElement.entityId)!!
+    }
 
     private fun sodaLine(flavor: String, quantity: Int = 1, note: String? = null): CartLine {
         val soda = items.getValue("Fountain Soda")
@@ -63,6 +68,8 @@ class FnbFlowSimulatorTest {
         val result = simulator.submit(submitTurn(listOf(nachos.copy(unitPriceCents = 1), sodaLine("Coke", note = "light ice"))))
 
         val request = result.cartAddRequest
+        assertEquals("venue/event come from the session", 1000010528L, request.getLong("venueId"))
+        assertEquals(36747L, request.getLong("eventId"))
         assertEquals(JSONObject.NULL, request.get("orderId"))
         assertEquals(1, request.getInt("deliveryMethod"))
         assertFalse("submitId is stripped before tapin2", request.has("submitId"))
@@ -115,13 +122,13 @@ class FnbFlowSimulatorTest {
     }
 
     @Test
-    fun `remove turn drops the line and the next cartView reflects it`() {
+    fun `remove turn drops the line and the next cart element reflects it`() {
         val cart = cartOf(simulator.submit(submitTurn(listOf(sodaLine("Coke"), sodaLine("Sprite")))))
         val removeTurn = FnbPromptFormatter.formatRemove(FnbAction.RemoveCartItem(cart.orderId, cart.lines[0].itemId, cart.lines[0].title))
         assertEquals("Fountain Soda", simulator.remove(removeTurn))
         assertNull("already removed", simulator.remove(removeTurn))
         assertNull("wrong order", simulator.remove(FnbPromptFormatter.formatRemove(FnbAction.RemoveCartItem("1", cart.lines[1].itemId, ""))))
-        val updated = CartSummaryMapper.map(listOf(simulator.cartView().asMap()), CartOptions.STAGE)!!
+        val updated = CartSummaryMapper.map(simulator.cartElement().payload, CartOptions.STAGE)!!
         assertEquals(listOf("Sprite"), updated.lines.map { it.modifiersSummary })
         assertEquals(500L, updated.subtotalCents)
     }

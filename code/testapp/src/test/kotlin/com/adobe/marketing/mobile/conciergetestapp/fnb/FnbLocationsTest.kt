@@ -111,17 +111,17 @@ class FnbBcosProjectionTest {
     }
 
     @Test
-    fun `real stand projection matches the committed catalog fixture`() {
-        val projected = FnbBcosProjection.catalogElements(FnbBcosProjection.productsFor(location(19289), stage), 1000010528, 36747)
-        val fixture = elementsFixture("tapin2_catalog_elements_stage.json")
-        assertEquals(fixture.size, projected.size)
-        projected.zip(fixture).forEach { (actual, expected) -> assertEquals(normalize(expected), normalize(actual.asMap())) }
+    fun `real stand menu element wraps the tapin2 products response untouched`() {
+        val element = FnbBcosProjection.menuElement(FnbBcosProjection.productsFor(location(19289), stage), 19289)
+        assertEquals("fnb.menu", element.rendererId)
+        assertEquals("19289", element.entityId)
+        assertEquals(normalize(stageProducts()), normalize(element.payload))
     }
 
     @Test
     fun `dummy stands sell a subset of real products, rehomed to the stand`() {
         val menu = CatalogMenuMapper.map(
-            FnbBcosProjection.catalogElements(FnbBcosProjection.productsFor(location(19292), stage), 1000010528, 36747).map { it.asMap() }
+            FnbBcosProjection.menuElement(FnbBcosProjection.productsFor(location(19292), stage), 19292).payload
         )!!
         assertEquals("Sac Brews 120", menu.locationName)
         assertEquals("19292", menu.locationId)
@@ -130,10 +130,10 @@ class FnbBcosProjectionTest {
 
     @Test
     fun `one order spans stands and names each line's stand`() {
-        val allProducts = CatalogMenuMapper.map(elementsFixture("tapin2_catalog_elements_stage.json"))!!
+        val allProducts = CatalogMenuMapper.map(stageProducts())!!
         val simulator = FnbFlowSimulator(allProducts, locations = locations.associateBy { it.getLong("id") })
         fun submit(stand: Long, name: String) {
-            val menu = CatalogMenuMapper.map(FnbBcosProjection.catalogElements(FnbBcosProjection.productsFor(location(stand), stage), 1000010528, 36747).map { it.asMap() })!!
+            val menu = CatalogMenuMapper.map(FnbBcosProjection.menuElement(FnbBcosProjection.productsFor(location(stand), stage), stand).payload)!!
             val item = menu.categories.flatMap { it.items }.first { it.name == name }
             val line = CartReducer.quickAdd(Cart(), item)!!.lines
             simulator.submit(FnbPromptFormatter.format(FnbAction.SubmitCart("s-$stand-$name", menu.venueId, menu.eventId, menu.locationId, menu.locationName, line)))
@@ -142,7 +142,7 @@ class FnbBcosProjectionTest {
         submit(19290, "Veggie Nachos")
         submit(19292, "Modelo Especial")
 
-        val cart = CartSummaryMapper.map(listOf(simulator.cartView().asMap()), CartOptions.STAGE)!!
+        val cart = CartSummaryMapper.map(simulator.cartElement().payload, CartOptions.STAGE)!!
         assertEquals(
             listOf("Veggie Nachos" to "Market Cafe 122", "Veggie Nachos" to "Local Eats 118", "Modelo Especial" to "Sac Brews 120"),
             cart.lines.map { it.title to it.locationName }

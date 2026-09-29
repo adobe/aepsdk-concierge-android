@@ -65,10 +65,12 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.CartFnbRenderer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderContext
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.MenuFnbRenderer
-import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderers
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererIds
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererRegistry
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbTheme
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.MenuContent
 import com.adobe.marketing.mobile.util.JSONUtils
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -91,9 +93,8 @@ private enum class GalleryTransport(val label: String) {
 
 private const val TAG = "FnbGallery"
 
-private val GALLERY_RENDERERS = listOf(
-    MenuFnbRenderer(MenuOptions(instructions = MenuOptions.NOTES_ENABLED)),
-    CartFnbRenderer(CartOptions.STAGE)
+private val GALLERY_REGISTRY = FnbRendererRegistry(
+    listOf(MenuFnbRenderer(MenuOptions(instructions = MenuOptions.NOTES_ENABLED)), CartFnbRenderer(CartOptions.STAGE))
 )
 
 @Composable
@@ -105,10 +106,15 @@ private fun FnbGalleryScreen() {
     val log = remember { mutableStateListOf<String>() }
     val theme = remember(themeFile) { ConciergeThemeLoader.load(context, themeFile) ?: ConciergeThemeLoader.default() }
     val imageProvider = remember { GalleryImageProvider() }
-    val catalogStage = remember { loadElements(context, "fnb/tapin2_catalog_elements_stage.json") }
-    // Two cards (Veggie Nachos, Fountain Soda) + cartBar: a compact menu for the read-only demo.
-    val catalogSample = remember(catalogStage) { catalogStage.filter { it.entityId in setOf("1364190", "1364015") || it.type == "cartBar" } }
-    val cartStage = remember { loadElements(context, "fnb/tapin2_cart_view_stage.json") }
+    // BC envelopes around the raw tapin2 stage responses (payload untouched).
+    val menuEntries = remember { loadJsonList(context, "fnb/tapin2_stage_raw.json") }
+    val menuStage = remember(menuEntries) { FnbElement("menu_19289", "19289", FnbRendererIds.MENU, menuEntries) }
+    // Two entries (Veggie Nachos, Fountain Soda): a compact menu for the read-only demo.
+    val menuSample = remember(menuEntries) {
+        menuStage.copy(payload = menuEntries.filter { ((it as? Map<*, *>)?.get("product") as? Map<*, *>)?.get("id")?.toString() in setOf("1364190", "1364015") })
+    }
+    val order = remember { loadJsonMap(context, "fnb/tapin2_stage_cart_add.json") }
+    val cartStage = remember(order) { FnbElement("cart_695685", "695685", FnbRendererIds.CART, order) }
     val conciergeHandler = remember {
         ConciergeFnbActionHandler(openUrl = { url ->
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.isSuccess
@@ -185,8 +191,8 @@ private fun FnbGalleryScreen() {
                     )
                 }
 
-                item { SectionTitle("Menu: tapin2 stage products as elements (33 catalogItemCard + cartBar)") }
-                item { ElementsGroup("catalog-stage-$generation", catalogStage, handler) }
+                item { SectionTitle("Menu: fnb.menu element, payload = tapin2 stage products response") }
+                item { Rendered("menu-stage-$generation", menuStage, handler) }
 
                 item { SectionTitle("Menu: location paused (sample models)") }
                 item {
@@ -200,25 +206,19 @@ private fun FnbGalleryScreen() {
                 }
 
                 item { SectionTitle("Menu: read-only (isInteractive = false)") }
-                item { ElementsGroup("catalog-readonly-$generation", catalogSample, handler, isInteractive = false) }
+                item { Rendered("menu-readonly-$generation", menuSample, handler, isInteractive = false) }
 
-                item { SectionTitle("Menu: unmappable elements") }
-                item {
-                    MenuFnbRenderer().Content(
-                        context = FnbRenderContext("empty-$generation", emptyList()),
-                        onAction = handler,
-                        modifier = Modifier
-                    )
-                }
+                item { SectionTitle("Menu: unmappable payload") }
+                item { Rendered("menu-empty-$generation", menuStage.copy(payload = emptyList<Any>()), handler) }
 
-                item { SectionTitle("Cart: tapin2 stage cart/add order as cartView") }
-                item { ElementsGroup("cart-stage-$generation", cartStage, handler) }
+                item { SectionTitle("Cart: fnb.cart element, payload = tapin2 stage cart/add response") }
+                item { Rendered("cart-stage-$generation", cartStage, handler) }
 
                 item { SectionTitle("Cart: paid (isPaidInFull) and stale (isInteractive = false)") }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        ElementsGroup("cart-paid-$generation", cartStage.map { it.copy(entityInfo = it.entityInfo + ("isPaidInFull" to true)) }, handler)
-                        ElementsGroup("cart-stale-$generation", cartStage, handler, isInteractive = false)
+                        Rendered("cart-paid-$generation", cartStage.copy(payload = order + ("isPaidInFull" to true)), handler)
+                        Rendered("cart-stale-$generation", cartStage, handler, isInteractive = false)
                     }
                 }
 
@@ -283,24 +283,22 @@ private fun GalleryPanel(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** Renders a message's elements the way the SDK registry would: grouped by claiming renderer. */
+/** What the SDK registry does per element: resolve the renderer by `rendererId`, run it on the payload. */
 @Composable
-private fun ElementsGroup(key: String, elements: List<FnbElement>, handler: FnbActionHandler, isInteractive: Boolean = true) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        FnbRenderers.group(elements, GALLERY_RENDERERS).forEachIndexed { index, (renderer, group) ->
-            renderer.Content(FnbRenderContext("$key-$index", group, isInteractive), handler, Modifier)
-        }
-    }
+private fun Rendered(key: String, element: FnbElement, handler: FnbActionHandler, isInteractive: Boolean = true) {
+    GALLERY_REGISTRY.resolve(element)?.Content(FnbRenderContext(key, element, isInteractive), handler, Modifier)
 }
 
-/** Loads a BCOS response fixture (`{"multimodalElements": {"elements": [...]}}`) into elements. */
-@Suppress("UNCHECKED_CAST")
-private fun loadElements(context: Context, assetPath: String): List<FnbElement> = try {
-    val json = context.assets.open(assetPath).bufferedReader().use { it.readText() }
-    val root = JSONUtils.toMap(JSONObject(json)).orEmpty()
-    val elements = ((root["multimodalElements"] as? Map<String, Any?>)?.get("elements") as? List<*>).orEmpty()
-    elements.mapNotNull { (it as? Map<String, Any?>)?.let(FnbElement::fromMap) }
+private fun loadJsonList(context: Context, assetPath: String): List<Any?> = try {
+    JSONUtils.toList(JSONArray(context.assets.open(assetPath).bufferedReader().use { it.readText() })).orEmpty()
 } catch (e: Exception) {
     Log.w(TAG, "Failed to load $assetPath", e)
     emptyList()
+}
+
+private fun loadJsonMap(context: Context, assetPath: String): Map<String, Any?> = try {
+    JSONUtils.toMap(JSONObject(context.assets.open(assetPath).bufferedReader().use { it.readText() })).orEmpty()
+} catch (e: Exception) {
+    Log.w(TAG, "Failed to load $assetPath", e)
+    emptyMap()
 }

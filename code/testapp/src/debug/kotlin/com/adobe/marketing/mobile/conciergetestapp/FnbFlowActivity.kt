@@ -73,7 +73,8 @@ import com.adobe.marketing.mobile.conciergetestapp.fnb.model.MenuUiModel
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.CartFnbRenderer
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbElement
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderContext
-import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRenderers
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererIds
+import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.FnbRendererRegistry
 import com.adobe.marketing.mobile.conciergetestapp.fnb.renderers.MenuFnbRenderer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -109,7 +110,7 @@ private const val FLOW_TAG = "FnbFlow"
 
 /** Demo widget options: notes on (tapin2 has `items[].note`), stage checkout host. */
 private val FLOW_MENU_OPTIONS = MenuOptions(instructions = MenuOptions.NOTES_ENABLED)
-private val FLOW_RENDERERS = listOf(MenuFnbRenderer(FLOW_MENU_OPTIONS), CartFnbRenderer(CartOptions.STAGE))
+private val FLOW_REGISTRY = FnbRendererRegistry(listOf(MenuFnbRenderer(FLOW_MENU_OPTIONS), CartFnbRenderer(CartOptions.STAGE)))
 private const val REPLY_DELAY_MS = 700L
 
 @Composable
@@ -117,7 +118,7 @@ private fun FnbFlowScreen() {
     val context = LocalContext.current
     var run by rememberSaveable { mutableIntStateOf(0) }
     val data = remember { loadFlowData(context) }
-    val catalog = remember(data) { data?.let { CatalogMenuMapper.map(it.menuFor(it.homeLocation).map { e -> e.asMap() }, FLOW_MENU_OPTIONS) } }
+    val catalog = remember(data) { data?.let { CatalogMenuMapper.map(it.menuFor(it.homeLocation).payload, FLOW_MENU_OPTIONS) } }
     val theme = remember { ConciergeThemeLoader.load(context, "themeDemo.json") ?: ConciergeThemeLoader.default() }
     val imageProvider = remember { GalleryImageProvider() }
 
@@ -137,7 +138,9 @@ private fun FnbFlowScreen() {
 
 @Composable
 private fun FlowTranscript(data: FlowData, catalog: MenuUiModel, onRestart: () -> Unit) {
-    val simulator = remember { FnbFlowSimulator(catalog, locations = data.locations.associateBy { it.getLong("id") }) }
+    val simulator = remember {
+        FnbFlowSimulator(catalog, sessionVenueId = data.venueId, sessionEventId = data.eventId, locations = data.locations.associateBy { it.getLong("id") })
+    }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     var showData by rememberSaveable { mutableStateOf(true) }
@@ -155,17 +158,18 @@ private fun FlowTranscript(data: FlowData, catalog: MenuUiModel, onRestart: () -
 
     fun showMenu(location: JSONObject) {
         val entries = FnbBcosProjection.productsFor(location, data.stageEntries)
-        val elements = FnbBcosProjection.catalogElements(entries, data.venueId, data.eventId)
+        val element = FnbBcosProjection.menuElement(entries, location.getLong("id"))
         messages += FlowMessage.Payload(
             "tapin2 GET /v2/venues/${data.venueId}/locations/${location.getLong("id")}/products (${entries.size} entries; first shown)",
             entries.firstOrNull()?.toString(2).orEmpty()
         )
         messages += FlowMessage.Agent("Here's the menu at ${location.optString("title")}:")
         messages += FlowMessage.Payload(
-            "Menu elements: ${elements.size - 1} catalogItemCard + cartBar (first card and cartBar shown)",
-            listOfNotNull(elements.firstOrNull(), elements.lastOrNull()).joinToString("\n\n") { it.toJson() }
+            "BC element: {id, entityId, rendererId: \"${element.rendererId}\", entity_info: <the tapin2 response above, untouched>}",
+            JSONObject().put("id", element.id).put("entityId", element.entityId).put("rendererId", element.rendererId)
+                .put("entity_info", "[… ${entries.size} tapin2 entries …]").toString(2)
         )
-        messages += FlowMessage.Elements("menu-${widgetCount++}", elements)
+        messages += FlowMessage.Elements("menu-${widgetCount++}", listOf(element))
     }
 
     LaunchedEffect(Unit) { if (messages.size == 1) showLocations("Here are the stands near section 122. Tap one to see its menu:") }
@@ -196,8 +200,8 @@ private fun FlowTranscript(data: FlowData, catalog: MenuUiModel, onRestart: () -
                             result.cartAddRequest.toString(2)
                         )
                         messages += FlowMessage.Agent("Added to your order. Here's your current cart:")
-                        messages += FlowMessage.Payload("cartView element (entity_info = tapin2 order subset)", result.cartView.toJson())
-                        messages += FlowMessage.Elements("cart-${messages.size}", listOf(result.cartView))
+                        messages += FlowMessage.Payload("BC element: fnb.cart (entity_info = the tapin2 cart/add order)", result.cartElement.toJson())
+                        messages += FlowMessage.Elements("cart-${messages.size}", listOf(result.cartElement))
                         messages += FlowMessage.Agent("Add a drink or dessert, or are you ready to check out?")
                     }
                 }
@@ -208,10 +212,10 @@ private fun FlowTranscript(data: FlowData, catalog: MenuUiModel, onRestart: () -
                     onResult(FnbActionResult.Accepted)
                     reply {
                         val removed = simulator.remove(message)
-                        val cart = simulator.cartView()
+                        val cart = simulator.cartElement()
                         messages += FlowMessage.Payload("BC -> tapin2 remove order line (schema pending)", "{\"orderId\": ${action.orderId}, \"itemId\": ${action.itemId}}")
                         messages += FlowMessage.Agent(if (removed != null) "Removed $removed. Here's your updated cart:" else "That item was already removed. Here's your cart:")
-                        messages += FlowMessage.Payload("cartView element (entity_info = tapin2 order subset)", cart.toJson())
+                        messages += FlowMessage.Payload("BC element: fnb.cart (entity_info = the tapin2 order)", cart.toJson())
                         messages += FlowMessage.Elements("cart-${messages.size}", listOf(cart))
                     }
                 }
@@ -254,8 +258,8 @@ private fun FlowTranscript(data: FlowData, catalog: MenuUiModel, onRestart: () -
         listState.animateScrollToItem(target)
     }
 
-    val lastMenuIndex = messages.indexOfLast { it is FlowMessage.Elements && it.elements.any { e -> e.type == "catalogItemCard" } }
-    val lastCartIndex = messages.indexOfLast { it is FlowMessage.Elements && it.elements.any { e -> e.type == "cartView" } }
+    val lastMenuIndex = messages.indexOfLast { it is FlowMessage.Elements && it.elements.any { e -> e.rendererId == FnbRendererIds.MENU } }
+    val lastCartIndex = messages.indexOfLast { it is FlowMessage.Elements && it.elements.any { e -> e.rendererId == FnbRendererIds.CART } }
     val lastLocationsIndex = messages.indexOfLast { it is FlowMessage.SdkCards }
 
     LazyColumn(
@@ -307,8 +311,9 @@ private fun FlowTranscript(data: FlowData, catalog: MenuUiModel, onRestart: () -
                 is FlowMessage.Elements -> {
                     val interactive = index == lastMenuIndex || index == lastCartIndex
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FnbRenderers.group(message.elements, FLOW_RENDERERS).forEachIndexed { groupIndex, (renderer, group) ->
-                            renderer.Content(FnbRenderContext("${message.key}-$groupIndex", group, interactive), handler, Modifier)
+                        // What the SDK registry does per element: resolve by rendererId, run it on the payload.
+                        message.elements.forEach { element ->
+                            FLOW_REGISTRY.resolve(element)?.Content(FnbRenderContext("${message.key}-${element.id}", element, interactive), handler, Modifier)
                         }
                     }
                 }
@@ -369,8 +374,8 @@ private class FlowData(
 ) {
     val homeLocation: JSONObject get() = locations.first { it.getLong("id") == 19289L }
 
-    fun menuFor(location: JSONObject): List<FnbElement> =
-        FnbBcosProjection.catalogElements(FnbBcosProjection.productsFor(location, stageEntries), venueId, eventId)
+    fun menuFor(location: JSONObject): FnbElement =
+        FnbBcosProjection.menuElement(FnbBcosProjection.productsFor(location, stageEntries), location.getLong("id"))
 }
 
 private fun loadFlowData(context: Context): FlowData? = try {
