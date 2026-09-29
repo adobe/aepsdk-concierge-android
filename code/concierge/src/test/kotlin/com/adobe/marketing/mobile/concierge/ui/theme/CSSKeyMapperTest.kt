@@ -682,6 +682,25 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply maps product-card-description-max-lines`() {
+        val result = CSSKeyMapper.apply("--product-card-description-max-lines", "6", emptyTheme)
+        assertEquals(6, result.cssLayout?.productCardDescriptionMaxLines)
+    }
+
+    @Test
+    fun `apply maps none and invalid product-card-description-max-lines to unbounded`() {
+        listOf("none", "0", "-3", "invalid", "").forEach { value ->
+            val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, emptyTheme)
+            assertEquals(value, Int.MAX_VALUE, result.cssLayout?.productCardDescriptionMaxLines)
+        }
+    }
+
+    @Test
+    fun `product-card-description-max-lines defaults to two`() {
+        assertEquals(2, ConciergeLayout().productCardDescriptionMaxLines)
+    }
+
+    @Test
     fun `apply maps product-card-price-font-weight`() {
         val result = CSSKeyMapper.apply("--product-card-price-font-weight", "400", emptyTheme)
         assertEquals(400, result.cssLayout?.productCardPriceFontWeight)

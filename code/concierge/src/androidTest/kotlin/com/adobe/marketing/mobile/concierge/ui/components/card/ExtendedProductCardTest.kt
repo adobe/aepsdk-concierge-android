@@ -320,6 +320,88 @@ class ExtendedProductCardTest {
     }
 
     @Test
+    fun extendedProductCard_rendersConfiguredSixLineSubtitle_onTallCard() {
+        val description = listOf(
+            "Soft cushioning for long runs.",
+            "Support with every stride.",
+            "Breathable mesh feels cool.",
+            "Lightweight heel to toe.",
+            "Comfortable on any route.",
+            "Made with recycled fibers."
+        ).joinToString("\n")
+        val element = MultimodalElement(
+            id = "six-line-description",
+            content = mapOf(
+                "productName" to "Trail Running Shoes",
+                "productDescription" to description,
+                "productPrice" to "$99.00"
+            )
+        )
+        val tallCardHeight = 468.dp
+        val tallCardTheme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 6)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = tallCardTheme) {
+                ExtendedProductCard(
+                    element = element,
+                    modifier = Modifier.height(tallCardHeight)
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val descriptionNode = composeTestRule.onNodeWithText(description, useUnmergedTree = true)
+        descriptionNode.assertIsDisplayed()
+        val descriptionBounds = descriptionNode.getBoundsInRoot()
+        val descriptionHeight = descriptionBounds.bottom - descriptionBounds.top
+        assertTrue(
+            "Expected the description to render all six lines, got $descriptionHeight",
+            descriptionHeight in 80.dp..90.dp
+        )
+    }
+
+    @Test
+    fun extendedProductCard_ellipsizesDescriptionBeyondConfiguredLineLimit() {
+        val description = (1..8).joinToString("\n") { "Description line $it for this product." }
+        val element = MultimodalElement(
+            id = "over-limit-description",
+            content = mapOf(
+                "productName" to "Everyday Running Shoes",
+                "productDescription" to description
+            )
+        )
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 6)
+            )
+        )
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                ExtendedProductCard(
+                    element = element,
+                    modifier = Modifier.height(468.dp)
+                )
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val descriptionNode = composeTestRule.onNodeWithTag(PRODUCT_DESCRIPTION_TEST_TAG, useUnmergedTree = true)
+        descriptionNode.assertIsDisplayed()
+        val bounds = descriptionNode.getBoundsInRoot()
+        val renderedHeight = bounds.bottom - bounds.top
+        assertTrue(
+            "Expected the over-limit description to truncate at six lines, got $renderedHeight",
+            renderedHeight in 80.dp..90.dp
+        )
+    }
+
+    @Test
     fun extendedProductCard_invokesOnActionClick_withTappedButton() {
         val element = MultimodalElement(
             id = "buy-now-click",
@@ -827,6 +909,63 @@ class ExtendedProductCardTest {
         assertTrue(
             "Expected CTAs to align (short=$shortCtaTop, long=$longCtaTop)",
             kotlin.math.abs(shortCtaTop.value - longCtaTop.value) < 1f
+        )
+    }
+
+    @Test
+    fun extendedProductCard_reservesCtaSlot_whenRequested() {
+        val withCta = MultimodalElement(
+            id = "with-cta",
+            content = mapOf(
+                "productName" to "Product with action",
+                "productPrice" to "$10.00",
+                "primaryText" to "Shop now",
+                "primaryUrl" to "https://example.com/product"
+            )
+        )
+        val withoutCta = MultimodalElement(
+            id = "without-cta",
+            content = mapOf(
+                "productName" to "Product without action",
+                "productPrice" to "$20.00"
+            )
+        )
+        val tallCardHeight = 480.dp
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(productCardMaxHeight = tallCardHeight.value.toDouble())
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        ExtendedProductCard(
+                            element = withCta,
+                            modifier = Modifier.height(tallCardHeight),
+                            reserveCtaSlot = true
+                        )
+                        ExtendedProductCard(
+                            element = withoutCta,
+                            modifier = Modifier.height(tallCardHeight),
+                            reserveCtaSlot = true
+                        )
+                    }
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        val withCtaPriceTop = composeTestRule.onNodeWithText("$10.00", useUnmergedTree = true)
+            .getBoundsInRoot().top
+        val withoutCtaPriceTop = composeTestRule.onNodeWithText("$20.00", useUnmergedTree = true)
+            .getBoundsInRoot().top
+        assertTrue(
+            "Expected prices to align when one card reserves the carousel CTA slot " +
+                "(with=$withCtaPriceTop, without=$withoutCtaPriceTop)",
+            kotlin.math.abs(withCtaPriceTop.value - withoutCtaPriceTop.value) < 1f
         )
     }
 

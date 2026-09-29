@@ -40,10 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -57,6 +59,7 @@ internal const val CTA_BUTTON_TEST_TAG = "ExtendedProductCardCtaButton"
 
 /** Test tag on the [ExtendedProductCard] secondary CTA button so UI tests can target it unambiguously. */
 internal const val SECONDARY_CTA_BUTTON_TEST_TAG = "ExtendedProductCardSecondaryCtaButton"
+internal const val PRODUCT_DESCRIPTION_TEST_TAG = "ExtendedProductCardDescription"
 
 /** Kept separate from the buttons' own padding so a theme with 0 padding doesn't collapse the gap. */
 private val PRODUCT_DETAIL_CTA_ROW_SPACING = 8.dp
@@ -103,6 +106,7 @@ internal fun ExtendedProductCard(
     element: MultimodalElement,
     modifier: Modifier = Modifier,
     measureOnly: Boolean = false,
+    reserveCtaSlot: Boolean = false,
     onCardClick: (MultimodalElement) -> Unit = {},
     onActionClick: (ProductActionButton) -> Unit = {}
 ) {
@@ -236,9 +240,11 @@ internal fun ExtendedProductCard(
                         fontWeight = style.subtitleFontWeight,
                         lineHeight = style.subtitleLineHeight,
                         letterSpacing = style.subtitleLetterSpacing,
-                        maxLines = 2,
+                        maxLines = style.descriptionMaxLines,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = style.titleSubtitleSpacing)
+                        modifier = Modifier
+                            .padding(top = style.titleSubtitleSpacing)
+                            .testTag(PRODUCT_DESCRIPTION_TEST_TAG)
                     )
                 }
             }
@@ -286,7 +292,19 @@ internal fun ExtendedProductCard(
 
             // Independent of subtitle presence -- overflow scrolls (see Column above), not clips.
             val ctas = remember(element) { productDetailCtas(element) }
-            if (ctas.isNotEmpty()) {
+            val ctaSlotContents = if (ctas.isNotEmpty()) {
+                ctas
+            } else if (reserveCtaSlot) {
+                listOf(
+                    ProductDetailCta(
+                        button = ProductActionButton(id = "placeholder", text = " "),
+                        role = ProductCardCtaRole.PRIMARY
+                    )
+                )
+            } else {
+                emptyList()
+            }
+            if (ctaSlotContents.isNotEmpty()) {
                 // A lone CTA keeps its intrinsic width; only 2+ CTAs share the row equally.
                 val shareRowWidth = ctas.size > 1
                 Row(
@@ -299,12 +317,14 @@ internal fun ExtendedProductCard(
                         ),
                     horizontalArrangement = Arrangement.spacedBy(PRODUCT_DETAIL_CTA_ROW_SPACING)
                 ) {
-                    ctas.forEach { cta ->
+                    ctaSlotContents.forEach { cta ->
+                        val isPlaceholder = ctas.isEmpty()
                         key(cta.role) {
                             ProductDetailCtaButton(
                                 cta = cta,
                                 modifier = if (shareRowWidth) Modifier.weight(1f) else Modifier.wrapContentWidth(),
-                                onClick = { onActionClick(cta.button) }
+                                visible = !isPlaceholder,
+                                onClick = if (isPlaceholder) ({}) else ({ onActionClick(cta.button) })
                             )
                         }
                     }
@@ -321,6 +341,7 @@ internal fun ExtendedProductCard(
 private fun ProductDetailCtaButton(
     cta: ProductDetailCta,
     modifier: Modifier = Modifier,
+    visible: Boolean = true,
     onClick: () -> Unit
 ) {
     val backgroundColor: Color
@@ -362,13 +383,13 @@ private fun ProductDetailCtaButton(
 
     Card(
         modifier = modifier
-            .testTag(testTag)
+            .then(if (visible) Modifier.testTag(testTag) else Modifier.alpha(0f).clearAndSetSemantics {})
             .then(
                 if (borderColor != null && borderWidth != null) {
                     Modifier.border(borderWidth, borderColor, shape)
                 } else Modifier
             )
-            .clickable(onClickLabel = cta.button.text, role = Role.Button, onClick = onClick),
+            .clickable(enabled = visible, onClickLabel = cta.button.text, role = Role.Button, onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
         shape = shape,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

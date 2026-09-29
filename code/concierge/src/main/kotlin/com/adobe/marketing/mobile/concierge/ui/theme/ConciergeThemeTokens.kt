@@ -114,6 +114,8 @@ data class ConciergeLayout(
     val productCardTitleFontSize: Double? = null,
     val productCardSubtitleFontWeight: Int? = null,
     val productCardSubtitleFontSize: Double? = null,
+    /** Maximum description lines; [Int.MAX_VALUE] represents an unbounded description. */
+    val productCardDescriptionMaxLines: Int = 2,
     val productCardPriceFontWeight: Int? = null,
     val productCardPriceFontSize: Double? = null,
     val productCardBadgeFontSize: Double? = null,
@@ -602,4 +604,3 @@ internal object CSSVariableMapper {
         return value
     }
 }
-
