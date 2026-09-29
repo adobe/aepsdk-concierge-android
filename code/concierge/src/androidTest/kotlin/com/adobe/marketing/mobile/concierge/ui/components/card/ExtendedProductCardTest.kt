@@ -417,12 +417,12 @@ class ExtendedProductCardTest {
     }
 
     @Test
-    fun extendedProductCard_coercesNonPositiveDescriptionMaxLines() {
+    fun extendedProductCard_usesDefaultForNonPositiveDescriptionMaxLines() {
         val element = MultimodalElement(
             id = "invalid-description-max-lines",
             content = mapOf(
                 "productName" to "Running Shoes",
-                "productDescription" to "A product description."
+                "productDescription" to "First description line.\nSecond description line.\nThird description line."
             )
         )
         val theme = ConciergeThemeData(
@@ -438,7 +438,15 @@ class ExtendedProductCardTest {
             }
         }
 
-        composeTestRule.onNodeWithText("A product description.").assertIsDisplayed()
+        val descriptionNode = composeTestRule.onNodeWithTag(PRODUCT_DESCRIPTION_TEST_TAG, useUnmergedTree = true)
+        descriptionNode.assertIsDisplayed()
+        val layoutResults = mutableListOf<TextLayoutResult>()
+        descriptionNode.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { getTextLayoutResults ->
+            getTextLayoutResults(layoutResults)
+        }
+        val layoutResult = layoutResults.single()
+        assertEquals("Nonpositive line limits should use the two-line default", 2, layoutResult.lineCount)
+        assertTrue("Expected the second line to be ellipsized", layoutResult.isLineEllipsized(1))
     }
 
     @Test
