@@ -596,7 +596,7 @@ internal object ConciergeStyles {
                 subtitleFontWeight = subtitleWeight,
                 subtitleLineHeight = (subtitleSize.value * smallTextLineHeightFactor).sp,
                 subtitleLetterSpacing = (-0.5).sp,
-                descriptionMaxLines = layout?.productCardDescriptionMaxLines ?: 2,
+                descriptionMaxLines = (layout?.productCardDescriptionMaxLines ?: 2).coerceAtLeast(1),
                 priceColor = priceColor,
                 priceFontSize = priceSize,
                 priceFontWeight = priceWeight,

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -63,7 +64,9 @@ internal fun ProductCarousel(
     val itemWidth = if (useExtendedProductCards) extendedProductCardStyle.cardWidth else style.imageWidth
     val carouselMode = ConciergeTheme.behavior?.multimodalCarousel?.carouselStyle ?: CarouselStyle.PAGED
     val isPaged = carouselMode == CarouselStyle.PAGED
-    val reserveCtaSlot = useExtendedProductCards && elements.any { productDetailCtas(it).isNotEmpty() }
+    val reserveCtaSlot = remember(elements, useExtendedProductCards) {
+        useExtendedProductCards && elements.any { productDetailCtas(it).isNotEmpty() }
+    }
 
     if (useExtendedProductCards) {
         // Extended cards have dynamic heights; equalize every card to the tallest one so the

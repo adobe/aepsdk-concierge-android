@@ -417,6 +417,31 @@ class ExtendedProductCardTest {
     }
 
     @Test
+    fun extendedProductCard_coercesNonPositiveDescriptionMaxLines() {
+        val element = MultimodalElement(
+            id = "invalid-description-max-lines",
+            content = mapOf(
+                "productName" to "Running Shoes",
+                "productDescription" to "A product description."
+            )
+        )
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 0)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                ExtendedProductCard(element = element)
+            }
+        }
+
+        composeTestRule.onNodeWithText("A product description.").assertIsDisplayed()
+    }
+
+    @Test
     fun extendedProductCard_invokesOnActionClick_withTappedButton() {
         val element = MultimodalElement(
             id = "buy-now-click",

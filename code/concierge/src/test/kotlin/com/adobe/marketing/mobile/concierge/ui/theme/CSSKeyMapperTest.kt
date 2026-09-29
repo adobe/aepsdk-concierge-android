@@ -688,10 +688,20 @@ class CSSKeyMapperTest {
     }
 
     @Test
-    fun `apply maps none and invalid product-card-description-max-lines to unbounded`() {
+    fun `apply ignores none and invalid product-card-description-max-lines`() {
         listOf("none", "0", "-3", "invalid", "").forEach { value ->
             val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, emptyTheme)
-            assertEquals(value, Int.MAX_VALUE, result.cssLayout?.productCardDescriptionMaxLines)
+            assertEquals(value, emptyTheme, result)
+        }
+    }
+
+    @Test
+    fun `apply ignores invalid product-card-description-max-lines without replacing existing value`() {
+        val theme = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 6))
+
+        listOf("none", "0", "-3", "invalid", "").forEach { value ->
+            val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, theme)
+            assertEquals(value, 6, result.cssLayout?.productCardDescriptionMaxLines)
         }
     }
 
