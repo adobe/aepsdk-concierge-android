@@ -403,6 +403,24 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `chat request serializes null values inside XDM lists and uses the captured session`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        val xdmFields = mapOf("items" to listOf(null, mapOf("value" to null)))
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello", xdmFields, "captured-session-id").toList()
+
+        val event = JSONObject(capturedBody(requestSlot)).getJSONArray("events").getJSONObject(0)
+        val items = event.getJSONObject("xdm").getJSONArray("items")
+        assertTrue(items.isNull(0))
+        assertTrue(items.getJSONObject(1).isNull("value"))
+        assertTrue(requestSlot.captured.url.contains("sessionId=captured-session-id"))
+        verify(exactly = 0) { mockSessionManager.getSessionId() }
+        verify(exactly = 1) { mockSessionManager.refreshSessionActivity() }
+    }
+
+    @Test
     fun `chat request forwards an ECID-only identityMap without regression`() = runTest {
         // Baseline case: no extra identities set, so the map carries only the auto-generated ECID.
         val ecidOnlyState = testState.copy(
@@ -774,6 +792,7 @@ class ConciergeConversationServiceClientTest {
         val result = client.sendFeedback(feedback)
 
         assertTrue(result)
+        verify(exactly = 1) { mockSessionManager.refreshSessionActivity() }
         verify(atLeast = 1) { connection.close() }
     }
 

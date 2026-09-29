@@ -74,6 +74,15 @@ class ConciergeTrackingEventTest {
     }
 
     @Test
+    fun `querySubmitted preserves null values inside XDM lists for Assurance`() {
+        val xdmFields = mapOf("items" to listOf(null, mapOf("value" to null)))
+
+        val event = ConciergeTrackingEvent.QuerySubmitted("hello", xdmFields).toEvent()
+
+        assertEquals(xdmFields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
+    }
+
+    @Test
     fun `querySubmitted omits empty XDM context`() {
         val event = ConciergeTrackingEvent.QuerySubmitted("hello").toEvent()
 

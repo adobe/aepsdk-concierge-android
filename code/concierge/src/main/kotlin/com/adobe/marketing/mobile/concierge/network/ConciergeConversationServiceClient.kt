@@ -57,11 +57,15 @@ import org.json.JSONArray
  * through the real ViewModel/render pipeline without a backend.
  */
 internal interface ConversationService {
-    fun chat(message: String): Flow<ParsedConversationMessage>
-    fun chat(message: String, xdmFields: Map<String, Any>): Flow<ParsedConversationMessage> = chat(message)
+    fun chat(
+        message: String,
+        xdmFields: Map<String, Any> = emptyMap(),
+        sessionId: String? = null
+    ): Flow<ParsedConversationMessage>
     fun sendDataHandoff(
         routingHint: String,
-        xdmFields: Map<String, Any>
+        xdmFields: Map<String, Any>,
+        sessionId: String? = null
     ): Flow<ParsedConversationMessage>
     suspend fun sendFeedback(feedback: Feedback): Boolean
     fun cleanup()
@@ -108,16 +112,14 @@ internal class ConciergeConversationServiceClient(
             initialValue = stateRepository.state.value
         )
 
-    private val endpoint: String
-        get() {
-            val currentState = conciergeState.value
-            val sessionId = sessionManager.getSessionId()
-            val regionSegment = currentState.conciergeRegion?.let { "/$it" }.orEmpty()
-            return "https://${currentState.conciergeServer}/brand-concierge$regionSegment/conversations" +
-                    "?configId=${currentState.conciergeConfigId}" +
-                    "&sessionId=$sessionId" +
-                    "&requestId=${UUID.randomUUID()}"
-        }
+    private fun endpoint(sessionId: String): String {
+        val currentState = conciergeState.value
+        val regionSegment = currentState.conciergeRegion?.let { "/$it" }.orEmpty()
+        return "https://${currentState.conciergeServer}/brand-concierge$regionSegment/conversations" +
+                "?configId=${currentState.conciergeConfigId}" +
+                "&sessionId=$sessionId" +
+                "&requestId=${UUID.randomUUID()}"
+    }
 
 
     /**
@@ -131,25 +133,31 @@ internal class ConciergeConversationServiceClient(
      *
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
-    override fun chat(message: String): Flow<ParsedConversationMessage> = conversation(message)
-
-    override fun chat(message: String, xdmFields: Map<String, Any>): Flow<ParsedConversationMessage> =
-        conversation(message, xdmFields)
+    override fun chat(
+        message: String,
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> =
+        conversation(message, xdmFields, sessionId ?: sessionManager.getSessionId())
 
     override fun sendDataHandoff(
         routingHint: String,
-        xdmFields: Map<String, Any>
-    ): Flow<ParsedConversationMessage> = conversation(routingHint, xdmFields)
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> =
+        conversation(routingHint, xdmFields, sessionId ?: sessionManager.getSessionId())
 
     private fun conversation(
         message: String,
-        xdmFields: Map<String, Any> = emptyMap()
+        xdmFields: Map<String, Any>,
+        sessionId: String
     ): Flow<ParsedConversationMessage> = DefaultRequestStartedFlow { onRequestStarted ->
         flow {
             val state = stateRepository.state.value
             val requestBody = createRequestBody(message, state, xdmFields)
-            val request = createConversationServiceRequest(endpoint, requestBody)
+            val request = createConversationServiceRequest(endpoint(sessionId), requestBody)
 
+            sessionManager.refreshSessionActivity()
             onRequestStarted()
             val connection = connect(request)
             var eventOrDataReceived = false
@@ -283,14 +291,14 @@ internal class ConciergeConversationServiceClient(
             forEach { (key, value) ->
                 put(
                     key as? String ?: throw IllegalArgumentException("XDM object keys must be strings"),
-                    value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null")
+                    value?.toJsonValue() ?: JSONObject.NULL
                 )
             }
         }
 
         is List<*> -> JSONArray().apply {
             forEach { value ->
-                put(value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null"))
+                put(value?.toJsonValue() ?: JSONObject.NULL)
             }
         }
 
@@ -453,9 +461,11 @@ internal class ConciergeConversationServiceClient(
     override suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
         try {
             val state = stateRepository.state.value
+            val sessionId = sessionManager.getSessionId()
             val requestBody = createFeedbackRequestBody(feedback, state)
-            val request = createFeedbackRequest(endpoint, requestBody)
+            val request = createFeedbackRequest(endpoint(sessionId), requestBody)
 
+            sessionManager.refreshSessionActivity()
             val connection = connect(request)
 
             try {

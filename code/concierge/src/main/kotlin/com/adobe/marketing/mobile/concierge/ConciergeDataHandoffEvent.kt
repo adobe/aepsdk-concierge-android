@@ -29,7 +29,7 @@ package com.adobe.marketing.mobile.concierge
  * Required and must be non-empty. Every key must be a `String`; top-level keys colliding with
  * [ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS] are rejected, as is any value that isn't
  * JSON-safe (`String`, `Boolean`, finite `Int`/`Long`/`Double`/`Float`, or a `Map`/`List` of
- * further JSON-safe values, up to a bounded nesting depth).
+ * further JSON-safe values, up to a bounded nesting depth; null is allowed inside lists).
  * @property localMessage Message to render in chat immediately before its queued handoff starts.
  */
 internal data class ConciergeDataHandoffEvent(
@@ -95,7 +95,7 @@ internal data class ConciergeDataHandoffEvent(
                 if (key in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
                     return DataHandoffDecodeResult.Rejected(reasons.RESERVED_KEY_COLLISION)
                 }
-                if (!isJsonSafeValue(value, depth = 0)) {
+                if (!isJsonSafeValue(value, depth = 0, allowNull = false)) {
                     return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELD_VALUE)
                 }
             }
@@ -115,15 +115,17 @@ internal data class ConciergeDataHandoffEvent(
             )
         }
 
-        private fun isJsonSafeValue(value: Any?, depth: Int): Boolean {
+        private fun isJsonSafeValue(value: Any?, depth: Int, allowNull: Boolean): Boolean {
             if (depth > MAX_XDM_FIELD_VALUE_DEPTH) return false
             return when (value) {
                 is String, is Boolean, is Int, is Long -> true
                 is Double -> value.isFinite()
                 is Float -> value.isFinite()
-                is Map<*, *> -> value.keys.all { it is String } && value.values.all { isJsonSafeValue(it, depth + 1) }
-                is List<*> -> value.all { isJsonSafeValue(it, depth + 1) }
-                else -> false // covers null and any other non-JSON-safe type
+                is Map<*, *> -> value.keys.all { it is String } &&
+                    value.values.all { isJsonSafeValue(it, depth + 1, allowNull) }
+                is List<*> -> value.all { isJsonSafeValue(it, depth + 1, allowNull = true) }
+                null -> allowNull
+                else -> false
             }
         }
     }

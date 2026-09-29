@@ -124,11 +124,13 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 ```
 
 The value must be JSON-compatible (strings, booleans, finite numbers, maps with string keys, or
-lists of those values). The top-level `identityMap` key is reserved and rejected; the SDK supplies
-the Edge Identity map. Context is held in memory for the active conversation session. Context set
-before the first chat turn is retained; when the session ID changes, all held context is cleared and
-the app is responsible for re-establishing it.
-`ConciergeStateRepository.clear()` also clears the context.
+lists of those values; null is allowed as a list element). The top-level `identityMap` key is
+reserved and rejected; the SDK supplies the Edge Identity map. Context is held in memory for the
+active conversation session. Context set before the first chat turn is retained; when the session
+ID changes, all held context is cleared and the app is responsible for re-establishing it.
+
+There is no separate reset API. To remove context, send a patch whose values are `null` — a
+top-level `null` removes that key, and nested `null` values remove individual nested keys.
 
 For typed chat, a context snapshot is captured when the message is submitted and used consistently
 for the service request and the `QUERY_SUBMITTED` notification visible in Assurance. The SDK does

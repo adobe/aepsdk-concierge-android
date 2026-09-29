@@ -19,7 +19,7 @@ import java.util.UUID
 /**
  * Manages the Concierge session ID with timeout functionality.
  * 
- * The session ID is stored in NamedCollection along with its creation timestamp.
+ * The session ID is stored in NamedCollection along with its last activity timestamp.
  * Sessions expire after 30 minutes of inactivity. When a request is made, the
  * session ID is validated and a new one is created if it has expired.
  *
@@ -80,6 +80,16 @@ internal class ConciergeSessionManager internal constructor(
     }
 
     /**
+     * Refreshes the inactivity timestamp for the current session when a request starts.
+     */
+    fun refreshSessionActivity() {
+        dataStore.setLong(
+            ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP,
+            currentTimeProvider()
+        )
+    }
+
+    /**
      * Clears the current session ID and timestamp.
      * Useful for testing or when explicitly resetting the session.
      */
@@ -93,4 +103,3 @@ internal class ConciergeSessionManager internal constructor(
         )
     }
 }
-

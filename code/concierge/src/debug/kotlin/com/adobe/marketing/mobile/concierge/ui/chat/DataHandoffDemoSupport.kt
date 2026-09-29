@@ -66,7 +66,8 @@ private class MockDataHandoffConversationService : ConversationService {
 
     override fun sendDataHandoff(
         routingHint: String,
-        xdmFields: Map<String, Any>
+        xdmFields: Map<String, Any>,
+        sessionId: String?
     ): Flow<ParsedConversationMessage> = when (routingHint) {
         MockDataHandoffRoutingHints.STREAM_ERROR -> flow {
             delay(NETWORK_LATENCY_FLOOR_MS)
@@ -118,7 +119,11 @@ private class MockDataHandoffConversationService : ConversationService {
         }
     }
 
-    override fun chat(message: String): Flow<ParsedConversationMessage> = flow {
+    override fun chat(
+        message: String,
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> = flow {
         emit(ParsedConversationMessage(messageContent = "", state = ConversationState.COMPLETED))
     }
 

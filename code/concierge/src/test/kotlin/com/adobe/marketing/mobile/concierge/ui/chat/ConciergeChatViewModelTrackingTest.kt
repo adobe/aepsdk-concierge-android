@@ -17,6 +17,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
@@ -127,7 +128,7 @@ class ConciergeChatViewModelTrackingTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
         ConciergeStateRepository.instance.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
-        every { chatClient.chat("Hi", any()) } returns flow { }
+        every { chatClient.chat("Hi", any(), any()) } returns flow { }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
 
         vm.processEvent(ChatEvent.SendMessage("Hi"))
@@ -141,7 +142,29 @@ class ConciergeChatViewModelTrackingTest {
             event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS)
                 .let { (it as? Map<*, *>)?.get("loyalty") }
         )
-        verify { chatClient.chat("Hi", mapOf("loyalty" to mapOf("tier" to "gold"))) }
+        verify { chatClient.chat("Hi", mapOf("loyalty" to mapOf("tier" to "gold")), any()) }
+    }
+
+    @Test
+    fun `chat uses one resolved session ID for its context snapshot and request`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val sessionManager = mockk<ConciergeSessionManager>()
+        every { sessionManager.getSessionId() } returns "captured-session-id"
+        every { chatClient.chat("Hi", emptyMap(), "captured-session-id") } returns flow { }
+        val vm = ConciergeChatViewModel(
+            app,
+            FakeSpeechCapturing(),
+            mockk<ImageProvider>(relaxed = true),
+            chatClient,
+            ConciergeStateRepository.instance,
+            sessionManager
+        )
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        verify(exactly = 1) { sessionManager.getSessionId() }
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "captured-session-id") }
     }
 
     @Test
@@ -196,7 +219,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseStarted fires once even across multiple IN_PROGRESS chunks`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("Hel", ConversationState.IN_PROGRESS, interactionId = "int-1"))
             emit(ParsedConversationMessage("lo", ConversationState.IN_PROGRESS, interactionId = "int-1"))
             emit(ParsedConversationMessage("Hello", ConversationState.COMPLETED, interactionId = "int-1"))
@@ -216,7 +239,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseCompleted fires once when stream finishes`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("Hello", ConversationState.COMPLETED, interactionId = "int-1"))
         }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
@@ -234,7 +257,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseStarted and responseCompleted carry conversationId and interactionId`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 "Hello", ConversationState.IN_PROGRESS,
                 conversationId = "conv-99", interactionId = "int-77"
@@ -261,7 +284,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseStarted flag resets between turns`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat(any()) } returns flow {
+        every { chatClient.chat(any(), emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("Reply", ConversationState.IN_PROGRESS, interactionId = "int-1"))
             emit(ParsedConversationMessage("Reply done", ConversationState.COMPLETED, interactionId = "int-1"))
         }
@@ -283,7 +306,7 @@ class ConciergeChatViewModelTrackingTest {
         val card = ParsedMultimodalItem.Card(
             MultimodalElement(id = "c1", content = mapOf("productName" to "Photoshop"))
         )
-        every { chatClient.chat("show cards") } returns flow {
+        every { chatClient.chat("show cards", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 messageContent = "",
                 state = ConversationState.COMPLETED,
@@ -328,7 +351,7 @@ class ConciergeChatViewModelTrackingTest {
             id = "card-1",
             content = mapOf("productName" to "Photoshop", "productPageURL" to "https://adobe.com/ps")
         )
-        every { chatClient.chat("show cards") } returns flow {
+        every { chatClient.chat("show cards", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 messageContent = "",
                 state = ConversationState.COMPLETED,
@@ -353,7 +376,7 @@ class ConciergeChatViewModelTrackingTest {
                 MultimodalElement(id = "card-$i", content = mapOf("productName" to "Product $i"))
             )
         }
-        every { chatClient.chat("show carousel") } returns flow {
+        every { chatClient.chat("show carousel", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 messageContent = "",
                 state = ConversationState.COMPLETED,
@@ -415,7 +438,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `errorOccurred fires on stream ERROR state`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("oops", ConversationState.ERROR))
         }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
@@ -430,7 +453,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `errorOccurred fires on exception thrown by chat flow`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             throw RuntimeException("network down")
         }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })

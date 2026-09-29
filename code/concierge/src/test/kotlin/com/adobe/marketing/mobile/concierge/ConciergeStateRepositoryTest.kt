@@ -82,6 +82,15 @@ class ConciergeStateRepositoryTest {
     }
 
     @Test
+    fun `updateXDMContext preserves nulls inside arrays and maps within arrays`() {
+        val fields = mapOf("items" to listOf(null, mapOf("value" to null)))
+
+        repository.updateXDMContext(fields)
+
+        assertEquals(fields, repository.snapshotXDMContext("session-1"))
+    }
+
+    @Test
     fun `updateXDMContext rejects reserved identityMap key without changing state`() {
         try {
             repository.updateXDMContext(mapOf("identityMap" to mapOf("ECID" to emptyList<Any>())))

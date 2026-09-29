@@ -60,8 +60,9 @@ object Concierge {
      *
      * Context applies to normal chat messages and [sendDataHandoff] requests, but not feedback.
      * Nested maps are recursively merged; lists and scalar values replace existing values. A null
-     * value removes the matching key at that level, for example:
+     * object value removes the matching key at that level, for example:
      * `mapOf("fan" to mapOf("seatSection" to null))` removes `fan.seatSection`.
+     * Nulls inside lists are retained as JSON null values.
      *
      * The context is held in memory for the current Concierge conversation session. It may be set
      * before the first chat request and is cleared when an established session expires and a new
@@ -89,8 +90,8 @@ object Concierge {
      * phrase-based router (e.g. "successful-checkout"). Defaults to an empty string, which
      * forwards an empty service query for callers whose XDM fields already determine routing.
      * @param xdmFields arbitrary XDM data merged into the root of the outbound XDM object; the
-     * SDK does not interpret its contents. Must be non-empty, JSON-safe, and must not use
-     * `identityMap` (or any other SDK-reserved top-level XDM key).
+     * SDK does not interpret its contents. Must be non-empty and JSON-safe (null is allowed inside
+     * lists), and must not use `identityMap` (or any other SDK-reserved top-level XDM key).
      * @param localMessage text to render in chat when this handoff starts, distinct from the data
      * forwarded to Brand Concierge. The handoff is rejected with [ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS]
      * when a chat turn or another handoff is active or waiting; callers can retry after it completes.

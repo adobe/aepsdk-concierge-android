@@ -297,4 +297,27 @@ class ConciergeSessionManagerTest {
 
         verify { mockNamedCollection.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, customTime) }
     }
+
+    @Test
+    fun `refreshSessionActivity extends the session timeout from the latest activity`() {
+        val sessionId = "existing-session-id"
+        var timestamp = testTime
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns sessionId
+        every { mockNamedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } answers {
+            timestamp
+        }
+        every { mockNamedCollection.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, any()) } answers {
+            timestamp = secondArg()
+        }
+
+        assertEquals(sessionId, sessionManager.getSessionId())
+
+        testTime += 29 * 60 * 1000L
+        sessionManager.refreshSessionActivity()
+        testTime += 29 * 60 * 1000L
+        assertEquals(sessionId, sessionManager.getSessionId())
+
+        testTime += 60 * 1000L + 1L
+        assertNotEquals(sessionId, sessionManager.getSessionId())
+    }
 }

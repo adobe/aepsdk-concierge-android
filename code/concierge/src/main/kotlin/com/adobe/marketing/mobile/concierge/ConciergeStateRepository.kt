@@ -317,6 +317,14 @@ internal class ConciergeStateRepository internal constructor(
         }
     }
 
+    /**
+     * Deep-merges [overlay] on top of [base] using the same RFC 7396 semantics as
+     * [updateXDMContext], so callers that combine held context with per-request fields get the
+     * same merge behavior as the held context itself.
+     */
+    fun mergeXdmFields(base: Map<String, Any>, overlay: Map<String, Any>): Map<String, Any> =
+        mergeXdmPatch(base, overlay)
+
     private fun copyAndValidateXdmValue(value: Any?, allowNull: Boolean): Any? = when (value) {
         null -> {
             require(allowNull) { "XDM values must not be null." }
@@ -340,7 +348,9 @@ internal class ConciergeStateRepository internal constructor(
             }
             copied
         }
-        is List<*> -> value.map { copyAndValidateXdmValue(it, allowNull) }
+        // Null is a literal array element in JSON Merge Patch. Keep allowing it throughout the
+        // array subtree, including maps nested inside the array.
+        is List<*> -> value.map { copyAndValidateXdmValue(it, allowNull = true) }
         else -> throw IllegalArgumentException("Unsupported value type in XDM context: ${value::class.java.name}.")
     }
 
@@ -373,4 +383,3 @@ internal class ConciergeStateRepository internal constructor(
             extensionName, event, false, SharedStateResolution.LAST_SET
         )?.value
 }
-

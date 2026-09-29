@@ -96,7 +96,11 @@ fun ProductCardDemoScreen() {
  * the real client would after parsing an SSE stream.
  */
 private class DemoConversationServiceClient : ConversationService {
-    override fun chat(message: String): Flow<ParsedConversationMessage> = flowOf(
+    override fun chat(
+        message: String,
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> = flowOf(
         ParsedConversationMessage(
             messageContent = "",
             state = ConversationState.COMPLETED,
@@ -107,8 +111,9 @@ private class DemoConversationServiceClient : ConversationService {
 
     override fun sendDataHandoff(
         routingHint: String,
-        xdmFields: Map<String, Any>
-    ): Flow<ParsedConversationMessage> = chat(routingHint)
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> = chat(routingHint, xdmFields, sessionId)
 
     override suspend fun sendFeedback(feedback: Feedback): Boolean = true
 
