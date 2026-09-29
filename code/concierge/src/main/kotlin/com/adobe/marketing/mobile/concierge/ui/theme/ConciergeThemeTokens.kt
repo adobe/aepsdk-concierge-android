@@ -114,6 +114,8 @@ data class ConciergeLayout(
     val productCardTitleFontSize: Double? = null,
     val productCardSubtitleFontWeight: Int? = null,
     val productCardSubtitleFontSize: Double? = null,
+    /** Maximum description lines; values below 1 use the default of two lines. */
+    val productCardDescriptionMaxLines: Int = 2,
     val productCardPriceFontWeight: Int? = null,
     val productCardPriceFontSize: Double? = null,
     val productCardBadgeFontSize: Double? = null,
@@ -160,6 +162,8 @@ data class ConciergeLayout(
     val productCardCtaButtonVerticalPadding: Double? = null,
     val productCardCtaButtonFontSize: Double? = null,
     val productCardCtaButtonFontWeight: Int? = null,
+    // Secondary CTA border width only -- radius/padding/font are shared with the primary button.
+    val productCardSecondaryCtaButtonBorderWidth: Double? = null,
 
     // Thinking animation layout
     val thinkingDotSize: Double? = null,
@@ -600,4 +604,3 @@ internal object CSSVariableMapper {
         return value
     }
 }
-

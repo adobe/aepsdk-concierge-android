@@ -26,11 +26,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.adobe.marketing.mobile.concierge.ui.components.image.LocalAssetImage
 import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
 
@@ -67,31 +70,7 @@ internal fun ChatInputPanel(
     val style = ConciergeStyles.inputPanelStyle
     val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
 
-    // Determine border appearance based on focus state
-    val borderModifier = when {
-        isFocused && style.focusBorderWidth > 0.dp && style.focusBorderColor != null -> {
-            Modifier.border(
-                width = style.focusBorderWidth,
-                color = style.focusBorderColor,
-                shape = style.innerShape
-            )
-        }
-        !isFocused && style.borderWidth > 0.dp && style.borderGradient?.isRenderable == true -> {
-            Modifier.conciergeGradientBorder(
-                width = style.borderWidth,
-                gradient = style.borderGradient,
-                shape = style.innerShape
-            )
-        }
-        !isFocused && style.borderWidth > 0.dp && style.borderColor != null -> {
-            Modifier.border(
-                width = style.borderWidth,
-                color = style.borderColor,
-                shape = style.innerShape
-            )
-        }
-        else -> Modifier
-    }
+    val borderModifier = resolveInputBorder(isFocused, style).toModifier()
 
     Surface(
         modifier = modifier
@@ -163,4 +142,44 @@ internal fun ChatInputPanel(
             )
         }
     }
+}
+
+internal sealed interface InputBorderStyle {
+    val width: Dp
+    val shape: Shape
+
+    data class Gradient(
+        override val width: Dp,
+        val gradient: ConciergeGradient,
+        override val shape: Shape
+    ) : InputBorderStyle
+
+    data class Solid(
+        override val width: Dp,
+        val color: Color,
+        override val shape: Shape
+    ) : InputBorderStyle
+}
+
+internal fun resolveInputBorder(
+    isFocused: Boolean,
+    style: ConciergeStyles.InputPanelStyle
+): InputBorderStyle? = when {
+    isFocused && style.focusBorderWidth > 0.dp && style.borderGradient?.isRenderable == true ->
+        InputBorderStyle.Gradient(style.focusBorderWidth, style.borderGradient, style.innerShape)
+    isFocused && style.focusBorderWidth > 0.dp && style.focusBorderColor != null ->
+        InputBorderStyle.Solid(style.focusBorderWidth, style.focusBorderColor, style.innerShape)
+    !isFocused && style.borderWidth > 0.dp && style.borderGradient?.isRenderable == true ->
+        InputBorderStyle.Gradient(style.borderWidth, style.borderGradient, style.innerShape)
+    !isFocused && style.borderWidth > 0.dp && style.borderColor != null ->
+        InputBorderStyle.Solid(style.borderWidth, style.borderColor, style.innerShape)
+    else -> null
+}
+
+internal fun InputBorderStyle?.toModifier(): Modifier = when (this) {
+    is InputBorderStyle.Gradient ->
+        Modifier.conciergeGradientBorder(width = width, gradient = gradient, shape = shape)
+    is InputBorderStyle.Solid ->
+        Modifier.border(width = width, color = color, shape = shape)
+    null -> Modifier
 }

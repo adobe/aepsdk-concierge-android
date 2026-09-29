@@ -34,6 +34,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardCtaButtonColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardSecondaryCtaButtonColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
@@ -104,54 +105,67 @@ private class DemoConversationServiceClient : ConversationService {
         )
     )
 
+    override fun sendDataHandoff(
+        routingHint: String,
+        xdmFields: Map<String, Any>
+    ): Flow<ParsedConversationMessage> = chat(routingHint)
+
     override suspend fun sendFeedback(feedback: Feedback): Boolean = true
 
     override fun cleanup() = Unit
 }
 
-/**
- * Sample product cards covering the CTA button (no subtitle + primary action) alongside cards
- * without a CTA, so the demo shows the button's payload-gated behavior in the real carousel.
- */
+/** Sample product cards demonstrating short, long, and ellipsized descriptions in the real carousel. */
 private val demoProductCards = listOf(
-    // Title + price, no subtitle, with a primary action -> CTA button renders.
     MultimodalElement(
         id = "demo-1",
-        url = "https://picsum.photos/id/20/190/190",
+        url = "https://picsum.photos/id/70/190/190",
         content = mapOf(
-            "productName" to "Trail Runner Shoes",
-            "productPrice" to "\$63.97",
-            "primaryText" to "Buy now",
-            "primaryUrl" to "https://example.com/buy/trail-runner"
+            "productName" to "Trail Running Shoes - 2 Lines",
+            "productDescription" to "Soft comfort for every mile.\nLightweight mesh, all-day fit.",
+            "productPrice" to "\$119.99",
+            "primaryText" to "Shop now",
+            "primaryUrl" to "https://example.com/buy/trail-running-shoes"
         )
     ),
-    // Title + price + was price + badge, no subtitle, with a primary action -> CTA button renders.
     MultimodalElement(
         id = "demo-2",
-        url = "https://picsum.photos/id/60/190/190",
+        url = "https://picsum.photos/id/80/190/190",
         content = mapOf(
-            "productName" to "Insulated Jacket",
-            "productPrice" to "\$159.99",
-            "productWasPrice" to "\$199.99",
-            "productBadge" to "Extended Sizes",
+            "productName" to "Road Running Shoes - 4 Lines",
+            "productDescription" to "Soft cushioning for long runs.\nSupport with every stride.\nBreathable mesh feels cool.\nLightweight heel to toe.",
+            "productPrice" to "\$129.99",
             "primaryText" to "Shop now",
-            "primaryUrl" to "https://example.com/buy/insulated-jacket"
+            "primaryUrl" to "https://example.com/buy/road-running-shoes"
         )
     ),
-    // Title + subtitle + price -> subtitle present, so the CTA is intentionally suppressed.
     MultimodalElement(
         id = "demo-3",
-        url = "https://picsum.photos/id/50/190/190",
+        url = "https://picsum.photos/id/90/190/190",
         content = mapOf(
-            "productName" to "Camp Stove",
-            "productDescription" to "Compact two-burner stove for weekend trips",
-            "productPrice" to "\$190.00"
+            "productName" to "Cushioned Running Shoes - 6 Lines",
+            "productDescription" to "Soft cushioning for long runs. Support with every stride. Breathable mesh feels cool. Lightweight heel to toe. Comfortable on any route. Made with recycled fibers. Built for a secure fit.",
+            "productPrice" to "\$139.99",
+            "primaryText" to "Shop now",
+            "primaryUrl" to "https://example.com/buy/cushioned-running-shoes"
+        )
+    ),
+    MultimodalElement(
+        id = "demo-4",
+        url = "https://picsum.photos/id/100/190/190",
+        content = mapOf(
+            "productName" to "Everyday Running Shoes - Long Description",
+            // Intentional line breaks make the six-line ellipsis limit easy to inspect.
+            "productDescription" to "Responsive cushioning for daily runs.\nBreathable upper helps keep feet cool.\nDurable outsole grips varied surfaces.\nLightweight design supports quick movement.\nPadded collar adds a secure feel.\nFlexible construction follows each stride.\nReflective details improve low-light visibility.\nMade with partially recycled materials.",
+            "productPrice" to "\$149.99",
+            "primaryText" to "Shop now",
+            "primaryUrl" to "https://example.com/buy/everyday-running-shoes"
         )
     )
 )
 
 /**
- * Matches the "Vertical Card - With description" design spec (222x367, 190x190 image, 8dp radius,
+ * Matches the "Vertical Card - With description" design spec (222x468, 190x190 image, 8dp radius,
  * #E3E3E3 outline, subtle drop shadow) and selects the [ProductCardStyle.PRODUCT_DETAIL] extended
  * card so the CTA button is exercised.
  */
@@ -164,7 +178,8 @@ private val demoProductCardTheme = ConciergeThemeData(
         cssLayout = ConciergeLayout(
             productCardWidth = 222.0,
             productCardMinHeight = 240.0,
-            productCardMaxHeight = 367.0,
+            productCardMaxHeight = 468.0,
+            productCardDescriptionMaxLines = 6,
             productImageWidth = 190.0,
             productImageHeight = 190.0,
             productCardBorderRadius = 8.0,
@@ -182,6 +197,12 @@ private val demoProductCardTheme = ConciergeThemeData(
                 // Generic red fill, purely for the demo -- not tied to any brand.
                 backgroundColor = "#D32F2F",
                 textColor = "#FFFFFF"
+            ),
+            productCardSecondaryCtaButton = ConciergeProductCardSecondaryCtaButtonColors(
+                // Outlined counterpart to the demo's red primary CTA.
+                backgroundColor = "#00000000",
+                textColor = "#D32F2F",
+                borderColor = "#D32F2F"
             )
         )
     )

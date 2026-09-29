@@ -440,6 +440,32 @@ class ConciergeChatViewModelTrackingTest {
     }
 
     @Test
+    fun `cardClicked drops unrecognized keys from the raw card element`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val vm = makeViewModel(dispatch = { dispatched.add(it) })
+
+        val element = MultimodalElement(
+            id = "e1",
+            content = mapOf(
+                "productName" to "Photoshop",
+                "productPageURL" to "https://adobe.com/ps",
+                // Not part of the known product-key allowlist - must not leak into the tracking
+                // payload sent to Edge.
+                "internalDebugId" to "row-42",
+                "rawServerMetadata" to mapOf("secret" to "value")
+            )
+        )
+        vm.processEvent(MessageInteractionEvent.ProductImageClick(element))
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.CARD_CLICKED }
+        @Suppress("UNCHECKED_CAST")
+        val dict = event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ELEMENT) as? Map<String, Any>
+        assertEquals("Photoshop", dict?.get("productName"))
+        assertTrue(dict != null && "internalDebugId" !in dict)
+        assertTrue(dict != null && "rawServerMetadata" !in dict)
+    }
+
+    @Test
     fun `cardClicked for action button reports product name, not button label`() = runTest {
         val dispatched = mutableListOf<Event>()
         val vm = makeViewModel(dispatch = { dispatched.add(it) })

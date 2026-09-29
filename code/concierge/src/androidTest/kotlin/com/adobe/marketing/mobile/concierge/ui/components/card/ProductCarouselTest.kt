@@ -16,11 +16,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -275,5 +278,56 @@ class ProductCarouselTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun productCarousel_reservesCtaSlotAcrossExtendedCards() {
+        val elements = listOf(
+            MultimodalElement(
+                id = "with-cta",
+                content = mapOf(
+                    "productName" to "Product with action",
+                    "productPrice" to "$10.00",
+                    "primaryText" to "Shop now",
+                    "primaryUrl" to "https://example.com/product"
+                )
+            ),
+            MultimodalElement(
+                id = "without-cta",
+                content = mapOf(
+                    "productName" to "Product without action",
+                    "productPrice" to "$20.00"
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ProductCarousel(
+                        elements = elements,
+                        onImageClick = {},
+                        useExtendedProductCards = true
+                    )
+                }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        // The carousel's measure pass also composes each card, leaving a zero-size copy in the
+        // semantics tree; read the bounds of the card that is actually laid out.
+        fun renderedPriceTop(price: String) = composeTestRule
+            .onAllNodesWithText(price, useUnmergedTree = true)
+            .fetchSemanticsNodes()
+            .single { it.boundsInRoot.width > 0f }
+            .boundsInRoot.top
+        val withCtaPriceTop = renderedPriceTop("$10.00")
+        val withoutCtaPriceTop = renderedPriceTop("$20.00")
+
+        assertTrue(
+            "Expected prices to align when one extended carousel card has a CTA " +
+                "(with=$withCtaPriceTop, without=$withoutCtaPriceTop)",
+            kotlin.math.abs(withCtaPriceTop - withoutCtaPriceTop) < 1f
+        )
     }
 }

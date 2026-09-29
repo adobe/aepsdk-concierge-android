@@ -682,6 +682,43 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply maps product-card-description-max-lines`() {
+        val result = CSSKeyMapper.apply("--product-card-description-max-lines", "6", emptyTheme)
+        assertEquals(6, result.cssLayout?.productCardDescriptionMaxLines)
+    }
+
+    @Test
+    fun `apply ignores none and invalid product-card-description-max-lines`() {
+        listOf("none", "0", "-3", "invalid", "").forEach { value ->
+            val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, emptyTheme)
+            assertEquals(value, emptyTheme, result)
+        }
+    }
+
+    @Test
+    fun `apply ignores invalid product-card-description-max-lines without replacing existing value`() {
+        val theme = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 6))
+
+        listOf("none", "0", "-3", "invalid", "").forEach { value ->
+            val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, theme)
+            assertEquals(value, 6, result.cssLayout?.productCardDescriptionMaxLines)
+        }
+    }
+
+    @Test
+    fun `apply product-card-description-max-lines preserves existing layout values`() {
+        val theme = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardMaxHeight = 468.0))
+        val result = CSSKeyMapper.apply("--product-card-description-max-lines", "6", theme)
+        assertEquals(6, result.cssLayout?.productCardDescriptionMaxLines)
+        assertEquals(468.0, result.cssLayout?.productCardMaxHeight)
+    }
+
+    @Test
+    fun `product-card-description-max-lines defaults to two`() {
+        assertEquals(2, ConciergeLayout().productCardDescriptionMaxLines)
+    }
+
+    @Test
     fun `apply maps product-card-price-font-weight`() {
         val result = CSSKeyMapper.apply("--product-card-price-font-weight", "400", emptyTheme)
         assertEquals(400, result.cssLayout?.productCardPriceFontWeight)
@@ -1122,6 +1159,71 @@ class CSSKeyMapperTest {
         val keys = CSSKeyMapper.supportedCSSKeys
         assertTrue(keys.contains("product-card-cta-button-background-color"))
         assertTrue(keys.contains("product-card-cta-button-text-color"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Layout - Product card secondary CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-border-width`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-width", "2px", emptyTheme)
+        assertEquals(2.0, result.cssLayout?.productCardSecondaryCtaButtonBorderWidth)
+    }
+
+    @Test
+    fun `apply falls back to ProductCardSecondaryCtaButton border width default for malformed value`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-width", "invalid", emptyTheme)
+        assertEquals(
+            ConciergeStyles.ProductCardSecondaryCtaButtonDefaults.BORDER_WIDTH,
+            result.cssLayout?.productCardSecondaryCtaButtonBorderWidth
+        )
+    }
+
+    @Test
+    fun `supportedCSSKeys contains product card secondary cta button border width key`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("product-card-secondary-cta-button-border-width"))
+    }
+
+    // -----------------------------------------------------------------------
+    // Colors - Product card secondary CTA button
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-background-color`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-background-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.productCardSecondaryCtaButton?.backgroundColor)
+    }
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-text-color`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-text-color", "#BB5811", emptyTheme)
+        assertEquals("#BB5811", result.colors?.productCardSecondaryCtaButton?.textColor)
+    }
+
+    @Test
+    fun `apply maps product-card-secondary-cta-button-border-color`() {
+        val result = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-color", "#BB5811", emptyTheme)
+        assertEquals("#BB5811", result.colors?.productCardSecondaryCtaButton?.borderColor)
+    }
+
+    @Test
+    fun `apply preserves other product-card-secondary-cta-button colors when setting one`() {
+        var theme = CSSKeyMapper.apply("--product-card-secondary-cta-button-background-color", "#FFFFFF", emptyTheme)
+        theme = CSSKeyMapper.apply("--product-card-secondary-cta-button-text-color", "#BB5811", theme)
+        theme = CSSKeyMapper.apply("--product-card-secondary-cta-button-border-color", "#BB5811", theme)
+        assertEquals("#FFFFFF", theme.colors?.productCardSecondaryCtaButton?.backgroundColor)
+        assertEquals("#BB5811", theme.colors?.productCardSecondaryCtaButton?.textColor)
+        assertEquals("#BB5811", theme.colors?.productCardSecondaryCtaButton?.borderColor)
+    }
+
+    @Test
+    fun `supportedCSSKeys contains product card secondary cta button color keys`() {
+        val keys = CSSKeyMapper.supportedCSSKeys
+        assertTrue(keys.contains("product-card-secondary-cta-button-background-color"))
+        assertTrue(keys.contains("product-card-secondary-cta-button-text-color"))
+        assertTrue(keys.contains("product-card-secondary-cta-button-border-color"))
     }
 
     // -----------------------------------------------------------------------
