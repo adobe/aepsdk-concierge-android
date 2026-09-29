@@ -682,6 +682,43 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply maps product-card-description-max-lines`() {
+        val result = CSSKeyMapper.apply("--product-card-description-max-lines", "6", emptyTheme)
+        assertEquals(6, result.cssLayout?.productCardDescriptionMaxLines)
+    }
+
+    @Test
+    fun `apply ignores none and invalid product-card-description-max-lines`() {
+        listOf("none", "0", "-3", "invalid", "").forEach { value ->
+            val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, emptyTheme)
+            assertEquals(value, emptyTheme, result)
+        }
+    }
+
+    @Test
+    fun `apply ignores invalid product-card-description-max-lines without replacing existing value`() {
+        val theme = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardDescriptionMaxLines = 6))
+
+        listOf("none", "0", "-3", "invalid", "").forEach { value ->
+            val result = CSSKeyMapper.apply("--product-card-description-max-lines", value, theme)
+            assertEquals(value, 6, result.cssLayout?.productCardDescriptionMaxLines)
+        }
+    }
+
+    @Test
+    fun `apply product-card-description-max-lines preserves existing layout values`() {
+        val theme = ConciergeThemeTokens(cssLayout = ConciergeLayout(productCardMaxHeight = 468.0))
+        val result = CSSKeyMapper.apply("--product-card-description-max-lines", "6", theme)
+        assertEquals(6, result.cssLayout?.productCardDescriptionMaxLines)
+        assertEquals(468.0, result.cssLayout?.productCardMaxHeight)
+    }
+
+    @Test
+    fun `product-card-description-max-lines defaults to two`() {
+        assertEquals(2, ConciergeLayout().productCardDescriptionMaxLines)
+    }
+
+    @Test
     fun `apply maps product-card-price-font-weight`() {
         val result = CSSKeyMapper.apply("--product-card-price-font-weight", "400", emptyTheme)
         assertEquals(400, result.cssLayout?.productCardPriceFontWeight)

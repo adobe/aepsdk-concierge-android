@@ -770,6 +770,17 @@ internal object CSSKeyMapper {
                 layout?.copy(productCardSubtitleFontSize = size) ?: ConciergeLayout(productCardSubtitleFontSize = size)
             }
         },
+        "product-card-description-max-lines" to { cssValue, theme ->
+            val maxLines = cssValue.trim().toIntOrNull()?.takeIf { it > 0 }
+            if (maxLines == null) {
+                theme
+            } else {
+                updateLayout(theme) { layout ->
+                    layout?.copy(productCardDescriptionMaxLines = maxLines)
+                        ?: ConciergeLayout(productCardDescriptionMaxLines = maxLines)
+                }
+            }
+        },
         "product-card-price-font-weight" to { cssValue, theme ->
             updateLayout(theme) { layout ->
                 val weight = CSSValueConverter.parseFontWeight(cssValue)
