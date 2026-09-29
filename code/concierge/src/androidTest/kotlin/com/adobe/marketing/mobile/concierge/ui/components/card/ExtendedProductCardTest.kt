@@ -23,6 +23,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -31,6 +32,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
@@ -393,11 +396,18 @@ class ExtendedProductCardTest {
         composeTestRule.waitForIdle()
         val descriptionNode = composeTestRule.onNodeWithTag(PRODUCT_DESCRIPTION_TEST_TAG, useUnmergedTree = true)
         descriptionNode.assertIsDisplayed()
-        val bounds = descriptionNode.getBoundsInRoot()
-        val renderedHeight = bounds.bottom - bounds.top
+        val layoutResults = mutableListOf<TextLayoutResult>()
+        descriptionNode.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { getTextLayoutResults ->
+            getTextLayoutResults(layoutResults)
+        }
+        val layoutResult = layoutResults.single()
         assertTrue(
-            "Expected the over-limit description to truncate at six lines, got $renderedHeight",
-            renderedHeight in 80.dp..90.dp
+            "Expected the description to render six lines, got ${layoutResult.lineCount}",
+            layoutResult.lineCount == 6
+        )
+        assertTrue(
+            "Expected the sixth line to be ellipsized",
+            layoutResult.isLineEllipsized(5)
         )
     }
 
