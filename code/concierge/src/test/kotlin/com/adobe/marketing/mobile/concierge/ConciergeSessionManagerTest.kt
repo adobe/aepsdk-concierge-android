@@ -18,6 +18,7 @@ import io.mockk.verify
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -37,6 +38,42 @@ class ConciergeSessionManagerTest {
     }
 
     // ========== New Session Creation Tests ==========
+
+    @Test
+    fun `currentSessionIdOrNull does not create a missing session`() {
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns null
+
+        assertNull(sessionManager.currentSessionIdOrNull())
+
+        verify(exactly = 0) { mockNamedCollection.setString(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.setLong(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.remove(any()) }
+    }
+
+    @Test
+    fun `currentSessionIdOrNull returns a valid session without refreshing activity`() {
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns "existing"
+        every { mockNamedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } returns
+            testTime - ConciergeSessionManager.SESSION_TIMEOUT_MS
+
+        assertEquals("existing", sessionManager.currentSessionIdOrNull())
+
+        verify(exactly = 0) { mockNamedCollection.setString(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.setLong(any(), any()) }
+    }
+
+    @Test
+    fun `currentSessionIdOrNull returns null after expiry without replacing the stored session`() {
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns "expired"
+        every { mockNamedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } returns
+            testTime - ConciergeSessionManager.SESSION_TIMEOUT_MS - 1
+
+        assertNull(sessionManager.currentSessionIdOrNull())
+
+        verify(exactly = 0) { mockNamedCollection.setString(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.setLong(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.remove(any()) }
+    }
 
     @Test
     fun `getSessionId creates new session when no session exists`() {

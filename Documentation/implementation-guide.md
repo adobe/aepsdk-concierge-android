@@ -130,17 +130,22 @@ value; cyclic or deeper input is rejected with `IllegalArgumentException`. Data 
 same value types and nesting limit.
 
 The top-level `identityMap` key is reserved and rejected; the SDK supplies the Edge Identity map.
-Context is held in memory for the active conversation session. Each update resolves the current
-session: after expiry, stale context is cleared before applying the new patch, so context
-re-established before the next turn is retained. Updating context does not count as conversation
-activity. A request after expiry without a new context update does not carry the expired context.
+Context is held in memory. Each update checks for an existing valid session without creating one
+or refreshing its inactivity timestamp. Before the first request, context remains pending even
+if more than 30 minutes pass; the next request adopts it into its session. After an established
+session expires, stale context is cleared before applying a fresh patch, and that newly supplied
+context also remains pending until a request adopts it. Updating context does not count as
+conversation activity. A request after expiry without a new context update does not carry the
+expired context.
 
 There is no separate reset API. To remove context, send a patch whose values are `null` — a
 top-level `null` removes that key, and nested `null` values remove individual nested keys.
 
 For chat and data handoffs, a context snapshot is captured when the request is submitted; later
 updates do not change the queued snapshot. The queue processor resolves the session off the UI
-thread before sending the request. If the captured context belongs to an expired session, it is
+thread before sending the request. Pending context is adopted into that session without changing
+the captured fields; snapshots from the same pending context are bound to that session only,
+not reused after a later rollover. If captured context belongs to an expired session, it is
 omitted. For typed chat, `QUERY_SUBMITTED` is emitted after session resolution and before the
 network request, carrying the same context as the service request.
 

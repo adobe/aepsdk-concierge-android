@@ -104,6 +104,7 @@ class ConciergeChatViewModelTest {
         Dispatchers.setMain(testDispatcher)
         mockkObject(ConciergeSessionManager.instance)
         every { ConciergeSessionManager.instance.getSessionId() } returns "session-1"
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns "session-1"
         app = mockk(relaxed = true)
         // Default: grant audio permission
         mockkStatic(ContextCompat::class)
@@ -513,6 +514,7 @@ class ConciergeChatViewModelTest {
     fun `data handoff snapshots held XDM context when enqueued not when processed`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
         ConciergeStateRepository.instance.updateXDMContext(mapOf("fan" to mapOf("tier" to "silver")))
         val handoff = ConciergeDataHandoffEvent("checkout", mapOf("routing" to "checkout"))
         val expected = mapOf(

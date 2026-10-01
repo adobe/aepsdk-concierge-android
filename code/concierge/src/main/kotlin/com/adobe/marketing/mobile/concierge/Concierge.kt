@@ -65,10 +65,11 @@ object Concierge {
      * Nulls inside lists are retained as JSON null values.
      *
      * The context is held in memory for the current Concierge conversation session. It may be set
-     * before the first chat request. Each update resolves the current session; if the previous
-     * session expired, stale context is cleared before the new patch is applied. Updating context
-     * does not refresh session activity. There is no separate reset API; use null-valued patch
-     * entries to remove specific values.
+     * before the first chat request without starting the session's inactivity clock. Each update
+     * checks for an existing valid session without creating or refreshing one. When no valid
+     * session exists, fresh context is held pending and adopted by the next request's session.
+     * Stale context from an expired session is cleared before applying a fresh patch. There is no
+     * separate reset API; use null-valued patch entries to remove specific values.
      *
      * @param fields a JSON-safe object to merge into the held XDM context. The top-level
      * `identityMap` key is reserved for the SDK.

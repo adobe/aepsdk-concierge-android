@@ -22,7 +22,7 @@ import java.math.BigDecimal
 class ConciergeXdmValueTest {
     private fun repository(): ConciergeStateRepository {
         val manager = mockk<ConciergeSessionManager>()
-        every { manager.getSessionId() } returns "session"
+        every { manager.currentSessionIdOrNull() } returns "session"
         return ConciergeStateRepository(sessionManager = manager)
     }
 

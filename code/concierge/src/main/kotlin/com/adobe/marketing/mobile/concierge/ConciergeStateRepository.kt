@@ -74,7 +74,7 @@ internal class ConciergeStateRepository internal constructor(
     val state: StateFlow<ConciergeState> = _state.asStateFlow()
     private val xdmContextLock = Any()
     private var heldXdmContext: Map<String, Any> = emptyMap()
-    private var xdmContextSessionId: String? = null
+    private var xdmContextSession = XdmContextSession(null)
 
     /**
      * Applies an RFC 7396 JSON Merge Patch to the held conversational XDM context.
@@ -91,10 +91,13 @@ internal class ConciergeStateRepository internal constructor(
         }
 
         synchronized(xdmContextLock) {
-            val sessionId = sessionManager.getSessionId()
-            val base = if (xdmContextSessionId == sessionId) heldXdmContext else emptyMap()
+            val sessionId = sessionManager.currentSessionIdOrNull()
+            val reuseContext = xdmContextSession.id == null || xdmContextSession.id == sessionId
+            val base = if (reuseContext) heldXdmContext else emptyMap()
+            val session = if (reuseContext) xdmContextSession else XdmContextSession(sessionId)
             heldXdmContext = copyXdmObject(mergeXdmPatch(base, copiedPatch))
-            xdmContextSessionId = sessionId
+            session.id = sessionId
+            xdmContextSession = session
         }
     }
 
@@ -104,20 +107,29 @@ internal class ConciergeStateRepository internal constructor(
     fun snapshotXDMContext(sessionId: String): Map<String, Any> =
         resolveXDMContext(captureXDMContext(), sessionId)
 
-    internal data class XdmContextSnapshot(val sessionId: String?, val fields: Map<String, Any>)
+    // Pending snapshots share a binding so they can be adopted once, but not into later sessions.
+    internal class XdmContextSession(var id: String?)
+
+    internal data class XdmContextSnapshot(
+        val fields: Map<String, Any>,
+        internal val session: XdmContextSession
+    )
 
     fun captureXDMContext(): XdmContextSnapshot = synchronized(xdmContextLock) {
-        XdmContextSnapshot(xdmContextSessionId, copyXdmObject(heldXdmContext))
+        XdmContextSnapshot(copyXdmObject(heldXdmContext), xdmContextSession)
     }
 
     fun resolveXDMContext(snapshot: XdmContextSnapshot, sessionId: String): Map<String, Any> =
         synchronized(xdmContextLock) {
-            // An older queued snapshot must not clear context re-established for a newer session.
-            if (xdmContextSessionId == snapshot.sessionId && xdmContextSessionId != sessionId) {
-                heldXdmContext = emptyMap()
-                xdmContextSessionId = sessionId
+            if (snapshot.session.id == null) {
+                snapshot.session.id = sessionId
             }
-            if (snapshot.sessionId == sessionId) snapshot.fields else emptyMap()
+            // An older queued snapshot must not clear context re-established for a newer session.
+            if (xdmContextSession === snapshot.session && snapshot.session.id != sessionId) {
+                heldXdmContext = emptyMap()
+                xdmContextSession = XdmContextSession(sessionId)
+            }
+            if (snapshot.session.id == sessionId) snapshot.fields else emptyMap()
         }
 
     /**
@@ -323,7 +335,7 @@ internal class ConciergeStateRepository internal constructor(
         _state.value = ConciergeState()
         synchronized(xdmContextLock) {
             heldXdmContext = emptyMap()
-            xdmContextSessionId = null
+            xdmContextSession = XdmContextSession(null)
         }
     }
 

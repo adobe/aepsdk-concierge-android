@@ -39,14 +39,34 @@ class ConciergeStateRepositoryTest {
     private lateinit var mockApi: ExtensionApi
     private lateinit var mockEvent: Event
     private lateinit var sessionManager: ConciergeSessionManager
-    private var sessionId = "session-1"
+    private var sessionId: String? = "session-1"
+
+    private class SessionFixture {
+        var now = 1_000_000L
+        var storedId: String? = null
+        var storedTimestamp = 0L
+        val store = mockk<NamedCollection>()
+        val manager = ConciergeSessionManager(store) { now }
+        val repository = ConciergeStateRepository(sessionManager = manager)
+
+        init {
+            every { store.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } answers { storedId }
+            every { store.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } answers { storedTimestamp }
+            every { store.setString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, any()) } answers {
+                storedId = secondArg()
+            }
+            every { store.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, any()) } answers {
+                storedTimestamp = secondArg()
+            }
+        }
+    }
 
     @Before
     fun setup() {
         // Create a new instance for each test to ensure isolation
         sessionId = "session-1"
         sessionManager = mockk()
-        every { sessionManager.getSessionId() } answers { sessionId }
+        every { sessionManager.currentSessionIdOrNull() } answers { sessionId }
         repository = ConciergeStateRepository(sessionManager = sessionManager)
         
         mockApi = mockk(relaxed = true)
@@ -181,34 +201,91 @@ class ConciergeStateRepositoryTest {
 
     @Test
     fun `real inactivity rollover retains context re-established before the next send`() {
-        var now = 1_000_000L
-        var storedId: String? = null
-        var storedTimestamp = 0L
-        val store = mockk<NamedCollection>()
-        every { store.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } answers { storedId }
-        every { store.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } answers { storedTimestamp }
-        every { store.setString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, any()) } answers {
-            storedId = secondArg()
-        }
-        every { store.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, any()) } answers {
-            storedTimestamp = secondArg()
-        }
-        val manager = ConciergeSessionManager(store) { now }
-        val subject = ConciergeStateRepository(sessionManager = manager)
+        val fixture = SessionFixture()
+        val manager = fixture.manager
+        val subject = fixture.repository
         subject.updateXDMContext(mapOf("stale" to true))
         val oldId = manager.getSessionId()
+        assertEquals(mapOf("stale" to true), subject.snapshotXDMContext(oldId))
 
-        now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
+        fixture.now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
         subject.updateXDMContext(mapOf("fresh" to true))
+        assertNull(manager.currentSessionIdOrNull())
+        assertEquals(oldId, fixture.storedId)
+        verify(exactly = 1) { fixture.store.setString(any(), any()) }
+        verify(exactly = 1) { fixture.store.setLong(any(), any()) }
+
+        fixture.now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
         val newId = manager.getSessionId()
         assertTrue(oldId != newId)
         assertEquals(mapOf("fresh" to true), subject.snapshotXDMContext(newId))
 
-        now += 100
+        fixture.now += 100
         subject.updateXDMContext(mapOf("another" to true))
-        assertEquals(now - 100, storedTimestamp)
-        now += ConciergeSessionManager.SESSION_TIMEOUT_MS
+        assertEquals(fixture.now - 100, fixture.storedTimestamp)
+        fixture.now += ConciergeSessionManager.SESSION_TIMEOUT_MS
         assertEquals(emptyMap<String, Any>(), subject.snapshotXDMContext(manager.getSessionId()))
+    }
+
+    @Test
+    fun `context set before the first request survives more than thirty minutes without creating a session`() {
+        val fixture = SessionFixture()
+        val fields = mapOf("fan" to mapOf("tier" to "gold"))
+        fixture.repository.updateXDMContext(fields)
+        fixture.now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
+
+        assertNull(fixture.storedId)
+        assertEquals(0L, fixture.storedTimestamp)
+        verify(exactly = 0) { fixture.store.setString(any(), any()) }
+        verify(exactly = 0) { fixture.store.setLong(any(), any()) }
+
+        val requestId = fixture.manager.getSessionId()
+        assertEquals(fields, fixture.repository.snapshotXDMContext(requestId))
+    }
+
+    @Test
+    fun `pending context updates merge and remove fields across long waits`() {
+        val fixture = SessionFixture()
+        fixture.repository.updateXDMContext(mapOf("fan" to mapOf("tier" to "gold", "obsolete" to true)))
+        fixture.now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
+        fixture.repository.updateXDMContext(mapOf("fan" to mapOf("points" to 5, "obsolete" to null)))
+        fixture.now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
+
+        verify(exactly = 0) { fixture.store.setString(any(), any()) }
+        verify(exactly = 0) { fixture.store.setLong(any(), any()) }
+        val requestId = fixture.manager.getSessionId()
+        assertEquals(
+            mapOf("fan" to mapOf("tier" to "gold", "points" to 5)),
+            fixture.repository.snapshotXDMContext(requestId)
+        )
+    }
+
+    @Test
+    fun `pending snapshots preserve submission fields and adopt only one session`() {
+        sessionId = null
+        repository.updateXDMContext(mapOf("tier" to "silver"))
+        val first = repository.captureXDMContext()
+        repository.updateXDMContext(mapOf("tier" to "gold"))
+        val second = repository.captureXDMContext()
+
+        assertEquals(mapOf("tier" to "silver"), repository.resolveXDMContext(first, "session-1"))
+        assertEquals(mapOf("tier" to "gold"), repository.resolveXDMContext(second, "session-1"))
+        assertEquals(emptyMap<String, Any>(), repository.resolveXDMContext(first, "session-2"))
+        assertEquals(emptyMap<String, Any>(), repository.resolveXDMContext(second, "session-2"))
+    }
+
+    @Test
+    fun `old adopted snapshot cannot clear fresh pending context after expiry`() {
+        sessionId = null
+        repository.updateXDMContext(mapOf("old" to true))
+        val old = repository.captureXDMContext()
+        repository.resolveXDMContext(old, "session-1")
+        repository.updateXDMContext(mapOf("fresh" to true))
+        val fresh = repository.captureXDMContext()
+
+        assertEquals(emptyMap<String, Any>(), repository.resolveXDMContext(old, "session-2"))
+        assertEquals(mapOf("fresh" to true), repository.resolveXDMContext(fresh, "session-2"))
+        assertEquals(mapOf("fresh" to true), repository.snapshotXDMContext("session-2"))
     }
 
     @Test

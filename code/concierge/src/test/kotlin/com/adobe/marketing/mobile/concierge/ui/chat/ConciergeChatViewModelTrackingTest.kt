@@ -71,6 +71,7 @@ class ConciergeChatViewModelTrackingTest {
         Dispatchers.setMain(testDispatcher)
         mockkObject(ConciergeSessionManager.instance)
         every { ConciergeSessionManager.instance.getSessionId() } returns "session-1"
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns "session-1"
         app = mockk(relaxed = true)
         mockkStatic(ContextCompat::class)
         every { ContextCompat.checkSelfPermission(any(), any()) } returns PackageManager.PERMISSION_GRANTED
@@ -187,13 +188,34 @@ class ConciergeChatViewModelTrackingTest {
 
         vm.processEvent(ChatEvent.SendMessage("Hi"))
         assertTrue(dispatched.none { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED })
-        verify(exactly = 1) { ConciergeSessionManager.instance.getSessionId() }
+        verify(exactly = 0) { ConciergeSessionManager.instance.getSessionId() }
         ConciergeStateRepository.instance.updateXDMContext(mapOf("tier" to "gold"))
         advanceUntilIdle()
 
         val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
         assertEquals(fields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
         verify(exactly = 1) { chatClient.chat("Hi", fields, "session-1") }
+    }
+
+    @Test
+    fun `chat adopts pending context without changing submitted fields or tracking`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
+        val fields = mapOf("tier" to "silver")
+        ConciergeStateRepository.instance.updateXDMContext(fields)
+        every { chatClient.chat("Hi", fields, "session-1") } returns flow { }
+        val vm = makeViewModel(chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("tier" to "gold"))
+        verify(exactly = 0) { ConciergeSessionManager.instance.getSessionId() }
+        advanceUntilIdle()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
+        assertEquals(fields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
+        verify(exactly = 1) { chatClient.chat("Hi", fields, "session-1") }
+        assertEquals(mapOf("tier" to "gold"), ConciergeStateRepository.instance.snapshotXDMContext("session-1"))
     }
 
     @Test
@@ -206,6 +228,7 @@ class ConciergeChatViewModelTrackingTest {
 
         vm.processEvent(ChatEvent.SendMessage("Hi"))
         every { ConciergeSessionManager.instance.getSessionId() } returns "session-2"
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
         ConciergeStateRepository.instance.updateXDMContext(mapOf("fresh" to true))
         advanceUntilIdle()
 
