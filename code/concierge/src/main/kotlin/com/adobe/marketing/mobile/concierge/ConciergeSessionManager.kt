@@ -52,6 +52,7 @@ internal class ConciergeSessionManager internal constructor(
      * 
      * @return A valid session ID string
      */
+    @Synchronized
     fun getSessionId(): String {
         val currentSessionId = dataStore.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
         val sessionTimestamp = dataStore.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L)
@@ -82,6 +83,7 @@ internal class ConciergeSessionManager internal constructor(
     /**
      * Refreshes the inactivity timestamp for the current session when a request starts.
      */
+    @Synchronized
     fun refreshSessionActivity() {
         dataStore.setLong(
             ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP,
@@ -93,6 +95,7 @@ internal class ConciergeSessionManager internal constructor(
      * Clears the current session ID and timestamp.
      * Useful for testing or when explicitly resetting the session.
      */
+    @Synchronized
     fun clearSession() {
         dataStore.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID)
         dataStore.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP)

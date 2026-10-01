@@ -385,7 +385,11 @@ class ConciergeConversationServiceClientTest {
     fun `chat request forwards held XDM fields alongside the SDK identityMap`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
-        val xdmFields = mapOf("loyalty" to mapOf("tier" to "gold"))
+        val xdmFields = mapOf(
+            "loyalty" to mapOf("tier" to "gold"),
+            "byte" to 1.toByte(),
+            "short" to 2.toShort()
+        )
 
         val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
         client.chat("hello", xdmFields).toList()
@@ -393,6 +397,8 @@ class ConciergeConversationServiceClientTest {
         val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
             .getJSONObject(0).getJSONObject("xdm")
         assertEquals("gold", xdm.getJSONObject("loyalty").getString("tier"))
+        assertEquals(1, xdm.getInt("byte"))
+        assertEquals(2, xdm.getInt("short"))
         assertEquals(
             "test-ecid",
             xdm.getJSONObject("identityMap")

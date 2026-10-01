@@ -51,9 +51,6 @@ internal data class ConciergeDataHandoffEvent(
 
     companion object {
 
-        // Recursion depth cap for isJsonSafeValue.
-        private const val MAX_XDM_FIELD_VALUE_DEPTH = 20
-
         /**
          * Decodes untrusted app-supplied event data into a [ConciergeDataHandoffEvent]. Never
          * throws — malformed, missing, or disallowed fields produce a
@@ -88,6 +85,7 @@ internal data class ConciergeDataHandoffEvent(
                 return DataHandoffDecodeResult.Rejected(reasons.EMPTY_XDM_FIELDS)
             }
 
+            val xdmFields = linkedMapOf<String, Any>()
             for ((key, value) in rawXdmFields) {
                 if (key !is String) {
                     return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELD_KEY)
@@ -95,13 +93,12 @@ internal data class ConciergeDataHandoffEvent(
                 if (key in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
                     return DataHandoffDecodeResult.Rejected(reasons.RESERVED_KEY_COLLISION)
                 }
-                if (!isJsonSafeValue(value, depth = 0, allowNull = false)) {
+                try {
+                    xdmFields[key] = ConciergeXdmValue.copyAndValidate(value, allowNull = false)!!
+                } catch (exception: IllegalArgumentException) {
                     return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELD_VALUE)
                 }
             }
-
-            @Suppress("UNCHECKED_CAST")
-            val xdmFields = rawXdmFields as Map<String, Any>
 
             // Missing, wrong-typed, or blank localMessage decodes to null, not a rejection.
             val localMessage = (data[keys.LOCAL_MESSAGE] as? String)?.takeIf { it.isNotBlank() }
@@ -113,20 +110,6 @@ internal data class ConciergeDataHandoffEvent(
                     localMessage = localMessage
                 )
             )
-        }
-
-        private fun isJsonSafeValue(value: Any?, depth: Int, allowNull: Boolean): Boolean {
-            if (depth > MAX_XDM_FIELD_VALUE_DEPTH) return false
-            return when (value) {
-                is String, is Boolean, is Int, is Long -> true
-                is Double -> value.isFinite()
-                is Float -> value.isFinite()
-                is Map<*, *> -> value.keys.all { it is String } &&
-                    value.values.all { isJsonSafeValue(it, depth + 1, allowNull) }
-                is List<*> -> value.all { isJsonSafeValue(it, depth + 1, allowNull = true) }
-                null -> allowNull
-                else -> false
-            }
         }
     }
 }

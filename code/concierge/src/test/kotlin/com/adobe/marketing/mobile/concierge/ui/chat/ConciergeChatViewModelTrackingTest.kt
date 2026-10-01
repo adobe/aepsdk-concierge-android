@@ -37,14 +37,18 @@ import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.services.ServiceProvider
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -65,6 +69,8 @@ class ConciergeChatViewModelTrackingTest {
     fun setUp() {
         ConciergeStateRepository.instance.clear()
         Dispatchers.setMain(testDispatcher)
+        mockkObject(ConciergeSessionManager.instance)
+        every { ConciergeSessionManager.instance.getSessionId() } returns "session-1"
         app = mockk(relaxed = true)
         mockkStatic(ContextCompat::class)
         every { ContextCompat.checkSelfPermission(any(), any()) } returns PackageManager.PERMISSION_GRANTED
@@ -76,6 +82,7 @@ class ConciergeChatViewModelTrackingTest {
     @After
     fun tearDown() {
         ConciergeStateRepository.instance.clear()
+        unmockkObject(ConciergeSessionManager.instance)
         unmockkStatic(ContextCompat::class)
         unmockkStatic(ServiceProvider::class)
         Dispatchers.resetMain()
@@ -113,6 +120,7 @@ class ConciergeChatViewModelTrackingTest {
         val vm = makeViewModel(dispatch = { dispatched.add(it) })
 
         vm.processEvent(ChatEvent.SendMessage("What tools do you offer?"))
+        advanceUntilIdle()
 
         val event = dispatched.single {
             it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED
@@ -157,7 +165,8 @@ class ConciergeChatViewModelTrackingTest {
             mockk<ImageProvider>(relaxed = true),
             chatClient,
             ConciergeStateRepository.instance,
-            sessionManager
+            sessionManager,
+            sessionDispatcher = testDispatcher
         )
 
         vm.processEvent(ChatEvent.SendMessage("Hi"))
@@ -165,6 +174,70 @@ class ConciergeChatViewModelTrackingTest {
 
         verify(exactly = 1) { sessionManager.getSessionId() }
         verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "captured-session-id") }
+    }
+
+    @Test
+    fun `chat snapshots at submission and delays tracking until session resolution`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val fields = mapOf("tier" to "silver")
+        ConciergeStateRepository.instance.updateXDMContext(fields)
+        every { chatClient.chat("Hi", fields, "session-1") } returns flow { }
+        val vm = makeViewModel(chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        assertTrue(dispatched.none { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED })
+        verify(exactly = 1) { ConciergeSessionManager.instance.getSessionId() }
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("tier" to "gold"))
+        advanceUntilIdle()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
+        assertEquals(fields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
+        verify(exactly = 1) { chatClient.chat("Hi", fields, "session-1") }
+    }
+
+    @Test
+    fun `chat drops expired snapshot consistently from tracking and request`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("expired" to true))
+        every { chatClient.chat("Hi", emptyMap(), "session-2") } returns flow { }
+        val vm = makeViewModel(chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        every { ConciergeSessionManager.instance.getSessionId() } returns "session-2"
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("fresh" to true))
+        advanceUntilIdle()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
+        assertTrue(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS !in event.eventData.orEmpty())
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "session-2") }
+        assertEquals(mapOf("fresh" to true), ConciergeStateRepository.instance.snapshotXDMContext("session-2"))
+    }
+
+    @Test
+    fun `default session resolution runs off the submitting thread`() = runTest {
+        val submittingThread = Thread.currentThread()
+        val sessionManager = mockk<ConciergeSessionManager>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val delivered = CompletableDeferred<Unit>()
+        every { sessionManager.getSessionId() } answers {
+            assertTrue(Thread.currentThread() !== submittingThread)
+            "session-1"
+        }
+        every { chatClient.chat("Hi", emptyMap(), "session-1") } returns flow {
+            delivered.complete(Unit)
+        }
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), mockk<ImageProvider>(relaxed = true), chatClient,
+            sessionManager = sessionManager
+        )
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        delivered.await()
+
+        verify(exactly = 1) { sessionManager.getSessionId() }
     }
 
     @Test
@@ -190,10 +263,11 @@ class ConciergeChatViewModelTrackingTest {
 
         vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Tell me about Premiere"))
 
+        advanceUntilIdle()
         val names = dispatched.map { it.name }
         val suggestionIdx = names.indexOf(ConciergeConstants.TrackingEvent.Name.PROMPT_SUGGESTION_CLICKED)
         val queryIdx = names.indexOf(ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED)
-        assertTrue("promptSuggestionClicked should precede querySubmitted", suggestionIdx < queryIdx)
+        assertTrue("promptSuggestionClicked should precede querySubmitted", suggestionIdx >= 0 && suggestionIdx < queryIdx)
     }
 
     @Test
@@ -560,6 +634,7 @@ class ConciergeChatViewModelTrackingTest {
             FakeSpeechCapturing(),
             mockk<ImageProvider>(relaxed = true),
             chatClient,
+            sessionDispatcher = testDispatcher,
             dispatch = dispatch
         )
     }

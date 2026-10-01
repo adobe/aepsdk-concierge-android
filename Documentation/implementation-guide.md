@@ -124,17 +124,29 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 ```
 
 The value must be JSON-compatible (strings, booleans, finite numbers, maps with string keys, or
-lists of those values; null is allowed as a list element). The top-level `identityMap` key is
-reserved and rejected; the SDK supplies the Edge Identity map. Context is held in memory for the
-active conversation session. Context set before the first chat turn is retained; when the session
-ID changes, all held context is cleared and the app is responsible for re-establishing it.
+lists of those values; null is allowed throughout a list subtree). Numbers may be `Byte`, `Short`,
+`Int`, `Long`, `Float`, or `Double`. Nesting is limited to 20 levels below each top-level field
+value; cyclic or deeper input is rejected with `IllegalArgumentException`. Data handoffs use the
+same value types and nesting limit.
+
+The top-level `identityMap` key is reserved and rejected; the SDK supplies the Edge Identity map.
+Context is held in memory for the active conversation session. Each update resolves the current
+session: after expiry, stale context is cleared before applying the new patch, so context
+re-established before the next turn is retained. Updating context does not count as conversation
+activity. A request after expiry without a new context update does not carry the expired context.
 
 There is no separate reset API. To remove context, send a patch whose values are `null` — a
 top-level `null` removes that key, and nested `null` values remove individual nested keys.
 
-For typed chat, a context snapshot is captured when the message is submitted and used consistently
-for the service request and the `QUERY_SUBMITTED` notification visible in Assurance. The SDK does
-not forward this app-supplied context to the production Edge tracking payload.
+For chat and data handoffs, a context snapshot is captured when the request is submitted; later
+updates do not change the queued snapshot. The queue processor resolves the session off the UI
+thread before sending the request. If the captured context belongs to an expired session, it is
+omitted. For typed chat, `QUERY_SUBMITTED` is emitted after session resolution and before the
+network request, carrying the same context as the service request.
+
+App context is included in the SDK hub event, where it can be read by Assurance **and other
+extensions listening to that event**. The SDK does not forward this app-supplied context to the
+production Edge tracking payload or include it in the tracking-event device log.
 
 ---
 
