@@ -18,6 +18,7 @@ import io.mockk.verify
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -37,6 +38,42 @@ class ConciergeSessionManagerTest {
     }
 
     // ========== New Session Creation Tests ==========
+
+    @Test
+    fun `currentSessionIdOrNull does not create a missing session`() {
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns null
+
+        assertNull(sessionManager.currentSessionIdOrNull())
+
+        verify(exactly = 0) { mockNamedCollection.setString(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.setLong(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.remove(any()) }
+    }
+
+    @Test
+    fun `currentSessionIdOrNull returns a valid session without refreshing activity`() {
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns "existing"
+        every { mockNamedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } returns
+            testTime - ConciergeSessionManager.SESSION_TIMEOUT_MS
+
+        assertEquals("existing", sessionManager.currentSessionIdOrNull())
+
+        verify(exactly = 0) { mockNamedCollection.setString(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.setLong(any(), any()) }
+    }
+
+    @Test
+    fun `currentSessionIdOrNull returns null after expiry without replacing the stored session`() {
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns "expired"
+        every { mockNamedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } returns
+            testTime - ConciergeSessionManager.SESSION_TIMEOUT_MS - 1
+
+        assertNull(sessionManager.currentSessionIdOrNull())
+
+        verify(exactly = 0) { mockNamedCollection.setString(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.setLong(any(), any()) }
+        verify(exactly = 0) { mockNamedCollection.remove(any()) }
+    }
 
     @Test
     fun `getSessionId creates new session when no session exists`() {
@@ -296,5 +333,28 @@ class ConciergeSessionManagerTest {
         customSessionManager.getSessionId()
 
         verify { mockNamedCollection.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, customTime) }
+    }
+
+    @Test
+    fun `refreshSessionActivity extends the session timeout from the latest activity`() {
+        val sessionId = "existing-session-id"
+        var timestamp = testTime
+        every { mockNamedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } returns sessionId
+        every { mockNamedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } answers {
+            timestamp
+        }
+        every { mockNamedCollection.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, any()) } answers {
+            timestamp = secondArg()
+        }
+
+        assertEquals(sessionId, sessionManager.getSessionId())
+
+        testTime += 29 * 60 * 1000L
+        sessionManager.refreshSessionActivity()
+        testTime += 29 * 60 * 1000L
+        assertEquals(sessionId, sessionManager.getSessionId())
+
+        testTime += 60 * 1000L + 1L
+        assertNotEquals(sessionId, sessionManager.getSessionId())
     }
 }

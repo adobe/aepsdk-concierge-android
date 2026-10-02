@@ -56,6 +56,32 @@ object Concierge {
     }
 
     /**
+     * Applies an RFC 7396 JSON Merge Patch to XDM context included in every conversational turn.
+     *
+     * Context applies to normal chat messages and [sendDataHandoff] requests, but not feedback.
+     * Nested maps are recursively merged; lists and scalar values replace existing values. A null
+     * object value removes the matching key at that level, for example:
+     * `mapOf("fan" to mapOf("seatSection" to null))` removes `fan.seatSection`.
+     * Nulls inside lists are retained as JSON null values.
+     *
+     * The context is held in memory for the current Concierge conversation session. It may be set
+     * before the first chat request without starting the session's inactivity clock. Each update
+     * checks for an existing valid session without creating or refreshing one. When no valid
+     * session exists, fresh context is held pending and adopted by the next request's session.
+     * Stale context from an expired session is cleared before applying a fresh patch. There is no
+     * separate reset API; use null-valued patch entries to remove specific values.
+     *
+     * @param fields a JSON-safe object to merge into the held XDM context. The top-level
+     * `identityMap` key is reserved for the SDK.
+     * @throws IllegalArgumentException if a value is not JSON-compatible, exceeds 20 nesting
+     * levels below a top-level field value (including cyclic input), or `identityMap` is used.
+     */
+    @JvmStatic
+    fun updateXDMContext(fields: Map<String, Any?>) {
+        ConciergeStateRepository.instance.updateXDMContext(fields)
+    }
+
+    /**
      * Hands data to the SDK to forward toward the Brand Concierge agent pipeline,
      * outside of normal user-typed chat.
      *
@@ -67,8 +93,8 @@ object Concierge {
      * phrase-based router (e.g. "successful-checkout"). Defaults to an empty string, which
      * forwards an empty service query for callers whose XDM fields already determine routing.
      * @param xdmFields arbitrary XDM data merged into the root of the outbound XDM object; the
-     * SDK does not interpret its contents. Must be non-empty, JSON-safe, and must not use
-     * `identityMap` (or any other SDK-reserved top-level XDM key).
+     * SDK does not interpret its contents. Must be non-empty and JSON-safe (null is allowed inside
+     * lists), and must not use `identityMap` (or any other SDK-reserved top-level XDM key).
      * @param localMessage text to render in chat when this handoff starts, distinct from the data
      * forwarded to Brand Concierge. The handoff is rejected with [ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS]
      * when a chat turn or another handoff is active or waiting; callers can retry after it completes.

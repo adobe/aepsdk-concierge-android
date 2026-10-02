@@ -58,7 +58,8 @@ internal data class ConciergeState(
  * @param initialState Optional initial state for testing purposes. Defaults to empty state.
  */
 internal class ConciergeStateRepository internal constructor(
-    initialState: ConciergeState = ConciergeState()
+    initialState: ConciergeState = ConciergeState(),
+    private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance
 ) {
 
     companion object {
@@ -71,6 +72,65 @@ internal class ConciergeStateRepository internal constructor(
 
     private val _state = MutableStateFlow(initialState)
     val state: StateFlow<ConciergeState> = _state.asStateFlow()
+    private val xdmContextLock = Any()
+    private var heldXdmContext: Map<String, Any> = emptyMap()
+    private var xdmContextSession = XdmContextSession(null)
+
+    /**
+     * Applies an RFC 7396 JSON Merge Patch to the held conversational XDM context.
+     *
+     * Null values remove keys. Nested maps merge recursively; arrays and scalar values replace
+     * their previous value. `identityMap` is owned by the SDK.
+     */
+    fun updateXDMContext(fields: Map<String, Any?>) {
+        require(ConciergeConstants.SharedState.EdgeIdentity.IDENTITY_MAP !in fields) {
+            "XDM context must not use the reserved top-level identityMap key."
+        }
+        val copiedPatch = fields.mapValues { (_, value) ->
+            ConciergeXdmValue.copyAndValidate(value, allowNull = true)
+        }
+
+        synchronized(xdmContextLock) {
+            val sessionId = sessionManager.currentSessionIdOrNull()
+            val reuseContext = xdmContextSession.id == null || xdmContextSession.id == sessionId
+            val base = if (reuseContext) heldXdmContext else emptyMap()
+            val session = if (reuseContext) xdmContextSession else XdmContextSession(sessionId)
+            heldXdmContext = copyXdmObject(mergeXdmPatch(base, copiedPatch))
+            session.id = sessionId
+            xdmContextSession = session
+        }
+    }
+
+    /**
+     * Returns an isolated snapshot of the context for [sessionId].
+     */
+    fun snapshotXDMContext(sessionId: String): Map<String, Any> =
+        resolveXDMContext(captureXDMContext(), sessionId)
+
+    // Pending snapshots share a binding so they can be adopted once, but not into later sessions.
+    internal class XdmContextSession(var id: String?)
+
+    internal data class XdmContextSnapshot(
+        val fields: Map<String, Any>,
+        internal val session: XdmContextSession
+    )
+
+    fun captureXDMContext(): XdmContextSnapshot = synchronized(xdmContextLock) {
+        XdmContextSnapshot(copyXdmObject(heldXdmContext), xdmContextSession)
+    }
+
+    fun resolveXDMContext(snapshot: XdmContextSnapshot, sessionId: String): Map<String, Any> =
+        synchronized(xdmContextLock) {
+            if (snapshot.session.id == null) {
+                snapshot.session.id = sessionId
+            }
+            // An older queued snapshot must not clear context re-established for a newer session.
+            if (xdmContextSession === snapshot.session && snapshot.session.id != sessionId) {
+                heldXdmContext = emptyMap()
+                xdmContextSession = XdmContextSession(sessionId)
+            }
+            if (snapshot.session.id == sessionId) snapshot.fields else emptyMap()
+        }
 
     /**
      * Sets the list of surface URLs for the chat experience. Updates [ConciergeState.surfaces].
@@ -273,7 +333,39 @@ internal class ConciergeStateRepository internal constructor(
      */
     fun clear() {
         _state.value = ConciergeState()
+        synchronized(xdmContextLock) {
+            heldXdmContext = emptyMap()
+            xdmContextSession = XdmContextSession(null)
+        }
     }
+
+    /**
+     * Deep-merges [overlay] on top of [base] using the same RFC 7396 semantics as
+     * [updateXDMContext], so callers that combine held context with per-request fields get the
+     * same merge behavior as the held context itself.
+     */
+    fun mergeXdmFields(base: Map<String, Any>, overlay: Map<String, Any>): Map<String, Any> =
+        copyXdmObject(mergeXdmPatch(copyXdmObject(base), copyXdmObject(overlay)))
+
+    private fun mergeXdmPatch(target: Map<String, Any>, patch: Map<String, Any?>): Map<String, Any> {
+        val result = target.toMutableMap()
+        patch.forEach { (key, value) ->
+            if (value == null) {
+                result.remove(key)
+            } else if (value is Map<*, *>) {
+                @Suppress("UNCHECKED_CAST")
+                val nestedPatch = value as Map<String, Any?>
+                val nestedTarget = result[key] as? Map<String, Any> ?: emptyMap()
+                result[key] = mergeXdmPatch(nestedTarget, nestedPatch)
+            } else {
+                result[key] = value
+            }
+        }
+        return result
+    }
+
+    private fun copyXdmObject(value: Map<String, Any>): Map<String, Any> =
+        value.mapValues { (_, nestedValue) -> ConciergeXdmValue.copyAndValidate(nestedValue, allowNull = false)!! }
 
     private fun getXDMSharedState(
         api: ExtensionApi,
@@ -284,4 +376,3 @@ internal class ConciergeStateRepository internal constructor(
             extensionName, event, false, SharedStateResolution.LAST_SET
         )?.value
 }
-
