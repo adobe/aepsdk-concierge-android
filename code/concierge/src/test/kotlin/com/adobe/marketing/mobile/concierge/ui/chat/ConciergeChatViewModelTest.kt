@@ -36,6 +36,8 @@ import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import com.adobe.marketing.mobile.concierge.Concierge
+import com.adobe.marketing.mobile.concierge.ConciergeSendMessageRejectReason
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
@@ -302,6 +304,87 @@ class ConciergeChatViewModelTest {
         assertEquals("Hello", messages[1].text)
 
         assertTrue(vm.state.value is ChatScreenState.Idle)
+    }
+
+    @Test
+    fun `programmatic message is rejected when no chat session is active`() = runTest {
+        val vm = ConciergeChatViewModel(app, FakeSpeechCapturing(), mockk(relaxed = true))
+
+        assertEquals(ConciergeSendMessageRejectReason.NO_ACTIVE_SESSION, vm.enqueueUserMessage("Hi"))
+        advanceUntilIdle()
+        assertTrue(vm.messages.value.isEmpty())
+    }
+
+    @Test
+    fun `programmatic message renders as a user turn and leaves the composer draft untouched`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Add 2 items") } returns flow {
+            emit(ParsedConversationMessage("Added to your cart.", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(app, FakeSpeechCapturing(), chatClient)
+        vm.onTextStateChanged("half-typed draft")
+
+        vm.activateDataHandoffSession()
+        try {
+            assertNull(vm.enqueueUserMessage("Add 2 items"))
+            advanceUntilIdle()
+
+            val messages = vm.messages.value
+            assertEquals(2, messages.size)
+            assertTrue(messages[0].isFromUser)
+            assertEquals("Add 2 items", messages[0].text)
+            assertEquals("Added to your cart.", messages[1].text)
+            assertEquals(UserInputState.Editing("half-typed draft"), vm.inputState.value)
+            assertTrue(vm.state.value is ChatScreenState.Idle)
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `programmatic message is rejected while another turn is queued or running`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat(any()) } returns flow {
+            emit(ParsedConversationMessage("ok", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(app, FakeSpeechCapturing(), chatClient)
+
+        vm.activateDataHandoffSession()
+        try {
+            vm.processEvent(ChatEvent.SendMessage("typed first"))
+            assertEquals(ConciergeSendMessageRejectReason.CHAT_IN_PROGRESS, vm.enqueueUserMessage("cart"))
+
+            advanceUntilIdle()
+            // Once the typed turn drains, a programmatic message is admitted again.
+            assertNull(vm.enqueueUserMessage("cart"))
+            advanceUntilIdle()
+            assertEquals(listOf("typed first", "ok", "cart", "ok"), vm.messages.value.map { it.text })
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+    }
+
+    @Test
+    fun `Concierge sendMessage routes to the active chat session`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("From widget") } returns flow {
+            emit(ParsedConversationMessage("Got it", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(app, FakeSpeechCapturing(), chatClient)
+        var result: Pair<Boolean, ConciergeSendMessageRejectReason?>? = null
+
+        vm.activateDataHandoffSession()
+        try {
+            Concierge.sendMessage("From widget") { accepted, reason -> result = accepted to reason }
+            assertEquals(true to null, result)
+            advanceUntilIdle()
+            assertEquals(listOf("From widget", "Got it"), vm.messages.value.map { it.text })
+        } finally {
+            vm.deactivateDataHandoffSession()
+        }
+
+        Concierge.sendMessage("After close") { accepted, reason -> result = accepted to reason }
+        assertEquals(false to ConciergeSendMessageRejectReason.NO_ACTIVE_SESSION, result)
     }
 
     @Test

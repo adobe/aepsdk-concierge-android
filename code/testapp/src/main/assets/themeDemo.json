@@ -157,6 +157,8 @@
     }
   },
   "theme": {
+    "--fnb-tile-background-color": "#FFF8EC",
+    "--fnb-card-height-fraction": "0.6",
     "--border-radius-card": "16px",
     "--button-disabled-background": "#D4C9B8",
     "--button-height-s": "30px",
