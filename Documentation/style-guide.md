@@ -160,6 +160,28 @@ Dimensions use CSS pixel units:
 "--message-max-width": "100%"
 ```
 
+### Line clamp values
+
+Line-clamp tokens take a positive integer, limiting the text to that many lines and truncating the
+overflow with an ellipsis.
+
+```json
+{
+  "--product-card-description-max-lines": "6"
+}
+```
+
+`0`, negative numbers, `none`, and unparseable values are all ignored — they are not a way to request
+unbounded text. (A zero-line clamp would render the text invisible, so it is never passed through.)
+An ignored value leaves the token at whatever it was previously set to; when no valid value was ever
+supplied, the component applies its own default clamp. To approximate an unbounded description, set
+a large value such as `"99"` and raise `--product-card-max-height` to match.
+
+Clamping only limits the text; it does not reserve space. A description shorter than the clamp takes
+only the lines it needs, and in a carousel the surrounding card still stretches to the tallest card's
+height (see `--product-card-min-height` / `--product-card-max-height` under
+[Layout - Extended Product Cards](#layout---extended-product-cards)).
+
 ### Padding
 
 Padding follows CSS shorthand syntax:
@@ -614,7 +636,31 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, ALL agent response elements — message text, product cards, and prompt suggestion chips — are automatically aligned to the icon column (flush with the right edge of the icon). Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. |
+| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, ALL agent response elements — message text, product cards, and prompt suggestion chips — are automatically aligned to the icon column (flush with the right edge of the icon). Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. See [Bundling local icons](#bundling-local-icons). |
+
+### Bundling local icons
+
+**Local asset (recommended):** Place the image in the host app's `src/main/assets/icons/` folder and
+use the filename **without** its extension as the value. The SDK probes `.png`, `.webp`, `.jpg`,
+`.jpeg` in that order and uses the first match.
+
+```
+app/src/main/assets/icons/company-logo.png   →   "company": "company-logo"
+```
+
+**Drawable resources are not supported.** Local icons are read from the APK's asset folder, not from
+`res/`, so `R.drawable.*` names, density buckets (`drawable-hdpi`, `drawable-xxhdpi`, …), night-mode
+variants, and vector drawables are never consulted. Supply a single raster asset sized for the
+densest target device; it is scaled down on lower-density screens.
+
+**Remote URLs** must start with `http://` or `https://` and resolve to a format the platform image
+decoder supports (PNG, WebP, JPEG). SVG is not supported for remote or local icons.
+
+> **Note:** A local name that does not resolve to a bundled file is treated as "no icon," and the
+> agent-element icon column is **not** reserved — so a typo in a local asset name silently shifts the
+> alignment of every agent message, product card, and suggestion chip. A remote URL always reserves
+> the column, even while loading or if the request ultimately fails. Verify local icon names on
+> device when the icon column alignment matters.
 
 ### Example
 
@@ -870,7 +916,7 @@ When `behavior.productCard.cardStyle` is `"productDetail"`, product recommendati
 | `--product-card-title-font-weight` | `cssLayout.productCardTitleFontWeight` | `Int` | `700` | Title font weight |
 | `--product-card-subtitle-font-size` | `cssLayout.productCardSubtitleFontSize` | `Double` | `12.0` | Subtitle font size (sp) |
 | `--product-card-subtitle-font-weight` | `cssLayout.productCardSubtitleFontWeight` | `Int` | `400` | Subtitle font weight |
-| `--product-card-description-max-lines` | `cssLayout.productCardDescriptionMaxLines` | `Int` | `2` | Maximum description lines before ellipsis. Positive integers set the limit; `none`, zero, negative, or invalid values are ignored and use the default of two lines. For longer descriptions, increase `--product-card-max-height` as needed. |
+| `--product-card-description-max-lines` | `cssLayout.productCardDescriptionMaxLines` | `Int` | `2` | Maximum description lines before ellipsis. Positive integers set the limit; `none`, zero, negative, or invalid values are ignored, leaving any previously set value in place (see [Line clamp values](#line-clamp-values)). For longer descriptions, increase `--product-card-max-height` as needed. |
 | `--product-card-price-font-size` | `cssLayout.productCardPriceFontSize` | `Double` | `14.0` | Price font size (sp) |
 | `--product-card-price-font-weight` | `cssLayout.productCardPriceFontWeight` | `Int` | `400` | Price font weight |
 | `--product-card-badge-font-size` | `cssLayout.productCardBadgeFontSize` | `Double` | `12.0` | Badge font size (sp) |
