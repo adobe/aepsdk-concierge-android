@@ -15,6 +15,74 @@ Both approaches are available for Compose and XML/Views-based apps.
 
 ## Prerequisites
 
+### Ending a conversation at an identity boundary
+
+Call the existing Core API when the host app changes users or signs out:
+
+```kotlin
+MobileCore.resetIdentities()
+```
+
+Concierge automatically clears its persisted backend session, transcript, unsent
+draft, held/pending XDM context and transient conversation UI. It stops speech
+capture and invalidates active, queued and auth-pending conversation work, including
+retained/hidden chat ViewModels. A visible chat stays open; a hidden chat stays hidden.
+The rendered composer clears its local draft as well as the ViewModel input state.
+Initial presentation still waits for configuration and identity; only an already
+mounted dialog is retained while reset is pending. Direct opens during reset are
+rejected rather than deferred.
+Interrupted/new data handoffs during reset complete once with `NO_ACTIVE_SESSION`.
+
+Sending resumes only after Edge Identity `RESET_COMPLETE`, resolved refreshed
+identity/configuration and local teardown. The next request uses a new `sessionId`.
+Android correlates reset completion to the active reset request and observes the
+paired reset-complete response through a filtered wildcard
+Event Hub listener; a typed listener alone does not receive paired responses.
+Overlapping reset requests remain blocked until the current request's correlated
+completion and retained participants' teardown. Superseded work is settled once;
+it cannot release a newer reset. Resolved post-completion identity publications
+(including authenticated identities) are read at their own event versions rather
+than reverting to the completion snapshot.
+The mounted dialog and its open/close tracking lifecycle are preserved across
+reset, with text entry, microphone and sending disabled until readiness returns.
+An open request made before initial configuration/identity readiness waits for
+that readiness before its first presentation. Only an already-mounted dialog is
+retained during reset; direct open calls while resetting are ignored. Outside
+reset, loss of ordinary availability still removes the dialog as before.
+Speech recognition is cancelled and old native/queued callbacks are invalidated;
+the default Android engine retires the old `SpeechRecognizer` and creates a new
+instance for the next capture, rather than attaching a new listener to the old
+recognizer where framework-delayed callbacks could be redirected.
+Normal end-of-capture still finalizes transcription. Provider waits are
+cancellation-aware even with the maximum ten-minute timeout.
+Feedback keeps its submission generation across dispatcher hops and request
+admission; reset cancels outstanding feedback, including auth-provider waits.
+Old feedback is never retried under the refreshed identity or backend session.
+These are logical cancellation and callback-settlement guarantees, not a wait
+for all physical transport resources to be disposed before the ended diagnostic.
+The `SpeechCapturing` interface retains its original five method signatures, with
+no new abstract or default cancellation method. Custom Java and Kotlin engines
+remain source-compatible, but must invalidate old recognition sessions and queued
+deliveries when `setListener(null)` detaches the receiver. Otherwise an engine
+that forwards old results through its mutable replacement listener cannot be
+protected by ViewModel listener-generation checks alone. Normal `endCapture()`
+continues to finalize transcription rather than acting as reset cancellation.
+For custom engines, the SDK rejects callbacks made to the detached ViewModel
+listener, but cannot infer the age of a result already forwarded to its replacement.
+That stronger session-isolation guarantee belongs to the engine implementation.
+Host token-provider registration, configuration, consent and surfaces are retained.
+The host remains responsible for sign-out and replacing or clearing its auth token.
+This does not delete server-side conversation history.
+
+After local teardown, a nonempty ended conversation emits **Brand Concierge
+Conversation Ended** (`com.adobe.eventType.concierge`,
+`com.adobe.eventSource.notification`) for Event Hub/Assurance diagnostics.
+Its `conciergeEventType` is `concierge:conversation:ended`; fields are
+`reason: identity_reset`, Unix-millisecond `epochTime`, boolean `hadActiveTurn`,
+and optional previous `sessionId`/`conversationId`. It contains no transcript, XDM,
+identity map or auth token, and is never forwarded to Edge analytics.
+It is not a server-deletion, transport-cleanup or next-conversation-readiness signal.
+
 ### Required SDK modules
 Your app needs these AEP SDK's available and registered:
 

@@ -27,6 +27,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
+import org.junit.Assert.fail
 import com.adobe.marketing.mobile.services.NamedCollection
 import io.mockk.verify
 import org.junit.Before
@@ -42,6 +43,7 @@ class ConciergeStateRepositoryTest {
     private var sessionId: String? = "session-1"
 
     private class SessionFixture {
+        val request = Event.Builder("Reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
         var now = 1_000_000L
         var storedId: String? = null
         var storedTimestamp = 0L
@@ -58,7 +60,233 @@ class ConciergeStateRepositoryTest {
             every { store.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, any()) } answers {
                 storedTimestamp = secondArg()
             }
+            every { store.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID) } answers {
+                storedId = null
+            }
+            every { store.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP) } answers {
+                storedTimestamp = 0
+            }
         }
+    }
+
+    private fun completeReset(fixture: SessionFixture, status: SharedStateStatus = SharedStateStatus.SET) {
+        fixture.repository.updateConfiguration(SharedStateResult(SharedStateStatus.SET, mapOf(
+            ConciergeConstants.SharedState.Configuration.CONCIERGE_SERVER to "https://example.com",
+            ConciergeConstants.SharedState.Configuration.CONCIERGE_CONFIG_ID to "config"
+        )))
+        every { mockApi.getXDMSharedState(any(), any(), any(), any()) } returns SharedStateResult(
+            status, mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
+        )
+        mockEvent = Event.Builder("Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE)
+            .inResponseToEvent(fixture.request).build()
+        fixture.repository.completeIdentityReset(mockApi, mockEvent)
+    }
+
+    @Test
+    fun `conflated overlapping resets attribute retained work to first boundary only`() {
+        val fixture = SessionFixture()
+        val participant = Any()
+        val events = mutableListOf<Event>()
+        fixture.repository.registerResetParticipant(participant)
+        fixture.repository.beginIdentityReset(fixture.request, events::add)
+        val second = Event.Builder("Reset again", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
+        fixture.repository.beginIdentityReset(second, events::add)
+        fixture.repository.acknowledgeIdentityReset(participant, 2, true, "old-work", true)
+        assertEquals(1, events.size)
+        assertEquals("old-work", events.single().eventData?.get("conversationId"))
+        assertTrue(fixture.repository.state.value.resetInProgress)
+    }
+
+    @Test
+    fun `unpaired and unrelated completions cannot release current reset`() {
+        val fixture = SessionFixture()
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        val unrelated = Event.Builder("Other request", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
+        listOf(
+            Event.Builder("Unpaired", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE).build(),
+            Event.Builder("Unrelated", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE)
+                .inResponseToEvent(unrelated).build()
+        ).forEach { fixture.repository.completeIdentityReset(mockApi, it) }
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        assertNull(fixture.repository.state.value.experienceCloudId)
+        verify(exactly = 0) { mockApi.getXDMSharedState(any(), any(), any(), any()) }
+        completeReset(fixture)
+        assertFalse(fixture.repository.state.value.resetInProgress)
+    }
+
+    @Test
+    fun `pending newer publication cannot fall back to resolved completion snapshot`() {
+        val fixture = SessionFixture()
+        val participant = Any()
+        fixture.repository.registerResetParticipant(participant)
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        completeReset(fixture)
+        val publication = Event.Builder("New identity", EventType.HUB, EventSource.SHARED_STATE).build()
+        every { mockApi.getXDMSharedState(any(), publication, false, SharedStateResolution.ANY) } returns
+            SharedStateResult(SharedStateStatus.PENDING, emptyMap())
+        fixture.repository.updateIdentity(mockApi, publication)
+        fixture.repository.acknowledgeIdentityReset(participant, 1, false, null, false)
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        assertNull(fixture.repository.state.value.experienceCloudId)
+        every { mockApi.getXDMSharedState(any(), publication, false, SharedStateResolution.ANY) } returns
+            SharedStateResult(SharedStateStatus.SET, mapOf("identityMap" to mapOf(
+                "ECID" to listOf(mapOf("id" to "latest-ecid"))
+            )))
+        fixture.repository.updateIdentity(mockApi, publication)
+        assertFalse(fixture.repository.state.value.resetInProgress)
+        assertEquals("latest-ecid", fixture.repository.state.value.experienceCloudId)
+    }
+
+    @Test
+    fun `overlapping resets correlate completion and settle superseded participant work`() {
+        val fixture = SessionFixture()
+        val participant = Any()
+        val events = mutableListOf<Event>()
+        fixture.manager.getSessionId()
+        fixture.repository.registerResetParticipant(participant)
+        fixture.repository.beginIdentityReset(fixture.request, events::add)
+        val second = Event.Builder("Second reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
+        fixture.repository.beginIdentityReset(second, events::add)
+        completeReset(fixture)
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        assertNull(fixture.repository.state.value.experienceCloudId)
+        verify(exactly = 0) { mockApi.getXDMSharedState(any(), any(), any(), any()) }
+        val response = Event.Builder("Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE)
+            .inResponseToEvent(second).build()
+        fixture.repository.completeIdentityReset(mockApi, response)
+        fixture.repository.acknowledgeIdentityReset(participant, 1, true, "old", true)
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        fixture.repository.acknowledgeIdentityReset(participant, 2, false, null, false)
+        assertFalse(fixture.repository.state.value.resetInProgress)
+        assertEquals(1, events.size)
+        fixture.repository.completeIdentityReset(mockApi, mockEvent)
+        assertEquals("new-ecid", fixture.repository.state.value.experienceCloudId)
+    }
+
+    @Test
+    fun `post completion identity publication survives participant teardown at its own version`() {
+        val fixture = SessionFixture()
+        val participant = Any()
+        fixture.repository.registerResetParticipant(participant)
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        completeReset(fixture)
+        val completion = mockEvent
+        val publication = Event.Builder("New identity", EventType.HUB, EventSource.SHARED_STATE).build()
+        val authenticated = mapOf(
+            "ECID" to listOf(mapOf("id" to "new-ecid")),
+            "CRMID" to listOf(mapOf("id" to "new-authenticated-user"))
+        )
+        every { mockApi.getXDMSharedState(any(), publication, false, SharedStateResolution.ANY) } returns
+            SharedStateResult(SharedStateStatus.SET, mapOf("identityMap" to authenticated))
+        fixture.repository.updateIdentity(mockApi, publication)
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        assertEquals(authenticated, fixture.repository.state.value.identityMap)
+        fixture.repository.acknowledgeIdentityReset(participant, 1, false, null, false)
+        assertFalse(fixture.repository.state.value.resetInProgress)
+        assertEquals(authenticated, fixture.repository.state.value.identityMap)
+        verify(exactly = 1) { mockApi.getXDMSharedState(any(), completion, false, SharedStateResolution.ANY) }
+    }
+
+    @Test
+    fun `reset invalidates captured and unbound XDM and preserves context updated after boundary`() {
+        val fixture = SessionFixture()
+        fixture.repository.updateXDMContext(mapOf("oldUser" to true))
+        val captured = fixture.repository.captureXDMContext()
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        assertTrue(fixture.repository.resolveXDMContext(captured, "new-session").isEmpty())
+        fixture.repository.updateXDMContext(mapOf("newUser" to true))
+        completeReset(fixture)
+        assertEquals(mapOf("newUser" to true), fixture.repository.snapshotXDMContext("new-session"))
+    }
+
+    @Test
+    fun `reset rotates valid session without waiting for inactivity expiry`() {
+        val fixture = SessionFixture()
+        val oldSession = fixture.manager.getSessionId()
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        assertNull(fixture.storedId)
+        assertEquals(0L, fixture.storedTimestamp)
+        completeReset(fixture)
+        val newSession = fixture.repository.withConversation(fixture.repository.state.value.resetGeneration) {
+            fixture.manager.getSessionId()
+        }
+        assertFalse(oldSession == newSession)
+        assertEquals(1_000_000L, fixture.now)
+    }
+
+    @Test
+    fun `identity shared state alone cannot admit requests before reset complete`() {
+        val fixture = SessionFixture()
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        every { mockApi.getXDMSharedState(any(), any(), any(), any()) } returns SharedStateResult(
+            SharedStateStatus.SET, mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
+        )
+        fixture.repository.updateIdentity(mockApi, mockEvent)
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        assertNull(fixture.repository.state.value.experienceCloudId)
+        assertThrows(java.util.concurrent.CancellationException::class.java) {
+            fixture.repository.withConversation(fixture.repository.state.value.resetGeneration) { fail("Admitted old identity") }
+        }
+    }
+
+    @Test
+    fun `pending identity remains blocked and resumes when completion state resolves`() {
+        val fixture = SessionFixture()
+        fixture.repository.beginIdentityReset(fixture.request) { }
+        completeReset(fixture, SharedStateStatus.PENDING)
+        verify {
+            mockApi.getXDMSharedState(
+                ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
+                mockEvent, false, SharedStateResolution.ANY
+            )
+        }
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        assertNull(fixture.repository.state.value.experienceCloudId)
+        every { mockApi.getXDMSharedState(any(), any(), any(), any()) } returns SharedStateResult(
+            SharedStateStatus.SET, mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
+        )
+        fixture.repository.updateIdentity(mockApi, mockEvent)
+        assertFalse(fixture.repository.state.value.resetInProgress)
+        assertEquals("new-ecid", fixture.repository.state.value.experienceCloudId)
+    }
+
+    @Test
+    fun `ended event waits for retained chat teardown and is diagnostic only`() {
+        val fixture = SessionFixture()
+        val oldSession = fixture.manager.getSessionId()
+        val participant = Any()
+        val events = mutableListOf<Event>()
+        fixture.repository.registerResetParticipant(participant)
+        fixture.repository.beginIdentityReset(fixture.request, events::add)
+        completeReset(fixture)
+        assertTrue(events.isEmpty())
+        assertTrue(fixture.repository.state.value.resetInProgress)
+        val generation = fixture.repository.state.value.resetGeneration
+        fixture.repository.acknowledgeIdentityReset(participant, generation, true, "old-conversation", true)
+        fixture.repository.acknowledgeIdentityReset(participant, generation, true, "old-conversation", true)
+        assertFalse(fixture.repository.state.value.resetInProgress)
+        assertEquals(1, events.size)
+        val event = events.single()
+        val data = requireNotNull(event.eventData)
+        assertEquals("Brand Concierge Conversation Ended", event.name)
+        assertEquals(ConciergeConstants.EventType.CONCIERGE, event.type)
+        assertEquals(ConciergeConstants.EventSource.NOTIFICATION, event.source)
+        assertEquals(setOf("conciergeEventType", "reason", "epochTime", "hadActiveTurn", "sessionId", "conversationId"), data.keys)
+        assertEquals("concierge:conversation:ended", data["conciergeEventType"])
+        assertEquals("identity_reset", data["reason"])
+        assertEquals(oldSession, data["sessionId"])
+        assertEquals(true, data["hadActiveTurn"])
+        assertTrue(data["epochTime"] is Long)
+    }
+
+    @Test
+    fun `empty reset emits no ended event and never creates diagnostic session`() {
+        val fixture = SessionFixture()
+        val events = mutableListOf<Event>()
+        fixture.repository.beginIdentityReset(fixture.request, events::add)
+        assertTrue(events.isEmpty())
+        assertNull(fixture.storedId)
+        verify(exactly = 0) { fixture.store.setString(any(), any()) }
     }
 
     @Before

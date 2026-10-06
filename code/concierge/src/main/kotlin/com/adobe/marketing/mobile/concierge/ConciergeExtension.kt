@@ -43,6 +43,15 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
     override fun onRegistered() {
         super.onRegistered()
         api.registerEventListener(
+            EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET, this::processEvent
+        )
+        // Core delivers paired responses only to wildcard extension listeners.
+        api.registerEventListener(EventType.WILDCARD, EventSource.WILDCARD) { event ->
+            if (event.type == EventType.EDGE_IDENTITY && event.source == EventSource.RESET_COMPLETE) {
+                processEvent(event)
+            }
+        }
+        api.registerEventListener(
             EventType.HUB,
             EventSource.SHARED_STATE,
             this::processEvent)
@@ -73,7 +82,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
             "Processing event of type: ${event.type} and source: ${event.source}"
         )
 
-        if (event.isIdentitySharedStateEvent()) {
+        if (event.type == EventType.GENERIC_IDENTITY && event.source == EventSource.REQUEST_RESET) {
+            ConciergeStateRepository.instance.beginIdentityReset(event)
+        } else if (event.type == EventType.EDGE_IDENTITY && event.source == EventSource.RESET_COMPLETE) {
+            ConciergeStateRepository.instance.completeIdentityReset(api, event)
+        } else if (event.isIdentitySharedStateEvent()) {
             Log.trace(
                 EXTENSION_NAME,
                 SELF_TAG,

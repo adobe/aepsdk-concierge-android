@@ -12,7 +12,9 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.ExtensionApi
+import com.adobe.marketing.mobile.SharedStateStatus
 import com.adobe.marketing.mobile.SharedStateResolution
 import com.adobe.marketing.mobile.SharedStateResult
 import com.adobe.marketing.mobile.services.Log
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 
 /**
  * Represents the state of the Concierge extension.
@@ -44,7 +47,9 @@ internal data class ConciergeState(
     val conciergeServer: String? = null,
     val conciergeConfigId: String? = null,
     val conciergeRegion: String? = null,
-    val consent: String? = ConciergeConstants.ConsentValues.DEFAULT_VALUE
+    val consent: String? = ConciergeConstants.ConsentValues.DEFAULT_VALUE,
+    val resetGeneration: Long = 0,
+    val resetInProgress: Boolean = false
 )
 
 /**
@@ -75,6 +80,136 @@ internal class ConciergeStateRepository internal constructor(
     private val xdmContextLock = Any()
     private var heldXdmContext: Map<String, Any> = emptyMap()
     private var xdmContextSession = XdmContextSession(null)
+    private val resetParticipants = mutableSetOf<Any>()
+    private val pendingResets = linkedMapOf<Long, PendingReset>()
+    private var resetRequest: Event? = null
+    private var resetCompleteEvent: Event? = null
+    private var resetIdentityEvent: Event? = null
+
+    private class PendingReset(
+        val generation: Long,
+        val sessionId: String?,
+        var hadConversation: Boolean,
+        val awaiting: MutableSet<Any>,
+        val dispatch: (Event) -> Unit,
+        var conversationId: String? = null,
+        var hadActiveTurn: Boolean = false
+    )
+
+    fun registerResetParticipant(participant: Any) = synchronized(xdmContextLock) {
+        resetParticipants.add(participant)
+    }
+
+    fun unregisterResetParticipant(participant: Any) {
+        synchronized(xdmContextLock) {
+            resetParticipants.remove(participant)
+            pendingResets.values.forEach { it.awaiting.remove(participant) }
+            finishTeardownIfReady()
+        }
+    }
+
+    fun beginIdentityReset(request: Event, dispatch: (Event) -> Unit = MobileCore::dispatchEvent) {
+        synchronized(xdmContextLock) {
+            val generation = _state.value.resetGeneration + 1
+            val sessionId = sessionManager.storedSessionIdOrNull()
+            pendingResets[generation] = PendingReset(
+                generation, sessionId, sessionId != null || heldXdmContext.isNotEmpty(),
+                resetParticipants.toMutableSet(), dispatch
+            )
+            resetRequest = request
+            resetCompleteEvent = null
+            resetIdentityEvent = null
+            xdmContextSession.valid = false
+            heldXdmContext = emptyMap()
+            xdmContextSession = XdmContextSession(null)
+            sessionManager.clearSession()
+            _state.update {
+                it.copy(resetGeneration = generation, resetInProgress = true,
+                    experienceCloudId = null, identityMap = null)
+            }
+            finishTeardownIfReady()
+        }
+    }
+
+    fun acknowledgeIdentityReset(
+        participant: Any, generation: Long, hadConversation: Boolean,
+        conversationId: String?, hadActiveTurn: Boolean
+    ) = synchronized(xdmContextLock) {
+        // A teardown of the newest generation also settles superseded boundaries whose
+        // StateFlow emissions may have been conflated. Keep their diagnostics until then.
+        val superseded = pendingResets.values.filter { it.generation <= generation && participant in it.awaiting }
+        superseded.forEachIndexed { index, reset ->
+            if (reset.awaiting.remove(participant)) {
+                // Work still retained by this participant belongs to its earliest unsettled
+                // boundary, not to every reset received while that teardown was pending.
+                if (index == 0) {
+                    reset.hadConversation = reset.hadConversation || hadConversation
+                    reset.conversationId = reset.conversationId ?: conversationId
+                    reset.hadActiveTurn = reset.hadActiveTurn || hadActiveTurn
+                }
+            }
+        }
+        finishTeardownIfReady()
+    }
+
+    private fun finishTeardownIfReady() {
+        val settled = pendingResets.values.filter { it.awaiting.isEmpty() }
+        settled.forEach { reset ->
+            pendingResets.remove(reset.generation)
+            if (reset.hadConversation) {
+                reset.dispatch(ConciergeTrackingEvent.ConversationEnded(
+                    System.currentTimeMillis(), reset.sessionId, reset.conversationId, reset.hadActiveTurn
+                ).toEvent())
+            }
+        }
+        finishIdentityReadiness()
+    }
+
+    fun completeIdentityReset(api: ExtensionApi, event: Event) {
+        synchronized(xdmContextLock) {
+            val request = resetRequest ?: return
+            if (!_state.value.resetInProgress ||
+                event.responseID != request.uniqueIdentifier ||
+                resetCompleteEvent != null) return
+            resetCompleteEvent = event
+            resetIdentityEvent = event
+            refreshResetIdentity(api)
+        }
+    }
+
+    private fun refreshResetIdentity(api: ExtensionApi) {
+        val event = resetIdentityEvent ?: return
+        val result = api.getXDMSharedState(
+            ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
+            event, false, SharedStateResolution.ANY
+        )
+        if (result?.status != SharedStateStatus.SET) {
+            _state.update { it.copy(experienceCloudId = null, identityMap = null) }
+            Log.warning(ConciergeConstants.EXTENSION_NAME, LOG_TAG, "Identity reset is waiting for resolved Edge Identity state.")
+            return
+        }
+        val identityMap = DataReader.optTypedMap(Any::class.java, result.value,
+            ConciergeConstants.SharedState.EdgeIdentity.IDENTITY_MAP, null)
+        _state.update { it.copy(experienceCloudId = extractEcid(identityMap), identityMap = identityMap) }
+        finishIdentityReadiness()
+    }
+
+    private fun finishIdentityReadiness() {
+        val current = _state.value
+        if (resetCompleteEvent != null && pendingResets.isEmpty() && current.configurationReady &&
+            !current.experienceCloudId.isNullOrEmpty() && !current.conciergeServer.isNullOrEmpty() &&
+            !current.conciergeConfigId.isNullOrEmpty()) {
+            _state.update { it.copy(resetInProgress = false) }
+        }
+    }
+
+    fun <T> withConversation(generation: Long, operation: () -> T): T = synchronized(xdmContextLock) {
+        if (_state.value.resetInProgress || generation != _state.value.resetGeneration) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, LOG_TAG, "Discarding conversation work across an identity reset.")
+            throw CancellationException("Conversation ended by identity reset")
+        }
+        operation()
+    }
 
     /**
      * Applies an RFC 7396 JSON Merge Patch to the held conversational XDM context.
@@ -108,19 +243,21 @@ internal class ConciergeStateRepository internal constructor(
         resolveXDMContext(captureXDMContext(), sessionId)
 
     // Pending snapshots share a binding so they can be adopted once, but not into later sessions.
-    internal class XdmContextSession(var id: String?)
+    internal class XdmContextSession(var id: String?, var valid: Boolean = true)
 
     internal data class XdmContextSnapshot(
         val fields: Map<String, Any>,
-        internal val session: XdmContextSession
+        internal val session: XdmContextSession,
+        val generation: Long = 0
     )
 
     fun captureXDMContext(): XdmContextSnapshot = synchronized(xdmContextLock) {
-        XdmContextSnapshot(copyXdmObject(heldXdmContext), xdmContextSession)
+        XdmContextSnapshot(copyXdmObject(heldXdmContext), xdmContextSession, _state.value.resetGeneration)
     }
 
     fun resolveXDMContext(snapshot: XdmContextSnapshot, sessionId: String): Map<String, Any> =
         synchronized(xdmContextLock) {
+            if (!snapshot.session.valid) return@synchronized emptyMap()
             if (snapshot.session.id == null) {
                 snapshot.session.id = sessionId
             }
@@ -162,7 +299,16 @@ internal class ConciergeStateRepository internal constructor(
      * @param api The ExtensionApi instance
      * @param event The event that triggered the update
      */
-    fun updateIdentity(api: ExtensionApi, event: Event) {
+    fun updateIdentity(api: ExtensionApi, event: Event) = synchronized(xdmContextLock) {
+        if (_state.value.resetInProgress) {
+            val completion = resetCompleteEvent ?: return
+            if (event.timestamp >= completion.timestamp &&
+                event.timestamp >= (resetIdentityEvent?.timestamp ?: completion.timestamp)) {
+                resetIdentityEvent = event
+            }
+            refreshResetIdentity(api)
+            return
+        }
         val edgeIdentitySharedState = getXDMSharedState(
             api,
             ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
@@ -270,6 +416,7 @@ internal class ConciergeStateRepository internal constructor(
             LOG_TAG,
             "Updated ConciergeState with configId: $configId, server: $server, region: $region"
         )
+        synchronized(xdmContextLock) { finishIdentityReadiness() }
     }
 
     /**
@@ -332,8 +479,14 @@ internal class ConciergeStateRepository internal constructor(
      * This can be called when the extension is unregistered or for testing purposes.
      */
     fun clear() {
-        _state.value = ConciergeState()
         synchronized(xdmContextLock) {
+            _state.value = ConciergeState()
+            pendingResets.clear()
+            resetRequest = null
+            resetCompleteEvent = null
+            resetIdentityEvent = null
+            resetParticipants.clear()
+            xdmContextSession.valid = false
             heldXdmContext = emptyMap()
             xdmContextSession = XdmContextSession(null)
         }

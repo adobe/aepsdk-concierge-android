@@ -38,7 +38,8 @@ internal fun UserInput(
     onSend: (String) -> Unit,
     hasAudioPermission: Boolean,
     onPermissionResult: (Boolean) -> Unit,
-    placeholder: String? = "How can I help"
+    placeholder: String? = "How can I help",
+    isEnabled: Boolean = true
 ) {
     var shouldRequestPermission by remember { mutableStateOf(false) }
 
@@ -59,7 +60,7 @@ internal fun UserInput(
         ChatInputField(
             modifier = Modifier.fillMaxWidth(),
             placeholder = placeholder ?: "How can I help",
-            enable = true,
+            enable = isEnabled,
             inputState = inputState,
             isProcessing = isProcessing,
             onTextChange = onTextChange,

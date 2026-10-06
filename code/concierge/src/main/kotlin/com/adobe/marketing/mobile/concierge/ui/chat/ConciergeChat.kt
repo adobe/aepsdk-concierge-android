@@ -37,7 +37,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
@@ -121,6 +123,7 @@ fun ConciergeChat(
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
     val conciergeState by ConciergeStateRepository.instance.state.collectAsStateWithLifecycle()
     val repository = ConciergeStateRepository.instance
+    var hasPresentedDialog by remember(viewModel) { mutableStateOf(false) }
 
     // Set surfaces in state when provided
     if (surfaces != null) {
@@ -129,11 +132,12 @@ fun ConciergeChat(
 
     // Use passed-in surfaces for ready check when present (state may not have emitted yet this frame)
     val surfacesForReady = surfaces?.takeIf { it.isNotEmpty() } ?: conciergeState.surfaces
-    val ready = conciergeState.configurationReady &&
+    val ready = !conciergeState.resetInProgress && conciergeState.configurationReady &&
         conciergeState.experienceCloudId != null &&
         surfacesForReady.isNotEmpty()
 
-    if (ready) {
+    val retainMountedDialog = showChatDialog && hasPresentedDialog && conciergeState.resetInProgress
+    if (ready || retainMountedDialog) {
         // Capture the current theme to update welcome card config
         val currentTheme = ConciergeTheme.config
         LaunchedEffect(ConciergeTheme.config) {
@@ -141,10 +145,14 @@ fun ConciergeChat(
         }
 
         // Render the content composable with the callback
-        content { viewModel.openConcierge() }
+        content { if (ready) viewModel.openConcierge() }
 
         // Show the chat dialog when requested
         if (showChatDialog) {
+            DisposableEffect(viewModel) {
+                hasPresentedDialog = true
+                onDispose { hasPresentedDialog = false }
+            }
             Dialog(
                 onDismissRequest = { viewModel.closeConcierge() },
                 properties = DialogProperties(
@@ -272,6 +280,7 @@ fun ConciergeChat(
             messages = messages,
             chatState = state,
             isInputEmpty = isInputEmpty,
+            identityResetInProgress = viewModel.identityResetInProgress.collectAsStateWithLifecycle().value,
             inputStateFlow = viewModel.inputState,
             hasAudioPermission = hasAudioPermission,
             showWelcomeCard = showWelcomeCard,
@@ -318,13 +327,14 @@ internal fun ConciergeChat(
     handleLink: (String, String) -> Unit = { _, _ -> },
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
+    identityResetInProgress: Boolean = false,
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
     
     // Derive UI state from ChatScreenState
-    val isProcessing = chatState is ChatScreenState.Processing
+    val isProcessing = identityResetInProgress || chatState is ChatScreenState.Processing
 
     Box(
         modifier = modifier
@@ -408,6 +418,7 @@ internal fun ConciergeChat(
                 inputStateFlow = inputStateFlow,
                 onTextChange = onTextChanged,
                 isProcessing = isProcessing,
+                isEnabled = !identityResetInProgress,
                 hasAudioPermission = hasAudioPermission,
                 placeholder = ConciergeTheme.text?.inputPlaceholder,
                 onSend = { text -> onEvent(ChatEvent.SendMessage(text)) },
@@ -454,6 +465,7 @@ private fun UserInputSection(
     inputStateFlow: StateFlow<UserInputState>,
     onTextChange: (String) -> Unit,
     isProcessing: Boolean,
+    isEnabled: Boolean,
     hasAudioPermission: Boolean,
     placeholder: String?,
     onSend: (String) -> Unit,
@@ -466,6 +478,7 @@ private fun UserInputSection(
         inputState = inputState,
         onTextChange = onTextChange,
         isProcessing = isProcessing,
+        isEnabled = isEnabled,
         hasAudioPermission = hasAudioPermission,
         placeholder = placeholder,
         onSend = onSend,

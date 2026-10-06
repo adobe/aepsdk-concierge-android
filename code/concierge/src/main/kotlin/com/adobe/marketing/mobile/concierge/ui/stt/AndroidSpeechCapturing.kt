@@ -27,6 +27,7 @@ internal class AndroidSpeechCapturing(
     private val mainScope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob()),
 ) : SpeechCapturing {
     private var listener: SpeechCaptureListener? = null
+    private var listenerSession = 0L
 
     constructor(
         context: Context,
@@ -39,27 +40,27 @@ internal class AndroidSpeechCapturing(
     init {
         manager.setListener(object : SpeechCaptureListener {
             override fun onSpeechStarted() {
-                dispatchOnMain { listener?.onSpeechStarted() }
+                dispatchOnMain { it.onSpeechStarted() }
             }
 
             override fun onSpeechEnded() {
-                dispatchOnMain { listener?.onSpeechEnded() }
+                dispatchOnMain { it.onSpeechEnded() }
             }
 
             override fun onPartialTranscription(text: String) {
-                dispatchOnMain { listener?.onPartialTranscription(text) }
+                dispatchOnMain { it.onPartialTranscription(text) }
             }
 
             override fun onTranscriptionResult(text: String) {
-                dispatchOnMain { listener?.onTranscriptionResult(text) }
+                dispatchOnMain { it.onTranscriptionResult(text) }
             }
 
             override fun onError(error: SpeechCaptureError) {
-                dispatchOnMain { listener?.onError(error) }
+                dispatchOnMain { it.onError(error) }
             }
 
             override fun onAudioLevelChanged(level: Float) {
-                dispatchOnMain { listener?.onAudioLevelChanged(level) }
+                dispatchOnMain { it.onAudioLevelChanged(level) }
             }
         })
     }
@@ -77,6 +78,8 @@ internal class AndroidSpeechCapturing(
     }
 
     override fun setListener(listener: SpeechCaptureListener?) {
+        listenerSession++
+        if (listener == null) manager.cancelListening()
         this.listener = listener
     }
 
@@ -88,9 +91,12 @@ internal class AndroidSpeechCapturing(
         mainScope.cancel()
     }
 
-    private fun dispatchOnMain(block: () -> Unit) {
-        mainScope.launch { block() }
+    private fun dispatchOnMain(block: (SpeechCaptureListener) -> Unit) {
+        val session = listenerSession
+        val target = listener ?: return
+        mainScope.launch {
+            if (session == listenerSession) block(target)
+        }
     }
 }
-
 

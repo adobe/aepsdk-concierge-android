@@ -16,10 +16,14 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelStore
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.EventSource
+import com.adobe.marketing.mobile.EventType
 import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenHolder
+import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenProvider
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEventHandler
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
@@ -75,6 +79,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -90,9 +95,371 @@ import org.junit.Before
 import org.junit.Test
 import kotlin.time.ExperimentalTime
 import java.util.concurrent.Executors
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import com.adobe.marketing.mobile.ExtensionApi
+import com.adobe.marketing.mobile.SharedStateResult
+import com.adobe.marketing.mobile.SharedStateStatus
+import com.adobe.marketing.mobile.concierge.ConciergeState
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class ConciergeChatViewModelTest {
+    private val resetRequest = Event.Builder(
+        "Reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET
+    ).build()
+
+    private fun readyResetRepository() = ConciergeStateRepository(
+        ConciergeState(
+            experienceCloudId = "old-ecid", configurationReady = true,
+            conciergeServer = "https://example.com", conciergeConfigId = "config"
+        )
+    )
+
+    private fun completeReset(repository: ConciergeStateRepository) {
+        val api = mockk<ExtensionApi>()
+        every { api.getXDMSharedState(any(), any(), any(), any()) } returns SharedStateResult(
+            SharedStateStatus.SET, mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
+        )
+        repository.completeIdentityReset(api, Event.Builder(
+            "Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE
+        ).inResponseToEvent(resetRequest).build())
+    }
+
+    @Test
+    fun `reset cancels feedback paused before IO and fresh feedback still sends`() = runTest {
+        val repository = readyResetRepository()
+        val ioScheduler = TestCoroutineScheduler()
+        val service = ConciergeConversationServiceClient(
+            stateRepository = repository, feedbackDispatcher = StandardTestDispatcher(ioScheduler)
+        )
+        val network = mockk<com.adobe.marketing.mobile.services.Networking>()
+        every { mockServiceProvider.networkService } returns network
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        val feedback = com.adobe.marketing.mobile.concierge.ui.state.Feedback(
+            "old-turn", com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.POSITIVE
+        )
+        try {
+            vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.SubmitFeedback(feedback))
+            runCurrent()
+            repository.beginIdentityReset(resetRequest) { }
+            runCurrent()
+            completeReset(repository)
+            runCurrent()
+            ioScheduler.runCurrent()
+            runCurrent()
+            verify(exactly = 0) { network.connectAsync(any(), any()) }
+
+            val requestSlot = slot<com.adobe.marketing.mobile.services.NetworkRequest>()
+            val connection = mockk<com.adobe.marketing.mobile.services.HttpConnecting>(relaxed = true)
+            every { connection.responseCode } returns 200
+            every { network.connectAsync(capture(requestSlot), any()) } answers {
+                secondArg<com.adobe.marketing.mobile.services.NetworkCallback>().call(connection)
+            }
+            vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.SubmitFeedback(
+                feedback.copy(interactionId = "new-turn")
+            ))
+            runCurrent()
+            ioScheduler.runCurrent()
+            runCurrent()
+            verify(exactly = 1) { network.connectAsync(any(), any()) }
+            val body = String(requestSlot.captured.body, Charsets.UTF_8)
+            assertTrue(body.contains("new-turn"))
+            assertTrue(body.contains("new-ecid"))
+            assertTrue(!body.contains("old-turn"))
+        } finally {
+            store.clear()
+            ioScheduler.runCurrent()
+            runCurrent()
+        }
+    }
+
+    @Test
+    fun `reset cancels all auth pending feedback jobs without waiting for provider timeout`() = runTest {
+        val repository = readyResetRepository()
+        val started = CountDownLatch(2)
+        val interrupted = CountDownLatch(2)
+        val release = CountDownLatch(1)
+        ConciergeAuthTokenHolder.setProvider(ConciergeAuthTokenProvider {
+            started.countDown()
+            try {
+                release.await()
+                "old-token"
+            } catch (e: InterruptedException) {
+                interrupted.countDown()
+                throw e
+            }
+        }, 600_000)
+        val network = mockk<com.adobe.marketing.mobile.services.Networking>()
+        every { mockServiceProvider.networkService } returns network
+        val service = ConciergeConversationServiceClient(stateRepository = repository)
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        try {
+            repeat(2) {
+                vm.processEvent(com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent.SubmitFeedback(
+                    com.adobe.marketing.mobile.concierge.ui.state.Feedback(
+                        "old-turn-$it", com.adobe.marketing.mobile.concierge.ui.state.FeedbackType.POSITIVE
+                    )
+                ))
+            }
+            runCurrent()
+            assertTrue("Feedback auth did not start", started.await(5, TimeUnit.SECONDS))
+            repository.beginIdentityReset(resetRequest) { }
+            runCurrent()
+            completeReset(repository)
+            runCurrent()
+            assertTrue(!repository.state.value.resetInProgress)
+            assertTrue("Reset did not interrupt both auth waits", interrupted.await(5, TimeUnit.SECONDS))
+            runCurrent()
+            verify(exactly = 0) { network.connectAsync(any(), any()) }
+        } finally {
+            release.countDown()
+            store.clear()
+            runCurrent()
+            ConciergeAuthTokenHolder.setProvider(null)
+        }
+    }
+
+    @Test
+    fun `cold open request is retained before configuration and identity readiness`() = runTest {
+        val repository = ConciergeStateRepository()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(),
+            mockk<ConciergeConversationServiceClient>(relaxed = true),
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        try {
+            vm.openConcierge()
+            assertTrue(vm.isConciergeActive.value)
+            assertTrue(!repository.state.value.configurationReady)
+            assertNull(repository.state.value.experienceCloudId)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun `direct open during reset cannot activate hidden chat or defer opening after readiness`() = runTest {
+        val repository = readyResetRepository()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(),
+            mockk<ConciergeConversationServiceClient>(relaxed = true),
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        try {
+            repository.beginIdentityReset(resetRequest) { }
+            runCurrent()
+            vm.openConcierge()
+            assertTrue(!vm.isConciergeActive.value)
+            completeReset(repository)
+            runCurrent()
+            assertTrue(!vm.isConciergeActive.value)
+            vm.openConcierge()
+            assertTrue(vm.isConciergeActive.value)
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun `reset cancels active chat drops queued chat and processes new chat`() = runTest {
+        val repository = readyResetRepository()
+        val speech = FakeSpeechCapturing()
+        val service = mockk<ConciergeConversationServiceClient>()
+        var cancelled = false
+        every { service.chat("old", any(), any()) } returns flow {
+            try {
+                emit(ParsedConversationMessage("partial old reply", ConversationState.IN_PROGRESS))
+                awaitCancellation()
+            } finally {
+                cancelled = true
+            }
+        }
+        every { service.chat("new", any(), any()) } returns flow {
+            emit(ParsedConversationMessage("new reply", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(
+            app, speech, DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        vm.processEvent(ChatEvent.SendMessage("old"))
+        runCurrent()
+        vm.processEvent(ChatEvent.SendMessage("queued old user"))
+        val started = System.nanoTime()
+        repository.beginIdentityReset(resetRequest) { }
+        runCurrent()
+        assertTrue(cancelled)
+        assertTrue(vm.messages.value.isEmpty())
+        assertEquals(UserInputState.Empty, vm.inputState.value)
+        assertTrue(vm.identityResetInProgress.value)
+        vm.processEvent(ChatEvent.SendMessage("must not queue across reset"))
+        completeReset(repository)
+        runCurrent()
+        vm.processEvent(ChatEvent.SendMessage("new"))
+        runCurrent()
+        assertTrue((System.nanoTime() - started) / 1_000_000 < 5_000)
+        assertTrue(vm.messages.value.any { (it.content as? MessageContent.Text)?.text == "new reply" })
+        verify(exactly = 0) { service.chat("queued old user", any(), any()) }
+        verify(exactly = 0) { service.chat("must not queue across reset", any(), any()) }
+    }
+
+    @Test
+    fun `reset clears hidden draft stops capture and ignores old speech after readiness`() = runTest {
+        val repository = readyResetRepository()
+        val speech = FakeSpeechCapturing()
+        val service = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        val vm = ConciergeChatViewModel(
+            app, speech, DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        runCurrent()
+        vm.processEvent(MicEvent.StartRecording)
+        val oldListener = requireNotNull(speech.snapshotListener())
+        speech.emitPartialTranscription("private draft")
+        vm.closeConcierge()
+        repository.beginIdentityReset(resetRequest) { }
+        runCurrent()
+        completeReset(repository)
+        runCurrent()
+        assertTrue(speech.endCalled)
+        assertEquals(UserInputState.Empty, vm.inputState.value)
+        oldListener.onTranscriptionResult("late old transcript")
+        oldListener.onSpeechStarted()
+        assertEquals(UserInputState.Empty, vm.inputState.value)
+        assertTrue(vm.messages.value.isEmpty())
+    }
+
+    @Test
+    fun `reset interrupts ten minute auth wait so fresh turn starts within five seconds`() = runTest {
+        val repository = readyResetRepository()
+        repository.setSurfaces(listOf("web://example.com"))
+        val oldStarted = CountDownLatch(1)
+        val oldInterrupted = CountDownLatch(1)
+        val freshStarted = CountDownLatch(1)
+        val providerCalls = AtomicInteger()
+        ConciergeAuthTokenHolder.setProvider(
+            ConciergeAuthTokenProvider {
+                if (providerCalls.incrementAndGet() == 1) {
+                    oldStarted.countDown()
+                    try {
+                        CountDownLatch(1).await()
+                        null
+                    } catch (e: InterruptedException) {
+                        oldInterrupted.countDown()
+                        throw e
+                    }
+                } else {
+                    freshStarted.countDown()
+                    "fresh-token"
+                }
+            }, 600_000
+        )
+        val service = ConciergeConversationServiceClient(stateRepository = repository)
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        try {
+            vm.processEvent(ChatEvent.SendMessage("old"))
+            runCurrent()
+            assertTrue(oldStarted.await(5, TimeUnit.SECONDS))
+            repository.beginIdentityReset(resetRequest) { }
+            runCurrent()
+            completeReset(repository)
+            runCurrent()
+            assertTrue(!repository.state.value.resetInProgress)
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            vm.processEvent(ChatEvent.SendMessage("fresh"))
+            while (freshStarted.count != 0L && System.nanoTime() < deadline) {
+                runCurrent()
+                Thread.sleep(10)
+            }
+            assertEquals(0L, freshStarted.count)
+            assertEquals(0L, oldInterrupted.count)
+            assertEquals(2, providerCalls.get())
+        } finally {
+            store.clear()
+            runCurrent()
+            ConciergeAuthTokenHolder.setProvider(null)
+        }
+    }
+
+    @Test
+    fun `destroyed participant settles handoff and speech before reset diagnostic`() = runTest {
+        val repository = readyResetRepository()
+        val speech = FakeSpeechCapturing()
+        val service = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        every { service.sendDataHandoff(any(), any(), any()) } returns flow { awaitCancellation() }
+        val vm = ConciergeChatViewModel(
+            app, speech, DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        vm.activateDataHandoffSession()
+        val results = mutableListOf<DataHandoffDeliveryResult>()
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("old", emptyMap()), results::add)
+        runCurrent()
+        var diagnostics = 0
+        repository.beginIdentityReset(resetRequest) {
+            assertEquals(listOf(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)), results)
+            assertTrue(speech.released)
+            assertNull(speech.snapshotListener())
+            diagnostics++
+        }
+        store.clear()
+        runCurrent()
+        assertEquals(1, diagnostics)
+        assertEquals(1, results.size)
+        completeReset(repository)
+        assertTrue(!repository.state.value.resetInProgress)
+    }
+
+    @Test
+    fun `reset settles active handoff exactly once before ended event and permits new handoff`() = runTest {
+        val repository = readyResetRepository()
+        val service = mockk<ConciergeConversationServiceClient>()
+        every { service.sendDataHandoff("old", any(), any()) } returns flow { awaitCancellation() }
+        every { service.sendDataHandoff("new", any(), any()) } returns flow {
+            emit(ParsedConversationMessage("accepted new user", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        vm.activateDataHandoffSession()
+        val results = mutableListOf<DataHandoffDeliveryResult>()
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("old", mapOf("old" to true)), results::add)
+        runCurrent()
+        val events = mutableListOf<Event>()
+        repository.beginIdentityReset(resetRequest) {
+            assertEquals(1, results.size)
+            assertTrue(vm.messages.value.isEmpty())
+            events.add(it)
+        }
+        runCurrent()
+        assertEquals(listOf(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)), results)
+        assertEquals(1, events.size)
+        completeReset(repository)
+        runCurrent()
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("new", mapOf("new" to true)), results::add)
+        runCurrent()
+        assertEquals(listOf(
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION),
+            DataHandoffDeliveryResult.Delivered
+        ), results)
+        vm.deactivateDataHandoffSession()
+    }
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var app: Application
@@ -1970,6 +2337,7 @@ class ConciergeChatViewModelTest {
      */
     private class FakeSpeechCapturing : SpeechCapturing {
         private var listener: SpeechCaptureListener? = null
+        fun snapshotListener(): SpeechCaptureListener? = listener
         var startCalled: Boolean = false
             private set
         var endCalled: Boolean = false
@@ -2150,7 +2518,7 @@ class ConciergeChatViewModelTest {
     fun `submitFeedback sends feedback and updates message state`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
-        coEvery { chatClient.sendFeedback(any()) } returns true
+        coEvery { chatClient.sendFeedback(any(), any()) } returns true
         
         // Create a message flow with an interactionId
         every { chatClient.chat("Hello", emptyMap(), any()) } returns flow {
@@ -2178,7 +2546,7 @@ class ConciergeChatViewModelTest {
         advanceUntilIdle()
         
         // Verify feedback was sent
-        coVerify { chatClient.sendFeedback(any()) }
+        coVerify { chatClient.sendFeedback(any(), any()) }
         
         // Verify feedback dialog is dismissed
         val state = vm.state.value as ChatScreenState.Idle
@@ -2194,7 +2562,7 @@ class ConciergeChatViewModelTest {
     fun `submitFeedback with negative feedback updates message state`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
-        coEvery { chatClient.sendFeedback(any()) } returns true
+        coEvery { chatClient.sendFeedback(any(), any()) } returns true
         
         every { chatClient.chat("Hello", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
@@ -2401,7 +2769,7 @@ class ConciergeChatViewModelTest {
         
         // Capture the feedback argument
         val feedbackSlot = slot<com.adobe.marketing.mobile.concierge.ui.state.Feedback>()
-        coEvery { chatClient.sendFeedback(capture(feedbackSlot)) } returns true
+        coEvery { chatClient.sendFeedback(capture(feedbackSlot), any()) } returns true
         
         every { chatClient.chat("Hello", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
@@ -2434,7 +2802,7 @@ class ConciergeChatViewModelTest {
         val chatClient = mockk<ConciergeConversationServiceClient>(relaxed = true)
 
         val feedbackSlot = slot<com.adobe.marketing.mobile.concierge.ui.state.Feedback>()
-        coEvery { chatClient.sendFeedback(capture(feedbackSlot)) } returns true
+        coEvery { chatClient.sendFeedback(capture(feedbackSlot), any()) } returns true
 
         every { chatClient.chat("Hello", emptyMap(), any()) } returns flow {
             emit(
