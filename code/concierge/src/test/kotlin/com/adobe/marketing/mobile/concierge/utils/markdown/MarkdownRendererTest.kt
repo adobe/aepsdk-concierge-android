@@ -518,6 +518,49 @@ class MarkdownRendererTest {
         assertEquals(1, urlAnnotations.size)
         assertEquals("https://www.adobe.com/aftereffects", urlAnnotations[0].item)
     }
+
+    @Test
+    fun `test render applies custom link color to all link variants`() {
+        val markdown = "[Plain](https://a.com) **[Bold](https://b.com)** *[Italic](https://c.com)*"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        val colorScheme = lightColorScheme()
+        val customLinkColor = Color(0xFF00AA55)
+
+        val result = MarkdownRenderer.render(
+            markdown, tokens, colorScheme, testTextStyle, linkColor = customLinkColor
+        )
+
+        val linkStyles = result.spanStyles.filter { it.item.textDecoration == TextDecoration.Underline }
+        assertEquals(3, linkStyles.size)
+        linkStyles.forEach { assertEquals(customLinkColor, it.item.color) }
+    }
+
+    @Test
+    fun `test render applies custom link color to links nested in lists`() {
+        val markdown = "- Visit [the store](https://store.example.com)"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        val customLinkColor = Color(0xFF00AA55)
+
+        val result = MarkdownRenderer.render(
+            markdown, tokens, lightColorScheme(), testTextStyle, linkColor = customLinkColor
+        )
+
+        val linkStyle = result.spanStyles.single { it.item.textDecoration == TextDecoration.Underline }
+        assertEquals(customLinkColor, linkStyle.item.color)
+    }
+
+    @Test
+    fun `test render falls back to primary when link color is unspecified`() {
+        val markdown = "[Store](https://store.example.com)"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        val colorScheme = lightColorScheme()
+
+        val result = MarkdownRenderer.render(
+            markdown, tokens, colorScheme, testTextStyle, linkColor = Color.Unspecified
+        )
+
+        assertEquals(colorScheme.primary, result.spanStyles.single().item.color)
+    }
     
     @Test
     fun `test render bold link vs regular link`() {

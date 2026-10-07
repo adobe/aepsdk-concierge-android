@@ -64,6 +64,8 @@ internal object MarkdownRenderer {
      * @param tokens The list of [MarkdownToken]s to render.
      * @param colorScheme The Material Design color scheme.
      * @param baseTextStyle The base text style to apply to regular text.
+     * @param linkHints Link hints used to append icons after matching links.
+     * @param linkColor Color applied to link text. Falls back to [ColorScheme.primary] when unspecified.
      * @return An [AnnotatedString] with the appropriate styling applied.
      */
     fun render(
@@ -71,7 +73,8 @@ internal object MarkdownRenderer {
         tokens: List<MarkdownToken>,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
-        linkHints: List<LinkHint> = emptyList()
+        linkHints: List<LinkHint> = emptyList(),
+        linkColor: Color = Color.Unspecified
     ): AnnotatedString {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
@@ -80,6 +83,7 @@ internal object MarkdownRenderer {
         )
 
         val linkHintByHref: Map<String, String> = linkHints.associate { it.href to it.kind }
+        val resolvedLinkColor = linkColor.takeIf { it != Color.Unspecified } ?: colorScheme.primary
         val builder = AnnotatedString.Builder()
         var currentIndex = 0
 
@@ -87,7 +91,7 @@ internal object MarkdownRenderer {
             if (token.start < currentIndex) return@forEach
 
             appendGapText(markdown, currentIndex, token.start, builder, colorScheme, baseTextStyle)
-            renderToken(token, builder, colorScheme, baseTextStyle, linkHintByHref)
+            renderToken(token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref)
             currentIndex = token.end
         }
 
@@ -129,20 +133,21 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap()
     ) {
         when (token.type) {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme, baseTextStyle)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme, baseTextStyle)
-            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkHintByHref)
-            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkHintByHref)
-            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkHintByHref)
+            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
             TokenType.HEADING -> renderHeading(token, builder, colorScheme, baseTextStyle)
-            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle, linkHintByHref)
-            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle, linkHintByHref)
+            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
         }
     }
 
@@ -197,6 +202,7 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val (linkText, linkUrl) = token.groups
@@ -205,7 +211,7 @@ internal object MarkdownRenderer {
         builder.append(linkText)
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
-                color = colorScheme.primary,
+                color = linkColor,
                 textDecoration = TextDecoration.Underline
             ),
             styleStart,
@@ -227,6 +233,7 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val (linkText, linkUrl) = token.groups
@@ -235,7 +242,7 @@ internal object MarkdownRenderer {
         builder.append(linkText)
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
-                color = colorScheme.primary,
+                color = linkColor,
                 textDecoration = TextDecoration.Underline,
                 fontWeight = FontWeight.Bold
             ),
@@ -258,6 +265,7 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val (linkText, linkUrl) = token.groups
@@ -266,7 +274,7 @@ internal object MarkdownRenderer {
         builder.append(linkText)
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
-                color = colorScheme.primary,
+                color = linkColor,
                 textDecoration = TextDecoration.Underline,
                 fontStyle = FontStyle.Italic
             ),
@@ -413,6 +421,7 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val listItem = token.groups[0]
@@ -426,7 +435,7 @@ internal object MarkdownRenderer {
             builder.append("• ")
         }
 
-        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle, linkHintByHref)
+        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
     }
 
     private fun renderBlockquote(
@@ -434,12 +443,13 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap()
     ) {
         val quoteText = token.groups[0]
 
         val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
-        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle, linkHintByHref) { text, _, _ ->
+        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref) { text, _, _ ->
             val styleStart = builder.length
             builder.append(text)
             builder.addStyle(
@@ -460,6 +470,7 @@ internal object MarkdownRenderer {
      * @param content The content to render
      * @param builder The AnnotatedString builder
      * @param colorScheme The Material Design color scheme
+     * @param linkColor Color applied to link text
      * @param textRenderer Optional function to render plain text with custom styling
      */
     private fun renderNestedMarkdown(
@@ -467,6 +478,7 @@ internal object MarkdownRenderer {
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
+        linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap(),
         textRenderer: ((String, Int, Int) -> Unit)? = null
     ) {
@@ -494,7 +506,7 @@ internal object MarkdownRenderer {
             }
 
             // Render the nested token
-            renderToken(nestedToken, builder, colorScheme, baseTextStyle, linkHintByHref)
+            renderToken(nestedToken, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
             currentIndex = nestedToken.end
         }
 
