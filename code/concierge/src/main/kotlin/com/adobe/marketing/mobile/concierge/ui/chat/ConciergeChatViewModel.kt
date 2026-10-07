@@ -1926,6 +1926,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         speechCapturing.setListener(captureListener)
         _inputState.value = UserInputState.Empty
         _messages.value = emptyList()
+        imageProvider.clear()
         currentConversationId = null
         responseStartedDispatched = false
         _state.value = ChatScreenState.Idle()

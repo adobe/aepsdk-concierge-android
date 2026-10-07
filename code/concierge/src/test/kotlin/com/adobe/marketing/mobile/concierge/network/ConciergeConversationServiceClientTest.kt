@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runCurrent
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -71,6 +72,43 @@ import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
 class ConciergeConversationServiceClientTest {
+
+    @Test
+    fun `all endpoints use the request body snapshot when the state collector lags after reset`() = runTest {
+        val repository = ConciergeStateRepository(testState.copy(conciergeServer = "old-server.example.com"), mockSessionManager)
+        val client = ConciergeConversationServiceClient(
+            repository, mockSessionManager,
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(TestCoroutineScheduler()))
+        )
+        try {
+            resetAndReady(repository)
+            repository.updateConfiguration(SharedStateResult(SharedStateStatus.SET, mapOf(
+                "concierge.server" to "new-server.example.com",
+                "concierge.configId" to "new-config",
+                "concierge.region" to "new-region"
+            )))
+            every { mockSessionManager.getSessionId() } returns "new-session"
+            val requestSlot = slot<NetworkRequest>()
+            stubConnection(requestSlot)
+            suspend fun assertRequest(send: suspend () -> Unit) {
+                send()
+                val uri = java.net.URI(requestSlot.captured.url)
+                assertEquals("new-server.example.com", uri.host)
+                assertEquals("/brand-concierge/new-region/conversations", uri.path)
+                assertTrue(uri.query.contains("configId=new-config"))
+                assertTrue(uri.query.contains("sessionId=new-session"))
+                assertTrue(capturedBody(requestSlot).contains("new-ecid"))
+                assertFalse(capturedBody(requestSlot).contains("test-ecid"))
+            }
+            assertRequest { client.chat("chat").toList() }
+            assertRequest { client.sendDataHandoff("handoff", emptyMap()).toList() }
+            assertRequest { assertTrue(client.sendFeedback(Feedback("turn", FeedbackType.POSITIVE))) }
+            verify(exactly = 3) { networkService.connectAsync(any(), any()) }
+        } finally {
+            client.cleanup()
+            repository.clear()
+        }
+    }
 
     private fun resetAndReady(repository: ConciergeStateRepository) {
         val request = Event.Builder("Reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()

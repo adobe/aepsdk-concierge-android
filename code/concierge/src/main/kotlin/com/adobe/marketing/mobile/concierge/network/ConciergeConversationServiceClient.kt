@@ -37,12 +37,9 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -114,19 +111,10 @@ internal class ConciergeConversationServiceClient(
         private const val DEFAULT_READ_TIMEOUT = 15
     }
     
-    // Shared StateFlow that continuously tracks state updates
-    private val conciergeState: StateFlow<ConciergeState> = stateRepository.state
-        .stateIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            initialValue = stateRepository.state.value
-        )
-
-    private fun endpoint(sessionId: String): String {
-        val currentState = conciergeState.value
-        val regionSegment = currentState.conciergeRegion?.let { "/$it" }.orEmpty()
-        return "https://${currentState.conciergeServer}/brand-concierge$regionSegment/conversations" +
-                "?configId=${currentState.conciergeConfigId}" +
+    private fun endpoint(state: ConciergeState, sessionId: String): String {
+        val regionSegment = state.conciergeRegion?.let { "/$it" }.orEmpty()
+        return "https://${state.conciergeServer}/brand-concierge$regionSegment/conversations" +
+                "?configId=${state.conciergeConfigId}" +
                 "&sessionId=$sessionId" +
                 "&requestId=${UUID.randomUUID()}"
     }
@@ -165,10 +153,9 @@ internal class ConciergeConversationServiceClient(
         val generation = stateRepository.state.value.resetGeneration
         return DefaultRequestStartedFlow { onRequestStarted ->
             flow {
-                stateRepository.withConversation(generation) { }
-                val state = stateRepository.state.value
+                val state = stateRepository.withConversation(generation) { stateRepository.state.value }
                 val requestBody = createRequestBody(message, state, xdmFields)
-                val request = createConversationServiceRequest(endpoint(sessionId), requestBody)
+                val request = createConversationServiceRequest(endpoint(state, sessionId), requestBody)
 
                 stateRepository.withConversation(generation) { sessionManager.refreshSessionActivity() }
                 onRequestStarted()
@@ -501,7 +488,7 @@ internal class ConciergeConversationServiceClient(
             val state = stateRepository.withConversation(generation) { stateRepository.state.value }
             val sessionId = stateRepository.withConversation(generation) { sessionManager.getSessionId() }
             val requestBody = createFeedbackRequestBody(feedback, state)
-            val request = createFeedbackRequest(endpoint(sessionId), requestBody)
+            val request = createFeedbackRequest(endpoint(state, sessionId), requestBody)
 
             stateRepository.withConversation(generation) { sessionManager.refreshSessionActivity() }
             val connection = connect(request, generation)

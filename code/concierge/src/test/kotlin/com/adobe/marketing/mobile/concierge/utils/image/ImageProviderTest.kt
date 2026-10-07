@@ -26,6 +26,11 @@ import io.mockk.slot
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -37,6 +42,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -86,6 +93,35 @@ class ImageProviderTest {
 
         assertNotNull("Should return cached bitmap", cachedResult)
         assertEquals("Should return same bitmap instance", mockBitmap, cachedResult)
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun `clear prevents a previous download from repopulating the cache`() = runTest {
+        val url = "https://example.com/image.png"
+        val connection = mockSuccessfulConnection(mockBitmap)
+        val callback = slot<NetworkCallback>()
+        val started = CountDownLatch(1)
+        every { mockNetworkService.connectAsync(any(), capture(callback)) } answers {
+            started.countDown()
+        }
+        val download = async { imageProvider.get(url) }
+        try {
+            runCurrent()
+            withContext(Dispatchers.IO) {
+                org.junit.Assert.assertTrue(started.await(5, TimeUnit.SECONDS))
+            }
+            imageProvider.clear()
+            callback.captured.call(connection)
+            assertEquals(mockBitmap, download.await())
+            assertNull(imageProvider.getCached(url))
+            setupNetworkServiceCallback(connection)
+            assertEquals(mockBitmap, imageProvider.get(url))
+            assertEquals(mockBitmap, imageProvider.getCached(url))
+            verify(exactly = 2) { mockNetworkService.connectAsync(any(), any()) }
+        } finally {
+            download.cancel()
+        }
     }
 
     @Test
@@ -433,4 +469,3 @@ class ImageProviderTest {
         }
     }
 }
-

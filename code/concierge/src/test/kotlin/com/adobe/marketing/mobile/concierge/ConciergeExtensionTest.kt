@@ -58,6 +58,13 @@ class ConciergeExtensionTest {
     // ========== Identity Event Detection Tests ==========
 
     @Test
+    fun `unregistration cancels the identity reset deadline`() {
+        ExtensionHelper.notifyUnregistered(extension)
+        verify(exactly = 1) { mockStateRepository.cancelIdentityResetWarning() }
+        verify(exactly = 0) { mockStateRepository.clear() }
+    }
+
+    @Test
     fun `isIdentitySharedStateEvent returns true for identity shared state event`() {
         val event = Event.Builder(
             "Test Event",

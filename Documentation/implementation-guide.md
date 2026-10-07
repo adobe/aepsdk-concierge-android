@@ -27,6 +27,10 @@ Concierge automatically clears its persisted backend session, transcript, unsent
 draft, held/pending XDM context and transient conversation UI. It stops speech
 capture and invalidates active, queued and auth-pending conversation work, including
 retained/hidden chat ViewModels. A visible chat stays open; a hidden chat stays hidden.
+Retained ViewModels also clear their image cache. The default image provider
+does not let downloads started before a cache clear repopulate the cleared cache.
+Custom image providers retain the existing interface and should implement the
+same isolation in `clear()`.
 The rendered composer clears its local draft as well as the ViewModel input state.
 Initial presentation still waits for configuration and identity; only an already
 mounted dialog is retained while reset is pending. Direct opens during reset are
@@ -43,6 +47,20 @@ completion and retained participants' teardown. Superseded work is settled once;
 it cannot release a newer reset. Resolved post-completion identity publications
 (including authenticated identities) are read at their own event versions rather
 than reverting to the completion snapshot.
+Readiness remains event-driven. If a reset is still pending after five seconds,
+Concierge emits one error-level diagnostic for the current reset, distinguishing
+missing Edge Identity `RESET_COMPLETE` from unresolved identity, invalid
+configuration or unfinished local teardown. For missing completion, verify that
+Edge Identity is registered and supports reset completion. This deadline does
+not reopen requests or change handoff errors: readiness must still be verified.
+Late correlated completion and eligible later shared-state updates can restore
+readiness. Success, a superseding reset and extension unregistration cancel the
+pending deadline diagnostic.
+Configuration publications use the same boundary as readiness and request
+admission. Chat, data handoff and feedback requests build their endpoint and
+identity payload from the same captured state snapshot, not a lagging UI copy.
+Each new turn still resolves its backend session through the normal inactivity
+expiry check, including turns from a ViewModel retained across reset.
 The mounted dialog and its open/close tracking lifecycle are preserved across
 reset, with text entry, microphone and sending disabled until readiness returns.
 An open request made before initial configuration/identity readiness waits for

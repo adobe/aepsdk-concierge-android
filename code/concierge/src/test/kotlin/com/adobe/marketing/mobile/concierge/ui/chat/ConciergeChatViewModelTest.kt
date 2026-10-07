@@ -55,6 +55,7 @@ import com.adobe.marketing.mobile.services.ServiceProvider
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -311,6 +312,103 @@ class ConciergeChatViewModelTest {
         assertTrue(vm.messages.value.any { (it.content as? MessageContent.Text)?.text == "new reply" })
         verify(exactly = 0) { service.chat("queued old user", any(), any()) }
         verify(exactly = 0) { service.chat("must not queue across reset", any(), any()) }
+    }
+
+    @Test
+    fun `reset retained ViewModel still expires sessions for later chat and handoff turns`() = runTest {
+        var now = 1_000_000L
+        var storedId: String? = null
+        var timestamp = 0L
+        val namedCollection = mockk<com.adobe.marketing.mobile.services.NamedCollection>(relaxed = true)
+        every { namedCollection.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } answers { storedId }
+        every { namedCollection.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L) } answers { timestamp }
+        every { namedCollection.setString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, any()) } answers { storedId = secondArg() }
+        every { namedCollection.setLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, any()) } answers { timestamp = secondArg() }
+        every { namedCollection.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID) } answers { storedId = null }
+        every { namedCollection.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP) } answers { timestamp = 0 }
+        val manager = ConciergeSessionManager(namedCollection) { now }
+        val repository = ConciergeStateRepository(
+            ConciergeState(experienceCloudId = "old-ecid", configurationReady = true,
+                conciergeServer = "example.com", conciergeConfigId = "config"),
+            manager, backgroundScope
+        )
+        val service = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        every { service.chat(any(), any(), any()) } returns flow {
+            emit(ParsedConversationMessage("reply", ConversationState.COMPLETED))
+        }
+        every { service.sendDataHandoff(any(), any(), any()) } returns flow {
+            emit(ParsedConversationMessage("handoff reply", ConversationState.COMPLETED))
+        }
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), DefaultImageProvider(), service,
+            stateRepository = repository, sessionManager = manager, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        try {
+            val oldID = manager.getSessionId()
+            repository.beginIdentityReset(resetRequest) { }
+            runCurrent()
+            completeReset(repository)
+            runCurrent()
+            vm.processEvent(ChatEvent.SendMessage("fresh"))
+            runCurrent()
+            val freshID = requireNotNull(storedId)
+            assertTrue(freshID != oldID)
+            verify(exactly = 1) { service.chat("fresh", emptyMap(), freshID) }
+            repository.updateXDMContext(mapOf("expired" to true))
+            now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
+            vm.processEvent(ChatEvent.SendMessage("after expiry"))
+            runCurrent()
+            val expiredChatID = requireNotNull(storedId)
+            assertTrue(expiredChatID != freshID)
+            verify(exactly = 1) { service.chat("after expiry", emptyMap(), expiredChatID) }
+            repository.updateXDMContext(mapOf("expired" to true))
+            now += ConciergeSessionManager.SESSION_TIMEOUT_MS + 1
+            vm.activateDataHandoffSession()
+            val results = mutableListOf<DataHandoffDeliveryResult>()
+            vm.enqueueDataHandoff(ConciergeDataHandoffEvent("handoff", mapOf("fresh" to true)), results::add)
+            runCurrent()
+            val expiredHandoffID = requireNotNull(storedId)
+            assertTrue(expiredHandoffID != expiredChatID)
+            verify(exactly = 1) { service.sendDataHandoff("handoff", mapOf("fresh" to true), expiredHandoffID) }
+            assertEquals(listOf(DataHandoffDeliveryResult.Delivered), results)
+        } finally {
+            store.clear()
+            repository.clear()
+        }
+    }
+
+    @Test
+    fun `reset clears retained image cache without destroying hidden ViewModel`() = runTest {
+        val repository = readyResetRepository()
+        val bitmap = mockk<android.graphics.Bitmap>()
+        val url = "https://example.com/old-image.png"
+        val cache = mutableMapOf(url to bitmap)
+        val images = mockk<ImageProvider>()
+        every { images.getCached(any()) } answers { cache[firstArg<String>()] }
+        every { images.clear() } answers { cache.clear() }
+        val service = mockk<ConciergeConversationServiceClient>(relaxed = true)
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), images, service,
+            stateRepository = repository, sessionDispatcher = testDispatcher
+        )
+        val store = ViewModelStore().apply { put("chat", vm) }
+        try {
+            runCurrent()
+            assertNotNull(images.getCached(url))
+            repository.beginIdentityReset(resetRequest) { }
+            runCurrent()
+            assertNull(images.getCached(url))
+            verify(exactly = 1) { images.clear() }
+            completeReset(repository)
+            runCurrent()
+            assertTrue(!vm.identityResetInProgress.value)
+            assertTrue(!vm.isConciergeActive.value)
+            verify(exactly = 0) { service.cleanup() }
+        } finally {
+            store.clear()
+            repository.clear()
+        }
     }
 
     @Test

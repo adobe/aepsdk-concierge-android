@@ -24,6 +24,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Represents the state of the Concierge extension.
@@ -64,11 +71,13 @@ internal data class ConciergeState(
  */
 internal class ConciergeStateRepository internal constructor(
     initialState: ConciergeState = ConciergeState(),
-    private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance
+    private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
+    private val resetWarningScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
 
     companion object {
         const val LOG_TAG = "ConciergeStateRepository"
+        internal const val RESET_WARNING_DELAY_MS = 5_000L
 
         internal val instance: ConciergeStateRepository by lazy {
             ConciergeStateRepository()
@@ -85,6 +94,7 @@ internal class ConciergeStateRepository internal constructor(
     private var resetRequest: Event? = null
     private var resetCompleteEvent: Event? = null
     private var resetIdentityEvent: Event? = null
+    private var resetWarningJob: Job? = null
 
     private class PendingReset(
         val generation: Long,
@@ -127,8 +137,40 @@ internal class ConciergeStateRepository internal constructor(
                 it.copy(resetGeneration = generation, resetInProgress = true,
                     experienceCloudId = null, identityMap = null)
             }
+            scheduleIdentityResetWarning(generation)
             finishTeardownIfReady()
         }
+    }
+
+    private fun scheduleIdentityResetWarning(generation: Long) {
+        cancelIdentityResetWarning()
+        resetWarningJob = resetWarningScope.launch {
+            delay(RESET_WARNING_DELAY_MS)
+            synchronized(xdmContextLock) {
+                val current = _state.value
+                if (!isActive || !current.resetInProgress || current.resetGeneration != generation) return@synchronized
+                val reason = if (resetCompleteEvent == null) {
+                    "missing Edge Identity RESET_COMPLETE; verify Edge Identity is registered and supports reset completion"
+                } else {
+                    mutableListOf<String>().apply {
+                        if (current.experienceCloudId.isNullOrEmpty()) add("resolved Edge Identity state")
+                        if (!current.configurationReady || current.conciergeServer.isNullOrEmpty() ||
+                            current.conciergeConfigId.isNullOrEmpty()) add("valid Concierge configuration")
+                        if (pendingResets.isNotEmpty()) add("local conversation teardown")
+                    }.joinToString(", ")
+                }
+                resetWarningJob = null
+                Log.error(
+                    ConciergeConstants.EXTENSION_NAME, LOG_TAG,
+                    "Identity reset remains pending after $RESET_WARNING_DELAY_MS ms: $reason. Requests remain blocked until readiness is verified."
+                )
+            }
+        }
+    }
+
+    internal fun cancelIdentityResetWarning() = synchronized(xdmContextLock) {
+        resetWarningJob?.cancel()
+        resetWarningJob = null
     }
 
     fun acknowledgeIdentityReset(
@@ -196,10 +238,11 @@ internal class ConciergeStateRepository internal constructor(
 
     private fun finishIdentityReadiness() {
         val current = _state.value
-        if (resetCompleteEvent != null && pendingResets.isEmpty() && current.configurationReady &&
+        if (current.resetInProgress && resetCompleteEvent != null && pendingResets.isEmpty() && current.configurationReady &&
             !current.experienceCloudId.isNullOrEmpty() && !current.conciergeServer.isNullOrEmpty() &&
             !current.conciergeConfigId.isNullOrEmpty()) {
             _state.update { it.copy(resetInProgress = false) }
+            cancelIdentityResetWarning()
         }
     }
 
@@ -353,7 +396,7 @@ internal class ConciergeStateRepository internal constructor(
      * Updates the configuration ready state.
      * This should be called by the ConciergeExtension when configuration becomes available.
      */
-    fun updateConfiguration(configuration: SharedStateResult?) {
+    fun updateConfiguration(configuration: SharedStateResult?) = synchronized(xdmContextLock) {
         if (configuration?.value.isNullOrEmpty()) {
             _state.update {
                 it.copy(
@@ -370,7 +413,7 @@ internal class ConciergeStateRepository internal constructor(
                 "Configuration is null or empty. Concierge cannot be prepared"
 
             )
-            return
+            return@synchronized
         }
 
         val configMap = configuration?.value as? Map<String?, Any?>
@@ -416,7 +459,7 @@ internal class ConciergeStateRepository internal constructor(
             LOG_TAG,
             "Updated ConciergeState with configId: $configId, server: $server, region: $region"
         )
-        synchronized(xdmContextLock) { finishIdentityReadiness() }
+        finishIdentityReadiness()
     }
 
     /**
@@ -480,6 +523,7 @@ internal class ConciergeStateRepository internal constructor(
      */
     fun clear() {
         synchronized(xdmContextLock) {
+            cancelIdentityResetWarning()
             _state.value = ConciergeState()
             pendingResets.clear()
             resetRequest = null

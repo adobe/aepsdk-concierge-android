@@ -22,6 +22,23 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.adobe.marketing.mobile.services.Log
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -35,6 +52,7 @@ import org.junit.Test
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
+@OptIn(ExperimentalCoroutinesApi::class)
 class ConciergeStateRepositoryTest {
     private lateinit var repository: ConciergeStateRepository
     private lateinit var mockApi: ExtensionApi
@@ -42,14 +60,14 @@ class ConciergeStateRepositoryTest {
     private lateinit var sessionManager: ConciergeSessionManager
     private var sessionId: String? = "session-1"
 
-    private class SessionFixture {
+    private class SessionFixture(warningScope: CoroutineScope = CoroutineScope(StandardTestDispatcher())) {
         val request = Event.Builder("Reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
         var now = 1_000_000L
         var storedId: String? = null
         var storedTimestamp = 0L
         val store = mockk<NamedCollection>()
         val manager = ConciergeSessionManager(store) { now }
-        val repository = ConciergeStateRepository(sessionManager = manager)
+        val repository = ConciergeStateRepository(sessionManager = manager, resetWarningScope = warningScope)
 
         init {
             every { store.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null) } answers { storedId }
@@ -66,6 +84,224 @@ class ConciergeStateRepositoryTest {
             every { store.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP) } answers {
                 storedTimestamp = 0
             }
+        }
+    }
+
+    private fun withResetErrors(fixture: SessionFixture, body: (List<String>) -> Unit) {
+        val errors = mutableListOf<String>()
+        mockkStatic(Log::class)
+        every { Log.error(ConciergeConstants.EXTENSION_NAME, ConciergeStateRepository.LOG_TAG, any()) } answers {
+            errors.add(thirdArg())
+        }
+        try {
+            body(errors)
+        } finally {
+            fixture.repository.clear()
+            unmockkStatic(Log::class)
+        }
+    }
+
+    @Test
+    fun `missing reset completion logs once at five seconds and late completion restores readiness`() = runTest {
+        val fixture = SessionFixture(backgroundScope)
+        fixture.manager.getSessionId()
+        withResetErrors(fixture) { errors ->
+            fixture.repository.beginIdentityReset(fixture.request) { }
+            runCurrent()
+            advanceTimeBy(4_999)
+            runCurrent()
+            assertTrue(errors.isEmpty())
+            advanceTimeBy(1)
+            runCurrent()
+            assertEquals(1, errors.size)
+            assertTrue(errors.single().contains("missing Edge Identity RESET_COMPLETE"))
+            assertTrue(errors.single().contains("Requests remain blocked"))
+            assertTrue(fixture.repository.state.value.resetInProgress)
+            assertThrows(CancellationException::class.java) {
+                fixture.repository.withConversation(1) { fail("Requests must remain blocked") }
+            }
+            advanceTimeBy(5_000)
+            runCurrent()
+            assertEquals(1, errors.size)
+            completeReset(fixture)
+            assertFalse(fixture.repository.state.value.resetInProgress)
+            assertEquals("admitted", fixture.repository.withConversation(1) { "admitted" })
+        }
+    }
+
+    @Test
+    fun `reset deadline distinguishes unresolved identity configuration and teardown from missing completion`() = runTest {
+        val fixture = SessionFixture(backgroundScope)
+        val participant = Any()
+        withResetErrors(fixture) { errors ->
+            fixture.repository.registerResetParticipant(participant)
+            fixture.repository.beginIdentityReset(fixture.request) { }
+            completeReset(fixture, SharedStateStatus.PENDING)
+            fixture.repository.updateConfiguration(null)
+            runCurrent()
+            advanceTimeBy(5_000)
+            runCurrent()
+            assertEquals(1, errors.size)
+            assertFalse(errors.single().contains("missing Edge Identity RESET_COMPLETE"))
+            assertTrue(errors.single().contains("resolved Edge Identity state"))
+            assertTrue(errors.single().contains("valid Concierge configuration"))
+            assertTrue(errors.single().contains("local conversation teardown"))
+            assertTrue(fixture.repository.state.value.resetInProgress)
+            completeReset(fixture)
+            fixture.repository.updateIdentity(mockApi, Event.Builder(
+                "Resolved identity", EventType.HUB, EventSource.SHARED_STATE
+            ).build())
+            assertTrue(fixture.repository.state.value.resetInProgress)
+            fixture.repository.acknowledgeIdentityReset(participant, 1, false, null, false)
+            assertFalse(fixture.repository.state.value.resetInProgress)
+        }
+    }
+
+    @Test
+    fun `successful reset cancels the deadline without relying on another reset`() = runTest {
+        val fixture = SessionFixture(backgroundScope)
+        withResetErrors(fixture) { errors ->
+            fixture.repository.beginIdentityReset(fixture.request) { }
+            runCurrent()
+            val watchdog = backgroundScope.coroutineContext[Job]!!.children.single()
+            completeReset(fixture)
+            assertTrue(watchdog.isCancelled)
+            runCurrent()
+            assertTrue(watchdog.isCompleted)
+            advanceTimeBy(5_001)
+            runCurrent()
+            assertTrue(errors.isEmpty())
+        }
+    }
+
+    @Test
+    fun `cancelling the reset deadline does not reopen readiness`() = runTest {
+        val fixture = SessionFixture(backgroundScope)
+        withResetErrors(fixture) { errors ->
+            fixture.repository.beginIdentityReset(fixture.request) { }
+            runCurrent()
+            val watchdog = backgroundScope.coroutineContext[Job]!!.children.single()
+            fixture.repository.cancelIdentityResetWarning()
+            assertTrue(watchdog.isCancelled)
+            runCurrent()
+            assertTrue(watchdog.isCompleted)
+            advanceTimeBy(5_001)
+            runCurrent()
+            assertTrue(errors.isEmpty())
+            assertTrue(fixture.repository.state.value.resetInProgress)
+        }
+    }
+
+    @Test
+    fun `cancelled reset deadline waiting for the boundary cannot log after cancellation`() {
+        val warningThread = AtomicReference<Thread>()
+        val executor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "reset-deadline-test").also { warningThread.set(it) }
+        }
+        val dispatcher = executor.asCoroutineDispatcher()
+        val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        val fixture = SessionFixture(scope)
+        val participant = Any()
+        try {
+            fixture.manager.getSessionId()
+            fixture.repository.registerResetParticipant(participant)
+            withResetErrors(fixture) { errors ->
+                fixture.repository.beginIdentityReset(fixture.request) {
+                    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+                    while (warningThread.get()?.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+                        Thread.sleep(5)
+                    }
+                    assertEquals("The expired watchdog must be waiting for the held repository lock",
+                        Thread.State.BLOCKED, warningThread.get()?.state)
+                    fixture.repository.cancelIdentityResetWarning()
+                }
+                val watchdog = scope.coroutineContext[Job]!!.children.single()
+                fixture.repository.acknowledgeIdentityReset(participant, 1, false, null, false)
+                executor.submit {}.get(5, TimeUnit.SECONDS)
+                assertTrue(watchdog.isCancelled)
+                assertTrue(watchdog.isCompleted)
+                assertTrue(fixture.repository.state.value.resetInProgress)
+                assertTrue("Cancellation must suppress even a watchdog already waiting for the lock", errors.isEmpty())
+            }
+        } finally {
+            scope.cancel()
+            dispatcher.close()
+        }
+    }
+
+    @Test
+    fun `clearing the repository cancels the reset deadline`() = runTest {
+        val fixture = SessionFixture(backgroundScope)
+        withResetErrors(fixture) { errors ->
+            fixture.repository.beginIdentityReset(fixture.request) { }
+            runCurrent()
+            val watchdog = backgroundScope.coroutineContext[Job]!!.children.single()
+            fixture.repository.clear()
+            assertTrue(watchdog.isCancelled)
+            runCurrent()
+            assertTrue(watchdog.isCompleted)
+            advanceTimeBy(5_001)
+            runCurrent()
+            assertTrue(errors.isEmpty())
+        }
+    }
+
+    @Test
+    fun `overlapping resets cancel the superseded deadline and only diagnose the latest reset`() = runTest {
+        val fixture = SessionFixture(backgroundScope)
+        withResetErrors(fixture) { errors ->
+            fixture.repository.beginIdentityReset(fixture.request) { }
+            runCurrent()
+            val watchdog = backgroundScope.coroutineContext[Job]!!.children.single()
+            advanceTimeBy(2_000)
+            val second = Event.Builder("Second reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
+            fixture.repository.beginIdentityReset(second) { }
+            assertTrue(watchdog.isCancelled)
+            runCurrent()
+            advanceTimeBy(3_000)
+            runCurrent()
+            assertTrue(errors.isEmpty())
+            advanceTimeBy(2_000)
+            runCurrent()
+            assertEquals(1, errors.size)
+            completeReset(fixture)
+            assertTrue(fixture.repository.state.value.resetInProgress)
+            fixture.repository.completeIdentityReset(mockApi, Event.Builder(
+                "Second completion", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE
+            ).inResponseToEvent(second).build())
+            assertFalse(fixture.repository.state.value.resetInProgress)
+            advanceTimeBy(5_000)
+            runCurrent()
+            assertEquals(1, errors.size)
+        }
+    }
+
+    @Test
+    fun `configuration updates cannot interleave with an admitted conversation snapshot`() {
+        val fixture = SessionFixture()
+        fixture.repository.updateConfiguration(SharedStateResult(SharedStateStatus.SET, mapOf(
+            "concierge.server" to "example.com", "concierge.configId" to "config"
+        )))
+        val started = CountDownLatch(1)
+        val finished = CountDownLatch(1)
+        val updater = Thread {
+            started.countDown()
+            fixture.repository.updateConfiguration(null)
+            finished.countDown()
+        }
+        try {
+            fixture.repository.withConversation(0) {
+                updater.start()
+                assertTrue(started.await(5, TimeUnit.SECONDS))
+                assertFalse("Configuration mutation must use the readiness/admission boundary",
+                    finished.await(200, TimeUnit.MILLISECONDS))
+                assertTrue(fixture.repository.state.value.configurationReady)
+            }
+            assertTrue(finished.await(5, TimeUnit.SECONDS))
+            assertFalse(fixture.repository.state.value.configurationReady)
+        } finally {
+            updater.join(5_000)
+            fixture.repository.clear()
         }
     }
 

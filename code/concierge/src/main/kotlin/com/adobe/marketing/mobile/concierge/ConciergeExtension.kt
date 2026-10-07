@@ -75,6 +75,11 @@ class ConciergeExtension(extensionApi: ExtensionApi) : Extension(extensionApi) {
         return true
     }
 
+    override fun onUnregistered() {
+        ConciergeStateRepository.instance.cancelIdentityResetWarning()
+        super.onUnregistered()
+    }
+
     internal fun processEvent(event: Event) {
         Log.trace(
             EXTENSION_NAME,
