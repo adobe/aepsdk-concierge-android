@@ -115,6 +115,8 @@ class ConciergeStateRepositoryTest {
             runCurrent()
             assertEquals(1, errors.size)
             assertTrue(errors.single().contains("missing Edge Identity RESET_COMPLETE"))
+            assertTrue(errors.single().contains("Edge Identity 3.0.0 or later is registered"))
+            assertTrue(errors.single().contains("request-correlated reset completion"))
             assertTrue(errors.single().contains("Requests remain blocked"))
             assertTrue(fixture.repository.state.value.resetInProgress)
             assertThrows(CancellationException::class.java) {

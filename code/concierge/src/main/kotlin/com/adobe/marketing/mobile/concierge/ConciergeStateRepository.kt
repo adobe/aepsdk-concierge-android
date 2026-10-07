@@ -150,7 +150,7 @@ internal class ConciergeStateRepository internal constructor(
                 val current = _state.value
                 if (!isActive || !current.resetInProgress || current.resetGeneration != generation) return@synchronized
                 val reason = if (resetCompleteEvent == null) {
-                    "missing Edge Identity RESET_COMPLETE; verify Edge Identity is registered and supports reset completion"
+                    "missing Edge Identity RESET_COMPLETE; verify Edge Identity 3.0.0 or later is registered to provide request-correlated reset completion"
                 } else {
                     mutableListOf<String>().apply {
                         if (current.experienceCloudId.isNullOrEmpty()) add("resolved Edge Identity state")

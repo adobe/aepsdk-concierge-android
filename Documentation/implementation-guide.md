@@ -51,8 +51,10 @@ Readiness remains event-driven. If a reset is still pending after five seconds,
 Concierge emits one error-level diagnostic for the current reset, distinguishing
 missing Edge Identity `RESET_COMPLETE` from unresolved identity, invalid
 configuration or unfinished local teardown. For missing completion, verify that
-Edge Identity is registered and supports reset completion. This deadline does
-not reopen requests or change handoff errors: readiness must still be verified.
+Edge Identity 3.0.0 or later is registered, the minimum supported version for this
+Concierge release. Concierge requires a request-correlated `RESET_COMPLETE`;
+an uncorrelated completion cannot release the reset. This deadline does not
+reopen requests or change handoff errors: readiness must still be verified.
 Late correlated completion and eligible later shared-state updates can restore
 readiness. Success, a superseding reset and extension unregistration cancel the
 pending deadline diagnostic.
