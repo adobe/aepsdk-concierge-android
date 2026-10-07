@@ -47,6 +47,7 @@ internal class SpeechToTextManager(
 
     private var speechRecognizer: SpeechRecognizer? = null
     private var listener: SpeechCaptureListener? = null
+    private var recognitionSession = 0L
 
     private val _isAvailable = mutableStateOf<Boolean>(false)
     val isAvailable: State<Boolean> = _isAvailable
@@ -68,7 +69,12 @@ internal class SpeechToTextManager(
         }
     }
 
-    private fun createRecognitionListener() = object : RecognitionListener {
+    private fun createRecognitionListener(
+        session: Long = recognitionSession,
+        target: SpeechCaptureListener? = listener
+    ) = object : RecognitionListener {
+        private val listener: SpeechCaptureListener?
+            get() = target.takeIf { session == recognitionSession }
         override fun onReadyForSpeech(params: Bundle?) {}
         override fun onBeginningOfSpeech() {}
         override fun onRmsChanged(rmsdB: Float) {
@@ -144,6 +150,9 @@ internal class SpeechToTextManager(
                 return
             }
         }
+        if (speechRecognizer == null) initializeSpeechRecognizer()
+        recognitionSession++
+        speechRecognizer?.setRecognitionListener(createRecognitionListener())
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
@@ -179,6 +188,7 @@ internal class SpeechToTextManager(
 
 
     fun release() {
+        recognitionSession++
         try {
             speechRecognizer?.destroy()
             Log.debug(
@@ -196,6 +206,24 @@ internal class SpeechToTextManager(
     }
 
     fun setListener(listener: SpeechCaptureListener?) {
+        if (this.listener != null && this.listener !== listener) cancelListening()
         this.listener = listener
+    }
+
+    fun cancelListening() {
+        recognitionSession++
+        val recognizer = speechRecognizer
+        speechRecognizer = null
+        try {
+            recognizer?.cancel()
+        } catch (e: Exception) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Unable to cancel speech recognition")
+        } finally {
+            try {
+                recognizer?.destroy()
+            } catch (e: Exception) {
+                Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Unable to destroy cancelled speech recognizer")
+            }
+        }
     }
 }

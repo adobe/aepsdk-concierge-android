@@ -57,6 +57,10 @@ internal class ConciergeSessionManager internal constructor(
         return sessionId.takeUnless { hasExpired(timestamp, currentTimeProvider()) }
     }
 
+    @Synchronized
+    fun storedSessionIdOrNull(): String? =
+        dataStore.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
+
     private fun hasExpired(timestamp: Long, currentTime: Long): Boolean =
         currentTime - timestamp > SESSION_TIMEOUT_MS
 

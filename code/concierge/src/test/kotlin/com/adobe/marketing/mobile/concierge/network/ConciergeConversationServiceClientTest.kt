@@ -11,6 +11,12 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.Event
+import com.adobe.marketing.mobile.EventSource
+import com.adobe.marketing.mobile.EventType
+import com.adobe.marketing.mobile.ExtensionApi
+import com.adobe.marketing.mobile.SharedStateResult
+import com.adobe.marketing.mobile.SharedStateStatus
 import com.adobe.marketing.mobile.concierge.ConciergeAuthTokenHolder
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
@@ -31,13 +37,18 @@ import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.runCurrent
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,10 +62,183 @@ import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
 class ConciergeConversationServiceClientTest {
+
+    @Test
+    fun `all endpoints use the request body snapshot when the state collector lags after reset`() = runTest {
+        val repository = ConciergeStateRepository(testState.copy(conciergeServer = "old-server.example.com"), mockSessionManager)
+        val client = ConciergeConversationServiceClient(
+            repository, mockSessionManager,
+            scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(TestCoroutineScheduler()))
+        )
+        try {
+            resetAndReady(repository)
+            repository.updateConfiguration(SharedStateResult(SharedStateStatus.SET, mapOf(
+                "concierge.server" to "new-server.example.com",
+                "concierge.configId" to "new-config",
+                "concierge.region" to "new-region"
+            )))
+            every { mockSessionManager.getSessionId() } returns "new-session"
+            val requestSlot = slot<NetworkRequest>()
+            stubConnection(requestSlot)
+            suspend fun assertRequest(send: suspend () -> Unit) {
+                send()
+                val uri = java.net.URI(requestSlot.captured.url)
+                assertEquals("new-server.example.com", uri.host)
+                assertEquals("/brand-concierge/new-region/conversations", uri.path)
+                assertTrue(uri.query.contains("configId=new-config"))
+                assertTrue(uri.query.contains("sessionId=new-session"))
+                assertTrue(capturedBody(requestSlot).contains("new-ecid"))
+                assertFalse(capturedBody(requestSlot).contains("test-ecid"))
+            }
+            assertRequest { client.chat("chat").toList() }
+            assertRequest { client.sendDataHandoff("handoff", emptyMap()).toList() }
+            assertRequest { assertTrue(client.sendFeedback(Feedback("turn", FeedbackType.POSITIVE))) }
+            verify(exactly = 3) { networkService.connectAsync(any(), any()) }
+        } finally {
+            client.cleanup()
+            repository.clear()
+        }
+    }
+
+    private fun resetAndReady(repository: ConciergeStateRepository) {
+        val request = Event.Builder("Reset", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
+        repository.beginIdentityReset(request) { }
+        val api = mockk<ExtensionApi>()
+        every { api.getXDMSharedState(any(), any(), any(), any()) } returns SharedStateResult(
+            SharedStateStatus.SET,
+            mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
+        )
+        repository.completeIdentityReset(api, Event.Builder(
+            "Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE
+        ).inResponseToEvent(request).build())
+        assertFalse(repository.state.value.resetInProgress)
+        assertEquals("new-ecid", repository.state.value.experienceCloudId)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `feedback paused before IO cannot adopt refreshed identity and session`() = runTest {
+        val repository = ConciergeStateRepository(testState, mockSessionManager)
+        val client = ConciergeConversationServiceClient(
+            repository, mockSessionManager, feedbackDispatcher = StandardTestDispatcher(testScheduler)
+        )
+        val feedback = Feedback("old-turn", FeedbackType.POSITIVE, conversationId = "old-conversation")
+        val oldJob = launch(start = CoroutineStart.UNDISPATCHED) { client.sendFeedback(feedback) }
+        assertTrue(oldJob.isActive)
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+
+        resetAndReady(repository)
+        every { mockSessionManager.getSessionId() } returns "new-session-id"
+        runCurrent()
+        assertTrue(oldJob.isCancelled)
+        verify(exactly = 0) { mockSessionManager.getSessionId() }
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        var sent = false
+        launch { sent = client.sendFeedback(Feedback("new-turn", FeedbackType.POSITIVE)) }
+        runCurrent()
+        assertTrue(sent)
+        assertTrue(requestSlot.captured.url.contains("new-session-id"))
+        assertTrue(capturedBody(requestSlot).contains("new-ecid"))
+        assertFalse(capturedBody(requestSlot).contains("old-turn"))
+        client.cleanup()
+    }
+
+    @Test
+    fun `feedback resuming auth after reset cannot cross network admission`() = runTest {
+        val repository = ConciergeStateRepository(testState, mockSessionManager)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        ConciergeAuthTokenHolder.setProvider(provider = {
+            started.countDown()
+            check(release.await(5, TimeUnit.SECONDS)) { "Auth provider was not released" }
+            "old-token"
+        }, timeoutMillis = 600_000)
+        val client = ConciergeConversationServiceClient(repository, mockSessionManager)
+        val oldJob = launch(start = CoroutineStart.UNDISPATCHED) {
+            client.sendFeedback(Feedback("old-turn", FeedbackType.POSITIVE))
+        }
+        try {
+            assertTrue("Feedback did not reach auth preparation", started.await(5, TimeUnit.SECONDS))
+            resetAndReady(repository)
+            every { mockSessionManager.getSessionId() } returns "new-session-id"
+            release.countDown()
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000) { oldJob.join() }
+            }
+            assertTrue(oldJob.isCancelled)
+            verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+        } finally {
+            release.countDown()
+            oldJob.cancelAndJoin()
+            client.cleanup()
+        }
+    }
+
+    @Test
+    fun `explicit feedback submission generation is checked even after reset becomes ready`() = runTest {
+        val repository = ConciergeStateRepository(testState, mockSessionManager)
+        val generation = repository.state.value.resetGeneration
+        val client = ConciergeConversationServiceClient(repository, mockSessionManager)
+        resetAndReady(repository)
+        val oldJob = launch {
+            client.sendFeedback(Feedback("old-turn", FeedbackType.NEGATIVE), generation)
+        }
+        oldJob.join()
+        assertTrue(oldJob.isCancelled)
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+        client.cleanup()
+    }
+
+    @Test
+    fun `cancel proactively closes stalled stream within five seconds and next request completes`() = runTest {
+        val readStarted = CountDownLatch(1)
+        val closed = CountDownLatch(1)
+        val stalledInput = object : InputStream() {
+            override fun read(): Int {
+                readStarted.countDown()
+                check(closed.await(10, TimeUnit.SECONDS)) { "Stalled stream was not closed" }
+                return -1
+            }
+        }
+        val first = mockk<HttpConnecting>(relaxed = true)
+        every { first.responseCode } returns 200
+        every { first.inputStream } returns stalledInput
+        every { first.close() } answers { closed.countDown() }
+        val next = mockk<HttpConnecting>(relaxed = true)
+        every { next.responseCode } returns 200
+        every { next.inputStream } returns ByteArrayInputStream(byteArrayOf())
+        var requestCount = 0
+        every { networkService.connectAsync(any(), any()) } answers {
+            secondArg<NetworkCallback>().call(if (requestCount++ == 0) first else next)
+        }
+        val repository = ConciergeStateRepository(testState, mockSessionManager)
+        val client = ConciergeConversationServiceClient(repository, mockSessionManager)
+        val job = launch { client.chat("old").toList() }
+        withContext(Dispatchers.IO) {
+            assertTrue("Old request did not start reading", readStarted.await(5, TimeUnit.SECONDS))
+        }
+        val started = System.nanoTime()
+        withContext(Dispatchers.Default) {
+            withTimeout(5_000) { job.cancelAndJoin() }
+        }
+        assertTrue((System.nanoTime() - started) / 1_000_000 < 5_000)
+        assertEquals(0L, closed.count)
+        assertEquals(ConversationState.COMPLETED, client.chat("new").first().state)
+        assertEquals(2, requestCount)
+    }
 
     private lateinit var serviceProvider: ServiceProvider
     private lateinit var networkService: Networking
@@ -83,6 +267,9 @@ class ConciergeConversationServiceClientTest {
         mockStateRepository = mockk(relaxed = true)
         val stateFlow = MutableStateFlow(testState)
         every { mockStateRepository.state } returns stateFlow
+        every { mockStateRepository.withConversation(any(), any<() -> Any?>()) } answers {
+            secondArg<() -> Any?>().invoke()
+        }
         
         // Mock ConciergeSessionManager
         mockSessionManager = mockk(relaxed = true)

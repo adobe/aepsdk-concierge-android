@@ -61,6 +61,11 @@ internal fun ChatInputField(
     // Update local text state when inputState changes (for voice transcription)
     LaunchedEffect(inputState) {
         when (inputState) {
+            UserInputState.Empty -> {
+                text.value = ""
+                isFocused.value = false
+            }
+
             is UserInputState.Recording -> {
                 isFocused.value = false
                 focusManager.clearFocus()
@@ -96,7 +101,7 @@ internal fun ChatInputField(
             text = text.value,
             onTextChange = { newText ->
                 // Only allow text changes during Empty/Editing states (not during Recording)
-                if (inputState !is UserInputState.Recording) {
+                if (enable && inputState !is UserInputState.Recording) {
                     text.value = newText
                     // Always notify parent about text changes
                     onTextChange(newText)

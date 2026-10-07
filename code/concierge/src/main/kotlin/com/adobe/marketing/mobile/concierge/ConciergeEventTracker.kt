@@ -212,6 +212,7 @@ internal object ConciergeEventTracker {
                 }
                 dispatchEdge(xdmType, payload)
             }
+            types.CONVERSATION_ENDED -> return
             types.LINK_CLICKED -> {
                 val url = data[keys.URL] as? String
                 val origin = data[keys.ORIGIN] as? String

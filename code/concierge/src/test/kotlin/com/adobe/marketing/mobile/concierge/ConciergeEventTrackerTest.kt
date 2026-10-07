@@ -26,6 +26,15 @@ import org.junit.Test
 
 class ConciergeEventTrackerTest {
 
+    @Test
+    fun `conversationEnded is never forwarded to Edge even with tracking enabled`() {
+        val notification = ConciergeTrackingEvent.ConversationEnded(
+            123L, "old-session", "old-conversation", true
+        ).toEvent()
+        ConciergeEventTracker.trackEvent(notification)
+        verify(exactly = 0) { MobileCore.dispatchEvent(any()) }
+    }
+
     @Before
     fun setup() {
         mockkStatic(MobileCore::class)
