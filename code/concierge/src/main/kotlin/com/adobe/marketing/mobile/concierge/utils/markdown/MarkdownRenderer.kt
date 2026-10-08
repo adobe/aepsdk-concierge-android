@@ -65,7 +65,7 @@ internal object MarkdownRenderer {
      * @param colorScheme The Material Design color scheme.
      * @param baseTextStyle The base text style to apply to regular text.
      * @param linkHints Link hints used to append icons after matching links.
-     * @param linkColor Color applied to link text. Falls back to [ColorScheme.primary] when unspecified.
+     * @param linkColor Color applied to link text. Falls back to [ColorScheme.onSurface] when unspecified.
      * @return An [AnnotatedString] with the appropriate styling applied.
      */
     fun render(
@@ -83,7 +83,7 @@ internal object MarkdownRenderer {
         )
 
         val linkHintByHref: Map<String, String> = linkHints.associate { it.href to it.kind }
-        val resolvedLinkColor = linkColor.takeIf { it != Color.Unspecified } ?: colorScheme.primary
+        val resolvedLinkColor = linkColor.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
         val builder = AnnotatedString.Builder()
         var currentIndex = 0
 

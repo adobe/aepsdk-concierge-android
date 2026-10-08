@@ -403,7 +403,7 @@ Feature toggles and interaction configuration.
 | `behavior.citations.defaultLinkIcon` | string \| null | `null` | Same as `phoneIcon`, for links with any other `kind` — including links with no matching `linkHints` entry. |
 | `behavior.citations.linkIconStyle.size` | number | `16` | Inline link icon size, in dp. |
 | `behavior.citations.linkIconStyle.spacing` | number | `2` | Gap between link text and its icon, in dp. |
-| `behavior.citations.linkIconStyle.color` | string | `--message-concierge-link-color`, else primary | Inline link icon tint color (hex). |
+| `behavior.citations.linkIconStyle.color` | string | `--message-concierge-link-color`, else `--color-text` | Inline link icon tint color (hex). |
 
 `phoneIcon`/`storeIcon`/`defaultLinkIcon`/`linkIconStyle` only affect links rendered inline within AI message text. The citation list icon (in the expanded sources accordion) is a fixed 14dp size tinted with the citation URL color, and always uses the built-in pop-out icon — only `showLinkIcon` applies to it.
 
@@ -723,7 +723,7 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--message-user-text` | `colors.message.userText` | `String` | `"#000000"` | User message text color (hex) |
 | `--message-concierge-background` | `colors.message.conciergeBackground` | `String` | `"#F5F5F5"` | AI message bubble background (hex) |
 | `--message-concierge-text` | `colors.message.conciergeText` | `String` | `"#000000"` | AI message text color (hex) |
-| `--message-concierge-link-color` | `colors.message.conciergeLink` | `String` | `"#1976D2"` | Link color in AI messages (hex): inline link text, expanded citation URLs, and the inline link-icon fallback color. When a theme JSON omits this key, inline link text and icons fall back to `--color-primary` and citation URLs fall back to `--color-text`. With no theme JSON loaded, the built-in palettes use `#0000FF` (light) and `#1E88E5` (dark). |
+| `--message-concierge-link-color` | `colors.message.conciergeLink` | `String` | `"#1976D2"` | Link color in AI messages (hex): inline link text, expanded citation URLs, and the inline link-icon fallback color. When a theme JSON omits this key, all of these fall back to `--color-text`. With no theme JSON loaded, the built-in palettes use `#0000FF` (light) and `#1E88E5` (dark). |
 
 ### Colors - Buttons
 

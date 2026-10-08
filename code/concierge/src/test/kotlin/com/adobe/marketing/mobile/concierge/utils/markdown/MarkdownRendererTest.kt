@@ -486,7 +486,7 @@ class MarkdownRendererTest {
         val linkStyle = result.spanStyles[0]
         assertEquals(FontWeight.Bold, linkStyle.item.fontWeight)
         assertEquals(TextDecoration.Underline, linkStyle.item.textDecoration)
-        assertEquals(colorScheme.primary, linkStyle.item.color)
+        assertEquals(colorScheme.onSurface, linkStyle.item.color)
         
         // Should have URL annotation
         val urlAnnotations = result.getStringAnnotations("URL", 0, result.length)
@@ -511,7 +511,7 @@ class MarkdownRendererTest {
         val linkStyle = result.spanStyles[0]
         assertEquals(androidx.compose.ui.text.font.FontStyle.Italic, linkStyle.item.fontStyle)
         assertEquals(TextDecoration.Underline, linkStyle.item.textDecoration)
-        assertEquals(colorScheme.primary, linkStyle.item.color)
+        assertEquals(colorScheme.onSurface, linkStyle.item.color)
         
         // Should have URL annotation
         val urlAnnotations = result.getStringAnnotations("URL", 0, result.length)
@@ -550,7 +550,7 @@ class MarkdownRendererTest {
     }
 
     @Test
-    fun `test render falls back to primary when link color is unspecified`() {
+    fun `test render falls back to onSurface when link color is unspecified`() {
         val markdown = "[Store](https://store.example.com)"
         val tokens = MarkdownTokenizer.tokenize(markdown)
         val colorScheme = lightColorScheme()
@@ -559,7 +559,7 @@ class MarkdownRendererTest {
             markdown, tokens, colorScheme, testTextStyle, linkColor = Color.Unspecified
         )
 
-        assertEquals(colorScheme.primary, result.spanStyles.single().item.color)
+        assertEquals(colorScheme.onSurface, result.spanStyles.single().item.color)
     }
     
     @Test
@@ -667,7 +667,7 @@ class MarkdownRendererTest {
         val linkStyle = result.spanStyles[0]
         assertEquals(FontWeight.Bold, linkStyle.item.fontWeight)
         assertEquals(TextDecoration.Underline, linkStyle.item.textDecoration)
-        assertEquals(colorScheme.primary, linkStyle.item.color)
+        assertEquals(colorScheme.onSurface, linkStyle.item.color)
         
         val urlAnnotations = result.getStringAnnotations("URL", 0, result.length)
         assertEquals(1, urlAnnotations.size)
@@ -687,7 +687,7 @@ class MarkdownRendererTest {
         val linkStyle = result.spanStyles[0]
         assertEquals(androidx.compose.ui.text.font.FontStyle.Italic, linkStyle.item.fontStyle)
         assertEquals(TextDecoration.Underline, linkStyle.item.textDecoration)
-        assertEquals(colorScheme.primary, linkStyle.item.color)
+        assertEquals(colorScheme.onSurface, linkStyle.item.color)
         
         val urlAnnotations = result.getStringAnnotations("URL", 0, result.length)
         assertEquals(1, urlAnnotations.size)
@@ -730,7 +730,7 @@ Would you like guidance on which product suits your skill level or specific vide
         val boldLinkStyles = result.spanStyles.filter { 
             it.item.fontWeight == FontWeight.Bold && 
             it.item.textDecoration == TextDecoration.Underline &&
-            it.item.color == colorScheme.primary
+            it.item.color == colorScheme.onSurface
         }
         assertEquals("Should have 3 bold link styles", 3, boldLinkStyles.size)
     }

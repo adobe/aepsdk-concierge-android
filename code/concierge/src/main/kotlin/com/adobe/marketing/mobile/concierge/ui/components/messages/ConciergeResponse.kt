@@ -60,7 +60,6 @@ internal fun ConciergeResponse(
 ) {
     val context = LocalContext.current
     val style = ConciergeStyles.citationBadgeStyle
-    val colorScheme = ConciergeTheme.colorScheme
 
     Crossfade(
         targetState = text.isEmpty(),
@@ -82,13 +81,13 @@ internal fun ConciergeResponse(
         }
         val citationsBehavior = ConciergeTheme.tokens?.behavior?.citations ?: ConciergeCitationsBehavior()
 
-        // Compute style values from linkIconStyle, falling back to theme link color then primary
+        // Compute style values from linkIconStyle, falling back to theme link color then onSurface
         val iconStyle = citationsBehavior.linkIconStyle
         val iconSize = iconStyle?.size?.dp ?: 16.dp
         val iconSpacing = iconStyle?.spacing?.dp ?: 2.dp
         val iconColor = iconStyle?.color?.toComposeColor()
             ?: ConciergeTheme.colors.messageConciergeLink
-            ?: colorScheme.primary
+            ?: ConciergeTheme.colors.onSurface
 
         // Augment linkHints to cover every URL in the text when showLinkIcon is enabled.
         // Non-hint URLs receive kind "default" so they get the default icon asset.

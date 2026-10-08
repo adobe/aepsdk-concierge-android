@@ -43,7 +43,7 @@ internal object MarkdownParser {
         val messageBubbleStyle = ConciergeStyles.messageBubbleStyle
         val messageTextStyle = messageBubbleStyle.textStyle.copy(color = messageBubbleStyle.botMessageTextColor)
         val darkTheme = isSystemInDarkTheme()
-        val linkColor = ConciergeTheme.colors.messageConciergeLink ?: colorScheme.primary
+        val linkColor = ConciergeTheme.colors.messageConciergeLink ?: ConciergeTheme.colors.onSurface
 
         // Memoize the rendered AnnotatedString. Without this, MarkdownRenderer.render() re-runs on
         // every recomposition for every visible message, rebuilding the full AnnotatedString. During
