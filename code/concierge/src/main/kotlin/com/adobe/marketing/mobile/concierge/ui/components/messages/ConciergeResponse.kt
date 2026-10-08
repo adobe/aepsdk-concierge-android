@@ -33,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
-import com.adobe.marketing.mobile.concierge.ui.theme.toComposeColor
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 
@@ -85,9 +84,11 @@ internal fun ConciergeResponse(
         val iconStyle = citationsBehavior.linkIconStyle
         val iconSize = iconStyle?.size?.dp ?: 16.dp
         val iconSpacing = iconStyle?.spacing?.dp ?: 2.dp
-        val iconColor = iconStyle?.color?.toComposeColor()
-            ?: ConciergeTheme.colors.messageConciergeLink
-            ?: ConciergeTheme.colors.onSurface
+        val iconColor = LinkHintUiUtils.resolveLinkIconColor(
+            iconStyle = iconStyle,
+            linkColor = ConciergeTheme.colors.messageConciergeLink,
+            textColor = ConciergeTheme.colors.onSurface
+        )
 
         // Augment linkHints to cover every URL in the text when showLinkIcon is enabled.
         // Non-hint URLs receive kind "default" so they get the default icon asset.

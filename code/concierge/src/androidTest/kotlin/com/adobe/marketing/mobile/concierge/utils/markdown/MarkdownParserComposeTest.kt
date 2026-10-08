@@ -137,6 +137,29 @@ class MarkdownParserComposeTest {
         }
     }
 
+    @Test
+    fun parse_fallsBackToTextColor_whenThemeOmitsLinkColor() {
+        val results = mutableListOf<AnnotatedString>()
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                colors = ConciergeThemeColors(primary = "#FF0000", onSurface = "#123456")
+            ),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                val rendered = MarkdownParser.parse("Visit [the store](https://store.example.com)")
+                SideEffect { results.add(rendered) }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.runOnIdle {
+            assertEquals(Color(0xFF123456), linkColorOf(results.last()))
+        }
+    }
+
     private fun themeWithLinkColor(hex: String) = ConciergeThemeData(
         config = ConciergeThemeConfig(
             colors = ConciergeThemeColors(message = ConciergeMessageColors(conciergeLink = hex))
