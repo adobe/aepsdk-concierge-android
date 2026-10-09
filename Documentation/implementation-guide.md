@@ -192,8 +192,9 @@ Namespace priority and identity-graph rules are configured server-side in Adobe 
 
 ## XDM context
 
-Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data that should accompany
-subsequent typed chat turns and data handoffs:
+Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data. The SDK sends it with every
+later chat message (typed, spoken, or a tapped prompt suggestion) and every data handoff. Feedback
+requests don't include it.
 
 ```kotlin
 Concierge.updateXDMContext(
@@ -202,44 +203,30 @@ Concierge.updateXDMContext(
         "commerce" to mapOf("currencyCode" to "USD")
     )
 )
-```
 
-Updates use RFC 7396 JSON Merge Patch semantics. Nested maps merge recursively, lists and scalar
-values replace existing values, and a `null` value removes the matching key:
-
-```kotlin
+// Remove a key
 Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 ```
 
-The value must be JSON-compatible (strings, booleans, finite numbers, maps with string keys, or
-lists of those values; null is allowed throughout a list subtree). Numbers may be `Byte`, `Short`,
-`Int`, `Long`, `Float`, or `Double`. Nesting is limited to 20 levels below each top-level field
-value; cyclic or deeper input is rejected with `IllegalArgumentException`. Data handoffs use the
-same value types and nesting limit.
-
-The top-level `identityMap` key is reserved and rejected; the SDK supplies the Edge Identity map.
-Context is held in memory. Each update checks for an existing valid session without creating one
-or refreshing its inactivity timestamp. Before the first request, context remains pending even
-if more than 30 minutes pass; the next request adopts it into its session. After an established
-session expires, stale context is cleared before applying a fresh patch, and that newly supplied
-context also remains pending until a request adopts it. Updating context does not count as
-conversation activity. A request after expiry without a new context update does not carry the
-expired context.
-
-There is no separate reset API. To remove context, send a patch whose values are `null` — a
-top-level `null` removes that key, and nested `null` values remove individual nested keys.
-
-For chat and data handoffs, a context snapshot is captured when the request is submitted; later
-updates do not change the queued snapshot. The queue processor resolves the session off the UI
-thread before sending the request. Pending context is adopted into that session without changing
-the captured fields; snapshots from the same pending context are bound to that session only,
-not reused after a later rollover. If captured context belongs to an expired session, it is
-omitted. For typed chat, `QUERY_SUBMITTED` is emitted after session resolution and before the
-network request, carrying the same context as the service request.
-
-App context is included in the SDK hub event, where it can be read by Assurance **and other
-extensions listening to that event**. The SDK does not forward this app-supplied context to the
-production Edge tracking payload or include it in the tracking-event device log.
+- **Merging:** Each update is applied as an RFC 7396 JSON Merge Patch. Maps merge recursively,
+  lists and scalar values replace the existing value, and a `null` map value removes that key.
+  There is no reset API. To remove context, send `null` values.
+- **Allowed values:** strings, booleans, finite `Byte`, `Short`, `Int`, `Long`, `Float`, or
+  `Double` values, maps with string keys, and lists of these values. A `null` inside a list is
+  sent as JSON null. Nesting is limited to 20 levels below each top-level value. The top-level
+  `identityMap` key is reserved for the SDK. Invalid input, including cyclic input, throws
+  `IllegalArgumentException`.
+- **Lifetime:** Context is held in memory for the current Concierge session (30 minutes of
+  inactivity). Updating it doesn't start or extend a session. If no session exists yet, the next
+  request adopts the context. When a session expires, its context is not sent with later requests,
+  and the next update starts from an empty context. `MobileCore.resetIdentities()` also clears it.
+- **Timing:** A chat message or handoff captures the context when it's submitted. Updates made
+  after that don't change requests that are already queued.
+- **Data handoffs:** The handoff's `xdmFields` are deep-merged over the held context using the same
+  rules, and the handoff values win. The held context itself isn't changed.
+- **Visibility:** The context is included in the **Brand Concierge Query Submitted** Event Hub
+  event, so Assurance and other listening extensions can read it. The SDK doesn't forward it to
+  Edge tracking and doesn't write it to the SDK log.
 
 ---
 
@@ -316,9 +303,9 @@ Concierge.sendDataHandoff(
 - **`xdmFields`** *(required)*: Arbitrary XDM-shaped data merged into the root of the outbound XDM
   object alongside the SDK-owned identity map. Use nested Kotlin maps and lists, for example
   `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
-  every key must be a `String`; and values must be JSON-safe: `String`, `Boolean`, finite `Int`,
-  `Long`, `Float`, or `Double`, or maps/lists containing those values. Do not use `identityMap` as
-  a top-level key because the SDK owns and populates it.
+  every key must be a `String`; and values follow the [XDM context](#xdm-context) value rules,
+  except that `null` is allowed only inside lists. Do not use `identityMap` as a top-level key
+  because the SDK owns and populates it. These fields are deep-merged over any held XDM context.
 - **`localMessage`**: Optional text for a local, non-networked chat message distinct from the data
   forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts,
   as an agent-attributed message rather than a user message.
