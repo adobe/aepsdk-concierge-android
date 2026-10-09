@@ -241,11 +241,16 @@ fun ConciergeChat(
         viewModel.updateWelcomeConfigFromTheme(currentTheme)
     }
 
-    // Refresh permission status when app resumes (e.g., returning from settings)
-    DisposableEffect(lifecycleOwner) {
+    // Refresh permission status when app resumes (e.g., returning from settings), and track
+    // background/foreground so a response interrupted in the background can be resent on return.
+    // Keyed on viewModel too, so a replaced ViewModel receives these callbacks rather than the old one.
+    DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshPermissionStatus()
+            when (event) {
+                Lifecycle.Event.ON_START -> viewModel.onAppForegrounded()
+                Lifecycle.Event.ON_RESUME -> viewModel.refreshPermissionStatus()
+                Lifecycle.Event.ON_STOP -> viewModel.onAppBackgrounded()
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

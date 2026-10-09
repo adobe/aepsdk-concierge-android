@@ -58,6 +58,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import kotlin.time.ExperimentalTime
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class ConciergeChatViewModelTrackingTest {
@@ -394,6 +395,41 @@ class ConciergeChatViewModelTrackingTest {
 
         val startedCount = dispatched.count { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_STARTED }
         assertEquals("responseStarted should fire once per turn", 2, startedCount)
+    }
+
+    @Test
+    fun `background resend reports responseStarted for the resent interaction`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow {
+                emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS, interactionId = "int-1"))
+                dropConnection.await()
+                throw IOException("Connection reset")
+            },
+            flow {
+                emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED, interactionId = "int-2"))
+            }
+        )
+        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        vm.onAppBackgrounded()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+        vm.onAppForegrounded()
+        advanceUntilIdle()
+
+        val startedIds = dispatched
+            .filter { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_STARTED }
+            .map { it.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.INTERACTION_ID) }
+        val completedIds = dispatched
+            .filter { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_COMPLETED }
+            .map { it.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.INTERACTION_ID) }
+        assertEquals(listOf("int-1", "int-2"), startedIds)
+        assertEquals(listOf("int-2"), completedIds)
     }
 
     @Test

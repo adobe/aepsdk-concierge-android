@@ -31,6 +31,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConciergeHttpStatusException
 import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.CtaButton
@@ -84,6 +85,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.onEach
@@ -94,6 +96,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -432,7 +435,23 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         /** @param detail the underlying error text, when the stream provided one. */
         data class Failed(val detail: String?) : ConversationStreamResult()
+
+        /**
+         * The connection dropped on a chat turn that was running while the app was in the
+         * background. The turn was rolled back without showing an error so it can be resent.
+         *
+         * @param detail the underlying transport error text, when available.
+         */
+        data class Interrupted(val detail: String?) : ConversationStreamResult()
     }
+
+    // Whether the chat's host is in the background (its lifecycle has stopped). A chat turn whose
+    // stream fails while backgrounded waits on this to clear before it is resent.
+    private val isAppInBackground = MutableStateFlow(false)
+
+    // Whether the current chat attempt ran at any point while the app was in the background.
+    // Reset at the start of every attempt.
+    private var chatAttemptBackgrounded = false
 
     private val conversationRequests = Channel<ConversationRequest>(MAX_PENDING_CONVERSATION_REQUESTS)
 
@@ -1031,13 +1050,49 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         reportingConversationErrors("Failed to send message", onError = {}) {
-            streamConversation(
-                chatService.chat(messageText.trim(), xdmFields, sessionId).onEach {
-                    stateRepository.withConversation(generation) { }
-                },
-                isDataHandoff = false
-            )
+            // The OS can drop the streaming connection while the app is in the background. Rather
+            // than greeting the user with an error when they return, resend the question once the
+            // app is back in the foreground. Only one resend is attempted per message.
+            var resendAvailable = true
+            while (true) {
+                chatAttemptBackgrounded = isAppInBackground.value
+                val result = streamConversation(
+                    chatService.chat(messageText.trim(), xdmFields, sessionId).onEach {
+                        stateRepository.withConversation(generation) { }
+                    },
+                    isDataHandoff = false,
+                    recoverTransportFailure = { resendAvailable && chatAttemptBackgrounded }
+                )
+                if (result !is ConversationStreamResult.Interrupted) break
+                resendAvailable = false
+                isAppInBackground.first { !it }
+                stateRepository.withConversation(generation) { }
+                // The discarded attempt may already have reported ResponseStarted; the resend is
+                // a new interaction, so let it report its own.
+                responseStartedDispatched = false
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Resending chat message interrupted while the app was in the background."
+                )
+            }
         }
+    }
+
+    /**
+     * Called when the chat's host moves to the background (lifecycle `ON_STOP`).
+     */
+    internal fun onAppBackgrounded() {
+        isAppInBackground.value = true
+        chatAttemptBackgrounded = true
+    }
+
+    /**
+     * Called when the chat's host returns to the foreground (lifecycle `ON_START`). Resumes a chat
+     * turn waiting to be resent after its connection dropped in the background.
+     */
+    internal fun onAppForegrounded() {
+        isAppInBackground.value = false
     }
 
     private fun appendUserMessage(messageText: String) {
@@ -1203,6 +1258,12 @@ class ConciergeChatViewModel : AndroidViewModel {
                             ConciergeDataHandoffRejectReason.DELIVERY_FAILED,
                             streamResult.detail
                         )
+                    // Handoffs never opt into background recovery; mapped for exhaustiveness.
+                    is ConversationStreamResult.Interrupted ->
+                        DataHandoffDeliveryResult.Failed(
+                            ConciergeDataHandoffRejectReason.DELIVERY_FAILED,
+                            streamResult.detail
+                        )
                 }
             }
         } catch (e: CancellationException) {
@@ -1255,13 +1316,20 @@ class ConciergeChatViewModel : AndroidViewModel {
      * remains because it was already shown before this turn began. Chat instead renders its
      * failures and leaves an empty COMPLETED response as whatever had already streamed, since
      * that's a normal (if content-less) outcome for typed chat.
+     * @param recoverTransportFailure consulted when a typed chat turn fails with a transport
+     * [IOException] (not a [ConciergeHttpStatusException], which is a deliberate server
+     * rejection). When it returns true, a turn that already received its COMPLETED response is
+     * kept as delivered; otherwise the turn is rolled back without rendering an error and
+     * [ConversationStreamResult.Interrupted] is returned so the caller can resend it.
      */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
-        isDataHandoff: Boolean
+        isDataHandoff: Boolean,
+        recoverTransportFailure: () -> Boolean = { false }
     ): ConversationStreamResult {
         val contentBuilder = StringBuilder()
         var hasVisibleContent = false
+        var hasCompleted = false
         var hasError = false
         var failureDetail: String? = null
 
@@ -1314,6 +1382,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             }.collect { parsedMessage ->
                 hasVisibleContent = hasVisibleContent ||
                     parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                hasCompleted = hasCompleted || parsedMessage.state == ConversationState.COMPLETED
                 onParsedMessage(parsedMessage, contentBuilder)
             }
             when {
@@ -1348,6 +1417,27 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
             throw e
         } catch (e: Exception) {
+            val isTransportFailure = e is IOException && e !is ConciergeHttpStatusException
+            if (!isDataHandoff && isTransportFailure && recoverTransportFailure()) {
+                if (hasCompleted) {
+                    // The answer was already delivered in full; only the trailing connection
+                    // teardown failed, so keep it rather than discarding and resending it.
+                    Log.debug(
+                        ConciergeConstants.EXTENSION_NAME,
+                        TAG,
+                        "Conversation stream dropped after the response completed: ${e.message}"
+                    )
+                    finishConversation()
+                    return ConversationStreamResult.Delivered
+                }
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Conversation stream interrupted while the app was in the background: ${e.message}"
+                )
+                truncateMessagesTo(turnStartIndex)
+                return ConversationStreamResult.Interrupted(e.message)
+            }
             if (isDataHandoff) {
                 truncateMessagesTo(turnStartIndex)
             }
