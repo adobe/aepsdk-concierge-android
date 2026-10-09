@@ -27,15 +27,19 @@ import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.ServiceProvider
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -57,12 +61,19 @@ import org.json.JSONArray
  * through the real ViewModel/render pipeline without a backend.
  */
 internal interface ConversationService {
-    fun chat(message: String): Flow<ParsedConversationMessage>
+    fun chat(
+        message: String,
+        xdmFields: Map<String, Any> = emptyMap(),
+        sessionId: String? = null
+    ): Flow<ParsedConversationMessage>
     fun sendDataHandoff(
         routingHint: String,
-        xdmFields: Map<String, Any>
+        xdmFields: Map<String, Any>,
+        sessionId: String? = null
     ): Flow<ParsedConversationMessage>
     suspend fun sendFeedback(feedback: Feedback): Boolean
+    // Keep existing fake implementations compatible; production enforces the submission boundary.
+    suspend fun sendFeedback(feedback: Feedback, generation: Long): Boolean = sendFeedback(feedback)
     fun cleanup()
 }
 
@@ -85,7 +96,8 @@ private class DefaultRequestStartedFlow<T>(
 internal class ConciergeConversationServiceClient(
     private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
     private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val feedbackDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ConversationService {
 
     companion object {
@@ -99,24 +111,13 @@ internal class ConciergeConversationServiceClient(
         private const val DEFAULT_READ_TIMEOUT = 15
     }
     
-    // Shared StateFlow that continuously tracks state updates
-    private val conciergeState: StateFlow<ConciergeState> = stateRepository.state
-        .stateIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            initialValue = stateRepository.state.value
-        )
-
-    private val endpoint: String
-        get() {
-            val currentState = conciergeState.value
-            val sessionId = sessionManager.getSessionId()
-            val regionSegment = currentState.conciergeRegion?.let { "/$it" }.orEmpty()
-            return "https://${currentState.conciergeServer}/brand-concierge$regionSegment/conversations" +
-                    "?configId=${currentState.conciergeConfigId}" +
-                    "&sessionId=$sessionId" +
-                    "&requestId=${UUID.randomUUID()}"
-        }
+    private fun endpoint(state: ConciergeState, sessionId: String): String {
+        val regionSegment = state.conciergeRegion?.let { "/$it" }.orEmpty()
+        return "https://${state.conciergeServer}/brand-concierge$regionSegment/conversations" +
+                "?configId=${state.conciergeConfigId}" +
+                "&sessionId=$sessionId" +
+                "&requestId=${UUID.randomUUID()}"
+    }
 
 
     /**
@@ -130,59 +131,84 @@ internal class ConciergeConversationServiceClient(
      *
      * The lifecycle events (Started/Closed) are handled internally and are not emitted as messages.
      */
-    override fun chat(message: String): Flow<ParsedConversationMessage> = conversation(message)
+    override fun chat(
+        message: String,
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> =
+        conversation(message, xdmFields, sessionId ?: sessionManager.getSessionId())
 
     override fun sendDataHandoff(
         routingHint: String,
-        xdmFields: Map<String, Any>
-    ): Flow<ParsedConversationMessage> = conversation(routingHint, xdmFields)
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<ParsedConversationMessage> =
+        conversation(routingHint, xdmFields, sessionId ?: sessionManager.getSessionId())
 
     private fun conversation(
         message: String,
-        xdmFields: Map<String, Any> = emptyMap()
-    ): Flow<ParsedConversationMessage> = DefaultRequestStartedFlow { onRequestStarted ->
-        flow {
-            val state = stateRepository.state.value
-            val requestBody = createRequestBody(message, state, xdmFields)
-            val request = createConversationServiceRequest(endpoint, requestBody)
+        xdmFields: Map<String, Any>,
+        sessionId: String
+    ): Flow<ParsedConversationMessage> {
+        val generation = stateRepository.state.value.resetGeneration
+        return DefaultRequestStartedFlow { onRequestStarted ->
+            flow {
+                val state = stateRepository.withConversation(generation) { stateRepository.state.value }
+                val requestBody = createRequestBody(message, state, xdmFields)
+                val request = createConversationServiceRequest(endpoint(state, sessionId), requestBody)
 
-            onRequestStarted()
-            val connection = connect(request)
-            var eventOrDataReceived = false
+                stateRepository.withConversation(generation) { sessionManager.refreshSessionActivity() }
+                onRequestStarted()
+                val connection = connect(request, generation)
+                var eventOrDataReceived = false
 
-            processResponse(connection).collect { event ->
-                when (event) {
-                    is StreamingEvent.EventReceived -> {
-                        val parsed = ConversationResponseParser.parseConversationData(event.data)
-                        eventOrDataReceived = true
-                        parsed.forEach { emit(it) }
-                    }
-
-                    is StreamingEvent.DataReceived -> {
-                        val parsed = ConversationResponseParser.parseConversationData(event.data)
-                        eventOrDataReceived = true
-                        parsed.forEach { emit(it) }
-                    }
-
-                    is StreamingEvent.Closed -> {
-                        // We need to emit a final COMPLETED for the case where
-                        // the stream closes without data/event indicating completion
-                        // We don't have a message to pass here, so we can use an empty string
-                        if (!eventOrDataReceived) {
-                            emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+                coroutineScope {
+                    val cancellationCloser = launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            connection.close()
                         }
                     }
+                    try {
+                        processResponse(connection).collect { event ->
+                            stateRepository.withConversation(generation) { }
+                            when (event) {
+                                is StreamingEvent.EventReceived -> {
+                                    val parsed = ConversationResponseParser.parseConversationData(event.data)
+                                    eventOrDataReceived = true
+                                    parsed.forEach { emit(it) }
+                                }
 
-                    is StreamingEvent.Retry -> {
-                        // TODO: Implement retry logic if needed
-                    }
+                                is StreamingEvent.DataReceived -> {
+                                    val parsed = ConversationResponseParser.parseConversationData(event.data)
+                                    eventOrDataReceived = true
+                                    parsed.forEach { emit(it) }
+                                }
 
-                    else -> {
-                        // ignore Started/Closed here; Error is rethrown by processResponse
+                                is StreamingEvent.Closed -> {
+                                    // Emit a final completion when the stream closes without data.
+                                    if (!eventOrDataReceived) {
+                                        emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+                                    }
+                                }
+
+                                is StreamingEvent.Retry -> {
+                                    // TODO: Implement retry logic if needed
+                                }
+
+                                else -> {
+                                    // Started is informational; processResponse rethrows Error.
+                                }
+                            }
+                        }
+                    } finally {
+                        cancellationCloser.cancel()
+                        connection.close()
                     }
                 }
-            }
-        }.flowOn(Dispatchers.IO)
+            }.flowOn(Dispatchers.IO)
+        }
     }
 
     /**
@@ -190,8 +216,8 @@ internal class ConciergeConversationServiceClient(
      * object, or null when no token is available so the `data` key can be omitted from the
      * payload entirely rather than sent as null or empty.
      */
-    private fun authDataPart(): String? {
-        val token = ConciergeAuthTokenHolder.resolveToken() ?: return null
+    private suspend fun authDataPart(): String? {
+        val token = runInterruptible { ConciergeAuthTokenHolder.resolveToken() } ?: return null
         return """"data": {"type": "auth", "payload": {"token": "${token.escapedForJson()}"}}"""
     }
 
@@ -227,7 +253,7 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the JSON request body for the conversation request.
      */
-    private fun createRequestBody(
+    private suspend fun createRequestBody(
         message: String,
         state: ConciergeState,
         xdmFields: Map<String, Any>
@@ -279,14 +305,14 @@ internal class ConciergeConversationServiceClient(
             forEach { (key, value) ->
                 put(
                     key as? String ?: throw IllegalArgumentException("XDM object keys must be strings"),
-                    value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null")
+                    value?.toJsonValue() ?: JSONObject.NULL
                 )
             }
         }
 
         is List<*> -> JSONArray().apply {
             forEach { value ->
-                put(value?.toJsonValue() ?: throw IllegalArgumentException("XDM values must not be null"))
+                put(value?.toJsonValue() ?: JSONObject.NULL)
             }
         }
 
@@ -299,7 +325,8 @@ internal class ConciergeConversationServiceClient(
      * @param request NetworkRequest to use for establishing the SSE connection
      * @throws IOException when connection could not be established
      */
-    private suspend fun connect(request: NetworkRequest): HttpConnecting =
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private suspend fun connect(request: NetworkRequest, generation: Long? = null): HttpConnecting =
         suspendCancellableCoroutine { continuation ->
             val callback = object : NetworkCallback {
                 override fun call(connection: HttpConnecting?) {
@@ -308,12 +335,19 @@ internal class ConciergeConversationServiceClient(
                             IOException("Failed to establish connection")
                         )
 
-                        continuation.isActive -> continuation.resume(connection)
+                        continuation.isActive -> continuation.resume(connection) { connection.close() }
+                        else -> connection.close()
                     }
                 }
             }
 
-            ServiceProvider.getInstance().networkService.connectAsync(request, callback)
+            if (generation != null) {
+                stateRepository.withConversation(generation) {
+                    ServiceProvider.getInstance().networkService.connectAsync(request, callback)
+                }
+            } else {
+                ServiceProvider.getInstance().networkService.connectAsync(request, callback)
+            }
 
             continuation.invokeOnCancellation {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Connection cancelled")
@@ -446,13 +480,18 @@ internal class ConciergeConversationServiceClient(
      * @param feedback The feedback containing turnId, rating, categories, and notes
      * @return true if the feedback was successfully sent, false otherwise
      */
-    override suspend fun sendFeedback(feedback: Feedback): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val state = stateRepository.state.value
-            val requestBody = createFeedbackRequestBody(feedback, state)
-            val request = createFeedbackRequest(endpoint, requestBody)
+    override suspend fun sendFeedback(feedback: Feedback): Boolean =
+        sendFeedback(feedback, stateRepository.state.value.resetGeneration)
 
-            val connection = connect(request)
+    override suspend fun sendFeedback(feedback: Feedback, generation: Long): Boolean = withContext(feedbackDispatcher) {
+        try {
+            val state = stateRepository.withConversation(generation) { stateRepository.state.value }
+            val sessionId = stateRepository.withConversation(generation) { sessionManager.getSessionId() }
+            val requestBody = createFeedbackRequestBody(feedback, state)
+            val request = createFeedbackRequest(endpoint(state, sessionId), requestBody)
+
+            stateRepository.withConversation(generation) { sessionManager.refreshSessionActivity() }
+            val connection = connect(request, generation)
 
             try {
                 validateResponseCode(connection)
@@ -460,6 +499,8 @@ internal class ConciergeConversationServiceClient(
             } finally {
                 connection.close()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to send feedback: ${e.message}")
             false
@@ -469,7 +510,7 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the feedback request body in XDM format
      */
-    private fun createFeedbackRequestBody(feedback: Feedback, state: ConciergeState): String {
+    private suspend fun createFeedbackRequestBody(feedback: Feedback, state: ConciergeState): String {
         val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date())

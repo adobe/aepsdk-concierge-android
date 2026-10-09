@@ -24,12 +24,18 @@ import com.adobe.marketing.mobile.Event
 internal sealed class ConciergeTrackingEvent {
 
     object SessionInitialized : ConciergeTrackingEvent()
+    data class ConversationEnded(
+        val epochTime: Long, val sessionId: String?, val conversationId: String?, val hadActiveTurn: Boolean
+    ) : ConciergeTrackingEvent()
 
     data class ChatOpened(val epochTime: Long) : ConciergeTrackingEvent()
 
     data class ChatClosed(val epochTime: Long, val durationMillis: Long) : ConciergeTrackingEvent()
 
-    data class QuerySubmitted(val query: String) : ConciergeTrackingEvent()
+    data class QuerySubmitted(
+        val query: String,
+        val xdmFields: Map<String, Any> = emptyMap()
+    ) : ConciergeTrackingEvent()
 
     data class PromptSuggestionClicked(val suggestion: String) : ConciergeTrackingEvent()
 
@@ -87,6 +93,7 @@ internal sealed class ConciergeTrackingEvent {
     private val eventName: String
         get() = when (this) {
             is SessionInitialized      -> ConciergeConstants.TrackingEvent.Name.SESSION_INITIALIZED
+            is ConversationEnded -> ConciergeConstants.TrackingEvent.Name.CONVERSATION_ENDED
             is ChatOpened -> ConciergeConstants.TrackingEvent.Name.CHAT_OPENED
             is ChatClosed -> ConciergeConstants.TrackingEvent.Name.CHAT_CLOSED
             is QuerySubmitted          -> ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED
@@ -107,6 +114,7 @@ internal sealed class ConciergeTrackingEvent {
     private val xdmType: String
         get() = when (this) {
             is SessionInitialized      -> ConciergeConstants.TrackingEvent.XDMType.SESSION_INITIALIZED
+            is ConversationEnded -> ConciergeConstants.TrackingEvent.XDMType.CONVERSATION_ENDED
             is ChatOpened -> ConciergeConstants.TrackingEvent.XDMType.CHAT_OPENED
             is ChatClosed -> ConciergeConstants.TrackingEvent.XDMType.CHAT_CLOSED
             is QuerySubmitted          -> ConciergeConstants.TrackingEvent.XDMType.QUERY_SUBMITTED
@@ -131,9 +139,20 @@ internal sealed class ConciergeTrackingEvent {
 
             when (this) {
                 is SessionInitialized -> Unit
+                is ConversationEnded -> {
+                    data[keys.EPOCH_TIME] = epochTime
+                    data[keys.REASON] = "identity_reset"
+                    data[keys.HAD_ACTIVE_TURN] = hadActiveTurn
+                    sessionId?.let { data[keys.SESSION_ID] = it }
+                    conversationId?.let { data[keys.CONVERSATION_ID] = it }
+                }
 
-                is QuerySubmitted ->
+                is QuerySubmitted -> {
                     data[keys.QUERY] = query
+                    if (xdmFields.isNotEmpty()) {
+                        data[keys.XDM_FIELDS] = xdmFields
+                    }
+                }
 
                 is PromptSuggestionClicked ->
                     data[keys.SUGGESTION] = suggestion

@@ -28,10 +28,15 @@ interface SpeechCaptureListener {
  */
 interface SpeechCapturing {
     fun isAvailable(): Boolean
+    /**
+     * Replaces the callback receiver. Detaching with null is also used during identity reset.
+     * Engines should invalidate active recognition callbacks and queued deliveries on detach,
+     * so an old capture cannot deliver results to a subsequently attached listener.
+     */
     fun setListener(listener: SpeechCaptureListener?)
     fun startCapture()
+    /** Ends normal capture while allowing its final transcription to be delivered. */
     fun endCapture()
     fun release()
 }
-
 

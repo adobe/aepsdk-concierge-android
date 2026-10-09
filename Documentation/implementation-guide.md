@@ -102,6 +102,66 @@ Brand Concierge forwards the full Edge Identity `identityMap` on every chat and 
 
 Namespace priority and identity-graph rules are configured server-side in Adobe Experience Platform; the SDK does not interpret or relabel namespaces.
 
+### Resetting identities
+
+Call the following Core API when the host app changes users or signs out:
+
+```kotlin
+MobileCore.resetIdentities()
+```
+
+Concierge then ends the current conversation locally:
+
+- **Cleared:** backend session, transcript, unsent draft, pending XDM context, image cache and in-flight work (chat, data handoff, feedback and speech capture). Nothing is retried under the new identity.
+- **Retained:** token-provider registration, configuration, consent, surfaces and server-side conversation history. The host remains responsible for sign-out and clearing its auth token.
+- **UI:** a visible chat stays open with input disabled until Concierge is ready again; a hidden chat stays hidden. Open calls made during reset are ignored, and data handoffs during reset complete with `NO_ACTIVE_SESSION`.
+
+Sending resumes, with a new `sessionId`, once Edge Identity reports reset complete and refreshed identity and configuration are available. This requires **Edge Identity 3.0.0 or later**. If reset is still pending after five seconds, Concierge logs an error describing what it is waiting on.
+
+**Custom components:**
+- Custom image providers should ensure `clear()` also prevents in-progress downloads from repopulating the cache.
+- Custom `SpeechCapturing` engines should drop old recognition results and queued callbacks when `setListener(null)` is called.
+
+After reset, if a conversation was in progress, Concierge dispatches a **Brand Concierge Conversation Ended** event (`com.adobe.eventType.concierge` / `com.adobe.eventSource.notification`, `conciergeEventType: concierge:conversation:ended`) for Event Hub/Assurance diagnostics. It includes `reason: identity_reset`, `epochTime` (Unix ms), `hadActiveTurn`, and the previous `sessionId`/`conversationId` when available. It contains no transcript, XDM, identity or token data, and is not sent to Edge.
+
+## XDM context
+
+Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data. The SDK sends it with every
+later chat message (typed, spoken, or a tapped prompt suggestion) and every data handoff. Feedback
+requests don't include it.
+
+```kotlin
+Concierge.updateXDMContext(
+    mapOf(
+        "loyalty" to mapOf("tier" to "gold"),
+        "commerce" to mapOf("currencyCode" to "USD")
+    )
+)
+
+// Remove a key
+Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
+```
+
+- **Merging:** Each update is applied as an RFC 7396 JSON Merge Patch. Maps merge recursively,
+  lists and scalar values replace the existing value, and a `null` map value removes that key.
+  There is no reset API. To remove context, send `null` values.
+- **Allowed values:** strings, booleans, finite `Byte`, `Short`, `Int`, `Long`, `Float`, or
+  `Double` values, maps with string keys, and lists of these values. A `null` inside a list is
+  sent as JSON null. Nesting is limited to 20 levels below each top-level value. The top-level
+  `identityMap` key is reserved for the SDK. Invalid input, including cyclic input, throws
+  `IllegalArgumentException`.
+- **Lifetime:** Context is held in memory for the current Concierge session (30 minutes of
+  inactivity). Updating it doesn't start or extend a session. If no session exists yet, the next
+  request adopts the context. When a session expires, its context is not sent with later requests,
+  and the next update starts from an empty context. `MobileCore.resetIdentities()` also clears it.
+- **Timing:** A chat message or handoff captures the context when it's submitted. Updates made
+  after that don't change requests that are already queued.
+- **Data handoffs:** The handoff's `xdmFields` are deep-merged over the held context using the same
+  rules, and the handoff values win. The held context itself isn't changed.
+- **Visibility:** The context is included in the **Brand Concierge Query Submitted** Event Hub
+  event, so Assurance and other listening extensions can read it. The SDK doesn't forward it to
+  Edge tracking and doesn't write it to the SDK log.
+
 ---
 
 ## Authentication
@@ -177,9 +237,9 @@ Concierge.sendDataHandoff(
 - **`xdmFields`** *(required)*: Arbitrary XDM-shaped data merged into the root of the outbound XDM
   object alongside the SDK-owned identity map. Use nested Kotlin maps and lists, for example
   `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
-  every key must be a `String`; and values must be JSON-safe: `String`, `Boolean`, finite `Int`,
-  `Long`, `Float`, or `Double`, or maps/lists containing those values. Do not use `identityMap` as
-  a top-level key because the SDK owns and populates it.
+  every key must be a `String`; and values follow the [XDM context](#xdm-context) value rules,
+  except that `null` is allowed only inside lists. Do not use `identityMap` as a top-level key
+  because the SDK owns and populates it. These fields are deep-merged over any held XDM context.
 - **`localMessage`**: Optional text for a local, non-networked chat message distinct from the data
   forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts,
   as an agent-attributed message rather than a user message.

@@ -31,8 +31,8 @@ import com.adobe.marketing.mobile.services.Log
  * silently ignored. No compile-time coupling.
  *
  * Sanitization rules (per agreement with team):
- * - `query` (QuerySubmitted) and `notes` (FeedbackSubmitted) are dropped: free-form user text,
- *   PII risk.
+ * - `query` and `xdmFields` (QuerySubmitted) and `notes` (FeedbackSubmitted) are dropped:
+ *   free-form user text and app-supplied XDM (potentially PII).
  * - `element` (CardClicked) and entries in `elements` (CardsRendered) are filtered down to
  *   product-identifier fields (`productName`, `productPageURL`); display-only fields like
  *   `productDescription`, `productPrice`, `productBadge` are stripped.
@@ -111,7 +111,8 @@ internal object ConciergeEventTracker {
                 dispatchEdge(xdmType, payload)
             }
             types.QUERY_SUBMITTED -> {
-                // `query` is dropped (free-form user-typed text — PII risk).
+                // `query` and app-supplied `xdmFields` are potentially sensitive. Neither should
+                // be forwarded into the customer's production Edge pipeline.
                 dispatchEdge(xdmType, emptyMap())
             }
             types.PROMPT_SUGGESTION_CLICKED -> {
@@ -211,6 +212,7 @@ internal object ConciergeEventTracker {
                 }
                 dispatchEdge(xdmType, payload)
             }
+            types.CONVERSATION_ENDED -> return
             types.LINK_CLICKED -> {
                 val url = data[keys.URL] as? String
                 val origin = data[keys.ORIGIN] as? String

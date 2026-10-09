@@ -28,6 +28,8 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
 import io.mockk.slot
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -61,6 +63,78 @@ class SpeechToTextManagerTest {
     @After
     fun tearDown() {
         unmockkAll()
+    }
+
+    @Test
+    fun `native callbacks queued through Android adapter stay in their capture session`() {
+        val freshRecognizer = mockk<SpeechRecognizer>(relaxed = true)
+        val freshNativeListener = slot<RecognitionListener>()
+        every { freshRecognizer.setRecognitionListener(capture(freshNativeListener)) } just Runs
+        every { SpeechRecognizer.createSpeechRecognizer(any()) } returnsMany listOf(recognizer, freshRecognizer)
+        val manager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
+        val scope = TestScope(StandardTestDispatcher())
+        val adapter = AndroidSpeechCapturing(manager, scope)
+        val fresh = RecordingCaptureListener()
+        adapter.setListener(testListener)
+        adapter.startCapture()
+        val oldNative = internalSpeechListener.captured
+        val oldResult = Bundle().apply {
+            putStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION, arrayListOf("old-user"))
+        }
+        oldNative.onResults(oldResult)
+        adapter.setListener(null)
+        adapter.endCapture()
+        adapter.setListener(fresh)
+        adapter.startCapture()
+        verify(exactly = 1) { recognizer.cancel() }
+        verify(exactly = 1) { recognizer.destroy() }
+        verify(exactly = 1) { recognizer.startListening(any()) }
+        verify(exactly = 1) { freshRecognizer.startListening(any()) }
+        // Even framework forwarding through the retired instance's current listener
+        // still carries its old session; the fresh listener lives on a different instance.
+        internalSpeechListener.captured.onPartialResults(oldResult)
+        oldNative.onResults(oldResult)
+        scope.testScheduler.advanceUntilIdle()
+        assertEquals(emptyList<String>(), testListener.finalResults)
+        assertEquals(emptyList<String>(), fresh.finalResults)
+        val newResult = Bundle().apply {
+            putStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION, arrayListOf("fresh-user"))
+        }
+        freshNativeListener.captured.onResults(newResult)
+        adapter.endCapture()
+        verify(exactly = 1) { freshRecognizer.stopListening() }
+        verify(exactly = 0) { freshRecognizer.cancel() }
+        verify(exactly = 0) { freshRecognizer.destroy() }
+        scope.testScheduler.advanceUntilIdle()
+        assertEquals(listOf("fresh-user"), fresh.finalResults)
+        assertEquals(emptyList<String>(), fresh.partialResults)
+        adapter.release()
+    }
+
+    @Test
+    fun `cancel invalidates native callback session while normal stop preserves final results`() {
+        val manager = SpeechToTextManager(ApplicationProvider.getApplicationContext())
+        manager.setListener(testListener)
+        manager.startListening()
+        val oldNativeListener = internalSpeechListener.captured
+        manager.stopListening()
+        val final = Bundle().apply {
+            putStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION, arrayListOf("final"))
+        }
+        oldNativeListener.onResults(final)
+        assertEquals(listOf("final"), testListener.finalResults)
+        manager.cancelListening()
+        manager.startListening()
+        oldNativeListener.onResults(final)
+        oldNativeListener.onPartialResults(final)
+        oldNativeListener.onError(SpeechRecognizer.ERROR_NO_MATCH)
+        assertEquals(listOf("final"), testListener.finalResults)
+        assertEquals(emptyList<String>(), testListener.partialResults)
+        assertEquals(0, testListener.errors.size)
+        verify { recognizer.cancel() }
+        verify { recognizer.destroy() }
+        internalSpeechListener.captured.onResults(final)
+        assertEquals(listOf("final", "final"), testListener.finalResults)
     }
 
     @Test
@@ -387,5 +461,3 @@ class SpeechToTextManagerTest {
         override fun onAudioLevelChanged(level: Float) { audioLevels.add(level) }
     }
 }
-
-

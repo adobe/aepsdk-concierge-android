@@ -52,6 +52,31 @@ class AndroidSpeechCapturingTest {
     }
 
     @Test
+    fun `queued native final result cannot reach replacement listener after reset`() {
+        var attached: SpeechCaptureListener? = null
+        every { manager.setListener(any()) } answers { attached = firstArg() }
+        val capturing = AndroidSpeechCapturing(manager, testScope)
+        val old = RecordingCaptureListener()
+        val fresh = RecordingCaptureListener()
+        capturing.setListener(old)
+        attached?.onTranscriptionResult("old user")
+        attached?.onPartialTranscription("old partial")
+        attached?.onSpeechEnded()
+        capturing.setListener(null)
+        capturing.endCapture()
+        capturing.setListener(fresh)
+        testScope.testScheduler.advanceUntilIdle()
+        assertEquals(emptyList<String>(), fresh.finalResults)
+        assertEquals(emptyList<String>(), fresh.partialResults)
+        assertEquals(0, fresh.endedCount)
+        assertEquals(emptyList<String>(), old.finalResults)
+        verify { manager.cancelListening() }
+        attached?.onTranscriptionResult("fresh user")
+        testScope.testScheduler.advanceUntilIdle()
+        assertEquals(listOf("fresh user"), fresh.finalResults)
+    }
+
+    @Test
     fun `forwards events from manager to SpeechCaptureListener`() {
         // Capture the proxy listener set on the manager during init
         var attached: SpeechCaptureListener? = null
@@ -132,5 +157,4 @@ class AndroidSpeechCapturingTest {
         override fun onAudioLevelChanged(level: Float) { audioLevels.add(level) }
     }
 }
-
 

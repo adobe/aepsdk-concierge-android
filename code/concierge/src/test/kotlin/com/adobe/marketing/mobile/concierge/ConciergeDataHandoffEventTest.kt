@@ -63,6 +63,19 @@ class ConciergeDataHandoffEventTest {
     }
 
     @Test
+    fun `fromEventData accepts nulls inside lists including maps nested in lists`() {
+        val xdmFields = mapOf("items" to listOf(null, mapOf("value" to null)))
+        val data = mapOf(
+            ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to xdmFields
+        )
+
+        val result = ConciergeDataHandoffEvent.fromEventData(data)
+
+        require(result is DataHandoffDecodeResult.Success)
+        assertEquals(xdmFields, result.result.xdmFields)
+    }
+
+    @Test
     fun `fromEventData decodes localMessage when present`() {
         val data = mapOf(
             ConciergeConstants.DataHandoff.EventData.Key.ROUTING_HINT to "buy_now",
