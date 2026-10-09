@@ -26,6 +26,10 @@ data class ConciergeThemeTokens(
     val cssLayout: ConciergeLayout? = null,
     val typography: ConciergeTypography? = null,
     val components: ConciergeComponentsConfig? = null,
+    /**
+     * Theme-block keys (e.g. `--fnb-tile-background-color`) the SDK has no typed mapping for,
+     * keyed with their `--` prefix. Lets custom renderers read their own theme values.
+     */
     val cssVariables: Map<String, String> = emptyMap()
 )
 

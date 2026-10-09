@@ -21,6 +21,9 @@ import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.concierge.ActiveConciergeDataHandoffForwarder
+import com.adobe.marketing.mobile.concierge.ActiveConciergeMessageSender
+import com.adobe.marketing.mobile.concierge.ConciergeMessageSender
+import com.adobe.marketing.mobile.concierge.ConciergeSendMessageRejectReason
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffForwarder
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
@@ -464,6 +467,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             enqueueDataHandoff(result, completion)
         }
     }
+
+    private val messageSender = ConciergeMessageSender { message -> enqueueUserMessage(message) }
 
     constructor(application: Application) : this(
         application,
@@ -1128,6 +1133,29 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     private fun reserveDataHandoffSlot(): Boolean = pendingConversationRequests.compareAndSet(0, 1)
+
+    /**
+     * Admits a programmatic user message ([com.adobe.marketing.mobile.concierge.Concierge.sendMessage]).
+     * Unlike a typed message it is never queued behind another turn, and it leaves the composer's
+     * draft untouched. Returns null when admitted.
+     */
+    internal fun enqueueUserMessage(message: String): ConciergeSendMessageRejectReason? {
+        if (!isDataHandoffSessionActive) return ConciergeSendMessageRejectReason.NO_ACTIVE_SESSION
+        if (!pendingConversationRequests.compareAndSet(0, 1)) {
+            return ConciergeSendMessageRejectReason.CHAT_IN_PROGRESS
+        }
+        if (conversationRequests.trySend(ConversationRequest.Chat(message)).isFailure) {
+            pendingConversationRequests.decrementAndGet()
+            return ConciergeSendMessageRejectReason.DELIVERY_FAILED
+        }
+        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(message))
+        if (_showWelcomeCard.value) {
+            dismissWelcomeCard()
+        }
+        markUserAsReturning()
+        _state.update { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
+        return null
+    }
 
     private suspend fun processDataHandoffRequest(request: ConversationRequest.DataHandoff) {
         stateRepository.withConversation(request.contextSnapshot.generation) { }
@@ -1882,11 +1910,13 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal fun activateDataHandoffSession() {
         isDataHandoffSessionActive = true
         ActiveConciergeDataHandoffForwarder.register(dataHandoffForwarder)
+        ActiveConciergeMessageSender.register(messageSender)
     }
 
     internal fun deactivateDataHandoffSession() {
         isDataHandoffSessionActive = false
         ActiveConciergeDataHandoffForwarder.unregister(dataHandoffForwarder)
+        ActiveConciergeMessageSender.unregister(messageSender)
         currentDataHandoff?.let { request ->
             request.completeAfterReleasingReservation(
                 DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)

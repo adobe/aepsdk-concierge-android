@@ -351,5 +351,24 @@ class CSSThemeParsingTest {
         assertEquals(8.0, layout?.productCardCarouselHorizontalPadding)
         assertEquals(16.0, layout?.productCardCarouselSpacing)
     }
-}
+    @Test
+    fun `test parseThemeTokens retains custom theme keys in cssVariables`() {
+        val themeJson = """
+            {
+              "theme": {
+                "--color-primary": "#EB1000",
+                "--fnb-tile-background-color": "#FAFAFA",
+                "--fnb-tile-corner-radius": "12px"
+              }
+            }
+        """.trimIndent()
 
+        val theme = ThemeParser.parseThemeTokens(themeJson)
+        assertNotNull(theme)
+        assertEquals("#EB1000", theme?.colors?.primaryColors?.primary)
+        assertEquals(
+            mapOf("--fnb-tile-background-color" to "#FAFAFA", "--fnb-tile-corner-radius" to "12px"),
+            theme?.cssVariables
+        )
+    }
+}
