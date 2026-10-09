@@ -43,6 +43,7 @@ internal object MarkdownParser {
         val messageBubbleStyle = ConciergeStyles.messageBubbleStyle
         val messageTextStyle = messageBubbleStyle.textStyle.copy(color = messageBubbleStyle.botMessageTextColor)
         val darkTheme = isSystemInDarkTheme()
+        val linkColor = ConciergeTheme.colors.messageConciergeLink ?: ConciergeTheme.colors.onSurface
 
         // Memoize the rendered AnnotatedString. Without this, MarkdownRenderer.render() re-runs on
         // every recomposition for every visible message, rebuilding the full AnnotatedString. During
@@ -51,17 +52,18 @@ internal object MarkdownParser {
         //
         // Keys must be value-comparable for the cache to hold across recompositions: `markdown` and
         // `linkHints` cover the content; `messageTextStyle` (TextStyle has structural equality) covers
-        // typography and text color; `darkTheme` covers the derived `colorScheme`. `colorScheme`
+        // typography and text color; `linkColor` (Color is a value class) covers the link color;
+        // `darkTheme` covers the derived `colorScheme`. `colorScheme`
         // itself is NOT used as a key — ConciergeTheme.colorScheme builds a fresh ColorScheme on every
         // read and ColorScheme has only reference equality, so keying on it would invalidate the cache
         // every recomposition and defeat the memoization entirely.
-        return remember(markdown, linkHints, messageTextStyle, darkTheme) {
+        return remember(markdown, linkHints, messageTextStyle, linkColor, darkTheme) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
                 "Parsed ${tokens.size} tokens, starting rendering."
             )
-            MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints)
+            MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints, linkColor)
         }
     }
 }

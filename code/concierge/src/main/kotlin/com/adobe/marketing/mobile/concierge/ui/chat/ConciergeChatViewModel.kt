@@ -25,6 +25,8 @@ import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffForwarder
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
@@ -68,8 +70,10 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -82,12 +86,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -205,6 +211,10 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private val _welcomeConfig = MutableStateFlow(initializeWelcomeConfig())
     internal val welcomeConfig: StateFlow<WelcomeConfig> = _welcomeConfig.asStateFlow()
+
+    private val stateRepository: ConciergeStateRepository
+    private val sessionManager: ConciergeSessionManager
+    private val sessionDispatcher: CoroutineDispatcher
     
     /**
      * Updates the welcome configuration from a theme config
@@ -311,9 +321,13 @@ class ConciergeChatViewModel : AndroidViewModel {
     private var responseStartedDispatched = false
 
     private sealed class ConversationRequest {
-        data class Chat(val message: String) : ConversationRequest()
+        data class Chat(
+            val message: String,
+            val contextSnapshot: ConciergeStateRepository.XdmContextSnapshot
+        ) : ConversationRequest()
         class DataHandoff(
             val handoff: ConciergeDataHandoffEvent,
+            val contextSnapshot: ConciergeStateRepository.XdmContextSnapshot,
             private val completion: (DataHandoffDeliveryResult) -> Unit,
             private val onCompleted: (DataHandoff) -> Unit,
             private val onReservationReleased: () -> Unit
@@ -426,6 +440,12 @@ class ConciergeChatViewModel : AndroidViewModel {
     // more than a single in-flight request.
     @Volatile
     private var currentDataHandoff: ConversationRequest.DataHandoff? = null
+    private var currentChatJob: Job? = null
+    private val feedbackJobs = mutableSetOf<Job>()
+    private val resetParticipant = Any()
+    private var observedResetGeneration = 0L
+    private val _identityResetInProgress = MutableStateFlow(false)
+    internal val identityResetInProgress: StateFlow<Boolean> = _identityResetInProgress.asStateFlow()
 
     // Total conversation requests (chat or data handoff) currently queued or processing.
     // Chat messages increment/decrement this unconditionally as a queue-depth count; a data
@@ -450,7 +470,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         AndroidSpeechCapturing(application),
         DefaultImageProvider(),
         ConciergeConversationServiceClient(),
-        MobileCore::dispatchEvent
+        dispatch = MobileCore::dispatchEvent
     )
 
     internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing) : this(
@@ -458,28 +478,51 @@ class ConciergeChatViewModel : AndroidViewModel {
         speechCapturing,
         DefaultImageProvider(),
         ConciergeConversationServiceClient(),
-        MobileCore::dispatchEvent
+        dispatch = MobileCore::dispatchEvent
     )
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
-        chatClient: ConversationService
-    ) : this(application, speechCapturing, DefaultImageProvider(), chatClient, null)
+        chatClient: ConversationService,
+        sessionDispatcher: CoroutineDispatcher = Dispatchers.IO
+    ) : this(
+        application, speechCapturing, DefaultImageProvider(), chatClient,
+        sessionDispatcher = sessionDispatcher,
+        dispatch = null
+    )
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
         imageProvider: ImageProvider,
         chatService: ConversationService,
+        stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
+        sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
+        sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
         this.imageProvider = imageProvider
         this.chatService = chatService
         this.dispatch = dispatch
+        this.stateRepository = stateRepository
+        this.sessionManager = sessionManager
+        this.sessionDispatcher = sessionDispatcher
+        observedResetGeneration = stateRepository.state.value.resetGeneration
+        captureListener = createCaptureListener(observedResetGeneration)
+        stateRepository.registerResetParticipant(resetParticipant)
         speechCapturing.setListener(captureListener)
         startConversationProcessor()
+        viewModelScope.launch {
+            stateRepository.state.collect { state ->
+                _identityResetInProgress.value = state.resetInProgress
+                if (state.resetGeneration != observedResetGeneration) {
+                    observedResetGeneration = state.resetGeneration
+                    endConversationForIdentityReset(state.resetGeneration)
+                }
+            }
+        }
 
         // Initialize welcome card state based on config and user history
         checkAndShowWelcomeCard()
@@ -498,7 +541,11 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     private fun dispatchTrackingEvent(trackingEvent: ConciergeTrackingEvent) {
         val event = trackingEvent.toEvent()
-        Log.debug(ConciergeConstants.LOG_TAG, TAG, "Dispatching tracking event: $event")
+        // Deliberately logs only the event identity, not `event` itself: the payload can carry
+        // free-form user text (`query`, `notes`) and app-supplied `xdmFields`, which this SDK
+        // treats as potential PII and strips from the outbound Edge request. The full payload is
+        // still available on the event hub for an opt-in Assurance session.
+        Log.debug(ConciergeConstants.LOG_TAG, TAG, "Dispatching tracking event: ${event.name}")
         dispatch?.invoke(event)
     }
 
@@ -523,8 +570,11 @@ class ConciergeChatViewModel : AndroidViewModel {
         _showWelcomeCard.value = false
     }
 
-    private val captureListener = object : SpeechCaptureListener {
+    private var captureListener = createCaptureListener(0)
+
+    private fun createCaptureListener(generation: Long) = object : SpeechCaptureListener {
         override fun onSpeechStarted() {
+            if (!isSpeechGenerationAdmitted(generation)) return
             _inputState.update { UserInputState.Recording("") }
         }
 
@@ -533,18 +583,22 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
 
         override fun onPartialTranscription(text: String) {
+            if (!isSpeechGenerationAdmitted(generation)) return
             handlePartialTranscription(text)
         }
 
         override fun onTranscriptionResult(text: String) {
+            if (!isSpeechGenerationAdmitted(generation)) return
             handleTranscriptionResult(text)
         }
 
         override fun onError(error: SpeechCaptureError) {
+            if (!isSpeechGenerationAdmitted(generation)) return
             handleSpeechError(error)
         }
 
         override fun onAudioLevelChanged(level: Float) {
+            if (!isSpeechGenerationAdmitted(generation)) return
             val current = _inputState.value
             if (current is UserInputState.Recording) {
                 _inputState.update { current.copy(audioLevel = level) }
@@ -557,6 +611,10 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param event The event to process
      */
     internal fun processEvent(event: ChatEvent, handleLink: ((String) -> Boolean)? = null) {
+        if (stateRepository.state.value.resetInProgress) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Chat action ignored while identity reset is pending.")
+            return
+        }
         when (event) {
             is ChatEvent.Error -> handleProcessingError(event.message)
             is ChatEvent.Reset -> handleResetChat()
@@ -706,6 +764,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param feedback The feedback data
      */
     private fun handleFeedbackSubmission(feedback: Feedback) {
+        val submissionState = stateRepository.state.value
+        if (submissionState.resetInProgress) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Feedback rejected while identity reset is pending.")
+            return
+        }
+        val generation = submissionState.resetGeneration
+        val feedbackWithConversationId = feedback.copy(conversationId = currentConversationId)
         // Update feedback state
         val feedbackState = when (feedback.feedbackType) {
             FeedbackType.POSITIVE -> FeedbackState.Positive
@@ -738,24 +803,27 @@ class ConciergeChatViewModel : AndroidViewModel {
         ))
 
         // Send feedback to the conversation service
-        viewModelScope.launch {
-            val feedbackWithConversationId = feedback.copy(conversationId = currentConversationId)
+        val job = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            stateRepository.withConversation(generation) { }
 
-            val success = chatService.sendFeedback(feedbackWithConversationId)
+            val success = chatService.sendFeedback(feedbackWithConversationId, generation)
             if (success) {
                 Log.debug(
                     TAG,
                     "handleFeedbackSubmission",
-                    "Feedback sent successfully for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
+                    "Feedback sent successfully for turnId: ${feedback.interactionId}, conversationId: ${feedbackWithConversationId.conversationId}"
                 )
             } else {
                 Log.warning(
                     TAG,
                     "handleFeedbackSubmission",
-                    "Failed to send feedback for turnId: ${feedback.interactionId}, conversationId: $currentConversationId"
+                    "Failed to send feedback for turnId: ${feedback.interactionId}, conversationId: ${feedbackWithConversationId.conversationId}"
                 )
             }
         }
+        feedbackJobs.add(job)
+        job.invokeOnCompletion { feedbackJobs.remove(job) }
+        job.start()
     }
 
     /**
@@ -770,6 +838,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param currentText The current text content being edited
      */
     internal fun onTextStateChanged(currentText: String) {
+        if (stateRepository.state.value.resetInProgress) return
         _inputState.value = if (currentText.isNotEmpty()) {
             UserInputState.Editing(currentText)
         } else {
@@ -811,9 +880,14 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private fun handleSendMessage(messageText: String) {
         if (messageText.isBlank()) return
+        if (stateRepository.state.value.resetInProgress) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Message rejected while identity reset is pending.")
+            return
+        }
 
+        val contextSnapshot = stateRepository.captureXDMContext()
         pendingConversationRequests.incrementAndGet()
-        if (conversationRequests.trySend(ConversationRequest.Chat(messageText)).isFailure) {
+        if (conversationRequests.trySend(ConversationRequest.Chat(messageText, contextSnapshot)).isFailure) {
             pendingConversationRequests.decrementAndGet()
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
@@ -824,7 +898,6 @@ class ConciergeChatViewModel : AndroidViewModel {
             return
         }
 
-        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(messageText))
         if (_showWelcomeCard.value) {
             dismissWelcomeCard()
         }
@@ -850,7 +923,23 @@ class ConciergeChatViewModel : AndroidViewModel {
                 when (request) {
                     is ConversationRequest.Chat -> {
                         try {
-                            processChatRequest(request.message)
+                            supervisorScope {
+                                val turn = async(start = CoroutineStart.LAZY) {
+                                    val sessionId = withContext(sessionDispatcher) {
+                                        stateRepository.withConversation(request.contextSnapshot.generation) {
+                                            sessionManager.getSessionId()
+                                        }
+                                    }
+                                    stateRepository.withConversation(request.contextSnapshot.generation) {
+                                        val xdmFields = stateRepository.resolveXDMContext(request.contextSnapshot, sessionId)
+                                        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(request.message, xdmFields))
+                                    }
+                                    val xdmFields = stateRepository.resolveXDMContext(request.contextSnapshot, sessionId)
+                                    processChatRequest(request.message, xdmFields, sessionId, request.contextSnapshot.generation)
+                                }
+                                currentChatJob = turn
+                                turn.await()
+                            }
                         } catch (e: CancellationException) {
                             if (!isActive) throw e
                             Log.warning(
@@ -865,8 +954,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                                 TAG,
                                 "Chat request failed unexpectedly: ${e.message}"
                             )
-                            resetProcessingStateToIdle()
+                            handleProcessingError("Unable to prepare chat request: ${e.message}")
                         } finally {
+                            currentChatJob = null
                             pendingConversationRequests.decrementAndGet()
                         }
                     }
@@ -923,7 +1013,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         onError()
     }
 
-    private suspend fun processChatRequest(messageText: String) {
+    private suspend fun processChatRequest(
+        messageText: String,
+        xdmFields: Map<String, Any>,
+        sessionId: String,
+        generation: Long
+    ) {
+        stateRepository.withConversation(generation) { }
         responseStartedDispatched = false
 
         appendUserMessage(messageText)
@@ -936,7 +1032,9 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         reportingConversationErrors("Failed to send message", onError = {}) {
             streamConversation(
-                chatService.chat(messageText.trim()),
+                chatService.chat(messageText.trim(), xdmFields, sessionId).onEach {
+                    stateRepository.withConversation(generation) { }
+                },
                 isDataHandoff = false
             )
         }
@@ -979,7 +1077,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         result: ConciergeDataHandoffEvent,
         completion: (DataHandoffDeliveryResult) -> Unit
     ) {
-        if (!isDataHandoffSessionActive) {
+        if (!isDataHandoffSessionActive || stateRepository.state.value.resetInProgress) {
             completion(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
             return
         }
@@ -988,14 +1086,20 @@ class ConciergeChatViewModel : AndroidViewModel {
             return
         }
 
+        // Capture the held context here rather than when the processor picks the request up, so
+        // that a chat turn and a data handoff both snapshot at submit time. Otherwise an
+        // updateXDMContext made after sendDataHandoff returns could still land in this handoff.
+        val contextSnapshot = stateRepository.captureXDMContext()
+
         val request = ConversationRequest.DataHandoff(
             result,
+            contextSnapshot,
             completion,
             { handoff -> if (currentDataHandoff === handoff) currentDataHandoff = null },
             { pendingConversationRequests.decrementAndGet() }
         )
         currentDataHandoff = request
-        if (!isDataHandoffSessionActive) {
+        if (!isDataHandoffSessionActive || stateRepository.state.value.resetInProgress) {
             request.releaseReservation()
             request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
             return
@@ -1026,6 +1130,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun reserveDataHandoffSlot(): Boolean = pendingConversationRequests.compareAndSet(0, 1)
 
     private suspend fun processDataHandoffRequest(request: ConversationRequest.DataHandoff) {
+        stateRepository.withConversation(request.contextSnapshot.generation) { }
         // enqueueDataHandoff marks the chat busy when it reserves the slot, so both of these
         // early exits have to hand the composer back - nothing further in this function runs to
         // do it for them, and a stuck Processing state outlives the handoff and the chat session.
@@ -1040,6 +1145,20 @@ class ConciergeChatViewModel : AndroidViewModel {
             return
         }
 
+        val sessionId = withContext(sessionDispatcher) {
+            stateRepository.withConversation(request.contextSnapshot.generation) { sessionManager.getSessionId() }
+        }
+        if (request.isCompleted || !isDataHandoffSessionActive) {
+            request.releaseReservation()
+            request.complete(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION))
+            resetProcessingStateToIdle()
+            return
+        }
+        stateRepository.withConversation(request.contextSnapshot.generation) { }
+        val mergedXdmFields = stateRepository.mergeXdmFields(
+            stateRepository.resolveXDMContext(request.contextSnapshot, sessionId),
+            request.handoff.xdmFields
+        )
         responseStartedDispatched = false
         request.handoff.localMessage?.let(::appendAgentMessage)
         // Carry forward any feedback dialog left open on an earlier turn.
@@ -1052,7 +1171,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 val responseJob = async {
                     val conversation = chatService.sendDataHandoff(
                         request.handoff.routingHint,
-                        request.handoff.xdmFields
+                        mergedXdmFields,
+                        sessionId
                     )
                     val timedConversation = if (conversation is RequestStartedFlow<*>) {
                         @Suppress("UNCHECKED_CAST")
@@ -1064,7 +1184,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                         conversation.onStart { request.armFirstChunkTimeout(viewModelScope) }
                     }
                     streamConversation(
-                        timedConversation,
+                        timedConversation.onEach {
+                            stateRepository.withConversation(request.contextSnapshot.generation) { }
+                        },
                         isDataHandoff = true
                     )
                 }
@@ -1730,6 +1852,13 @@ class ConciergeChatViewModel : AndroidViewModel {
      * which fires when the chat composable enters composition.
      */
     fun openConcierge() {
+        if (stateRepository.state.value.resetInProgress) {
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME, TAG,
+                "Ignoring chat open while identity reset is in progress."
+            )
+            return
+        }
         _isConciergeActive.value = true
     }
 
@@ -1766,6 +1895,48 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
+    private fun isSpeechGenerationAdmitted(generation: Long): Boolean =
+        stateRepository.state.value.let { !it.resetInProgress && it.resetGeneration == generation }
+
+    private fun endConversationForIdentityReset(generation: Long) {
+        val hadActiveTurn = currentChatJob?.isActive == true || currentDataHandoff != null
+        val hadConversation = _messages.value.isNotEmpty() || hadActiveTurn
+        val conversationId = currentConversationId
+        currentChatJob?.cancel()
+        feedbackJobs.toList().forEach { it.cancel() }
+        currentDataHandoff?.let { request ->
+            request.completeAfterReleasingReservation(
+                DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)
+            )
+            request.requestJob?.cancel()
+        }
+        while (true) {
+            when (val request = conversationRequests.tryReceive().getOrNull() ?: break) {
+                is ConversationRequest.Chat -> pendingConversationRequests.decrementAndGet()
+                is ConversationRequest.DataHandoff -> {
+                    request.completeAfterReleasingReservation(
+                        DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION)
+                    )
+                }
+            }
+        }
+        speechCapturing.setListener(null)
+        speechCapturing.endCapture()
+        captureListener = createCaptureListener(generation)
+        speechCapturing.setListener(captureListener)
+        _inputState.value = UserInputState.Empty
+        _messages.value = emptyList()
+        imageProvider.clear()
+        currentConversationId = null
+        responseStartedDispatched = false
+        _state.value = ChatScreenState.Idle()
+        _webviewOverlay.value = null
+        _showWelcomeCard.value = welcomeConfig.value.showWelcomeCard
+        stateRepository.acknowledgeIdentityReset(
+            resetParticipant, generation, hadConversation, conversationId, hadActiveTurn
+        )
+    }
+
     /**
      * Dispatches a ChatOpened tracking event.
      * Called from the [DisposableEffect] in the [ConciergeChat] composable when it enters
@@ -1793,12 +1964,22 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     override fun onCleared() {
+        val hadActiveTurn = currentChatJob?.isActive == true || currentDataHandoff != null
+        val hadConversation = _messages.value.isNotEmpty() || hadActiveTurn
+        val conversationId = currentConversationId
         deactivateDataHandoffSession()
         conversationRequests.close()
-        super.onCleared()
+        currentChatJob?.cancel()
+        feedbackJobs.toList().forEach { it.cancel() }
         imageProvider.clear()
         speechCapturing.setListener(null)
         speechCapturing.release()
         chatService.cleanup()
+        stateRepository.acknowledgeIdentityReset(
+            resetParticipant, stateRepository.state.value.resetGeneration,
+            hadConversation, conversationId, hadActiveTurn
+        )
+        stateRepository.unregisterResetParticipant(resetParticipant)
+        super.onCleared()
     }
 }

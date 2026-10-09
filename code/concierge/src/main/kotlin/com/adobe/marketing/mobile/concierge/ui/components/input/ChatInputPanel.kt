@@ -134,6 +134,7 @@ internal fun ChatInputPanel(
                 inputState = inputState,
                 text = text,
                 isProcessing = isProcessing,
+                isEnabled = enable,
                 onMicPressed = onMicPressed,
                 onVoiceCancel = { onVoiceCancel?.invoke() },
                 onSend = onSend,

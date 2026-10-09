@@ -66,6 +66,8 @@ internal class DefaultImageProvider(
         private const val TAG = "DefaultImageProvider"
     }
 
+    private val cacheLock = Any()
+    private var cacheGeneration = 0L
     private val cache = object : LruCache<String, Bitmap>(maxEntries) {
         /* If we want to set max size based on memory instead of entry count, we can use this:
         val MIN_CACHE_SIZE = 5 * 1024 * 1024 // 5MB cache
@@ -96,14 +98,12 @@ internal class DefaultImageProvider(
         cache
     }
 
-    override fun getCached(url: String): Bitmap? {
-        return cache.get(url)
-    }
+    override fun getCached(url: String): Bitmap? = synchronized(cacheLock) { cache.get(url) }
 
     override suspend fun get(url: String): Bitmap {
-        // Check cache first
-        cache.get(url)?.let { cachedBitmap ->
-            return cachedBitmap
+        val generation = synchronized(cacheLock) {
+            cache.get(url)?.let { return it }
+            cacheGeneration
         }
 
         return withContext(Dispatchers.IO) {
@@ -138,17 +138,21 @@ internal class DefaultImageProvider(
                 throw IOException("Failed to download image: ${e.message}", e)
             }
         }.also { bitmap ->
-            // Cache the bitmap if successfully downloaded
-            cache.put(url, bitmap)
-            Log.debug(
-                ConciergeConstants.EXTENSION_NAME,
-                TAG,
-                "Image downloaded and cached from: $url"
-            )
+            synchronized(cacheLock) {
+                if (generation == cacheGeneration) {
+                    cache.put(url, bitmap)
+                    Log.debug(
+                        ConciergeConstants.EXTENSION_NAME,
+                        TAG,
+                        "Image downloaded and cached from: $url"
+                    )
+                }
+            }
         }
     }
 
-    override fun clear() {
+    override fun clear() = synchronized(cacheLock) {
+        cacheGeneration++
         cache.evictAll()
     }
 

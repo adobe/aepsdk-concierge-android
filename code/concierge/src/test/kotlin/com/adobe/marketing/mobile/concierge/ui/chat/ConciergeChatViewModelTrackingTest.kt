@@ -17,6 +17,8 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
@@ -35,13 +37,18 @@ import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.services.ServiceProvider
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.unmockkObject
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -60,7 +67,11 @@ class ConciergeChatViewModelTrackingTest {
 
     @Before
     fun setUp() {
+        ConciergeStateRepository.instance.clear()
         Dispatchers.setMain(testDispatcher)
+        mockkObject(ConciergeSessionManager.instance)
+        every { ConciergeSessionManager.instance.getSessionId() } returns "session-1"
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns "session-1"
         app = mockk(relaxed = true)
         mockkStatic(ContextCompat::class)
         every { ContextCompat.checkSelfPermission(any(), any()) } returns PackageManager.PERMISSION_GRANTED
@@ -71,6 +82,8 @@ class ConciergeChatViewModelTrackingTest {
 
     @After
     fun tearDown() {
+        ConciergeStateRepository.instance.clear()
+        unmockkObject(ConciergeSessionManager.instance)
         unmockkStatic(ContextCompat::class)
         unmockkStatic(ServiceProvider::class)
         Dispatchers.resetMain()
@@ -108,6 +121,7 @@ class ConciergeChatViewModelTrackingTest {
         val vm = makeViewModel(dispatch = { dispatched.add(it) })
 
         vm.processEvent(ChatEvent.SendMessage("What tools do you offer?"))
+        advanceUntilIdle()
 
         val event = dispatched.single {
             it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED
@@ -116,6 +130,137 @@ class ConciergeChatViewModelTrackingTest {
             "What tools do you offer?",
             event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.QUERY)
         )
+    }
+
+    @Test
+    fun `querySubmitted carries the held XDM context snapshot`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+        every { chatClient.chat("Hi", any(), any()) } returns flow { }
+        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        val event = dispatched.single {
+            it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED
+        }
+        assertEquals(
+            mapOf("tier" to "gold"),
+            event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS)
+                .let { (it as? Map<*, *>)?.get("loyalty") }
+        )
+        verify { chatClient.chat("Hi", mapOf("loyalty" to mapOf("tier" to "gold")), any()) }
+    }
+
+    @Test
+    fun `chat uses one resolved session ID for its context snapshot and request`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val sessionManager = mockk<ConciergeSessionManager>()
+        every { sessionManager.getSessionId() } returns "captured-session-id"
+        every { chatClient.chat("Hi", emptyMap(), "captured-session-id") } returns flow { }
+        val vm = ConciergeChatViewModel(
+            app,
+            FakeSpeechCapturing(),
+            mockk<ImageProvider>(relaxed = true),
+            chatClient,
+            ConciergeStateRepository.instance,
+            sessionManager,
+            sessionDispatcher = testDispatcher
+        )
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        verify(exactly = 1) { sessionManager.getSessionId() }
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "captured-session-id") }
+    }
+
+    @Test
+    fun `chat snapshots at submission and delays tracking until session resolution`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val fields = mapOf("tier" to "silver")
+        ConciergeStateRepository.instance.updateXDMContext(fields)
+        every { chatClient.chat("Hi", fields, "session-1") } returns flow { }
+        val vm = makeViewModel(chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        assertTrue(dispatched.none { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED })
+        verify(exactly = 0) { ConciergeSessionManager.instance.getSessionId() }
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("tier" to "gold"))
+        advanceUntilIdle()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
+        assertEquals(fields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
+        verify(exactly = 1) { chatClient.chat("Hi", fields, "session-1") }
+    }
+
+    @Test
+    fun `chat adopts pending context without changing submitted fields or tracking`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
+        val fields = mapOf("tier" to "silver")
+        ConciergeStateRepository.instance.updateXDMContext(fields)
+        every { chatClient.chat("Hi", fields, "session-1") } returns flow { }
+        val vm = makeViewModel(chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("tier" to "gold"))
+        verify(exactly = 0) { ConciergeSessionManager.instance.getSessionId() }
+        advanceUntilIdle()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
+        assertEquals(fields, event.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS))
+        verify(exactly = 1) { chatClient.chat("Hi", fields, "session-1") }
+        assertEquals(mapOf("tier" to "gold"), ConciergeStateRepository.instance.snapshotXDMContext("session-1"))
+    }
+
+    @Test
+    fun `chat drops expired snapshot consistently from tracking and request`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("expired" to true))
+        every { chatClient.chat("Hi", emptyMap(), "session-2") } returns flow { }
+        val vm = makeViewModel(chatClient, dispatch = { dispatched.add(it) })
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        every { ConciergeSessionManager.instance.getSessionId() } returns "session-2"
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("fresh" to true))
+        advanceUntilIdle()
+
+        val event = dispatched.single { it.name == ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED }
+        assertTrue(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS !in event.eventData.orEmpty())
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "session-2") }
+        assertEquals(mapOf("fresh" to true), ConciergeStateRepository.instance.snapshotXDMContext("session-2"))
+    }
+
+    @Test
+    fun `default session resolution runs off the submitting thread`() = runTest {
+        val submittingThread = Thread.currentThread()
+        val sessionManager = mockk<ConciergeSessionManager>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val delivered = CompletableDeferred<Unit>()
+        every { sessionManager.getSessionId() } answers {
+            assertTrue(Thread.currentThread() !== submittingThread)
+            "session-1"
+        }
+        every { chatClient.chat("Hi", emptyMap(), "session-1") } returns flow {
+            delivered.complete(Unit)
+        }
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), mockk<ImageProvider>(relaxed = true), chatClient,
+            sessionManager = sessionManager
+        )
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        delivered.await()
+
+        verify(exactly = 1) { sessionManager.getSessionId() }
     }
 
     @Test
@@ -141,10 +286,11 @@ class ConciergeChatViewModelTrackingTest {
 
         vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Tell me about Premiere"))
 
+        advanceUntilIdle()
         val names = dispatched.map { it.name }
         val suggestionIdx = names.indexOf(ConciergeConstants.TrackingEvent.Name.PROMPT_SUGGESTION_CLICKED)
         val queryIdx = names.indexOf(ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED)
-        assertTrue("promptSuggestionClicked should precede querySubmitted", suggestionIdx < queryIdx)
+        assertTrue("promptSuggestionClicked should precede querySubmitted", suggestionIdx >= 0 && suggestionIdx < queryIdx)
     }
 
     @Test
@@ -170,7 +316,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseStarted fires once even across multiple IN_PROGRESS chunks`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("Hel", ConversationState.IN_PROGRESS, interactionId = "int-1"))
             emit(ParsedConversationMessage("lo", ConversationState.IN_PROGRESS, interactionId = "int-1"))
             emit(ParsedConversationMessage("Hello", ConversationState.COMPLETED, interactionId = "int-1"))
@@ -190,7 +336,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseCompleted fires once when stream finishes`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("Hello", ConversationState.COMPLETED, interactionId = "int-1"))
         }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
@@ -208,7 +354,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseStarted and responseCompleted carry conversationId and interactionId`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 "Hello", ConversationState.IN_PROGRESS,
                 conversationId = "conv-99", interactionId = "int-77"
@@ -235,7 +381,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `responseStarted flag resets between turns`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat(any()) } returns flow {
+        every { chatClient.chat(any(), emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("Reply", ConversationState.IN_PROGRESS, interactionId = "int-1"))
             emit(ParsedConversationMessage("Reply done", ConversationState.COMPLETED, interactionId = "int-1"))
         }
@@ -257,7 +403,7 @@ class ConciergeChatViewModelTrackingTest {
         val card = ParsedMultimodalItem.Card(
             MultimodalElement(id = "c1", content = mapOf("productName" to "Photoshop"))
         )
-        every { chatClient.chat("show cards") } returns flow {
+        every { chatClient.chat("show cards", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 messageContent = "",
                 state = ConversationState.COMPLETED,
@@ -302,7 +448,7 @@ class ConciergeChatViewModelTrackingTest {
             id = "card-1",
             content = mapOf("productName" to "Photoshop", "productPageURL" to "https://adobe.com/ps")
         )
-        every { chatClient.chat("show cards") } returns flow {
+        every { chatClient.chat("show cards", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 messageContent = "",
                 state = ConversationState.COMPLETED,
@@ -327,7 +473,7 @@ class ConciergeChatViewModelTrackingTest {
                 MultimodalElement(id = "card-$i", content = mapOf("productName" to "Product $i"))
             )
         }
-        every { chatClient.chat("show carousel") } returns flow {
+        every { chatClient.chat("show carousel", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage(
                 messageContent = "",
                 state = ConversationState.COMPLETED,
@@ -389,7 +535,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `errorOccurred fires on stream ERROR state`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             emit(ParsedConversationMessage("oops", ConversationState.ERROR))
         }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
@@ -404,7 +550,7 @@ class ConciergeChatViewModelTrackingTest {
     fun `errorOccurred fires on exception thrown by chat flow`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        every { chatClient.chat("Hi") } returns flow {
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
             throw RuntimeException("network down")
         }
         val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
@@ -511,7 +657,8 @@ class ConciergeChatViewModelTrackingTest {
             FakeSpeechCapturing(),
             mockk<ImageProvider>(relaxed = true),
             chatClient,
-            dispatch
+            sessionDispatcher = testDispatcher,
+            dispatch = dispatch
         )
     }
 

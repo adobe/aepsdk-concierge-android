@@ -14,7 +14,7 @@ package com.adobe.marketing.mobile.concierge
 object ConciergeConstants {
     internal const val EXTENSION_NAME = "brandconcierge"
     internal const val EXTENSION_FRIENDLY_NAME = "BrandConcierge"
-    internal const val VERSION = "3.9.0"
+    internal const val VERSION = "3.10.0"
     internal const val LOG_TAG = "BrandConcierge"
     internal const val DATA_STORE_NAME = EXTENSION_NAME
 
@@ -151,6 +151,7 @@ object ConciergeConstants {
             const val SESSION_INITIALIZED            = "Brand Concierge Session Initialized"
             const val CHAT_OPENED                    = "Brand Concierge Chat Opened"
             const val CHAT_CLOSED                    = "Brand Concierge Chat Closed"
+            const val CONVERSATION_ENDED             = "Brand Concierge Conversation Ended"
             const val QUERY_SUBMITTED                = "Brand Concierge Query Submitted"
             const val PROMPT_SUGGESTION_CLICKED      = "Brand Concierge Prompt Suggestion Clicked"
             const val WELCOME_PROMPT_SUGGESTION_CLICKED = "Brand Concierge Welcome Prompt Suggestion Clicked"
@@ -170,6 +171,7 @@ object ConciergeConstants {
             const val SESSION_INITIALIZED            = "concierge:session:initialized"
             const val CHAT_OPENED                    = "concierge:chat:opened"
             const val CHAT_CLOSED                    = "concierge:chat:closed"
+            const val CONVERSATION_ENDED             = "concierge:conversation:ended"
             const val QUERY_SUBMITTED                = "concierge:query:submitted"
             const val PROMPT_SUGGESTION_CLICKED      = "concierge:promptSuggestion:clicked"
             const val WELCOME_PROMPT_SUGGESTION_CLICKED = "concierge:welcomePromptSuggestion:clicked"
@@ -190,7 +192,11 @@ object ConciergeConstants {
                 const val EPOCH_TIME        = "epochTime"
                 const val DURATION_MILLIS   = "durationMillis"
                 const val EVENT_TYPE        = "conciergeEventType"
+                const val REASON            = "reason"
+                const val SESSION_ID        = "sessionId"
+                const val HAD_ACTIVE_TURN   = "hadActiveTurn"
                 const val QUERY             = "query"
+                const val XDM_FIELDS        = "xdmFields"
                 const val SUGGESTION        = "suggestion"
                 const val ELEMENT           = "element"
                 const val ELEMENTS          = "elements"

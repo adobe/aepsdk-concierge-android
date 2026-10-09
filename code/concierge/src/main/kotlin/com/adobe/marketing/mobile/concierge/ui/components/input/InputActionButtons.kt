@@ -73,7 +73,8 @@ internal fun InputActionButtons(
     onVoiceCancel: () -> Unit,
     onSend: (String) -> Unit,
     onClear: () -> Unit = {},
-    buttonSpacing: Dp = ConciergeStyles.inputPanelStyle.buttonSpacing
+    buttonSpacing: Dp = ConciergeStyles.inputPanelStyle.buttonSpacing,
+    isEnabled: Boolean = true
 ) {
     val micButtonStyle = ConciergeStyles.micButtonStyle
 
@@ -124,7 +125,7 @@ internal fun InputActionButtons(
                     MicButton(
                         modifier = Modifier.size(micSize),
                         userInputState = inputState,
-                        isEnabled = true,
+                        isEnabled = isEnabled,
                         onClick = {} // animation tap no longer stops recording — stop button does
                     )
                     StopRecordingButton(
@@ -139,7 +140,7 @@ internal fun InputActionButtons(
                     MicButton(
                         modifier = Modifier.size(iconContainerSize),
                         userInputState = inputState,
-                        isEnabled = true,
+                        isEnabled = isEnabled,
                         onClick = onMicPressed
                     )
                 }
@@ -170,7 +171,7 @@ internal fun InputActionButtons(
                 SendButton(
                     // Shared glyph size, matching mic/clear/leading-icon -- no padded container.
                     modifier = Modifier.size(iconContainerSize),
-                    isEnabled = text.isNotBlank() && !isProcessing,
+                    isEnabled = isEnabled && text.isNotBlank() && !isProcessing,
                     onSend = {
                         if (text.isNotBlank()) {
                             onSend(text)

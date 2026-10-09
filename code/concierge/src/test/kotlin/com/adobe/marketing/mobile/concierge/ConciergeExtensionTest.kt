@@ -15,12 +15,15 @@ import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.EventSource
 import com.adobe.marketing.mobile.EventType
 import com.adobe.marketing.mobile.ExtensionApi
+import com.adobe.marketing.mobile.ExtensionEventListener
 import com.adobe.marketing.mobile.ExtensionHelper
 import com.adobe.marketing.mobile.SharedStateResolution
 import com.adobe.marketing.mobile.SharedStateResult
+import com.adobe.marketing.mobile.SharedStateStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.verify
 import org.junit.After
@@ -55,6 +58,13 @@ class ConciergeExtensionTest {
     // ========== Identity Event Detection Tests ==========
 
     @Test
+    fun `unregistration cancels the identity reset deadline`() {
+        ExtensionHelper.notifyUnregistered(extension)
+        verify(exactly = 1) { mockStateRepository.cancelIdentityResetWarning() }
+        verify(exactly = 0) { mockStateRepository.clear() }
+    }
+
+    @Test
     fun `isIdentitySharedStateEvent returns true for identity shared state event`() {
         val event = Event.Builder(
             "Test Event",
@@ -70,6 +80,114 @@ class ConciergeExtensionTest {
     }
 
     // ========== Event Processing Tests ==========
+
+    @Test
+    fun `registered wildcard listener handles paired Edge Identity reset completion`() {
+        val listener = slot<ExtensionEventListener>()
+        every {
+            mockApi.registerEventListener(EventType.WILDCARD, EventSource.WILDCARD, capture(listener))
+        } returns Unit
+        ExtensionHelper.notifyRegistered(extension)
+        val request = Event.Builder(
+            "Reset Identities Request", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET
+        ).build()
+        val response = Event.Builder(
+            "Edge Identity Reset Identities Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE
+        ).inResponseToEvent(request).build()
+
+        assertEquals(request.uniqueIdentifier, response.responseID)
+        listener.captured.hear(response)
+
+        verify(exactly = 1) { mockStateRepository.completeIdentityReset(mockApi, response) }
+        verify(exactly = 0) {
+            mockApi.registerEventListener(EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE, any())
+        }
+    }
+
+    @Test
+    fun `wildcard listener ignores unrelated responses and events handled by typed listeners`() {
+        val listener = slot<ExtensionEventListener>()
+        every {
+            mockApi.registerEventListener(EventType.WILDCARD, EventSource.WILDCARD, capture(listener))
+        } returns Unit
+        ExtensionHelper.notifyRegistered(extension)
+        val request = Event.Builder(
+            "Reset Identities Request", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET
+        ).build()
+
+        listener.captured.hear(request)
+        listener.captured.hear(Event.Builder(
+            "Unrelated Response", EventType.EDGE_IDENTITY, EventSource.RESPONSE_IDENTITY
+        ).inResponseToEvent(request).build())
+        listener.captured.hear(Event.Builder(
+            "Unrelated Reset Completion", EventType.GENERIC_IDENTITY, EventSource.RESET_COMPLETE
+        ).inResponseToEvent(request).build())
+        listener.captured.hear(Event.Builder(
+            "Identity Shared State", EventType.HUB, EventSource.SHARED_STATE
+        ).setEventData(
+            mapOf("stateowner" to ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME)
+        ).build())
+
+        verify(exactly = 0) { mockStateRepository.beginIdentityReset(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.completeIdentityReset(any(), any()) }
+        verify(exactly = 0) { mockStateRepository.updateIdentity(any(), any()) }
+    }
+
+    @Test
+    fun `registered reset callbacks restore identity readiness with retained menu chat`() {
+        val resetListener = slot<ExtensionEventListener>()
+        val completionListener = slot<ExtensionEventListener>()
+        every {
+            mockApi.registerEventListener(EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET, capture(resetListener))
+        } returns Unit
+        every {
+            mockApi.registerEventListener(EventType.WILDCARD, EventSource.WILDCARD, capture(completionListener))
+        } returns Unit
+        val repository = ConciergeStateRepository(
+            initialState = ConciergeState(
+                experienceCloudId = "old-ecid",
+                configurationReady = true,
+                conciergeServer = "https://example.com",
+                conciergeConfigId = "config",
+                surfaces = listOf("mobileapp://sample/home")
+            ),
+            sessionManager = mockk(relaxed = true)
+        )
+        every { ConciergeStateRepository.instance } returns repository
+        val participant = Any()
+        repository.registerResetParticipant(participant)
+        ExtensionHelper.notifyRegistered(extension)
+        val request = Event.Builder(
+            "Reset Identities Request", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET
+        ).build()
+        val response = Event.Builder(
+            "Edge Identity Reset Identities Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE
+        ).inResponseToEvent(request).build()
+        every {
+            mockApi.getXDMSharedState(
+                ConciergeConstants.SharedState.EdgeIdentity.EXTENSION_NAME,
+                response, false, SharedStateResolution.ANY
+            )
+        } returns SharedStateResult(
+            SharedStateStatus.SET,
+            mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
+        )
+
+        resetListener.captured.hear(request)
+        assertTrue(repository.state.value.resetInProgress)
+        completionListener.captured.hear(response)
+        assertTrue(repository.state.value.resetInProgress)
+        repository.acknowledgeIdentityReset(
+            participant, repository.state.value.resetGeneration, false, null, false
+        )
+
+        val state = repository.state.value
+        assertFalse(state.resetInProgress)
+        assertEquals("new-ecid", state.experienceCloudId)
+        assertTrue(state.configurationReady)
+        assertEquals(listOf("mobileapp://sample/home"), state.surfaces)
+        assertEquals("admitted", repository.withConversation(state.resetGeneration) { "admitted" })
+    }
 
     @Test
     fun `processEvent calls updateIdentity for identity shared state event`() {
@@ -907,4 +1025,3 @@ class ConciergeExtensionTest {
         verify(exactly = 1) { mockStateRepository.updateConfiguration(mockConfigState) }
     }
 }
-

@@ -19,7 +19,7 @@ import java.util.UUID
 /**
  * Manages the Concierge session ID with timeout functionality.
  * 
- * The session ID is stored in NamedCollection along with its creation timestamp.
+ * The session ID is stored in NamedCollection along with its last activity timestamp.
  * Sessions expire after 30 minutes of inactivity. When a request is made, the
  * session ID is validated and a new one is created if it has expired.
  *
@@ -47,17 +47,36 @@ internal class ConciergeSessionManager internal constructor(
     }
 
     /**
+     * Returns the existing session ID if still valid, without creating or refreshing a session.
+     */
+    @Synchronized
+    fun currentSessionIdOrNull(): String? {
+        val sessionId = dataStore.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
+            ?: return null
+        val timestamp = dataStore.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L)
+        return sessionId.takeUnless { hasExpired(timestamp, currentTimeProvider()) }
+    }
+
+    @Synchronized
+    fun storedSessionIdOrNull(): String? =
+        dataStore.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
+
+    private fun hasExpired(timestamp: Long, currentTime: Long): Boolean =
+        currentTime - timestamp > SESSION_TIMEOUT_MS
+
+    /**
      * Gets a valid session ID. If the current session ID is expired or doesn't exist,
      * a new one is created and stored.
      * 
      * @return A valid session ID string
      */
+    @Synchronized
     fun getSessionId(): String {
         val currentSessionId = dataStore.getString(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID, null)
         val sessionTimestamp = dataStore.getLong(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP, 0L)
         
         val currentTime = currentTimeProvider()
-        val isExpired = currentTime - sessionTimestamp > SESSION_TIMEOUT_MS
+        val isExpired = hasExpired(sessionTimestamp, currentTime)
         
         return if (currentSessionId != null && !isExpired) {
             Log.debug(
@@ -80,9 +99,21 @@ internal class ConciergeSessionManager internal constructor(
     }
 
     /**
+     * Refreshes the inactivity timestamp for the current session when a request starts.
+     */
+    @Synchronized
+    fun refreshSessionActivity() {
+        dataStore.setLong(
+            ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP,
+            currentTimeProvider()
+        )
+    }
+
+    /**
      * Clears the current session ID and timestamp.
      * Useful for testing or when explicitly resetting the session.
      */
+    @Synchronized
     fun clearSession() {
         dataStore.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_ID)
         dataStore.remove(ConciergeConstants.DataStoreKeys.KEY_SESSION_TIMESTAMP)
@@ -93,4 +124,3 @@ internal class ConciergeSessionManager internal constructor(
         )
     }
 }
-
