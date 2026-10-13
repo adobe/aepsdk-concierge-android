@@ -110,7 +110,7 @@ internal fun ChatInputField(
                 }
             },
             placeholder = placeholder,
-            enable = enable && inputState !is UserInputState.Recording,
+            enable = enable,
             inputState = inputState,
             isProcessing = isProcessing,
             isFocused = isFocused.value,
