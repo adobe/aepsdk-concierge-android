@@ -977,7 +977,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                                         dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(request.message, xdmFields))
                                     }
                                     val xdmFields = stateRepository.resolveXDMContext(request.contextSnapshot, sessionId)
-                                    processChatRequest(request.message, xdmFields, sessionId, request.contextSnapshot.generation)
+                                    processChatRequest(request.message, xdmFields, sessionId, request.contextSnapshot)
                                 }
                                 currentChatJob = turn
                                 turn.await()
@@ -1059,8 +1059,9 @@ class ConciergeChatViewModel : AndroidViewModel {
         messageText: String,
         xdmFields: Map<String, Any>,
         sessionId: String,
-        generation: Long
+        contextSnapshot: ConciergeStateRepository.XdmContextSnapshot
     ) {
+        val generation = contextSnapshot.generation
         stateRepository.withConversation(generation) { }
         responseStartedDispatched = false
 
@@ -1077,10 +1078,12 @@ class ConciergeChatViewModel : AndroidViewModel {
             // than greeting the user with an error when they return, resend the question once the
             // app is back in the foreground. Only one resend is attempted per message.
             var resendAvailable = true
+            var attemptSessionId = sessionId
+            var attemptXdmFields = xdmFields
             while (true) {
                 chatAttemptBackgrounded = isAppInBackground.value
                 val result = streamConversation(
-                    chatService.chat(messageText.trim(), xdmFields, sessionId).onEach {
+                    chatService.chat(messageText.trim(), attemptXdmFields, attemptSessionId).onEach {
                         stateRepository.withConversation(generation) { }
                     },
                     isDataHandoff = false,
@@ -1090,6 +1093,23 @@ class ConciergeChatViewModel : AndroidViewModel {
                 resendAvailable = false
                 isAppInBackground.first { !it }
                 stateRepository.withConversation(generation) { }
+                // The app may have stayed in the background past the session timeout. Sending on
+                // the expired session would also revive it, since every request refreshes its
+                // activity timestamp, so resend on a new session with that session's XDM context.
+                val activeSessionId = withContext(sessionDispatcher) {
+                    stateRepository.withConversation(generation) { sessionManager.currentSessionIdOrNull() }
+                }
+                if (activeSessionId != attemptSessionId) {
+                    attemptSessionId = withContext(sessionDispatcher) {
+                        stateRepository.withConversation(generation) { sessionManager.getSessionId() }
+                    }
+                    attemptXdmFields = stateRepository.resolveXDMContext(contextSnapshot, attemptSessionId)
+                    Log.debug(
+                        ConciergeConstants.EXTENSION_NAME,
+                        TAG,
+                        "Session expired while the app was in the background; resending on a new session."
+                    )
+                }
                 // The discarded attempt may already have reported ResponseStarted; the resend is
                 // a new interaction, so let it report its own.
                 responseStartedDispatched = false

@@ -2566,6 +2566,72 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `resend after the session expired in the background uses a new session and its XDM context`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("held" to true))
+        every { chatClient.chat("Hi", mapOf("held" to true), "session-1") } returns flow {
+            dropConnection.await()
+            throw IOException("Connection reset")
+        }
+        every { chatClient.chat("Hi", emptyMap(), "session-2") } returns flow {
+            emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED))
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), chatClient, sessionDispatcher = testDispatcher,
+            appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+
+        // The session times out while the app is away.
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
+        every { ConciergeSessionManager.instance.getSessionId() } returns "session-2"
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        verify(exactly = 1) { chatClient.chat("Hi", mapOf("held" to true), "session-1") }
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "session-2") }
+    }
+
+    @Test
+    fun `resend while the session is still active reuses the session and its XDM context`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("held" to true))
+        every { chatClient.chat("Hi", mapOf("held" to true), "session-1") } returnsMany listOf(
+            flow {
+                dropConnection.await()
+                throw IOException("Connection reset")
+            },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), chatClient, sessionDispatcher = testDispatcher,
+            appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        verify(exactly = 2) { chatClient.chat("Hi", mapOf("held" to true), "session-1") }
+        verify(exactly = 1) { ConciergeSessionManager.instance.getSessionId() }
+    }
+
+    @Test
     fun `stream ending without COMPLETED in the foreground keeps the partial answer`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
