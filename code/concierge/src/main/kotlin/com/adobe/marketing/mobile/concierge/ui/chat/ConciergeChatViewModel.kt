@@ -17,6 +17,10 @@ import android.app.Application
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.MobileCore
@@ -445,13 +449,23 @@ class ConciergeChatViewModel : AndroidViewModel {
         data class Interrupted(val detail: String?) : ConversationStreamResult()
     }
 
-    // Whether the chat's host is in the background (its lifecycle has stopped). A chat turn whose
-    // stream fails while backgrounded waits on this to clear before it is resent.
+    // Whether the host app is in the background (its process lifecycle has stopped). A chat turn
+    // whose stream fails while backgrounded waits on this to clear before it is resent.
     private val isAppInBackground = MutableStateFlow(false)
 
     // Whether the current chat attempt ran at any point while the app was in the background.
     // Reset at the start of every attempt.
     private var chatAttemptBackgrounded = false
+
+    // The whole app's lifecycle (ProcessLifecycleOwner in production), so moving between the host
+    // app's own activities isn't treated as backgrounding. Owned by the ViewModel so a pending
+    // resend doesn't depend on the chat UI staying composed. Null disables background recovery.
+    // Lifecycle observers must be added on the main thread, where ViewModelProvider creates this.
+    private val appLifecycle: Lifecycle?
+    private val appLifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onStart(owner: LifecycleOwner) = onAppForegrounded()
+        override fun onStop(owner: LifecycleOwner) = onAppBackgrounded()
+    }
 
     private val conversationRequests = Channel<ConversationRequest>(MAX_PENDING_CONVERSATION_REQUESTS)
 
@@ -489,7 +503,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         AndroidSpeechCapturing(application),
         DefaultImageProvider(),
         ConciergeConversationServiceClient(),
-        dispatch = MobileCore::dispatchEvent
+        dispatch = MobileCore::dispatchEvent,
+        appLifecycle = ProcessLifecycleOwner.get().lifecycle
     )
 
     internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing) : this(
@@ -497,18 +512,21 @@ class ConciergeChatViewModel : AndroidViewModel {
         speechCapturing,
         DefaultImageProvider(),
         ConciergeConversationServiceClient(),
-        dispatch = MobileCore::dispatchEvent
+        dispatch = MobileCore::dispatchEvent,
+        appLifecycle = ProcessLifecycleOwner.get().lifecycle
     )
 
     internal constructor(
         application: Application,
         speechCapturing: SpeechCapturing,
         chatClient: ConversationService,
-        sessionDispatcher: CoroutineDispatcher = Dispatchers.IO
+        sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        appLifecycle: Lifecycle? = null
     ) : this(
         application, speechCapturing, DefaultImageProvider(), chatClient,
         sessionDispatcher = sessionDispatcher,
-        dispatch = null
+        dispatch = null,
+        appLifecycle = appLifecycle
     )
 
     internal constructor(
@@ -519,6 +537,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
         sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
         sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        appLifecycle: Lifecycle? = null,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
@@ -528,6 +547,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.stateRepository = stateRepository
         this.sessionManager = sessionManager
         this.sessionDispatcher = sessionDispatcher
+        this.appLifecycle = appLifecycle
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
         stateRepository.registerResetParticipant(resetParticipant)
@@ -545,6 +565,9 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         // Initialize welcome card state based on config and user history
         checkAndShowWelcomeCard()
+
+        // Lifecycle observers must be added on the main thread, where ViewModels are created.
+        appLifecycle?.addObserver(appLifecycleObserver)
     }
 
     /**
@@ -1080,18 +1103,18 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
-     * Called when the chat's host moves to the background (lifecycle `ON_STOP`).
+     * Called when the host app moves to the background (process lifecycle `ON_STOP`).
      */
-    internal fun onAppBackgrounded() {
+    private fun onAppBackgrounded() {
         isAppInBackground.value = true
         chatAttemptBackgrounded = true
     }
 
     /**
-     * Called when the chat's host returns to the foreground (lifecycle `ON_START`). Resumes a chat
-     * turn waiting to be resent after its connection dropped in the background.
+     * Called when the host app returns to the foreground (process lifecycle `ON_START`). Resumes a
+     * chat turn waiting to be resent after its connection dropped in the background.
      */
-    internal fun onAppForegrounded() {
+    private fun onAppForegrounded() {
         isAppInBackground.value = false
     }
 
@@ -1316,11 +1339,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      * remains because it was already shown before this turn began. Chat instead renders its
      * failures and leaves an empty COMPLETED response as whatever had already streamed, since
      * that's a normal (if content-less) outcome for typed chat.
-     * @param recoverTransportFailure consulted when a typed chat turn fails with a transport
-     * [IOException] (not a [ConciergeHttpStatusException], which is a deliberate server
-     * rejection). When it returns true, a turn that already received its COMPLETED response is
-     * kept as delivered; otherwise the turn is rolled back without rendering an error and
-     * [ConversationStreamResult.Interrupted] is returned so the caller can resend it.
+     * @param recoverTransportFailure consulted when a typed chat turn is interrupted: it fails with
+     * a transport [IOException] (not a [ConciergeHttpStatusException], which is a deliberate server
+     * rejection), or its stream ends without the COMPLETED state the service sends on every
+     * successful response. When it returns true, a turn that already received its COMPLETED
+     * response is kept as delivered; otherwise the turn is rolled back without rendering an error
+     * and [ConversationStreamResult.Interrupted] is returned so the caller can resend it.
      */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
@@ -1387,6 +1411,17 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
             when {
                 hasError -> ConversationStreamResult.Failed(failureDetail)
+                !isDataHandoff && !hasCompleted && recoverTransportFailure() -> {
+                    // A connection closed cleanly mid-response (EOF without COMPLETED) is as
+                    // incomplete as one that threw, so don't present the partial answer as final.
+                    Log.warning(
+                        ConciergeConstants.EXTENSION_NAME,
+                        TAG,
+                        "Conversation stream ended before completion while the app was in the background"
+                    )
+                    truncateMessagesTo(turnStartIndex)
+                    ConversationStreamResult.Interrupted("Stream ended before completion")
+                }
                 hasVisibleContent -> {
                     finishConversation()
                     ConversationStreamResult.Delivered
@@ -2057,6 +2092,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         val hadActiveTurn = currentChatJob?.isActive == true || currentDataHandoff != null
         val hadConversation = _messages.value.isNotEmpty() || hadActiveTurn
         val conversationId = currentConversationId
+        appLifecycle?.removeObserver(appLifecycleObserver)
         deactivateDataHandoffSession()
         conversationRequests.close()
         currentChatJob?.cancel()

@@ -412,14 +412,15 @@ class ConciergeChatViewModelTrackingTest {
                 emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED, interactionId = "int-2"))
             }
         )
-        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) })
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) }, appLifecycle = appLifecycle)
 
         vm.processEvent(ChatEvent.SendMessage("Hi"))
         runCurrent()
-        vm.onAppBackgrounded()
+        appLifecycle.moveToBackground()
         dropConnection.complete(Unit)
         advanceUntilIdle()
-        vm.onAppForegrounded()
+        appLifecycle.moveToForeground()
         advanceUntilIdle()
 
         val startedIds = dispatched
@@ -686,7 +687,8 @@ class ConciergeChatViewModelTrackingTest {
 
     private fun makeViewModel(
         chatClient: ConciergeConversationServiceClient = mockk(relaxed = true),
-        dispatch: ((Event) -> Unit)? = null
+        dispatch: ((Event) -> Unit)? = null,
+        appLifecycle: TestAppLifecycleOwner? = null
     ): ConciergeChatViewModel {
         return ConciergeChatViewModel(
             app,
@@ -694,7 +696,8 @@ class ConciergeChatViewModelTrackingTest {
             mockk<ImageProvider>(relaxed = true),
             chatClient,
             sessionDispatcher = testDispatcher,
-            dispatch = dispatch
+            dispatch = dispatch,
+            appLifecycle = appLifecycle?.lifecycle
         )
     }
 
