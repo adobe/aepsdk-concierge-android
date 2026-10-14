@@ -367,6 +367,7 @@ class ConciergeConversationServiceClientTest {
         } catch (e: Exception) {
             threw = true
             assertTrue(e is IOException)
+            assertEquals(500, (e as ConciergeHttpStatusException).statusCode)
         }
         assertTrue(threw)
     }

@@ -16,6 +16,8 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import com.adobe.marketing.mobile.Event
 import com.adobe.marketing.mobile.EventSource
@@ -32,6 +34,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
+import com.adobe.marketing.mobile.concierge.network.ConciergeHttpStatusException
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
@@ -93,8 +96,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import kotlin.time.ExperimentalTime
+import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -312,6 +317,42 @@ class ConciergeChatViewModelTest {
         assertTrue(vm.messages.value.any { (it.content as? MessageContent.Text)?.text == "new reply" })
         verify(exactly = 0) { service.chat("queued old user", any(), any()) }
         verify(exactly = 0) { service.chat("must not queue across reset", any(), any()) }
+    }
+
+    @Test
+    fun `reset while a background-interrupted turn awaits foreground cancels the resend`() = runTest {
+        val repository = readyResetRepository()
+        val speech = FakeSpeechCapturing()
+        val service = mockk<ConciergeConversationServiceClient>()
+        every { service.chat("old", any(), any()) } returns flow { throw IOException("Read timed out") }
+        every { service.chat("new", any(), any()) } returns flow {
+            emit(ParsedConversationMessage("new reply", ConversationState.COMPLETED))
+        }
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, speech, DefaultImageProvider(), service,
+            stateRepository = repository, sessionDispatcher = testDispatcher,
+            appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("old"))
+        runCurrent()
+        assertEquals(listOf("old"), vm.messages.value.map { it.text })
+
+        repository.beginIdentityReset(resetRequest) { }
+        runCurrent()
+        completeReset(repository)
+        runCurrent()
+        appLifecycle.moveToForeground()
+        runCurrent()
+
+        assertTrue(vm.messages.value.isEmpty())
+        verify(exactly = 1) { service.chat("old", any(), any()) }
+
+        vm.processEvent(ChatEvent.SendMessage("new"))
+        runCurrent()
+        assertEquals(listOf("new", "new reply"), vm.messages.value.map { it.text })
+        verify(exactly = 1) { service.chat("old", any(), any()) }
     }
 
     @Test
@@ -558,6 +599,10 @@ class ConciergeChatViewModelTest {
         ), results)
         vm.deactivateDataHandoffSession()
     }
+
+    // The public constructor registers with ProcessLifecycleOwner, whose registry enforces the main thread.
+    @get:Rule
+    val mainThreadRule = InstantMainThreadRule()
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var app: Application
@@ -2249,6 +2294,494 @@ class ConciergeChatViewModelTest {
         assertEquals("Sorry, I encountered an error. Please try again.", last.text)
         assertTrue(!last.text.contains("HTTP error"))
         assertTrue(vm.state.value is ChatScreenState.Idle)
+    }
+
+    @Test
+    fun `stream dropped while backgrounded is resent on foreground without showing an error`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow { throw IOException("Read timed out") },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        appLifecycle.moveToBackground()
+        advanceUntilIdle()
+
+        // While still backgrounded: no error bubble, the turn stays in progress.
+        assertEquals(listOf("Hi"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Processing)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `stream backgrounded mid-response that fails after returning is resent immediately`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow {
+                emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS))
+                dropConnection.await()
+                throw IOException("Connection reset")
+            },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        appLifecycle.moveToForeground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+
+        // The partial response is replaced by the resent turn's answer, not an error.
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `background resend is attempted only once before showing generic copy`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropResend = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow { throw IOException("Read timed out") },
+            flow {
+                dropResend.await()
+                throw IOException("Read timed out")
+            }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        runCurrent()
+        // The resend is also interrupted by a trip to the background; it must not wait for
+        // another resend.
+        appLifecycle.moveToBackground()
+        dropResend.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `resend that completes before its connection drops keeps the answer`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow { throw IOException("Read timed out") },
+            flow {
+                emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED))
+                throw IOException("Connection reset")
+            }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `resend ending without COMPLETED after backgrounding again shows generic copy`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val closeResend = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow { throw IOException("Read timed out") },
+            flow {
+                emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS))
+                // The connection closes cleanly (EOF) before the COMPLETED frame arrives.
+                closeResend.await()
+            }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        runCurrent()
+        appLifecycle.moveToBackground()
+        closeResend.complete(Unit)
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `resend uses the original XDM context even if it changed while waiting`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("held" to true))
+        every { chatClient.chat("Hi", mapOf("held" to true), "session-1") } returnsMany listOf(
+            flow { throw IOException("Read timed out") },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), chatClient, sessionDispatcher = testDispatcher,
+            appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("held" to false))
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        verify(exactly = 2) { chatClient.chat("Hi", mapOf("held" to true), "session-1") }
+        verify(exactly = 0) { chatClient.chat("Hi", mapOf("held" to false), any()) }
+    }
+
+    @Test
+    fun `stream dropped after the response completed in the foreground keeps the answer`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
+            emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED))
+            throw IOException("Connection reset")
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `transport failure in the foreground shows generic copy without resending`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow { throw IOException("Read timed out") }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `stream dropped after the response completed while backgrounded keeps the answer`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
+            emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED))
+            throw IOException("Connection reset")
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        // Nothing is rolled back or awaiting a resend, even before the app returns.
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `HTTP status failure while backgrounded shows generic copy without resending`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
+            throw ConciergeHttpStatusException(401, "HTTP error: 401 Unauthorized")
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `non-transport failure while backgrounded shows generic copy without resending`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow { throw IllegalStateException("bad payload") }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `partial response dropped while still backgrounded is rolled back and resent on foreground`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow {
+                emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS))
+                dropConnection.await()
+                throw IOException("Connection reset")
+            },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        assertEquals(listOf("Hi", "Partial"), vm.messages.value.map { it.text })
+
+        appLifecycle.moveToBackground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+
+        // The partial answer is removed and nothing is resent while the app is backgrounded.
+        assertEquals(listOf("Hi"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Processing)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `stream ending without COMPLETED while backgrounded is rolled back and resent on foreground`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val closeConnection = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow {
+                emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS))
+                // The connection closes cleanly (EOF) before the COMPLETED frame arrives.
+                closeConnection.await()
+            },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        closeConnection.complete(Unit)
+        advanceUntilIdle()
+
+        // The partial answer isn't presented as complete, and nothing is resent yet.
+        assertEquals(listOf("Hi"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Processing)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `resend after the session expired in the background uses a new session and its XDM context`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("held" to true))
+        every { chatClient.chat("Hi", mapOf("held" to true), "session-1") } returns flow {
+            dropConnection.await()
+            throw IOException("Connection reset")
+        }
+        every { chatClient.chat("Hi", emptyMap(), "session-2") } returns flow {
+            emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED))
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), chatClient, sessionDispatcher = testDispatcher,
+            appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+
+        // The session times out while the app is away.
+        every { ConciergeSessionManager.instance.currentSessionIdOrNull() } returns null
+        every { ConciergeSessionManager.instance.getSessionId() } returns "session-2"
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        verify(exactly = 1) { chatClient.chat("Hi", mapOf("held" to true), "session-1") }
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), "session-2") }
+    }
+
+    @Test
+    fun `resend while the session is still active reuses the session and its XDM context`() = runTest {
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        ConciergeStateRepository.instance.updateXDMContext(mapOf("held" to true))
+        every { chatClient.chat("Hi", mapOf("held" to true), "session-1") } returnsMany listOf(
+            flow {
+                dropConnection.await()
+                throw IOException("Connection reset")
+            },
+            flow { emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED)) }
+        )
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), chatClient, sessionDispatcher = testDispatcher,
+            appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        verify(exactly = 2) { chatClient.chat("Hi", mapOf("held" to true), "session-1") }
+        verify(exactly = 1) { ConciergeSessionManager.instance.getSessionId() }
+    }
+
+    @Test
+    fun `stream ending without COMPLETED in the foreground keeps the partial answer`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
+            emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS))
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("Hi", "Partial"), vm.messages.value.map { it.text })
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
+    fun `app lifecycle observer is removed when the ViewModel is cleared`() = runTest {
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, FakeSpeechCapturing(), mockk<ConciergeConversationServiceClient>(relaxed = true),
+            sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        assertEquals(1, appLifecycle.lifecycle.observerCount)
+
+        val store = ViewModelStore()
+        ViewModelProvider(
+            store,
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T = vm as T
+            }
+        )[ConciergeChatViewModel::class.java]
+        store.clear()
+
+        assertEquals(0, appLifecycle.lifecycle.observerCount)
     }
 
     @Test
