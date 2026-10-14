@@ -45,7 +45,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
  * @param text The current text input value
  * @param onTextChange Callback when the text input changes
  * @param placeholder Placeholder text for the input field
- * @param enable Whether the input field and buttons are enabled
+ * @param enable Whether the input field and buttons are enabled. The text field is additionally
+ * disabled while [inputState] is [UserInputState.Recording]
  * @param inputState The current state of user input (e.g. Empty, Editing)
  * @param onMicPressed Callback when the microphone button is pressed
  * @param onSend Callback when a send button is pressed with non-empty text
@@ -118,7 +119,9 @@ internal fun ChatInputPanel(
                 modifier = Modifier.weight(1f),
                 value = text,
                 onValueChange = onTextChange,
-                isEnabled = enable,
+                // The text field is locked while recording, but the action buttons stay enabled so
+                // the recording waveform isn't rendered with the disabled (dimmed) tint.
+                isEnabled = enable && inputState !is UserInputState.Recording,
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
 

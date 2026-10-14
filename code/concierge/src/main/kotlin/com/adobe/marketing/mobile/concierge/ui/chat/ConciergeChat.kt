@@ -242,7 +242,7 @@ fun ConciergeChat(
     }
 
     // Refresh permission status when app resumes (e.g., returning from settings)
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshPermissionStatus()
