@@ -58,6 +58,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import kotlin.time.ExperimentalTime
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
 class ConciergeChatViewModelTrackingTest {
@@ -397,6 +398,42 @@ class ConciergeChatViewModelTrackingTest {
     }
 
     @Test
+    fun `background resend reports responseStarted for the resent interaction`() = runTest {
+        val dispatched = mutableListOf<Event>()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        val dropConnection = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returnsMany listOf(
+            flow {
+                emit(ParsedConversationMessage("Partial", ConversationState.IN_PROGRESS, interactionId = "int-1"))
+                dropConnection.await()
+                throw IOException("Connection reset")
+            },
+            flow {
+                emit(ParsedConversationMessage("Answer", ConversationState.COMPLETED, interactionId = "int-2"))
+            }
+        )
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = makeViewModel(chatClient = chatClient, dispatch = { dispatched.add(it) }, appLifecycle = appLifecycle)
+
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        runCurrent()
+        appLifecycle.moveToBackground()
+        dropConnection.complete(Unit)
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        val startedIds = dispatched
+            .filter { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_STARTED }
+            .map { it.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.INTERACTION_ID) }
+        val completedIds = dispatched
+            .filter { it.name == ConciergeConstants.TrackingEvent.Name.RESPONSE_COMPLETED }
+            .map { it.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.INTERACTION_ID) }
+        assertEquals(listOf("int-1", "int-2"), startedIds)
+        assertEquals(listOf("int-2"), completedIds)
+    }
+
+    @Test
     fun `cards-only response still fires paired responseStarted and responseCompleted`() = runTest {
         val dispatched = mutableListOf<Event>()
         val chatClient = mockk<ConciergeConversationServiceClient>()
@@ -650,7 +687,8 @@ class ConciergeChatViewModelTrackingTest {
 
     private fun makeViewModel(
         chatClient: ConciergeConversationServiceClient = mockk(relaxed = true),
-        dispatch: ((Event) -> Unit)? = null
+        dispatch: ((Event) -> Unit)? = null,
+        appLifecycle: TestAppLifecycleOwner? = null
     ): ConciergeChatViewModel {
         return ConciergeChatViewModel(
             app,
@@ -658,7 +696,8 @@ class ConciergeChatViewModelTrackingTest {
             mockk<ImageProvider>(relaxed = true),
             chatClient,
             sessionDispatcher = testDispatcher,
-            dispatch = dispatch
+            dispatch = dispatch,
+            appLifecycle = appLifecycle?.lifecycle
         )
     }
 
