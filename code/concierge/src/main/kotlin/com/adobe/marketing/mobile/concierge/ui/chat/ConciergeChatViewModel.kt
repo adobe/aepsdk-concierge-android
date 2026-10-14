@@ -1087,7 +1087,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                         stateRepository.withConversation(generation) { }
                     },
                     isDataHandoff = false,
-                    recoverTransportFailure = { resendAvailable && chatAttemptBackgrounded }
+                    resendAvailable = resendAvailable,
+                    attemptBackgrounded = { chatAttemptBackgrounded }
                 )
                 if (result !is ConversationStreamResult.Interrupted) break
                 resendAvailable = false
@@ -1359,17 +1360,22 @@ class ConciergeChatViewModel : AndroidViewModel {
      * remains because it was already shown before this turn began. Chat instead renders its
      * failures and leaves an empty COMPLETED response as whatever had already streamed, since
      * that's a normal (if content-less) outcome for typed chat.
-     * @param recoverTransportFailure consulted when a typed chat turn is interrupted: it fails with
-     * a transport [IOException] (not a [ConciergeHttpStatusException], which is a deliberate server
-     * rejection), or its stream ends without the COMPLETED state the service sends on every
-     * successful response. When it returns true, a turn that already received its COMPLETED
-     * response is kept as delivered; otherwise the turn is rolled back without rendering an error
-     * and [ConversationStreamResult.Interrupted] is returned so the caller can resend it.
+     * @param resendAvailable whether the caller can still resend a typed chat turn that was
+     * interrupted while the app was in the background.
+     * @param attemptBackgrounded whether the app was in the background at any point during this
+     * typed chat attempt. Such an attempt is interrupted when it fails with a transport
+     * [IOException] (not a [ConciergeHttpStatusException], which is a deliberate server rejection)
+     * or its stream ends without the COMPLETED state the service sends on every successful
+     * response. When [resendAvailable], the turn is rolled back without rendering an error and
+     * [ConversationStreamResult.Interrupted] is returned so the caller can resend it; otherwise the
+     * normal error is shown rather than presenting a partial answer as final. A transport failure
+     * after the COMPLETED response arrived always keeps the delivered answer.
      */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
         isDataHandoff: Boolean,
-        recoverTransportFailure: () -> Boolean = { false }
+        resendAvailable: Boolean = false,
+        attemptBackgrounded: () -> Boolean = { false }
     ): ConversationStreamResult {
         val contentBuilder = StringBuilder()
         var hasVisibleContent = false
@@ -1431,7 +1437,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             }
             when {
                 hasError -> ConversationStreamResult.Failed(failureDetail)
-                !isDataHandoff && !hasCompleted && recoverTransportFailure() -> {
+                !isDataHandoff && !hasCompleted && attemptBackgrounded() -> {
                     // A connection closed cleanly mid-response (EOF without COMPLETED) is as
                     // incomplete as one that threw, so don't present the partial answer as final.
                     Log.warning(
@@ -1439,8 +1445,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                         TAG,
                         "Conversation stream ended before completion while the app was in the background"
                     )
-                    truncateMessagesTo(turnStartIndex)
-                    ConversationStreamResult.Interrupted("Stream ended before completion")
+                    if (resendAvailable) {
+                        truncateMessagesTo(turnStartIndex)
+                        ConversationStreamResult.Interrupted("Stream ended before completion")
+                    } else {
+                        // Roll back to a single fresh placeholder for the error copy, as for an
+                        // ERROR state, since the partial response may have appended cards or CTAs.
+                        _messages.update { currentMessages ->
+                            currentMessages.take(turnStartIndex) + assistantMessage
+                        }
+                        handleConversationError("Stream ended before completion")
+                        ConversationStreamResult.Failed("Stream ended before completion")
+                    }
                 }
                 hasVisibleContent -> {
                     finishConversation()
@@ -1473,18 +1489,19 @@ class ConciergeChatViewModel : AndroidViewModel {
             throw e
         } catch (e: Exception) {
             val isTransportFailure = e is IOException && e !is ConciergeHttpStatusException
-            if (!isDataHandoff && isTransportFailure && recoverTransportFailure()) {
-                if (hasCompleted) {
-                    // The answer was already delivered in full; only the trailing connection
-                    // teardown failed, so keep it rather than discarding and resending it.
-                    Log.debug(
-                        ConciergeConstants.EXTENSION_NAME,
-                        TAG,
-                        "Conversation stream dropped after the response completed: ${e.message}"
-                    )
-                    finishConversation()
-                    return ConversationStreamResult.Delivered
-                }
+            if (!isDataHandoff && isTransportFailure && hasCompleted) {
+                // The answer was already delivered in full (and ResponseCompleted reported); only
+                // the trailing connection teardown failed, so keep it rather than replacing it
+                // with an error or resending it.
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Conversation stream dropped after the response completed: ${e.message}"
+                )
+                finishConversation()
+                return ConversationStreamResult.Delivered
+            }
+            if (!isDataHandoff && isTransportFailure && resendAvailable && attemptBackgrounded()) {
                 Log.warning(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
