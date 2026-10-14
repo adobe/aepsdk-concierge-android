@@ -106,7 +106,10 @@ internal fun buildDisclaimerAnnotatedString(
                 append(remaining.substring(0, index))
                 pop()
                 pushStringAnnotation("URL", link.url)
-                pushStyle(SpanStyle(textDecoration = style.linkTextDecoration))
+                pushStyle(baseSpanStyle.copy(
+                    color = style.linkTextColor,
+                    textDecoration = style.linkTextDecoration
+                ))
                 append(link.text)
                 pop()
                 pop()
