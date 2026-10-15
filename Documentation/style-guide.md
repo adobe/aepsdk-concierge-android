@@ -464,9 +464,11 @@ Feature toggles and interaction configuration.
 Legal disclaimer text with embedded links.
 
 Normal disclaimer text uses `--disclaimer-color`. Recognized links are underlined and use
-the resolved theme body text color (`--color-text` for CSS themes), matching iOS. Links
-retain the disclaimer font size and weight. With no custom theme, the SDK's resolved
-light/dark text palette is used.
+the resolved theme body text color: `--color-on-surface` when provided, otherwise
+`--color-text`, otherwise the default palette. This matches iOS when no distinct
+`--color-on-surface` override is configured; iOS uses `--color-text` directly. Links retain
+the disclaimer font size and weight. With no custom theme, the SDK's resolved light/dark
+text palette is used.
 
 This corrects earlier Android behavior where link spans lost their themed color and
 could fall back to black. Existing applications may see disclaimer link colors change
@@ -837,7 +839,7 @@ These tokens style the feedback dialog (modal card and action bottom sheet).
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
-| `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Non-link disclaimer text color (hex); links use `--color-text` |
+| `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Non-link disclaimer text color (hex); links use `--color-on-surface`, falling back to `--color-text`, then the default palette |
 
 ### Colors - Thinking Animation
 
@@ -1522,7 +1524,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--thinking-bubble-padding-vertical` | ✅ | Thinking bubble vertical padding | `ChatMessageItem` |
 | `--thinking-dot-vertical-alignment` | ✅ | Vertical alignment of the thinking dots row | `ConciergeThinking` |
 | `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation (fallback when `--thinking-dot-color` not set) |
-| `--color-text` | ✅ | Primary text color; used for body text on main background, disclaimer links, and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, `ConciergeDisclaimer` links, prompt suggestions (when theme loaded) |
+| `--color-text` | ✅ | Primary text color; used for body text on main background, disclaimer links (unless `--color-on-surface` is set), and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, `ConciergeDisclaimer` links, prompt suggestions (when theme loaded) |
 | `--color-container` | ✅ | Background for cards and container elements; fallback for prompt suggestion chips when `--suggestion-background-color` is not set | `ProductCard`, `PromptSuggestions`, `ChatInputPanel` (fallback) |
 | `--main-container-background` | ✅ | Main chat screen, welcome card, and feedback dialog background | `ChatScreen`, `WelcomeCard`, `FeedbackDialog` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
@@ -1584,7 +1586,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--feedback-cancel-button-fill-color` | ✅ | Cancel button fill + X close icon tint | `FeedbackDialog` |
 | `--feedback-cancel-button-text-color` | ✅ | Cancel button text | `FeedbackDialog` |
 | `--feedback-cancel-button-border-color` | ✅ | Cancel button outline | `FeedbackDialog` |
-| `--disclaimer-color` | ✅ | Non-link disclaimer text color; links use `--color-text` | `ConciergeDisclaimer` (DisclaimerStyle) |
+| `--disclaimer-color` | ✅ | Non-link disclaimer text color; links use `--color-on-surface`, falling back to `--color-text`, then the default palette | `ConciergeDisclaimer` (DisclaimerStyle) |
 | `--cta-button-background-color` | ✅ | CTA button background color | `CtaButton` |
 | `--cta-button-text-color` | ✅ | CTA button label text color | `CtaButton` |
 | `--cta-button-icon-color` | ✅ | CTA button icon color | `CtaButton` |

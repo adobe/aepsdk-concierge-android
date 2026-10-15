@@ -35,12 +35,12 @@ class ConciergeDisclaimerTest {
     val composeTestRule = createComposeRule()
 
     @Test
-    fun disclaimer_darkThemeResolvesSeparateBodyAndLinkColors() {
+    fun disclaimer_themeResolvesSeparateBodyAndLinkColors_whiteLinks() {
         assertThemedColors("#ADADAD", "#FFFFFF")
     }
 
     @Test
-    fun disclaimer_lightThemeResolvesSeparateBodyAndLinkColors() {
+    fun disclaimer_themeResolvesSeparateBodyAndLinkColors_darkLinks() {
         assertThemedColors("#757575", "#131313")
     }
 
