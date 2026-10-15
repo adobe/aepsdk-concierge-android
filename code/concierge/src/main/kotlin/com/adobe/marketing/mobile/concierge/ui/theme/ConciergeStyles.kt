@@ -925,7 +925,8 @@ internal object ConciergeStyles {
         val textStyle: TextStyle,
         val textColor: Color,
         val linkTextDecoration: TextDecoration,
-        val padding: Dp
+        val padding: Dp,
+        val linkTextColor: Color = textColor
     )
 
     val disclaimerStyle: DisclaimerStyle
@@ -944,7 +945,8 @@ internal object ConciergeStyles {
                 ),
                 textColor = themeColors.disclaimerColor ?: themeColors.onSurfaceVariant,
                 linkTextDecoration = TextDecoration.Underline,
-                padding = 8.dp
+                padding = 8.dp,
+                linkTextColor = themeColors.onSurface
             )
         }
 
