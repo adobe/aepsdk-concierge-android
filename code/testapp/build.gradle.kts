@@ -61,6 +61,13 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = BuildConstants.Versions.COMPOSE_COMPILER
     }
+
+    // F&B gallery fixtures double as mapper unit-test fixtures.
+    sourceSets {
+        getByName("test") {
+            resources.srcDir("src/debug/assets")
+        }
+    }
 }
 
 dependencies {
@@ -82,4 +89,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.11.0")
+
+    testImplementation("junit:junit:4.13.2")
+    // Real org.json for JVM tests (android.jar ships throwing stubs).
+    testImplementation("org.json:json:20231013")
 }

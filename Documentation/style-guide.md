@@ -130,6 +130,12 @@ The theme JSON file contains these top-level keys:
 | `components` | Non-CSS component overrides (currently feedback dialog only) |
 | `theme` | Visual styling tokens (CSS variables) |
 
+**Custom theme keys.** Any `--`-prefixed key in the `theme` block that the SDK does not recognize is
+retained verbatim (up to 256 keys, values up to 512 characters) and exposed to your own composables
+through `ConciergeTheme.tokens?.cssVariables`, keyed with its `--` prefix. Custom renderers can use
+this to read their own theme values (for example, `--fnb-accent-color`); the SDK does not interpret
+them.
+
 ---
 
 ## Value Formats

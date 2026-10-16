@@ -86,6 +86,10 @@ object ConciergeConstants {
         const val NOTIFICATION = "com.adobe.eventSource.notification"
     }
 
+    object SendMessage {
+        const val MAX_MESSAGE_LENGTH = 4000
+    }
+
     object DataHandoff {
         // Two caps bound a handoff turn, mirroring the iOS SDK.
         //
