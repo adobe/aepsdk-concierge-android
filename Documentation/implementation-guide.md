@@ -274,6 +274,44 @@ app owns any failure UI based on the completion result.
 
 ---
 
+## Native card renderers (preview)
+
+Register a Compose renderer for a response element `type`. When an element in
+`multimodalElements.elements` has that type, the chat renders your card inline in the transcript,
+after its assistant turn completes. Without a matching renderer, `productCard`, `horizontalCard`,
+`ctaButton`, and untyped elements keep their built-in rendering. Other types render nothing.
+
+```kotlin
+// Once at app start, after MobileCore setup. The last registration for a type wins.
+Concierge.registerCardRenderer("menu") { element, context, saveState ->
+    MenuCard(element, context, saveState)
+}
+```
+
+- **`element`**: the complete, read-only element dictionary.
+- **`context`**: rebuilt on every recomposition. `cardId`; `sessionId`, `conversationId`,
+  `interactionId` (each may be absent); `isBusy` (a chat or handoff turn is in progress);
+  `isStale` (the identity was reset); `state` (this card's last saved state, if any).
+- **`saveState(map)`**: replaces this card's private state, kept for the life of the chat (across
+  scrolling, hiding the chat, and configuration changes). Callable from any thread; never sent to
+  Brand Concierge. Values must be JSON data.
+
+Cards talk back with the existing APIs: `Concierge.sendDataHandoff` to start a turn with data, and
+`Concierge.updateXDMContext` for committed facts later turns need.
+The `sendDataHandoff` completion runs on a background thread, and the SDK doesn't deduplicate calls.
+
+Each card gates its own controls: disable handoff controls while `isBusy` or `isStale`, and on tap,
+since `isBusy` can lag it. Read both from the current `context` rather than copying them into
+`remember`. The SDK keeps older cards active when newer ones arrive; keep workflow flags such as
+`submitted` in `saveState`. Rules that span cards, such as letting only the newest menu take
+orders, belong to the app: coordinate them in app-owned state keyed by `cardId`, and put only
+business facts Brand Concierge needs in `updateXDMContext`. The SDK draws no card surface: cards
+render at their natural height, full width.
+Renderers must not throw, must not start work during composition, and, since they are held for
+the life of the process, must not capture an `Activity` or a `View`.
+
+---
+
 ## Integration
 
 ### Managed Integration

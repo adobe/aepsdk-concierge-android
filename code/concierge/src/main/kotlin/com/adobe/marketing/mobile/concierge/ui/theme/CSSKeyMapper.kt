@@ -1105,16 +1105,33 @@ internal object CSSKeyMapper {
     
     /**
      * Applies CSS value to ConciergeThemeTokens using the mapped assignment function.
+     * Unrecognized `--`-prefixed keys are retained, trimmed, in [ConciergeThemeTokens.cssVariables]
+     * (bounded by [MAX_CSS_VARIABLES] / [MAX_CSS_VARIABLE_VALUE_LENGTH]) so custom renderers can
+     * read their own theme keys.
      * Returns the updated theme.
      */
     fun apply(cssKey: String, cssValue: String, theme: ConciergeThemeTokens): ConciergeThemeTokens {
+        val key = cssKey.trim()
         // Remove -- prefix if present
-        val normalizedKey = cssKey.removePrefix("--")
+        val normalizedKey = key.removePrefix("--")
         
         // Find and execute the assignment function
-        return cssToAssignmentMap[normalizedKey]?.invoke(cssValue, theme) ?: run {
-            Log.d(LOG_TAG, "Unknown CSS key '$normalizedKey' ignored.")
-            theme
+        return cssToAssignmentMap[normalizedKey]?.invoke(cssValue, theme) ?: retainCustomVariable(key, cssValue.trim(), theme)
+    }
+
+    internal const val MAX_CSS_VARIABLES = 256
+    internal const val MAX_CSS_VARIABLE_VALUE_LENGTH = 512
+
+    private fun retainCustomVariable(cssKey: String, cssValue: String, theme: ConciergeThemeTokens): ConciergeThemeTokens {
+        val isRetainableCustomVariable = cssKey.startsWith("--") &&
+            cssKey.length > 2 &&
+            cssValue.isNotEmpty() &&
+            cssValue.length <= MAX_CSS_VARIABLE_VALUE_LENGTH &&
+            (cssKey in theme.cssVariables || theme.cssVariables.size < MAX_CSS_VARIABLES)
+        if (!isRetainableCustomVariable) {
+            Log.d(LOG_TAG, "Unknown CSS key '${cssKey.removePrefix("--")}' ignored.")
+            return theme
         }
+        return theme.copy(cssVariables = theme.cssVariables + (cssKey to cssValue))
     }
 }

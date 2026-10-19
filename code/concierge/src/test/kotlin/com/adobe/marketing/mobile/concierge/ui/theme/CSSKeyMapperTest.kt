@@ -42,9 +42,55 @@ class CSSKeyMapperTest {
     }
 
     @Test
-    fun `apply ignores unknown key and returns theme unchanged`() {
+    fun `apply retains unknown double-dash key in cssVariables and leaves typed tokens unchanged`() {
         val result = CSSKeyMapper.apply("--unknown-key-xyz", "someValue", emptyTheme)
+        assertEquals(mapOf("--unknown-key-xyz" to "someValue"), result.cssVariables)
+        assertEquals(emptyTheme, result.copy(cssVariables = emptyMap()))
+    }
+
+    @Test
+    fun `apply does not retain unknown key without double-dash prefix`() {
+        val result = CSSKeyMapper.apply("unknown-key-xyz", "someValue", emptyTheme)
         assertEquals(emptyTheme, result)
+    }
+
+    @Test
+    fun `apply does not retain blank or oversized custom values`() {
+        assertEquals(emptyTheme, CSSKeyMapper.apply("--my-card-x", "   ", emptyTheme))
+        val oversized = "a".repeat(CSSKeyMapper.MAX_CSS_VARIABLE_VALUE_LENGTH + 1)
+        assertEquals(emptyTheme, CSSKeyMapper.apply("--my-card-x", oversized, emptyTheme))
+    }
+
+    @Test
+    fun `apply trims retained custom values and lets a later value replace an earlier one`() {
+        val first = CSSKeyMapper.apply("--my-card-x", " #FFF ", emptyTheme)
+        assertEquals("#FFF", first.cssVariables["--my-card-x"])
+        val second = CSSKeyMapper.apply("--my-card-x", "#000", first)
+        assertEquals(mapOf("--my-card-x" to "#000"), second.cssVariables)
+    }
+
+    @Test
+    fun `apply trims custom keys so renderers find them by their exact name`() {
+        val result = CSSKeyMapper.apply(" --my-card-x ", "#FFF", emptyTheme)
+        assertEquals(mapOf("--my-card-x" to "#FFF"), result.cssVariables)
+    }
+
+    @Test
+    fun `apply caps the number of retained custom variables`() {
+        var theme = emptyTheme
+        repeat(CSSKeyMapper.MAX_CSS_VARIABLES + 10) { i ->
+            theme = CSSKeyMapper.apply("--custom-$i", "v$i", theme)
+        }
+        assertEquals(CSSKeyMapper.MAX_CSS_VARIABLES, theme.cssVariables.size)
+        // Existing keys can still be updated once the cap is reached.
+        theme = CSSKeyMapper.apply("--custom-0", "updated", theme)
+        assertEquals("updated", theme.cssVariables["--custom-0"])
+    }
+
+    @Test
+    fun `apply does not retain known keys in cssVariables`() {
+        val result = CSSKeyMapper.apply("--color-primary", "#EB1000", emptyTheme)
+        assertTrue(result.cssVariables.isEmpty())
     }
 
     @Test

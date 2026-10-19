@@ -97,6 +97,37 @@ internal fun ChatMessageItem(
                 onCtaButtonClick = onCtaButtonClick
             )
         }
+
+        is MessageContent.NativeCard -> {
+            NativeCardItem(
+                message = message,
+                content = message.content,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
+            )
+        }
+    }
+}
+
+/**
+ * A native renderer row, followed by any prompt suggestions the response attached to it.
+ */
+@Composable
+private fun NativeCardItem(
+    message: ChatMessage,
+    content: MessageContent.NativeCard,
+    onSuggestionClick: (String) -> Unit,
+    onCtaButtonClick: (CtaButton) -> Unit
+) {
+    val style = ConciergeStyles.messageBubbleStyle
+    Column(modifier = Modifier.fillMaxWidth()) {
+        NativeCardMessage(cardId = content.cardId)
+        BotMessageSuffix(
+            message = message,
+            onSuggestionClick = onSuggestionClick,
+            onCtaButtonClick = onCtaButtonClick,
+            ctaStartPadding = style.padding + style.innerPadding
+        )
     }
 }
 

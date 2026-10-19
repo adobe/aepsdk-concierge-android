@@ -54,12 +54,13 @@ internal fun MessageList(
     // Keep track of the last user message index we've scrolled to
     var lastScrolledUserMessageIndex by remember { mutableStateOf<Int?>(null) }
 
+    val lastUserIndex = remember(messages) { messages.indexOfLast { it.isFromUser } }
+
     // When a new user message arrives, scroll so that it is anchored at the top
-    LaunchedEffect(messages.size) {
-        val currentLastUserIndex = messages.indexOfLast { it.isFromUser }
-        if (currentLastUserIndex >= 0 && currentLastUserIndex != lastScrolledUserMessageIndex) {
-            listState.animateScrollToItem(currentLastUserIndex)
-            lastScrolledUserMessageIndex = currentLastUserIndex
+    LaunchedEffect(lastUserIndex) {
+        if (lastUserIndex >= 0 && lastUserIndex != lastScrolledUserMessageIndex) {
+            listState.animateScrollToItem(lastUserIndex)
+            lastScrolledUserMessageIndex = lastUserIndex
         }
     }
 
@@ -71,14 +72,11 @@ internal fun MessageList(
             // Show messages in chronological order (oldest first, newest last)
             itemsIndexed(
                 items = messages,
-                key = { _, message ->
-                    message.interactionId ?: "${message.timestamp}:${message.isFromUser}:${message.text.hashCode()}"
-                }
+                key = { _, message -> message.localId }
             ) { index, message ->
                 // If the last item is an assistant message immediately following the latest user message,
                 // set its minimum height to the parent height so the response "fills the screen",
                 // but allow it to extend beyond if the content is larger.
-                val lastUserIndex = messages.indexOfLast { it.isFromUser }
                 val shouldFillRemaining = (index == messages.lastIndex &&
                         !message.isFromUser &&
                         lastUserIndex == index - 1)

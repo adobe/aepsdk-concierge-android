@@ -147,7 +147,8 @@ internal object ConversationResponseParser {
         val promptSuggestions = (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
             ?: emptyList()).filter { it.isNotEmpty() }
 
-        val orderedElements = extractOrderedElements(response)
+        val rawElements = extractElements(response)
+        val orderedElements = rawElements.mapNotNull { it.builtInFallback }
         val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
         val feedbackInfo = DataReader.optTypedMap(Any::class.java, response, FIELD_FEEDBACK, null)
@@ -163,6 +164,7 @@ internal object ConversationResponseParser {
             promptSuggestions = promptSuggestions,
             multimodalElements = multimodalElements,
             orderedElements = orderedElements,
+            rawElements = rawElements,
             sources = sources,
             feedbackEligible = feedbackEligible,
             linkHints = linkHints
@@ -170,11 +172,12 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts ordered elements from the response, preserving original array position.
-     * Each element is parsed as either a [ParsedMultimodalItem.Cta] (for ctaButton elements)
-     * or a [ParsedMultimodalItem.Card] (for all other element types).
+     * Extracts every element from the response in array order, each with its complete dictionary
+     * (for native card dispatch) and its built-in representation when it has one: a
+     * [ParsedMultimodalItem.Cta] for `ctaButton` elements, otherwise a [ParsedMultimodalItem.Card].
+     * Elements that fail built-in parsing (e.g. no `id`) keep `parsedBuiltIn = null`.
      */
-    private fun extractOrderedElements(response: Map<String, Any?>): List<ParsedMultimodalItem> {
+    private fun extractElements(response: Map<String, Any?>): List<RawMultimodalElement> {
         val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
         if (multimodalRaw is List<*>) return emptyList()
         val multimodalMap = multimodalRaw as? Map<*, *> ?: return emptyList()
@@ -187,28 +190,27 @@ internal object ConversationResponseParser {
             null
         ) ?: return emptyList()
 
-        val items = mutableListOf<ParsedMultimodalItem>()
-        elementsList.forEachIndexed { i, elementMap ->
-            val elementType = DataReader.optString(elementMap, FIELD_TYPE, "")
-            if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
-                val ctaButton = parseCtaButton(elementMap)
-                if (ctaButton != null) {
-                    items.add(ParsedMultimodalItem.Cta(ctaButton))
+        return elementsList.mapIndexed { i, elementMap ->
+            val elementType = elementMap[FIELD_TYPE] as? String
+            val parsedBuiltIn: ParsedMultimodalItem? = if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
+                parseCtaButton(elementMap)?.let { ctaButton ->
                     Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed CTA button ${i + 1}: label=${ctaButton.label}")
-                } else {
+                    ParsedMultimodalItem.Cta(ctaButton)
+                } ?: run {
                     Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse CTA button element ${i + 1}.")
+                    null
                 }
             } else {
-                val element = parseMultimodalElement(elementMap)
-                if (element != null) {
-                    items.add(ParsedMultimodalItem.Card(element))
+                parseMultimodalElement(elementMap)?.let { element ->
                     Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed card element ${i + 1}: id=${element.id}")
-                } else {
-                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse card element ${i + 1}.")
+                    ParsedMultimodalItem.Card(element)
+                } ?: run {
+                    Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Element ${i + 1} has no built-in representation.")
+                    null
                 }
             }
+            RawMultimodalElement(position = i, type = elementType, payload = elementMap, parsedBuiltIn = parsedBuiltIn)
         }
-        return items
     }
 
     /**
