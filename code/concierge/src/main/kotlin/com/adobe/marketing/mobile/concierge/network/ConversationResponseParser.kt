@@ -74,6 +74,40 @@ internal object ConversationResponseParser {
     private const val FIELD_PRODUCT_BADGE = "productBadge"
     private const val ELEMENT_TYPE_CTA_BUTTON = "ctaButton"
 
+    // voice bootstrap field names
+    private const val FIELD_VOICE = "voice"
+    private const val FIELD_LIVEKIT_URL = "livekitUrl"
+    private const val FIELD_TOKEN = "token"
+    private const val VOICE_TYPE_LIVEKIT_SESSION = "livekit_session"
+
+    /**
+     * Extracts voice session credentials from a voice-bootstrap SSE data event: the first
+     * `response.voice` of type `livekit_session` that carries both a non-empty `livekitUrl` and
+     * `token`. Other voice payload types (e.g. `done`) and text turns return null.
+     */
+    fun parseVoiceBootstrap(jsonData: String): VoiceSessionBootstrap? {
+        if (jsonData.isBlank()) return null
+        return try {
+            val root = JSONUtils.toMap(JSONObject(jsonData)) ?: return null
+            val handles = DataReader.optTypedListOfMap(Any::class.java, root, FIELD_HANDLE, null) ?: return null
+            handles.asSequence()
+                .filter { DataReader.optString(it, FIELD_TYPE, null) == CONVERSATION_TYPE }
+                .flatMap { DataReader.optTypedListOfMap(Any::class.java, it, FIELD_PAYLOAD, null).orEmpty().asSequence() }
+                .mapNotNull { payload ->
+                    val response = DataReader.optTypedMap(Any::class.java, payload, FIELD_RESPONSE, null)
+                    val voice = DataReader.optTypedMap(Any::class.java, response, FIELD_VOICE, null)
+                    if (DataReader.optString(voice, FIELD_TYPE, null) != VOICE_TYPE_LIVEKIT_SESSION) return@mapNotNull null
+                    val url = DataReader.optString(voice, FIELD_LIVEKIT_URL, null)?.takeIf { it.isNotEmpty() }
+                    val token = DataReader.optString(voice, FIELD_TOKEN, null)?.takeIf { it.isNotEmpty() }
+                    if (url != null && token != null) VoiceSessionBootstrap(url, token) else null
+                }
+                .firstOrNull()
+        } catch (e: JSONException) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse voice bootstrap JSON: ${e.message}")
+            null
+        }
+    }
+
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
      *
