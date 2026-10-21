@@ -61,6 +61,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
+import com.adobe.marketing.mobile.concierge.ui.components.input.VoiceControlState
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import kotlinx.coroutines.flow.StateFlow
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
@@ -231,6 +232,15 @@ fun ConciergeChat(
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
     val welcomeConfig by viewModel.welcomeConfig.collectAsStateWithLifecycle()
+    val isVoiceSessionActive by viewModel.isVoiceSessionActive.collectAsStateWithLifecycle()
+    val isVoiceConnecting by viewModel.isVoiceConnecting.collectAsStateWithLifecycle()
+    val voiceEnabled by viewModel.voiceEnabled.collectAsStateWithLifecycle()
+    val voiceControl = VoiceControlState(
+        isAvailable = viewModel.isVoiceAvailable,
+        isActive = isVoiceSessionActive,
+        isConnecting = isVoiceConnecting,
+        isEnabled = voiceEnabled
+    )
     
     val isReturningUser = remember { viewModel.isReturningUser() }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -262,6 +272,7 @@ fun ConciergeChat(
         viewModel.activateDataHandoffSession()
         viewModel.trackChatOpened()
         onDispose {
+            viewModel.stopVoiceSession()
             viewModel.deactivateDataHandoffSession()
             viewModel.trackChatClosed()
         }
@@ -291,7 +302,9 @@ fun ConciergeChat(
             handleLink = resolvedLinkClick,
             onPermissionResult = { viewModel.refreshPermissionStatus() },
             onClose = onClose,
-            modifier = modifier
+            modifier = modifier,
+            voiceControl = voiceControl,
+            onVoiceToggle = viewModel::toggleVoiceSession
         )
     }
 
@@ -328,6 +341,8 @@ internal fun ConciergeChat(
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     identityResetInProgress: Boolean = false,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    onVoiceToggle: () -> Unit = {},
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
@@ -424,6 +439,8 @@ internal fun ConciergeChat(
                 onSend = { text -> onEvent(ChatEvent.SendMessage(text)) },
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
+                voiceControl = voiceControl,
+                onVoiceToggle = onVoiceToggle,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -471,6 +488,8 @@ private fun UserInputSection(
     onSend: (String) -> Unit,
     onMicEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
+    voiceControl: VoiceControlState,
+    onVoiceToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val inputState by inputStateFlow.collectAsStateWithLifecycle()
@@ -484,6 +503,8 @@ private fun UserInputSection(
         onSend = onSend,
         onMicEvent = onMicEvent,
         onPermissionResult = onPermissionResult,
+        voiceControl = voiceControl,
+        onVoiceToggle = onVoiceToggle,
         modifier = modifier
     )
 }

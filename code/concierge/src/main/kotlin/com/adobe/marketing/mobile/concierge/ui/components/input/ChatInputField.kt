@@ -39,6 +39,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
  * @param onMicPressed Callback when microphone button is pressed
  * @param onSend Callback when a message is created
  * @param onVoiceCancel Callback when voice recording is cancelled/stopped
+ * @param voiceControl What to show for voice conversations
+ * @param onVoicePressed Callback when the voice conversation button is pressed
  */
 @Composable
 internal fun ChatInputField(
@@ -50,7 +52,9 @@ internal fun ChatInputField(
     onTextChange: (String) -> Unit,
     onMicPressed: () -> Unit,
     onSend: (String) -> Unit,
-    onVoiceCancel: () -> Unit
+    onVoiceCancel: () -> Unit,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    onVoicePressed: () -> Unit = {}
 ) {
     val style = ConciergeStyles.chatInputFieldStyle
     // Local text state to manage input field content
@@ -101,7 +105,7 @@ internal fun ChatInputField(
             text = text.value,
             onTextChange = { newText ->
                 // Only allow text changes during Empty/Editing states (not during Recording)
-                if (enable && inputState !is UserInputState.Recording) {
+                if (enable && inputState !is UserInputState.Recording && !voiceControl.isActive) {
                     text.value = newText
                     // Always notify parent about text changes
                     onTextChange(newText)
@@ -123,6 +127,12 @@ internal fun ChatInputField(
                 focusManager.clearFocus() // Dismiss keyboard after sending
             },
             onVoiceCancel = onVoiceCancel,
+            voiceControl = voiceControl,
+            onVoicePressed = {
+                isFocused.value = false
+                focusManager.clearFocus()
+                onVoicePressed()
+            },
             onClear = {
                 text.value = ""
                 onTextChange("")

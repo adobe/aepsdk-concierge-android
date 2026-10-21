@@ -30,6 +30,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffForwarder
 import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
+import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
@@ -44,6 +45,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
+import com.adobe.marketing.mobile.concierge.network.VoiceSessionBootstrap
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
@@ -72,6 +74,11 @@ import com.adobe.marketing.mobile.concierge.utils.isAllowedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.isBlockedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
+import com.adobe.marketing.mobile.plugin.IVoicePlugin
+import com.adobe.marketing.mobile.plugin.IVoiceSession
+import com.adobe.marketing.mobile.plugin.IVoiceSessionListener
+import com.adobe.marketing.mobile.plugin.VoiceSessionState
+import com.adobe.marketing.mobile.plugin.VoiceTranscriptRole
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.CancellationException
@@ -88,6 +95,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -116,6 +124,26 @@ class ConciergeChatViewModel : AndroidViewModel {
          */
         private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
             "Sorry, I encountered an error. Please try again."
+
+        /**
+         * Resolves the voice plugin registered with Mobile Core, or null when none is registered.
+         * Guarded so an app running an older Core without the plugin registry simply gets no voice.
+         */
+        private fun resolveVoicePlugin(): IVoicePlugin? = try {
+            MobileCore.getPlugin(IVoicePlugin::class.java)
+        } catch (e: Exception) {
+            null
+        } catch (e: LinkageError) {
+            null
+        }
+
+        private fun deriveChatState(turnState: ChatScreenState, isVoiceActive: Boolean): ChatScreenState = when {
+            turnState is ChatScreenState.Processing -> turnState
+            isVoiceActive -> turnState as? ChatScreenState.VoiceSession
+                ?: ChatScreenState.VoiceSession(feedback = turnState.feedback)
+            turnState is ChatScreenState.VoiceSession -> ChatScreenState.Idle(feedback = turnState.feedback)
+            else -> turnState
+        }
 
         /**
          * Initializes the welcome config using the parser example
@@ -174,6 +202,23 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal val state: StateFlow<ChatScreenState> = _state.asStateFlow()
 
     /**
+     * Whether a voice conversation is running (connecting or connected). While it is, the chat
+     * state is [ChatScreenState.VoiceSession].
+     */
+    private val _isVoiceSessionActive = MutableStateFlow(false)
+    internal val isVoiceSessionActive: StateFlow<Boolean> = _isVoiceSessionActive.asStateFlow()
+
+    /** Whether the active voice conversation is still connecting. */
+    private val _isVoiceConnecting = MutableStateFlow(false)
+    internal val isVoiceConnecting: StateFlow<Boolean> = _isVoiceConnecting.asStateFlow()
+
+    /**
+     * Whether the voice control can be used: it can always stop a running conversation, and can
+     * start one when the identity is ready and the chat is idle and not dictating.
+     */
+    internal val voiceEnabled: StateFlow<Boolean>
+
+    /**
      * Tracks state of the user input area (text input, voice recording, etc.)
      */
     private val _inputState = MutableStateFlow<UserInputState>(
@@ -222,6 +267,61 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val stateRepository: ConciergeStateRepository
     private val sessionManager: ConciergeSessionManager
     private val sessionDispatcher: CoroutineDispatcher
+
+    /**
+     * The registered voice plugin, or null when the app hasn't registered one. Without it the
+     * voice control is hidden.
+     */
+    private val voicePlugin: IVoicePlugin?
+
+    /** Whether a voice plugin is registered, so the voice control should be offered. */
+    internal val isVoiceAvailable: Boolean
+        get() = voicePlugin != null
+
+    // Voice plugin callbacks are delivered on this dispatcher.
+    private val voiceCallbackDispatcher: CoroutineDispatcher
+
+    /**
+     * One voice conversation, from requesting its credentials until it ends. Only the run held in
+     * [activeVoice] is live; callbacks for any other session are stale and dropped. Confined to
+     * the main thread.
+     */
+    private class VoiceRun(val plugin: IVoicePlugin) {
+        var session: IVoiceSession? = null
+        var isStartingSession = false
+        var bootstrapJob: Job? = null
+
+        // The transcript bubble each role is still speaking into, by index into the messages.
+        val openMessageIndices = mutableMapOf<VoiceTranscriptRole, Int>()
+        private val reservationReleased = AtomicBoolean(false)
+
+        fun releaseReservation(release: () -> Unit) {
+            if (reservationReleased.compareAndSet(false, true)) release()
+        }
+    }
+
+    @Volatile
+    private var activeVoice: VoiceRun? = null
+        set(value) {
+            field = value
+            _isVoiceSessionActive.value = value != null
+            updateChatState()
+        }
+
+    private val voiceSessionListener = object : IVoiceSessionListener {
+        override fun onStateChanged(session: IVoiceSession, state: VoiceSessionState) {
+            onVoiceCallback { handleVoiceSessionState(session, state) }
+        }
+
+        override fun onTranscriptUpdated(
+            session: IVoiceSession,
+            text: String,
+            role: VoiceTranscriptRole,
+            isFinal: Boolean
+        ) {
+            onVoiceCallback { handleVoiceTranscript(session, text, role, isFinal) }
+        }
+    }
     
     /**
      * Updates the welcome configuration from a theme config
@@ -484,6 +584,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     // Chat messages increment/decrement this unconditionally as a queue-depth count; a data
     // handoff instead requires it to be exactly 0 to be admitted at all (reserveDataHandoffSlot),
     // making this field double as both a FIFO depth counter and a single-occupant exclusivity gate.
+    // A voice conversation takes the same exclusive slot for its whole run, so handoffs arriving
+    // during it are rejected with CHAT_IN_PROGRESS.
     private val pendingConversationRequests = AtomicInteger(0)
 
     @Volatile
@@ -538,6 +640,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
         sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         appLifecycle: Lifecycle? = null,
+        voicePlugin: IVoicePlugin? = resolveVoicePlugin(),
+        voiceCallbackDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
@@ -548,6 +652,17 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.sessionManager = sessionManager
         this.sessionDispatcher = sessionDispatcher
         this.appLifecycle = appLifecycle
+        this.voicePlugin = voicePlugin
+        this.voiceCallbackDispatcher = voiceCallbackDispatcher
+        voiceEnabled = combine(
+            stateRepository.state, _state, _inputState, _isVoiceSessionActive
+        ) { conciergeState, chatState, inputState, isActive ->
+            isVoiceEnabled(conciergeState, chatState, inputState, isActive)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            isVoiceEnabled(stateRepository.state.value, _state.value, _inputState.value, false)
+        )
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
         stateRepository.registerResetParticipant(resetParticipant)
@@ -662,6 +777,10 @@ class ConciergeChatViewModel : AndroidViewModel {
             is ChatEvent.Reset -> handleResetChat()
             is ChatEvent.SendMessage -> handleSendMessage(event.message)
             is MicEvent.StartRecording -> {
+                if (activeVoice != null) {
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Dictation ignored while a voice conversation is running.")
+                    return
+                }
                 dispatchTrackingEvent(ConciergeTrackingEvent.MicButtonClicked)
                 startSpeechRecognition()
             }
@@ -776,10 +895,11 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param feedback The feedback data to set, or null to clear
      */
     private fun updateFeedback(feedback: Feedback?) {
-        _state.update { currentState ->
+        updateChatState { currentState ->
             when (currentState) {
                 is ChatScreenState.Idle -> currentState.copy(feedback = feedback)
                 is ChatScreenState.Processing -> currentState.copy(feedback = feedback)
+                is ChatScreenState.VoiceSession -> currentState.copy(feedback = feedback)
                 is ChatScreenState.Error -> currentState.copy(feedback = feedback)
             }
         }
@@ -898,7 +1018,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             TAG,
             "Processing error: $message"
         )
-        _state.update { currentState ->
+        updateChatState { currentState ->
             // An open feedback dialog belongs to an earlier, completed turn - it's unrelated to
             // this failure, so carry it forward rather than silently closing it and discarding
             // whatever the user was part-way through entering.
@@ -910,7 +1030,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Resets the chat to the initial idle state
      */
     private fun handleResetChat() {
-        _state.update {
+        stopVoiceSession()
+        updateChatState {
             ChatScreenState.Idle()
         }
         _inputState.update { UserInputState.Empty }
@@ -924,6 +1045,10 @@ class ConciergeChatViewModel : AndroidViewModel {
         if (messageText.isBlank()) return
         if (stateRepository.state.value.resetInProgress) {
             Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Message rejected while identity reset is pending.")
+            return
+        }
+        if (activeVoice != null) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Message rejected while a voice conversation is running.")
             return
         }
 
@@ -946,7 +1071,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         markUserAsReturning()
         _inputState.update { UserInputState.Empty }
         // Carry forward any feedback dialog left open on an earlier turn.
-        _state.update { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
+        updateChatState { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
     }
 
     /**
@@ -1069,7 +1194,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         // Transition to processing state, carrying forward any feedback dialog left open on an
         // earlier turn.
-        _state.update { currentState ->
+        updateChatState { currentState ->
             ChatScreenState.Processing(feedback = currentState.feedback)
         }
 
@@ -1129,6 +1254,9 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun onAppBackgrounded() {
         isAppInBackground.value = true
         chatAttemptBackgrounded = true
+        // The voice plugin ends its own session when the app leaves the foreground; ending the
+        // run here as well keeps a still-pending bootstrap from opening the mic in the background.
+        stopVoiceSession()
     }
 
     /**
@@ -1208,7 +1336,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         // handoffs with CHAT_IN_PROGRESS, so leaving the composer enabled would let a chat message
         // slip into the queue behind the handoff and sit there - cleared from the input and absent
         // from the transcript - until the handoff's turn finished.
-        _state.update { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
+        updateChatState { currentState -> ChatScreenState.Processing(feedback = currentState.feedback) }
         request.timeoutJob = viewModelScope.launch {
             delay(ConciergeConstants.DataHandoff.DELIVERY_TIMEOUT_MS)
             request.timeout()
@@ -1261,7 +1389,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         responseStartedDispatched = false
         request.handoff.localMessage?.let(::appendAgentMessage)
         // Carry forward any feedback dialog left open on an earlier turn.
-        _state.update { currentState ->
+        updateChatState { currentState ->
             ChatScreenState.Processing(feedback = currentState.feedback)
         }
 
@@ -1533,7 +1661,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     private fun finishConversation() {
-        _state.update { currentState ->
+        updateChatState { currentState ->
             when (currentState) {
                 is ChatScreenState.Processing -> ChatScreenState.Idle(feedback = currentState.feedback)
                 else -> currentState
@@ -1605,7 +1733,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                     conversationId = currentConversationId ?: "",
                     interactionId = parsedMessage.interactionId ?: ""
                 ))
-                _state.update { currentState ->
+                updateChatState { currentState ->
                     when (currentState) {
                         is ChatScreenState.Processing -> ChatScreenState.Idle(
                             feedback = currentState.feedback
@@ -1871,7 +1999,213 @@ class ConciergeChatViewModel : AndroidViewModel {
         // Always carry the current feedback forward - regardless of which state this is called
         // from - rather than only when the current state happens to be Processing, which used to
         // silently close a dialog opened (or still open) on any other state.
-        _state.update { currentState -> ChatScreenState.Idle(feedback = currentState.feedback) }
+        updateChatState { currentState -> ChatScreenState.Idle(feedback = currentState.feedback) }
+    }
+
+    /**
+     * Publishes the chat state: a turn in flight is [ChatScreenState.Processing], otherwise a
+     * running voice conversation is [ChatScreenState.VoiceSession], otherwise the turn's own
+     * state. Every chat state change goes through here.
+     */
+    private fun updateChatState(transform: (ChatScreenState) -> ChatScreenState = { it }) {
+        _state.update { currentState -> deriveChatState(transform(currentState), activeVoice != null) }
+    }
+
+    private fun isVoiceEnabled(
+        conciergeState: ConciergeState,
+        chatState: ChatScreenState,
+        inputState: UserInputState,
+        isVoiceActive: Boolean
+    ): Boolean {
+        if (voicePlugin == null || !isIdentityReady(conciergeState)) return false
+        if (isVoiceActive) return true
+        val isIdle = chatState is ChatScreenState.Idle || chatState is ChatScreenState.Error
+        return isIdle && inputState !is UserInputState.Recording
+    }
+
+    private fun isIdentityReady(conciergeState: ConciergeState): Boolean =
+        !conciergeState.resetInProgress && conciergeState.configurationReady
+
+    /** Starts a voice conversation, or stops the running one. */
+    internal fun toggleVoiceSession() {
+        if (activeVoice != null) {
+            stopVoiceSession()
+        } else {
+            startVoiceSession()
+        }
+    }
+
+    /**
+     * Starts a voice conversation: requests credentials from the conversation service, then hands
+     * them to the registered voice plugin. Ignored unless the identity is ready, a plugin is
+     * registered, the chat is idle and not dictating, and microphone permission has been granted.
+     */
+    internal fun startVoiceSession() {
+        val plugin = voicePlugin ?: run {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored: no voice plugin is registered.")
+            return
+        }
+        if (activeVoice != null) return
+        val conciergeState = stateRepository.state.value
+        if (!isIdentityReady(conciergeState)) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored until the identity is ready.")
+            return
+        }
+        val chatState = _state.value
+        if (chatState !is ChatScreenState.Idle && chatState !is ChatScreenState.Error ||
+            _inputState.value is UserInputState.Recording
+        ) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored while the chat is busy.")
+            return
+        }
+        val hasPermission = checkAudioPermission()
+        _hasAudioPermission.value = hasPermission
+        if (!hasPermission) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored without microphone permission.")
+            return
+        }
+        // Takes the same exclusive slot a data handoff needs, so neither can start during the other.
+        if (!pendingConversationRequests.compareAndSet(0, 1)) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored while a conversation request is pending.")
+            return
+        }
+
+        val run = VoiceRun(plugin)
+        _isVoiceConnecting.value = true
+        activeVoice = run
+        val generation = conciergeState.resetGeneration
+        run.bootstrapJob = viewModelScope.launch {
+            val failure = try {
+                val sessionId = withContext(sessionDispatcher) {
+                    stateRepository.withConversation(generation) { sessionManager.getSessionId() }
+                }
+                chatService.bootstrapVoiceSession(sessionId).collect { bootstrap ->
+                    if (activeVoice === run && run.session == null && !run.isStartingSession) {
+                        connectVoiceSession(run, bootstrap)
+                    }
+                }
+                "Voice session bootstrap completed without credentials"
+            } catch (e: CancellationException) {
+                if (!isActive) throw e
+                // The conversation was invalidated by an identity reset, which ends voice too.
+                finishVoiceSession(run)
+                return@launch
+            } catch (e: Exception) {
+                "Voice session bootstrap failed: ${e.message}"
+            }
+            if (activeVoice === run && run.session == null) {
+                failVoiceSession(run, failure)
+            }
+        }
+    }
+
+    /**
+     * Ends the running voice conversation, if any, and returns the chat to idle immediately. A
+     * bootstrap still waiting on credentials is cancelled.
+     */
+    internal fun stopVoiceSession() {
+        activeVoice?.let(::finishVoiceSession)
+    }
+
+    private fun connectVoiceSession(run: VoiceRun, bootstrap: VoiceSessionBootstrap) {
+        run.isStartingSession = true
+        val session = try {
+            run.plugin.startSession(
+                mapOf("url" to bootstrap.url, "token" to bootstrap.token),
+                voiceSessionListener
+            )
+        } catch (e: Exception) {
+            run.isStartingSession = false
+            failVoiceSession(run, "Voice plugin failed to start a session: ${e.message}")
+            return
+        }
+        run.isStartingSession = false
+        // A terminal callback delivered during startSession may already have released the run.
+        if (activeVoice !== run) {
+            session.stop()
+            return
+        }
+        run.session = session
+    }
+
+    private fun onVoiceCallback(block: () -> Unit) {
+        viewModelScope.launch(voiceCallbackDispatcher) { block() }
+    }
+
+    /**
+     * Returns the active run when [session] belongs to it. A callback that arrives while
+     * startSession is still returning adopts its session, since the run doesn't hold it yet.
+     */
+    private fun voiceRun(session: IVoiceSession): VoiceRun? {
+        val run = activeVoice ?: return null
+        if (stateRepository.state.value.resetInProgress) return null
+        if (run.session == null && run.isStartingSession) {
+            run.session = session
+        }
+        return run.takeIf { it.session === session }
+    }
+
+    private fun handleVoiceSessionState(session: IVoiceSession, state: VoiceSessionState) {
+        val run = voiceRun(session) ?: return
+        when (state) {
+            is VoiceSessionState.Connecting -> Unit
+            is VoiceSessionState.Listening -> _isVoiceConnecting.value = false
+            is VoiceSessionState.Ended -> finishVoiceSession(run)
+            is VoiceSessionState.Failed -> failVoiceSession(run, state.reason)
+        }
+    }
+
+    /**
+     * Applies a transcript update. [text] is the whole turn so far, so the role's open bubble is
+     * rewritten in place; with none open, non-empty text starts a new one. [isFinal] closes it.
+     */
+    private fun handleVoiceTranscript(
+        session: IVoiceSession,
+        text: String,
+        role: VoiceTranscriptRole,
+        isFinal: Boolean
+    ) {
+        val run = voiceRun(session) ?: return
+        val isFromUser = role == VoiceTranscriptRole.USER
+        val openIndex = run.openMessageIndices[role]
+        val openMessage = openIndex?.let { _messages.value.getOrNull(it) }
+        if (openIndex != null && openMessage?.isFromUser == isFromUser) {
+            _messages.update { currentMessages ->
+                currentMessages.toMutableList().apply {
+                    set(openIndex, this[openIndex].copy(content = MessageContent.Text(text)))
+                }
+            }
+        } else if (text.isNotEmpty()) {
+            _messages.update { currentMessages ->
+                run.openMessageIndices[role] = currentMessages.size
+                currentMessages + ChatMessage(
+                    content = MessageContent.Text(text),
+                    isFromUser = isFromUser,
+                    timestamp = System.currentTimeMillis(),
+                    sseComplete = !isFromUser
+                )
+            }
+        }
+        if (isFinal) {
+            run.openMessageIndices.remove(role)
+        }
+    }
+
+    private fun finishVoiceSession(run: VoiceRun) {
+        if (activeVoice !== run) return
+        run.releaseReservation { pendingConversationRequests.decrementAndGet() }
+        _isVoiceConnecting.value = false
+        activeVoice = null
+        run.session?.stop()
+        run.bootstrapJob?.cancel()
+    }
+
+    private fun failVoiceSession(run: VoiceRun, reason: String) {
+        if (activeVoice !== run) return
+        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Voice session failed: $reason")
+        dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(reason))
+        finishVoiceSession(run)
+        appendAgentMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
     }
 
     /**
@@ -2064,6 +2398,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         val hadActiveTurn = currentChatJob?.isActive == true || currentDataHandoff != null
         val hadConversation = _messages.value.isNotEmpty() || hadActiveTurn
         val conversationId = currentConversationId
+        stopVoiceSession()
         currentChatJob?.cancel()
         feedbackJobs.toList().forEach { it.cancel() }
         currentDataHandoff?.let { request ->
@@ -2091,7 +2426,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         imageProvider.clear()
         currentConversationId = null
         responseStartedDispatched = false
-        _state.value = ChatScreenState.Idle()
+        updateChatState { ChatScreenState.Idle() }
         _webviewOverlay.value = null
         _showWelcomeCard.value = welcomeConfig.value.showWelcomeCard
         stateRepository.acknowledgeIdentityReset(
@@ -2130,6 +2465,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         val hadConversation = _messages.value.isNotEmpty() || hadActiveTurn
         val conversationId = currentConversationId
         appLifecycle?.removeObserver(appLifecycleObserver)
+        stopVoiceSession()
         deactivateDataHandoffSession()
         conversationRequests.close()
         currentChatJob?.cancel()

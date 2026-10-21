@@ -259,7 +259,7 @@ Concierge.sendDataHandoff(
   | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
   | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
   | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. |
-  | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. |
+  | `CHAT_IN_PROGRESS` | A chat turn, a voice conversation, or another handoff is active or waiting. Retry after it completes. |
   | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. |
   | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. |
   | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. |
@@ -271,6 +271,43 @@ render `localMessage` or call the service. Retry the handoff after the active re
 After an accepted handoff starts, delivery failures, empty responses, and timeouts do not add an
 error message to the transcript. An already-rendered `localMessage` remains visible, and the host
 app owns any failure UI based on the completion result.
+
+---
+
+## Voice conversations (optional)
+
+Brand Concierge can hold a spoken conversation through a voice plugin. It depends only on the voice plugin contract in Mobile Core (`com.adobe.marketing.mobile.plugin.IVoicePlugin`), so apps that don't use voice ship no voice or WebRTC code.
+
+To enable voice, add a voice plugin such as the Adobe voice plugin, which runs on LiveKit, together with the LiveKit Android SDK. The Mobile Core version must include the voice plugin contract:
+
+```kotlin
+dependencies {
+    implementation("com.adobe.marketing.mobile:voice:1.0.0")
+    // The voice plugin compiles against LiveKit but does not bundle it, so the app supplies it.
+    implementation("io.livekit:livekit-android:2.29.1")
+}
+```
+
+LiveKit also needs one dependency from JitPack; see the voice plugin's README for the repository setup.
+
+Register the plugin once at app launch, before the chat opens:
+
+```kotlin
+import com.adobe.marketing.mobile.voice.LiveKitVoicePlugin
+
+class MainApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        MobileCore.setApplication(this)
+        MobileCore.addPlugins(LiveKitVoicePlugin())
+        MobileCore.initialize(this, "YOUR_APP_ID")
+    }
+}
+```
+
+The app must declare the `RECORD_AUDIO` permission in its `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). The voice plugin never prompts for it; Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted.
+
+When a voice plugin is registered, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation.
 
 ---
 
