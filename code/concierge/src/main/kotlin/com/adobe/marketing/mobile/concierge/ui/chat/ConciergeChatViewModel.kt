@@ -274,10 +274,16 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param url The URL to open
      * @param origin The surface that produced the click (see [ConciergeConstants.TrackingEvent.LinkClickOrigin])
      * @param handleLink Optional host callback; return true if handled
+     * @param trackedUrl The URL reported in the `LinkClicked` tracking event; defaults to [url]
      */
-    internal fun handleLinkClick(url: String, origin: String, handleLink: ((String) -> Boolean)?) {
+    internal fun handleLinkClick(
+        url: String,
+        origin: String,
+        handleLink: ((String) -> Boolean)?,
+        trackedUrl: String = url
+    ) {
         if (url.isBlank()) return
-        dispatchTrackingEvent(ConciergeTrackingEvent.LinkClicked(linkUrl = url, origin = origin))
+        dispatchTrackingEvent(ConciergeTrackingEvent.LinkClicked(linkUrl = trackedUrl, origin = origin))
         when {
             handleLink?.invoke(url) == true -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: handled by host callback")
@@ -681,7 +687,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             is MessageInteractionEvent.PromptSuggestionClick -> handlePromptSuggestionClick(event.suggestion)
             is MessageInteractionEvent.WelcomePromptSuggestionClick -> handleWelcomePromptSuggestionClick(event.suggestion)
             is DisclaimerClickedEvent -> handleDisclaimerLinkClickedEvent(event.url)
-            is MessageInteractionEvent.CtaButtonClick -> handleCtaClicked(event.ctaButton)
+            is MessageInteractionEvent.CtaButtonClick -> handleCtaClicked(event.ctaButton, handleLink)
         }
     }
 
@@ -752,12 +758,15 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
-     * Handle cta click tracking
-     * @param cta The suggestion text that was clicked
+     * Handle cta clicks: tracks the click with the raw CTA url, then opens [CtaButton.clickUrl]
+     * (the url with the CTA's summary appended). Tracking never includes the summary.
+     * @param cta The CTA button that was clicked
+     * @param handleLink Optional host callback; return true if handled
      */
-    private fun handleCtaClicked(cta: CtaButton) {
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "CTA Button Clicked Link clicked {label: ${cta.label}, url: ${cta.url}}")
+    private fun handleCtaClicked(cta: CtaButton, handleLink: ((String) -> Boolean)?) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "CTA Button Clicked Link clicked {label: ${cta.label}, url: ${cta.url}, hasSummary: ${cta.summary != null}}")
         dispatchTrackingEvent(ConciergeTrackingEvent.CtaButtonClicked(label = cta.label, linkUrl = cta.url))
+        handleLinkClick(cta.clickUrl, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA, handleLink, trackedUrl = cta.url)
     }
 
     /**

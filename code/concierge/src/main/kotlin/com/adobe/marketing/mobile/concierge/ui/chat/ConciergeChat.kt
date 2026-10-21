@@ -56,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.adobe.marketing.mobile.concierge.ui.webview.WebviewOverlayDialog
 import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialog
 import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
-import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
@@ -371,10 +370,8 @@ internal fun ConciergeChat(
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
-                    onCtaButtonClick = { cta ->
-                        onEvent(CtaButtonClick(cta))
-                        handleLink(cta.url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)
-                                       },
+                    // The ViewModel tracks the click and opens the CTA's click url.
+                    onCtaButtonClick = { cta -> onEvent(CtaButtonClick(cta)) },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)

@@ -566,6 +566,30 @@ ConciergeChat(
 ) { showChat -> ... }
 ```
 
+#### CTA summary
+
+A standalone CTA button (`entity_info.primary`) carries `text` (the label), `url` (the destination), and an optional `summary` (for example, a conversation summary for a support handoff). The summary is never displayed. When the user taps the button, the SDK appends it to the destination URL as a percent-encoded `summary` query parameter:
+
+```json
+"primary": {
+  "text": "Chat now",
+  "url": "https://www.example.com/support",
+  "summary": "The customer asked about a refund for order 12345."
+}
+```
+
+opens `https://www.example.com/support?summary=The%20customer%20asked%20about%20a%20refund%20for%20order%2012345.`
+
+- The summary is trimmed and appended only when it is a non-blank string.
+- Only `http` and `https` URLs are modified; any other URL (for example `tel:` or `myapp://`) opens unchanged. The summary is added to any existing query and placed before any `#fragment`.
+- If adding the summary would make the URL longer than 2,048 characters (measured after percent-encoding), the summary is left out and the original URL opens unchanged. The summary is never cut.
+- If the URL already has a `summary` query parameter, the existing value is kept and the URL opens unchanged.
+- CTA buttons without a summary, and product card actions, open exactly the URL the backend sent, as before.
+- Your `handleLink` callback receives the URL **with** the summary appended.
+- The `CTA Button Clicked` and `Link Clicked` tracking events report the original URL, without the summary.
+
+> **Privacy:** Query parameters can appear in browser history, server logs, and referrer headers. Keep sensitive personal data out of summaries, and only use them with brand-owned destination pages.
+
 #### In-app WebView overlay link handling
 
 Links clicked inside the in-app WebView overlay (e.g., links on a product page) follow their own routing rules, independent of the `handleLink` callback:

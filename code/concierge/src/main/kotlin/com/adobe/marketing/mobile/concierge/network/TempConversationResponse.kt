@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import java.net.URLEncoder
 
 // TODO: Temporary data classes for parsing conversation temporary API responses. Need to be
 //  replaced with actual API response structures once available
@@ -79,11 +80,42 @@ internal data class ConversationFeedbackInfo(
 
 /**
  * Represents a CTA button that appears as a standalone action below a bot message.
+ *
+ * @param label The button text (`entity_info.primary.text`).
+ * @param url The destination url (`entity_info.primary.url`).
+ * @param summary An optional conversation summary (`entity_info.primary.summary`), appended to [url]
+ * as a `summary` query parameter when the button is clicked; never displayed.
  */
 internal data class CtaButton(
     val label: String,
-    val url: String
-)
+    val url: String,
+    val summary: String? = null
+) {
+    /**
+     * The URL to open on click: for an http(s) [url], [summary] appended as a percent-encoded
+     * `summary` query parameter before any fragment; otherwise [url] unchanged. If appending the
+     * summary would make the URL longer than [MAX_CLICK_URL_LENGTH], or [url] already has a `summary`
+     * query parameter, [url] is returned unchanged.
+     */
+    val clickUrl: String
+        get() {
+            val isHttp = url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
+            if (summary.isNullOrBlank() || !isHttp) return url
+            val fragmentStart = url.indexOf('#').takeIf { it >= 0 } ?: url.length
+            val base = url.substring(0, fragmentStart)
+            val hasSummaryParam = base.substringAfter('?', "").split('&').any { it.substringBefore('=') == "summary" }
+            if (hasSummaryParam) return url
+            val separator = if ('?' in base) '&' else '?'
+            val encodedSummary = URLEncoder.encode(summary, "UTF-8").replace("+", "%20")
+            val withSummary = "$base${separator}summary=$encodedSummary${url.substring(fragmentStart)}"
+            return if (withSummary.length <= MAX_CLICK_URL_LENGTH) withSummary else url
+        }
+
+    companion object {
+        /** Longest URL the summary may produce, to stay within common server and CDN limits. */
+        internal const val MAX_CLICK_URL_LENGTH = 2048
+    }
+}
 
 /**
  * Represents an ordered element from a multimodal API response.

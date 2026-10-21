@@ -86,6 +86,107 @@ class TempConversationResponseTest {
     }
 
     @Test
+    fun `CtaButton clickUrl is the url when there is no summary`() {
+        assertEquals("https://example.com/chat", CtaButton(label = "Chat", url = "https://example.com/chat").clickUrl)
+        assertEquals("https://example.com/chat", CtaButton(label = "Chat", url = "https://example.com/chat", summary = "  ").clickUrl)
+    }
+
+    @Test
+    fun `CtaButton clickUrl appends the percent-encoded summary`() {
+        val summary = "Asked: \"refund for order #12345?\" & more caf" + Char(0xE9)
+
+        assertEquals(
+            "https://example.com/chat?summary=Asked%3A%20%22refund%20for%20order%20%2312345%3F%22%20%26%20more%20caf%C3%A9",
+            CtaButton(label = "Chat", url = "https://example.com/chat", summary = summary).clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl adds the summary to an existing query`() {
+        assertEquals(
+            "https://example.com/chat?lang=en&summary=hi",
+            CtaButton(label = "Chat", url = "https://example.com/chat?lang=en", summary = "hi").clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl adds the summary before the fragment`() {
+        assertEquals(
+            "https://example.com/chat?summary=hi#faq?x=1",
+            CtaButton(label = "Chat", url = "https://example.com/chat#faq?x=1", summary = "hi").clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl keeps the url unchanged when it already has a summary parameter`() {
+        listOf(
+            "https://example.com/chat?summary=existing",
+            "https://example.com/chat?lang=en&summary=existing#faq",
+            "https://example.com/chat?summary",
+            "https://example.com/chat?summary=",
+        ).forEach { url -> assertEquals(url, CtaButton(label = "Chat", url = url, summary = "hi").clickUrl) }
+    }
+
+    @Test
+    fun `CtaButton clickUrl appends the summary when only a similarly named parameter or fragment exists`() {
+        assertEquals(
+            "https://example.com/chat?summary_id=1&mysummary=2&summary=hi",
+            CtaButton(label = "Chat", url = "https://example.com/chat?summary_id=1&mysummary=2", summary = "hi").clickUrl
+        )
+        assertEquals(
+            "https://example.com/chat?summary=hi#summary=existing",
+            CtaButton(label = "Chat", url = "https://example.com/chat#summary=existing", summary = "hi").clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl appends a summary that reaches the url length limit exactly`() {
+        val url = "https://example.com/chat?lang=en#faq"
+        val summary = "x".repeat(CtaButton.MAX_CLICK_URL_LENGTH - url.length - "&summary=".length)
+
+        val clickUrl = CtaButton(label = "Chat", url = url, summary = summary).clickUrl
+
+        assertEquals("https://example.com/chat?lang=en&summary=$summary#faq", clickUrl)
+        assertEquals(CtaButton.MAX_CLICK_URL_LENGTH, clickUrl.length)
+    }
+
+    @Test
+    fun `CtaButton clickUrl opens the url unchanged when the summary would exceed the length limit`() {
+        val url = "https://example.com/chat?lang=en#faq"
+        val summary = "x".repeat(CtaButton.MAX_CLICK_URL_LENGTH - url.length - "&summary=".length + 1)
+
+        assertEquals(url, CtaButton(label = "Chat", url = url, summary = summary).clickUrl)
+    }
+
+    @Test
+    fun `CtaButton clickUrl measures the length limit after percent-encoding multi-byte summaries`() {
+        val url = "https://example.com/chat"
+        // Each "é" encodes to 6 characters, so this summary fits unencoded but not encoded.
+        val summary = Char(0xE9).toString().repeat(400)
+
+        assertEquals(url, CtaButton(label = "Chat", url = url, summary = summary).clickUrl)
+        assertEquals(
+            "$url?summary=" + "%C3%A9".repeat(300),
+            CtaButton(label = "Chat", url = url, summary = Char(0xE9).toString().repeat(300)).clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl opens a url that is already over the length limit unchanged`() {
+        val url = "https://example.com/" + "p".repeat(CtaButton.MAX_CLICK_URL_LENGTH)
+
+        assertEquals(url, CtaButton(label = "Chat", url = url, summary = "hi").clickUrl)
+    }
+
+    @Test
+    fun `CtaButton clickUrl only modifies http and https urls`() {
+        assertEquals("HTTPS://example.com/chat?summary=hi", CtaButton(label = "Chat", url = "HTTPS://example.com/chat", summary = "hi").clickUrl)
+        assertEquals("http://example.com/chat?summary=hi", CtaButton(label = "Chat", url = "http://example.com/chat", summary = "hi").clickUrl)
+        listOf("tel:+15555550100", "mailto:help@example.com", "myapp://support/chat", "javascript://x%0Aalert(1)", "/support/chat")
+            .forEach { url -> assertEquals(url, CtaButton(label = "Chat", url = url, summary = "hi").clickUrl) }
+    }
+
+    @Test
     fun `ParsedMultimodalItem Card wraps MultimodalElement`() {
         val element = MultimodalElement(id = "card-1")
         val item = ParsedMultimodalItem.Card(element)
