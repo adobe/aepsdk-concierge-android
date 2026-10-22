@@ -12,6 +12,9 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.services.Log
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 // TODO: Temporary data classes for parsing conversation temporary API responses. Need to be
@@ -95,7 +98,7 @@ internal data class CtaButton(
      * The URL to open on click: for an http(s) [url], [summary] appended as a percent-encoded
      * `summary` query parameter before any fragment; otherwise [url] unchanged. If appending the
      * summary would make the URL longer than [MAX_CLICK_URL_LENGTH], or [url] already has a `summary`
-     * query parameter, [url] is returned unchanged.
+     * query parameter (matched case-insensitively after percent-decoding), [url] is returned unchanged.
      */
     val clickUrl: String
         get() {
@@ -103,15 +106,41 @@ internal data class CtaButton(
             if (summary.isNullOrBlank() || !isHttp) return url
             val fragmentStart = url.indexOf('#').takeIf { it >= 0 } ?: url.length
             val base = url.substring(0, fragmentStart)
-            val hasSummaryParam = base.substringAfter('?', "").split('&').any { it.substringBefore('=') == "summary" }
-            if (hasSummaryParam) return url
-            val separator = if ('?' in base) '&' else '?'
+            val query = base.substringAfter('?', "")
+            if (query.split('&').any { decodeOrNull(it.substringBefore('=')).equals(SUMMARY_PARAM, ignoreCase = true) }) {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "CTA summary not added: url already has a summary parameter.")
+                return url
+            }
+            val separator = when {
+                '?' !in base -> "?"
+                base.endsWith('?') || base.endsWith('&') -> ""
+                else -> "&"
+            }
             val encodedSummary = URLEncoder.encode(summary, "UTF-8").replace("+", "%20")
-            val withSummary = "$base${separator}summary=$encodedSummary${url.substring(fragmentStart)}"
-            return if (withSummary.length <= MAX_CLICK_URL_LENGTH) withSummary else url
+            val withSummary = "$base$separator$SUMMARY_PARAM=$encodedSummary${url.substring(fragmentStart)}"
+            if (withSummary.length > MAX_CLICK_URL_LENGTH) {
+                Log.debug(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "CTA summary not added: url would be ${withSummary.length} characters (max $MAX_CLICK_URL_LENGTH)."
+                )
+                return url
+            }
+            return withSummary
         }
 
     companion object {
+        private const val TAG = "CtaButton"
+        private const val SUMMARY_PARAM = "summary"
+
+        /** Decodes a percent-encoded query parameter name, or null if it is malformed. */
+        private fun decodeOrNull(name: String): String? =
+            try {
+                URLDecoder.decode(name, "UTF-8")
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+
         /** Longest URL the summary may produce, to stay within common server and CDN limits. */
         internal const val MAX_CLICK_URL_LENGTH = 2048
     }

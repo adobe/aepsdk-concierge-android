@@ -2465,6 +2465,44 @@ class ConversationResponseParserTest {
     }
 
     @Test
+    fun `parseConversationData ignores CTA element with blank label or url`() {
+        fun ctaJson(label: String, url: String) = """
+            {
+              "handle": [
+                {
+                  "type": "brand-concierge:conversation",
+                  "payload": [
+                    {
+                      "response": {
+                        "message": "CTA blank field",
+                        "multimodalElements": {
+                          "elements": [
+                            {
+                              "type": "ctaButton",
+                              "id": "cta-1",
+                              "entity_info": {
+                                "primary": { "text": "$label", "url": "$url" }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "state": "completed"
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        for ((label, url) in listOf(" " to "https://example.com", "Chat now" to "   ", "" to "https://example.com", "Chat now" to "")) {
+            val result = ConversationResponseParser.parseConversationData(ctaJson(label, url))
+            assertEquals(1, result.size)
+            assertTrue("label='$label' url='$url'", result[0].orderedElements.isEmpty())
+        }
+    }
+
+    @Test
     fun `parseConversationData preserves interleaved order of CTAs and cards`() {
         val json = """
             {

@@ -583,7 +583,7 @@ opens `https://www.example.com/support?summary=The%20customer%20asked%20about%20
 - The summary is trimmed and appended only when it is a non-blank string.
 - Only `http` and `https` URLs are modified; any other URL (for example `tel:` or `myapp://`) opens unchanged. The summary is added to any existing query and placed before any `#fragment`.
 - If adding the summary would make the URL longer than 2,048 characters (measured after percent-encoding), the summary is left out and the original URL opens unchanged. The summary is never cut.
-- If the URL already has a `summary` query parameter, the existing value is kept and the URL opens unchanged.
+- If the URL already has a `summary` query parameter (in any letter case, including percent-encoded names such as `%73ummary`), the existing value is kept and the URL opens unchanged.
 - CTA buttons without a summary, and product card actions, open exactly the URL the backend sent, as before.
 - Your `handleLink` callback receives the URL **with** the summary appended.
 - The `CTA Button Clicked` and `Link Clicked` tracking events report the original URL, without the summary.

@@ -124,7 +124,51 @@ class TempConversationResponseTest {
             "https://example.com/chat?lang=en&summary=existing#faq",
             "https://example.com/chat?summary",
             "https://example.com/chat?summary=",
+            "https://example.com/chat?Summary=existing",
+            "https://example.com/chat?lang=en&SUMMARY=existing",
+            "https://example.com/chat?%73ummary=x",
+            "https://example.com/chat?%53UMMARY=x#faq",
         ).forEach { url -> assertEquals(url, CtaButton(label = "Chat", url = url, summary = "hi").clickUrl) }
+    }
+
+    @Test
+    fun `CtaButton clickUrl ignores malformed percent-encoding in existing parameter names`() {
+        assertEquals(
+            "https://example.com/chat?%zz=1&a%=2&summary=hi",
+            CtaButton(label = "Chat", url = "https://example.com/chat?%zz=1&a%=2", summary = "hi").clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl does not add an extra separator when the url ends with one`() {
+        assertEquals(
+            "https://example.com/chat?summary=hi",
+            CtaButton(label = "Chat", url = "https://example.com/chat?", summary = "hi").clickUrl
+        )
+        assertEquals(
+            "https://example.com/chat?lang=en&summary=hi",
+            CtaButton(label = "Chat", url = "https://example.com/chat?lang=en&", summary = "hi").clickUrl
+        )
+        assertEquals(
+            "https://example.com/chat?summary=hi#",
+            CtaButton(label = "Chat", url = "https://example.com/chat?#", summary = "hi").clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl keeps an empty fragment after the summary`() {
+        assertEquals(
+            "https://example.com/chat?summary=hi#",
+            CtaButton(label = "Chat", url = "https://example.com/chat#", summary = "hi").clickUrl
+        )
+    }
+
+    @Test
+    fun `CtaButton clickUrl percent-encodes reserved characters and line breaks in the summary`() {
+        assertEquals(
+            "https://example.com/chat?summary=a%2Bb%2Fc%3Dd%26e%25f%0Ag%20h",
+            CtaButton(label = "Chat", url = "https://example.com/chat", summary = "a+b/c=d&e%f\ng h").clickUrl
+        )
     }
 
     @Test
