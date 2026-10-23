@@ -138,6 +138,15 @@ data class DisclaimerConfig(
     val links: List<DisclaimerLink>? = null
 )
 
+data class PrivacyNoticeConfig(
+    val title: String = "Privacy Notice",
+    val text: String = "",
+    val links: List<DisclaimerLink> = emptyList()
+) {
+    val hasContent: Boolean
+        get() = text.isNotBlank()
+}
+
 data class DisclaimerLink(
     val text: String,
     val url: String
@@ -603,4 +612,3 @@ internal fun Double.toDp(): Dp = this.dp
  * Converts Float to alpha value
  */
 internal fun Double.toAlpha(): Float = this.toFloat().coerceIn(0f, 1f)
-

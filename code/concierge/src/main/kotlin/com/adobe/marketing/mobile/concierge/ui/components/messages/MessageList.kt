@@ -16,6 +16,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -32,7 +33,17 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
+
+internal fun privacyNoticeIndex(
+    messages: List<ChatMessage>,
+    privacyNotice: PrivacyNoticeConfig?
+): Int {
+    if (privacyNotice?.hasContent != true) return -1
+    return messages.indexOfFirst { it.isFromUser && it.content is MessageContent.Text }
+}
 
 /**
  * Component that displays a list of chat messages.
@@ -46,13 +57,17 @@ internal fun MessageList(
     onImageClick: (MultimodalElement) -> Unit = {},
     onSuggestionClick: (String) -> Unit = {},
     handleLink: (String, String) -> Unit = { _, _ -> },
-    onCtaButtonClick: (CtaButton) -> Unit = {}
+    onCtaButtonClick: (CtaButton) -> Unit = {},
+    privacyNotice: PrivacyNoticeConfig? = null
 ) {
     val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
 
     // Keep track of the last user message index we've scrolled to
     var lastScrolledUserMessageIndex by remember { mutableStateOf<Int?>(null) }
+
+    val lastUserIndex = remember(messages) { messages.indexOfLast { it.isFromUser } }
+    val privacyNoticeIndex = remember(messages, privacyNotice) { privacyNoticeIndex(messages, privacyNotice) }
 
     // When a new user message arrives, scroll so that it is anchored at the top
     LaunchedEffect(messages.size) {
@@ -92,16 +107,32 @@ internal fun MessageList(
                             ) else Modifier
                             )
                 ) {
-                    ChatMessageItem(
-                        message = message,
-                        onFeedback = onFeedback,
-                        onActionClick = onActionClick,
-                        onImageClick = onImageClick,
-                        onSuggestionClick = onSuggestionClick,
-                        handleLink = handleLink,
-                        feedbackState = message.feedbackState,
-                        onCtaButtonClick = onCtaButtonClick
-                    )
+                    if (index == privacyNoticeIndex && privacyNotice != null) {
+                        Column(verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)) {
+                            PrivacyNoticeView(config = privacyNotice)
+                            ChatMessageItem(
+                                message = message,
+                                onFeedback = onFeedback,
+                                onActionClick = onActionClick,
+                                onImageClick = onImageClick,
+                                onSuggestionClick = onSuggestionClick,
+                                handleLink = handleLink,
+                                feedbackState = message.feedbackState,
+                                onCtaButtonClick = onCtaButtonClick
+                            )
+                        }
+                    } else {
+                        ChatMessageItem(
+                            message = message,
+                            onFeedback = onFeedback,
+                            onActionClick = onActionClick,
+                            onImageClick = onImageClick,
+                            onSuggestionClick = onSuggestionClick,
+                            handleLink = handleLink,
+                            feedbackState = message.feedbackState,
+                            onCtaButtonClick = onCtaButtonClick
+                        )
+                    }
                 }
             }
         }

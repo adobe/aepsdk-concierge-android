@@ -234,7 +234,8 @@ data class ConciergeThemeBehavior(
     val productCard: ConciergeProductCardBehavior? = null,
     val multimodalCarousel: ConciergeMultimodalCarouselBehavior? = null,
     val chat: ConciergeChatBehavior? = null,
-    val promptSuggestions: ConciergePromptSuggestionsBehavior? = null
+    val promptSuggestions: ConciergePromptSuggestionsBehavior? = null,
+    val privacyNotice: PrivacyNoticeConfig = PrivacyNoticeConfig()
 )
 
 data class ConciergePromptSuggestionsBehavior(
