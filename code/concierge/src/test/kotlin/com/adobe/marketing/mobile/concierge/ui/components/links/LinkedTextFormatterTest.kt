@@ -24,6 +24,24 @@ class LinkedTextFormatterTest {
     private val baseStyle = SpanStyle(color = Color.Black)
 
     @Test
+    fun `empty text produces no content or annotations`() {
+        val formatted = LinkedTextFormatter.format("", null, baseStyle, Color.Blue)
+
+        assertEquals("", formatted.text)
+        assertTrue(formatted.getStringAnnotations("URL", 0, formatted.length).isEmpty())
+    }
+
+    @Test
+    fun `null links and blank URLs leave placeholders unlinked`() {
+        listOf(null, listOf(DisclaimerLink("Terms", " \t"))).forEach { links ->
+            val formatted = LinkedTextFormatter.format("{Terms}", links, baseStyle, Color.Blue)
+
+            assertEquals("Terms", formatted.text)
+            assertTrue(formatted.getStringAnnotations("URL", 0, formatted.length).isEmpty())
+        }
+    }
+
+    @Test
     fun `repeated placeholders use the first exact matching link`() {
         val formatted = LinkedTextFormatter.format(
             text = "Read {Terms}; then revisit {Terms}.",

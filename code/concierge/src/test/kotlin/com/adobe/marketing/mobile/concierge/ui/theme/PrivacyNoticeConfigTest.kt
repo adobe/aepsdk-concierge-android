@@ -42,6 +42,34 @@ class PrivacyNoticeConfigTest {
     }
 
     @Test
+    fun `absent behavior and null notice use defaults`() {
+        listOf("{}", """{"behavior":{"privacyNotice":null}}""").forEach { json ->
+            assertEquals(PrivacyNoticeConfig(), ThemeParser.parseThemeTokens(json)!!.behavior.privacyNotice)
+        }
+    }
+
+    @Test
+    fun `incomplete links are dropped without discarding complete links`() {
+        val tokens = ThemeParser.parseThemeTokens(
+            """
+            {"behavior":{"privacyNotice":{"text":"Read {Privacy}.","links":[
+              {},
+              {"text":"Missing URL"},
+              {"url":"https://example.com"},
+              {"text":null,"url":"https://example.com"},
+              {"text":"Missing URL","url":null},
+              {"text":"Privacy","url":"https://example.com/privacy"}
+            ]}}}
+            """.trimIndent()
+        )!!
+
+        assertEquals(
+            listOf(DisclaimerLink("Privacy", "https://example.com/privacy")),
+            tokens.behavior.privacyNotice.links
+        )
+    }
+
+    @Test
     fun `configured title copy and links are retained exactly`() {
         val tokens = ThemeParser.parseThemeTokens(
             """
@@ -101,8 +129,12 @@ class PrivacyNoticeConfigTest {
         listOf(
             """{"privacyNotice":"invalid"}""",
             """{"privacyNotice":{"title":42}}""",
+            """{"privacyNotice":{"text":false}}""",
             """{"privacyNotice":{"links":"invalid"}}""",
-            """{"privacyNotice":{"links":[{"text":42,"url":"https://example.com"}]}}"""
+            """{"privacyNotice":{"links":[null]}}""",
+            """{"privacyNotice":{"links":["invalid"]}}""",
+            """{"privacyNotice":{"links":[{"text":42,"url":"https://example.com"}]}}""",
+            """{"privacyNotice":{"links":[{"text":"Privacy","url":42}]}}"""
         ).forEach { privacyNotice ->
             assertNull(
                 ThemeParser.parseThemeTokens(
