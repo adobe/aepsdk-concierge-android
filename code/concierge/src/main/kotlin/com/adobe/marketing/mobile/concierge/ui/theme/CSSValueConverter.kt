@@ -165,16 +165,21 @@ internal object CSSValueConverter {
      * Supports: "10px", "10px 20px", "10px 20px 30px", "10px 20px 30px 40px"
      * Returns list with [top, right, bottom, left] order
      */
-    fun parsePadding(cssValue: String): List<Double> {
-        val values = cssValue.trim().split(Regex("\\s+"))
-            .mapNotNull { parsePxValue(it) }
+    fun parsePadding(cssValue: String): List<Double>? {
+        val parts = cssValue.trim().split(Regex("\\s+"))
+        if (parts.size !in 1..4) return null
+        val values = parts.map {
+            val value = parsePxValue(it) ?: return null
+            if (!value.toFloat().isFinite() || value < 0) return null
+            value
+        }
         
         return when (values.size) {
             1 -> listOf(values[0], values[0], values[0], values[0])
             2 -> listOf(values[0], values[1], values[0], values[1])
             3 -> listOf(values[0], values[1], values[2], values[1])
             4 -> values
-            else -> listOf(0.0, 0.0, 0.0, 0.0)
+            else -> null
         }
     }
     
@@ -301,4 +306,3 @@ internal object CSSValueConverter {
         return cssValue.trim().toIntOrNull() ?: 0
     }
 }
-

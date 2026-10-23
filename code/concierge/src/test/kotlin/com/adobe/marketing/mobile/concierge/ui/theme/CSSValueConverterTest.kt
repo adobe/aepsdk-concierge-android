@@ -510,7 +510,7 @@ class CSSValueConverterTest {
     }
 
     @Test
-    fun `parsePadding returns zeros for invalid values`() {
+    fun `parsePadding rejects invalid values`() {
         // Given
         val cssValue = "invalid"
 
@@ -518,7 +518,7 @@ class CSSValueConverterTest {
         val result = CSSValueConverter.parsePadding(cssValue)
 
         // Then
-        assertEquals(listOf(0.0, 0.0, 0.0, 0.0), result)
+        assertNull(result)
     }
 
     @Test

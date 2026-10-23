@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -188,7 +191,11 @@ private fun RenderTextMessage(
         ) {
             Box(
                 modifier = Modifier.padding(
-                    if (isThinking) thinkingStyle.bubblePadding else PaddingValues(style.innerPadding)
+                    when {
+                        isThinking -> thinkingStyle.bubblePadding
+                        message.isFromUser -> PaddingValues(style.innerPadding)
+                        else -> style.agentContentPadding ?: PaddingValues(style.innerPadding)
+                    }
                 )
             ) {
                 Column(
@@ -227,8 +234,7 @@ private fun RenderTextMessage(
 
 /**
  * Icon + message layout for agent text responses when a company icon is configured in the theme.
- * The icon sits to the left of the card; start padding is removed from the card and its inner
- * box so that text aligns flush with the 12dp gap between icon and content.
+ * The icon gap is outside the card; configured content padding stays inside it.
  */
 @Composable
 private fun RenderTextMessageWithIcon(
@@ -285,7 +291,7 @@ private fun RenderTextMessageWithIcon(
                 ) {
                     Box(
                         modifier = Modifier.padding(
-                            if (isThinking) thinkingStyle.bubblePadding else PaddingValues(
+                            if (isThinking) thinkingStyle.bubblePadding else style.agentContentPadding ?: PaddingValues(
                                 top = style.innerPadding,
                                 bottom = style.innerPadding,
                                 end = style.innerPadding
@@ -341,6 +347,13 @@ private fun RenderMixedMessage(
     val hasText = content.text.isNotEmpty()
     val hasElements = !content.multimodalElements.isNullOrEmpty()
     val contentPad = if (companyIconName != null) 0.dp else style.innerPadding
+    val contentPadding = style.agentContentPadding?.takeUnless { message.isFromUser } ?: PaddingValues(
+        start = contentPad,
+        top = contentPad,
+        end = style.innerPadding,
+        bottom = style.innerPadding
+    )
+    val layoutDirection = LocalLayoutDirection.current
 
     // MessageList applies padding(horizontal = listPadding) to every item. The layout modifier on
     // the carousel Box escapes that constraint by measuring at full screen width and placing the
@@ -389,10 +402,10 @@ private fun RenderMixedMessage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
-                                    top = contentPad,
-                                    bottom = if (!message.hasFooterContent) style.innerPadding else 0.dp,
-                                    start = contentPad,
-                                    end = style.innerPadding
+                                    top = contentPadding.calculateTopPadding(),
+                                    bottom = if (!message.hasFooterContent) contentPadding.calculateBottomPadding() else 0.dp,
+                                    start = contentPadding.calculateStartPadding(layoutDirection),
+                                    end = contentPadding.calculateEndPadding(layoutDirection)
                                 )
                         ) {
                             ConciergeResponse(
@@ -410,10 +423,10 @@ private fun RenderMixedMessage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
-                                    top = if (!hasText) contentPad else 0.dp,
-                                    bottom = style.innerPadding,
-                                    start = contentPad,
-                                    end = style.innerPadding
+                                    top = if (!hasText) contentPadding.calculateTopPadding() else 0.dp,
+                                    bottom = contentPadding.calculateBottomPadding(),
+                                    start = contentPadding.calculateStartPadding(layoutDirection),
+                                    end = contentPadding.calculateEndPadding(layoutDirection)
                                 )
                         ) {
                             ChatFooter(

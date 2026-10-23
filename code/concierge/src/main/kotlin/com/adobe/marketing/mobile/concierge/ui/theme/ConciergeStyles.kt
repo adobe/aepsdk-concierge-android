@@ -40,6 +40,19 @@ import androidx.compose.ui.unit.sp
 internal fun defaultRecordingIconColor(pulsingBackgroundEnabled: Boolean, onPrimary: Color, micColor: Color): Color =
     if (pulsingBackgroundEnabled) onPrimary else micColor
 
+internal fun resolveMessagePadding(values: List<Double>?): PaddingValues? {
+    if (values == null) return null
+    if (values.size !in 1..4 || values.any { !it.toFloat().isFinite() || it < 0 }) {
+        android.util.Log.w("ConciergeTheme", "Ignoring invalid message padding.")
+        return null
+    }
+    val top = values[0].dp
+    val right = values.getOrElse(1) { values[0] }.dp
+    val bottom = values.getOrElse(2) { values[0] }.dp
+    val left = values.getOrElse(3) { values.getOrElse(1) { values[0] } }.dp
+    return PaddingValues.Absolute(left = left, top = top, right = right, bottom = bottom)
+}
+
 /**
  * Central styling configuration for all Concierge UI composables.
  * Organized by composable-level styles for consistency and maintainability.
@@ -218,7 +231,8 @@ internal object ConciergeStyles {
         val contentSpacing: Dp,
         val segmentSpacing: Dp,
         val agentIconSize: Dp,
-        val agentIconSpacing: Dp
+        val agentIconSpacing: Dp,
+        val agentContentPadding: PaddingValues? = null
     )
 
     val messageBubbleStyle: MessageBubbleStyle
@@ -251,7 +265,8 @@ internal object ConciergeStyles {
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp,
                 agentIconSize = cssLayout?.agentIconSize?.dp ?: 39.dp,
-                agentIconSpacing = cssLayout?.agentIconSpacing?.dp ?: 12.dp
+                agentIconSpacing = cssLayout?.agentIconSpacing?.dp ?: 12.dp,
+                agentContentPadding = resolveMessagePadding(cssLayout?.messagePadding)
             )
         }
 
