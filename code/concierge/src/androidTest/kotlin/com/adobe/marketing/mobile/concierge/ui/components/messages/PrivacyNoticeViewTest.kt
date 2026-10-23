@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import android.content.ActivityNotFoundException
 import android.content.ContextWrapper
 import android.content.Intent
 import androidx.compose.runtime.CompositionLocalProvider
@@ -135,6 +136,47 @@ class PrivacyNoticeViewTest {
             .fold(SpanStyle()) { style, range -> style.merge(range.item) }.color
         assertEquals(expectedBody, colorAt(0))
         assertEquals(expectedLink, colorAt(5))
+    }
+
+    @Test
+    fun notice_unhandledLinksDoNotCrashTouchOrAccessibility() {
+        val attempted = mutableListOf<String?>()
+        composeTestRule.setContent {
+            val context = LocalContext.current
+            val failingContext = object : ContextWrapper(context) {
+                override fun startActivity(intent: Intent) {
+                    attempted.add(intent.dataString)
+                    throw ActivityNotFoundException("No handler")
+                }
+            }
+            ConciergeTheme {
+                CompositionLocalProvider(LocalContext provides failingContext) {
+                    PrivacyNoticeView(
+                        config = PrivacyNoticeConfig(
+                            text = "{Relative} and {Custom}",
+                            links = listOf(
+                                DisclaimerLink("Relative", "/privacy"),
+                                DisclaimerLink("Custom", "unregistered-privacy://policy")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+
+        val body = composeTestRule.onNodeWithText("Relative and Custom")
+        val actions = body.fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        composeTestRule.runOnIdle {
+            assertEquals(2, actions.size)
+            actions.forEach { assertEquals(false, it.action()) }
+        }
+        val layouts = mutableListOf<TextLayoutResult>()
+        body.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        body.performTouchInput { click(layouts.single().getBoundingBox(1).center) }
+        composeTestRule.runOnIdle {
+            assertEquals(listOf("/privacy", "unregistered-privacy://policy", "/privacy"), attempted)
+        }
+        body.assertIsDisplayed()
     }
 
     @Test

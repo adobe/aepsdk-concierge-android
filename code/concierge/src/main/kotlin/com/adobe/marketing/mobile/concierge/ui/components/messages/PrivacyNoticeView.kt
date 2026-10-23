@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -37,10 +39,26 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.components.links.LinkedTextFormatter
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
+import com.adobe.marketing.mobile.services.Log
+
+internal fun openPrivacyNoticeLink(context: Context, url: String): Boolean {
+    return try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        true
+    } catch (_: ActivityNotFoundException) {
+        Log.warning(
+            ConciergeConstants.EXTENSION_NAME,
+            "PrivacyNoticeView",
+            "Unable to open privacy notice link: no activity can handle the URI."
+        )
+        false
+    }
+}
 
 @Composable
 internal fun PrivacyNoticeView(
@@ -76,8 +94,7 @@ internal fun PrivacyNoticeView(
             .distinct()
             .map { (url, label) ->
                 CustomAccessibilityAction(label = "Open $label") {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    true
+                    openPrivacyNoticeLink(context, url)
                 }
             }
     }
@@ -106,7 +123,7 @@ internal fun PrivacyNoticeView(
                     textStyle = bodyStyle,
                     textAlign = TextAlign.Start,
                     handleLink = { url ->
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        openPrivacyNoticeLink(context, url)
                     },
                     modifier = Modifier.semantics {
                         if (linkActions.isNotEmpty()) customActions = linkActions
