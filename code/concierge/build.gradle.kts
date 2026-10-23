@@ -41,6 +41,7 @@ aepLibrary {
         addMavenDependency("androidx.compose.material", "material-icons-extended", BuildConstants.Versions.COMPOSE)
         
         addMavenDependency("androidx.lifecycle", "lifecycle-runtime-compose", "2.7.0")
+        addMavenDependency("androidx.lifecycle", "lifecycle-process", "2.7.0")
         addMavenDependency("androidx.appcompat", "appcompat", BuildConstants.Versions.ANDROIDX_APPCOMPAT)
         addMavenDependency("androidx.compose.runtime", "runtime", BuildConstants.Versions.COMPOSE)
         addMavenDependency("androidx.activity", "activity-compose", BuildConstants.Versions.ANDROIDX_ACTIVITY_COMPOSE)
@@ -65,6 +66,9 @@ dependencies {
     
     // Lifecycle compose for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+
+    // Process lifecycle: resend a chat turn interrupted while the whole app was in the background
+    implementation("androidx.lifecycle:lifecycle-process:2.7.0")
 
     // Debug-only: viewModel() + factory DSL for the product-card demo (debug source set).
     debugImplementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")

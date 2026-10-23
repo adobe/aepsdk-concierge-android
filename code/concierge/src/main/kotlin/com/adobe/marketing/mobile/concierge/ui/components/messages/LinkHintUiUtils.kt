@@ -31,6 +31,8 @@ import androidx.core.net.toUri
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLinkIconStyle
+import com.adobe.marketing.mobile.concierge.ui.theme.toComposeColor
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownRenderer
 
 /**
@@ -64,6 +66,16 @@ internal object LinkHintUiUtils {
             .distinct()
             .map { url -> hintsByHref[url] ?: LinkHint(kind = "default", href = url) }
     }
+
+    /**
+     * Resolves the tint for inline link icons: [ConciergeLinkIconStyle.color] when it is a valid
+     * hex color, otherwise [linkColor], otherwise [textColor].
+     */
+    internal fun resolveLinkIconColor(
+        iconStyle: ConciergeLinkIconStyle?,
+        linkColor: Color?,
+        textColor: Color
+    ): Color = iconStyle?.color?.toComposeColor() ?: linkColor ?: textColor
 
     /**
      * Creates an inline text content map for link hint icons.

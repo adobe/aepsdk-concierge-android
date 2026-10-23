@@ -14,9 +14,16 @@ package com.adobe.marketing.mobile.concierge.utils.markdown
 
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeMessageColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
@@ -103,4 +110,63 @@ class MarkdownParserComposeTest {
             assertNotEquals(firstRender.text, latestRender.text)
         }
     }
+
+    @Test
+    fun parse_recolorsLinks_whenThemeLinkColorChanges() {
+        val results = mutableListOf<AnnotatedString>()
+        val text = "Visit [the store](https://store.example.com)"
+        val themeState = mutableStateOf(themeWithLinkColor("#FF0000"))
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeState.value) {
+                val rendered = MarkdownParser.parse(text)
+                SideEffect { results.add(rendered) }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.runOnIdle {
+            assertEquals(Color(0xFFFF0000), linkColorOf(results.last()))
+        }
+
+        composeTestRule.runOnIdle { themeState.value = themeWithLinkColor("#00FF00") }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.runOnIdle {
+            assertEquals(Color(0xFF00FF00), linkColorOf(results.last()))
+        }
+    }
+
+    @Test
+    fun parse_fallsBackToTextColor_whenThemeOmitsLinkColor() {
+        val results = mutableListOf<AnnotatedString>()
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(
+                colors = ConciergeThemeColors(primary = "#FF0000", onSurface = "#123456")
+            ),
+            tokens = null
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                val rendered = MarkdownParser.parse("Visit [the store](https://store.example.com)")
+                SideEffect { results.add(rendered) }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.runOnIdle {
+            assertEquals(Color(0xFF123456), linkColorOf(results.last()))
+        }
+    }
+
+    private fun themeWithLinkColor(hex: String) = ConciergeThemeData(
+        config = ConciergeThemeConfig(
+            colors = ConciergeThemeColors(message = ConciergeMessageColors(conciergeLink = hex))
+        ),
+        tokens = null
+    )
+
+    private fun linkColorOf(rendered: AnnotatedString): Color =
+        rendered.spanStyles.single { it.item.textDecoration == TextDecoration.Underline }.item.color
 }

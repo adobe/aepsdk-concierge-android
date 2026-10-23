@@ -464,13 +464,16 @@ internal class ConciergeConversationServiceClient(
 
     /**
      * Validates the HTTP response code.
-     * @throws IOException if the response code indicates an error (not in 200-299 range)
+     * @throws ConciergeHttpStatusException if the response code indicates an error (not in 200-299 range)
      */
     @Throws(IOException::class)
     private fun validateResponseCode(connection: HttpConnecting) {
         val responseCode = connection.responseCode
         if (responseCode !in 200..299) {
-            throw IOException("HTTP error: $responseCode ${connection.responseMessage}")
+            throw ConciergeHttpStatusException(
+                responseCode,
+                "HTTP error: $responseCode ${connection.responseMessage}"
+            )
         }
     }
 

@@ -97,7 +97,7 @@ internal fun buildDisclaimerAnnotatedString(
         text = disclaimer.text ?: "",
         links = disclaimer.links,
         baseStyle = baseSpanStyle,
-        linkColor = style.textColor,
+        linkColor = style.linkTextColor,
         linkTextDecoration = style.linkTextDecoration
     )
 }

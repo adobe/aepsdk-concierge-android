@@ -15,94 +15,6 @@ Both approaches are available for Compose and XML/Views-based apps.
 
 ## Prerequisites
 
-### Ending a conversation at an identity boundary
-
-Call the existing Core API when the host app changes users or signs out:
-
-```kotlin
-MobileCore.resetIdentities()
-```
-
-Concierge automatically clears its persisted backend session, transcript, unsent
-draft, held/pending XDM context and transient conversation UI. It stops speech
-capture and invalidates active, queued and auth-pending conversation work, including
-retained/hidden chat ViewModels. A visible chat stays open; a hidden chat stays hidden.
-Retained ViewModels also clear their image cache. The default image provider
-does not let downloads started before a cache clear repopulate the cleared cache.
-Custom image providers retain the existing interface and should implement the
-same isolation in `clear()`.
-The rendered composer clears its local draft as well as the ViewModel input state.
-Initial presentation still waits for configuration and identity; only an already
-mounted dialog is retained while reset is pending. Direct opens during reset are
-rejected rather than deferred.
-Interrupted/new data handoffs during reset complete once with `NO_ACTIVE_SESSION`.
-
-Sending resumes only after Edge Identity `RESET_COMPLETE`, resolved refreshed
-identity/configuration and local teardown. The next request uses a new `sessionId`.
-Android correlates reset completion to the active reset request and observes the
-paired reset-complete response through a filtered wildcard
-Event Hub listener; a typed listener alone does not receive paired responses.
-Overlapping reset requests remain blocked until the current request's correlated
-completion and retained participants' teardown. Superseded work is settled once;
-it cannot release a newer reset. Resolved post-completion identity publications
-(including authenticated identities) are read at their own event versions rather
-than reverting to the completion snapshot.
-Readiness remains event-driven. If a reset is still pending after five seconds,
-Concierge emits one error-level diagnostic for the current reset, distinguishing
-missing Edge Identity `RESET_COMPLETE` from unresolved identity, invalid
-configuration or unfinished local teardown. For missing completion, verify that
-Edge Identity 3.0.0 or later is registered, the minimum supported version for this
-Concierge release. Concierge requires a request-correlated `RESET_COMPLETE`;
-an uncorrelated completion cannot release the reset. This deadline does not
-reopen requests or change handoff errors: readiness must still be verified.
-Late correlated completion and eligible later shared-state updates can restore
-readiness. Success, a superseding reset and extension unregistration cancel the
-pending deadline diagnostic.
-Configuration publications use the same boundary as readiness and request
-admission. Chat, data handoff and feedback requests build their endpoint and
-identity payload from the same captured state snapshot, not a lagging UI copy.
-Each new turn still resolves its backend session through the normal inactivity
-expiry check, including turns from a ViewModel retained across reset.
-The mounted dialog and its open/close tracking lifecycle are preserved across
-reset, with text entry, microphone and sending disabled until readiness returns.
-An open request made before initial configuration/identity readiness waits for
-that readiness before its first presentation. Only an already-mounted dialog is
-retained during reset; direct open calls while resetting are ignored. Outside
-reset, loss of ordinary availability still removes the dialog as before.
-Speech recognition is cancelled and old native/queued callbacks are invalidated;
-the default Android engine retires the old `SpeechRecognizer` and creates a new
-instance for the next capture, rather than attaching a new listener to the old
-recognizer where framework-delayed callbacks could be redirected.
-Normal end-of-capture still finalizes transcription. Provider waits are
-cancellation-aware even with the maximum ten-minute timeout.
-Feedback keeps its submission generation across dispatcher hops and request
-admission; reset cancels outstanding feedback, including auth-provider waits.
-Old feedback is never retried under the refreshed identity or backend session.
-These are logical cancellation and callback-settlement guarantees, not a wait
-for all physical transport resources to be disposed before the ended diagnostic.
-The `SpeechCapturing` interface retains its original five method signatures, with
-no new abstract or default cancellation method. Custom Java and Kotlin engines
-remain source-compatible, but must invalidate old recognition sessions and queued
-deliveries when `setListener(null)` detaches the receiver. Otherwise an engine
-that forwards old results through its mutable replacement listener cannot be
-protected by ViewModel listener-generation checks alone. Normal `endCapture()`
-continues to finalize transcription rather than acting as reset cancellation.
-For custom engines, the SDK rejects callbacks made to the detached ViewModel
-listener, but cannot infer the age of a result already forwarded to its replacement.
-That stronger session-isolation guarantee belongs to the engine implementation.
-Host token-provider registration, configuration, consent and surfaces are retained.
-The host remains responsible for sign-out and replacing or clearing its auth token.
-This does not delete server-side conversation history.
-
-After local teardown, a nonempty ended conversation emits **Brand Concierge
-Conversation Ended** (`com.adobe.eventType.concierge`,
-`com.adobe.eventSource.notification`) for Event Hub/Assurance diagnostics.
-Its `conciergeEventType` is `concierge:conversation:ended`; fields are
-`reason: identity_reset`, Unix-millisecond `epochTime`, boolean `hadActiveTurn`,
-and optional previous `sessionId`/`conversationId`. It contains no transcript, XDM,
-identity map or auth token, and is never forwarded to Edge analytics.
-It is not a server-deletion, transport-cleanup or next-conversation-readiness signal.
-
 ### Required SDK modules
 Your app needs these AEP SDK's available and registered:
 
@@ -190,10 +102,33 @@ Brand Concierge forwards the full Edge Identity `identityMap` on every chat and 
 
 Namespace priority and identity-graph rules are configured server-side in Adobe Experience Platform; the SDK does not interpret or relabel namespaces.
 
+### Resetting identities
+
+Call the following Core API when the host app changes users or signs out:
+
+```kotlin
+MobileCore.resetIdentities()
+```
+
+Concierge then ends the current conversation locally:
+
+- **Cleared:** backend session, transcript, unsent draft, pending XDM context, image cache and in-flight work (chat, data handoff, feedback and speech capture). Nothing is retried under the new identity.
+- **Retained:** token-provider registration, configuration, consent, surfaces and server-side conversation history. The host remains responsible for sign-out and clearing its auth token.
+- **UI:** a visible chat stays open with input disabled until Concierge is ready again; a hidden chat stays hidden. Open calls made during reset are ignored, and data handoffs during reset complete with `NO_ACTIVE_SESSION`.
+
+Sending resumes, with a new `sessionId`, once Edge Identity reports reset complete and refreshed identity and configuration are available. This requires **Edge Identity 3.0.0 or later**. If reset is still pending after five seconds, Concierge logs an error describing what it is waiting on.
+
+**Custom components:**
+- Custom image providers should ensure `clear()` also prevents in-progress downloads from repopulating the cache.
+- Custom `SpeechCapturing` engines should drop old recognition results and queued callbacks when `setListener(null)` is called.
+
+After reset, if a conversation was in progress, Concierge dispatches a **Brand Concierge Conversation Ended** event (`com.adobe.eventType.concierge` / `com.adobe.eventSource.notification`, `conciergeEventType: concierge:conversation:ended`) for Event Hub/Assurance diagnostics. It includes `reason: identity_reset`, `epochTime` (Unix ms), `hadActiveTurn`, and the previous `sessionId`/`conversationId` when available. It contains no transcript, XDM, identity or token data, and is not sent to Edge.
+
 ## XDM context
 
-Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data that should accompany
-subsequent typed chat turns and data handoffs:
+Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data. The SDK sends it with every
+later chat message (typed, spoken, or a tapped prompt suggestion) and every data handoff. Feedback
+requests don't include it.
 
 ```kotlin
 Concierge.updateXDMContext(
@@ -202,44 +137,30 @@ Concierge.updateXDMContext(
         "commerce" to mapOf("currencyCode" to "USD")
     )
 )
-```
 
-Updates use RFC 7396 JSON Merge Patch semantics. Nested maps merge recursively, lists and scalar
-values replace existing values, and a `null` value removes the matching key:
-
-```kotlin
+// Remove a key
 Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 ```
 
-The value must be JSON-compatible (strings, booleans, finite numbers, maps with string keys, or
-lists of those values; null is allowed throughout a list subtree). Numbers may be `Byte`, `Short`,
-`Int`, `Long`, `Float`, or `Double`. Nesting is limited to 20 levels below each top-level field
-value; cyclic or deeper input is rejected with `IllegalArgumentException`. Data handoffs use the
-same value types and nesting limit.
-
-The top-level `identityMap` key is reserved and rejected; the SDK supplies the Edge Identity map.
-Context is held in memory. Each update checks for an existing valid session without creating one
-or refreshing its inactivity timestamp. Before the first request, context remains pending even
-if more than 30 minutes pass; the next request adopts it into its session. After an established
-session expires, stale context is cleared before applying a fresh patch, and that newly supplied
-context also remains pending until a request adopts it. Updating context does not count as
-conversation activity. A request after expiry without a new context update does not carry the
-expired context.
-
-There is no separate reset API. To remove context, send a patch whose values are `null` — a
-top-level `null` removes that key, and nested `null` values remove individual nested keys.
-
-For chat and data handoffs, a context snapshot is captured when the request is submitted; later
-updates do not change the queued snapshot. The queue processor resolves the session off the UI
-thread before sending the request. Pending context is adopted into that session without changing
-the captured fields; snapshots from the same pending context are bound to that session only,
-not reused after a later rollover. If captured context belongs to an expired session, it is
-omitted. For typed chat, `QUERY_SUBMITTED` is emitted after session resolution and before the
-network request, carrying the same context as the service request.
-
-App context is included in the SDK hub event, where it can be read by Assurance **and other
-extensions listening to that event**. The SDK does not forward this app-supplied context to the
-production Edge tracking payload or include it in the tracking-event device log.
+- **Merging:** Each update is applied as an RFC 7396 JSON Merge Patch. Maps merge recursively,
+  lists and scalar values replace the existing value, and a `null` map value removes that key.
+  There is no reset API. To remove context, send `null` values.
+- **Allowed values:** strings, booleans, finite `Byte`, `Short`, `Int`, `Long`, `Float`, or
+  `Double` values, maps with string keys, and lists of these values. A `null` inside a list is
+  sent as JSON null. Nesting is limited to 20 levels below each top-level value. The top-level
+  `identityMap` key is reserved for the SDK. Invalid input, including cyclic input, throws
+  `IllegalArgumentException`.
+- **Lifetime:** Context is held in memory for the current Concierge session (30 minutes of
+  inactivity). Updating it doesn't start or extend a session. If no session exists yet, the next
+  request adopts the context. When a session expires, its context is not sent with later requests,
+  and the next update starts from an empty context. `MobileCore.resetIdentities()` also clears it.
+- **Timing:** A chat message or handoff captures the context when it's submitted. Updates made
+  after that don't change requests that are already queued.
+- **Data handoffs:** The handoff's `xdmFields` are deep-merged over the held context using the same
+  rules, and the handoff values win. The held context itself isn't changed.
+- **Visibility:** The context is included in the **Brand Concierge Query Submitted** Event Hub
+  event, so Assurance and other listening extensions can read it. The SDK doesn't forward it to
+  Edge tracking and doesn't write it to the SDK log.
 
 ---
 
@@ -316,9 +237,9 @@ Concierge.sendDataHandoff(
 - **`xdmFields`** *(required)*: Arbitrary XDM-shaped data merged into the root of the outbound XDM
   object alongside the SDK-owned identity map. Use nested Kotlin maps and lists, for example
   `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
-  every key must be a `String`; and values must be JSON-safe: `String`, `Boolean`, finite `Int`,
-  `Long`, `Float`, or `Double`, or maps/lists containing those values. Do not use `identityMap` as
-  a top-level key because the SDK owns and populates it.
+  every key must be a `String`; and values follow the [XDM context](#xdm-context) value rules,
+  except that `null` is allowed only inside lists. Do not use `identityMap` as a top-level key
+  because the SDK owns and populates it. These fields are deep-merged over any held XDM context.
 - **`localMessage`**: Optional text for a local, non-networked chat message distinct from the data
   forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts,
   as an agent-attributed message rather than a user message.

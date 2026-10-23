@@ -418,7 +418,7 @@ theme tokens are required.
 | `behavior.citations.defaultLinkIcon` | string \| null | `null` | Same as `phoneIcon`, for links with any other `kind` — including links with no matching `linkHints` entry. |
 | `behavior.citations.linkIconStyle.size` | number | `16` | Inline link icon size, in dp. |
 | `behavior.citations.linkIconStyle.spacing` | number | `2` | Gap between link text and its icon, in dp. |
-| `behavior.citations.linkIconStyle.color` | string | `--message-concierge-link-color`, else primary | Inline link icon tint color (hex). |
+| `behavior.citations.linkIconStyle.color` | string | `--message-concierge-link-color`, else `--color-text` | Inline link icon tint color (hex). |
 
 `phoneIcon`/`storeIcon`/`defaultLinkIcon`/`linkIconStyle` only affect links rendered inline within AI message text. The citation list icon (in the expanded sources accordion) is a fixed 14dp size tinted with the citation URL color, and always uses the built-in pop-out icon — only `showLinkIcon` applies to it.
 
@@ -484,6 +484,17 @@ theme tokens are required.
 ## Disclaimer
 
 Legal disclaimer text with embedded links.
+
+Normal disclaimer text uses `--disclaimer-color`. Recognized links are underlined and use
+the resolved theme body text color: `--color-on-surface` when provided, otherwise
+`--color-text`, otherwise the default palette. This matches iOS when no distinct
+`--color-on-surface` override is configured; iOS uses `--color-text` directly. Links retain
+the disclaimer font size and weight. With no custom theme, the SDK's resolved light/dark
+text palette is used.
+
+This corrects earlier Android behavior where link spans lost their themed color and
+could fall back to black. Existing applications may see disclaimer link colors change
+after upgrading; no JSON migration or link-handling changes are required.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -745,7 +756,7 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--message-user-text` | `colors.message.userText` | `String` | `"#000000"` | User message text color (hex) |
 | `--message-concierge-background` | `colors.message.conciergeBackground` | `String` | `"#F5F5F5"` | AI message bubble background (hex) |
 | `--message-concierge-text` | `colors.message.conciergeText` | `String` | `"#000000"` | AI message text color (hex) |
-| `--message-concierge-link-color` | `colors.message.conciergeLink` | `String` | `"#1976D2"` | Link color in AI messages (hex) |
+| `--message-concierge-link-color` | `colors.message.conciergeLink` | `String` | `"#1976D2"` | Link color in AI messages (hex): inline link text, expanded citation URLs, and the inline link-icon fallback color. When a theme JSON omits this key, all of these fall back to `--color-text`. With no theme JSON loaded, the built-in palettes use `#0000FF` (light) and `#1E88E5` (dark). |
 
 ### Colors - Buttons
 
@@ -850,7 +861,7 @@ These tokens style the feedback dialog (modal card and action bottom sheet).
 
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
-| `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Disclaimer text color (hex) |
+| `--disclaimer-color` | `colors.disclaimer` | `String` | `"#757575"` | Non-link disclaimer text color (hex); links use `--color-on-surface`, falling back to `--color-text`, then the default palette |
 
 ### Colors - Thinking Animation
 
@@ -1538,7 +1549,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--thinking-bubble-padding-vertical` | ✅ | Thinking bubble vertical padding | `ChatMessageItem` |
 | `--thinking-dot-vertical-alignment` | ✅ | Vertical alignment of the thinking dots row | `ConciergeThinking` |
 | `--color-primary` | ✅ | Primary brand color | Product buttons, feedback dialog submit button, feedback checkbox (checked fill), mic button icon, thinking animation (fallback when `--thinking-dot-color` not set) |
-| `--color-text` | ✅ | Primary text color; used for body text on main background and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, prompt suggestions (when theme loaded) |
+| `--color-text` | ✅ | Primary text color; used for body text on main background, disclaimer links (unless `--color-on-surface` is set), and for `micButtonColor` in parsed theme (mic icon uses `--color-primary` in UI) | `ChatHeader`, `WelcomeCard`, `ConciergeDisclaimer` links, prompt suggestions (when theme loaded) |
 | `--color-container` | ✅ | Background for cards and container elements; fallback for prompt suggestion chips when `--suggestion-background-color` is not set | `ProductCard`, `PromptSuggestions`, `ChatInputPanel` (fallback) |
 | `--main-container-background` | ✅ | Main chat screen, welcome card, and feedback dialog background | `ChatScreen`, `WelcomeCard`, `FeedbackDialog` |
 | `--main-container-bottom-background` | ✅ | Bottom container/surface background | Input area, voice recording panel |
@@ -1547,7 +1558,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--message-user-text` | ✅ | User message text color | `ChatMessageItem` |
 | `--message-concierge-background` | ✅ | AI message bubble background | `ChatMessageItem` |
 | `--message-concierge-text` | ✅ | AI message text color, feedback dialog text, feedback button icons, prompt suggestion chip text/icon fallback, expanded citation list text, chat footer (Sources label and icon) | `ChatMessageItem`, `FeedbackDialog`, `FeedbackButtons`, `PromptSuggestions`, `ExpandedCitations`, `ChatFooter`, `ProductCard` text, `ProductCarousel` switcher color |
-| `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs | `ExpandedCitations` (citation URLs); message body links when applied |
+| `--message-concierge-link-color` | ✅ | Link color in AI messages; expanded citation list URLs; inline link icon fallback | `MarkdownParser` (message body links), `ExpandedCitations` (citation URLs), `ConciergeResponse` (link icon fallback) |
 | `--button-primary-background` | ✅ | Primary button background | `ProductActionButtons` |
 | `--button-primary-text` | ✅ | Primary button text | `ProductActionButtons` |
 | `--button-primary-hover` | ⚠️ | Parsed but no hover states on Android | - |
@@ -1600,7 +1611,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--feedback-cancel-button-fill-color` | ✅ | Cancel button fill + X close icon tint | `FeedbackDialog` |
 | `--feedback-cancel-button-text-color` | ✅ | Cancel button text | `FeedbackDialog` |
 | `--feedback-cancel-button-border-color` | ✅ | Cancel button outline | `FeedbackDialog` |
-| `--disclaimer-color` | ✅ | Disclaimer text color | `ConciergeDisclaimer` (DisclaimerStyle) |
+| `--disclaimer-color` | ✅ | Non-link disclaimer text color; links use `--color-on-surface`, falling back to `--color-text`, then the default palette | `ConciergeDisclaimer` (DisclaimerStyle) |
 | `--cta-button-background-color` | ✅ | CTA button background color | `CtaButton` |
 | `--cta-button-text-color` | ✅ | CTA button label text color | `CtaButton` |
 | `--cta-button-icon-color` | ✅ | CTA button icon color | `CtaButton` |
