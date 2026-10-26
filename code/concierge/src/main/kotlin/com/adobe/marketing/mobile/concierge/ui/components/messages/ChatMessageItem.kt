@@ -107,8 +107,8 @@ internal fun ChatMessageItem(
  * Renders a CTA button that is itself a standalone list item (an ordered element the backend
  * sent as its own message, rather than attached via [ChatMessage.ctaButton] to a text response).
  * It has no text bubble of its own to inherit alignment from, so it must independently match the
- * start inset used by agent text messages: the icon column when a company icon is configured,
- * otherwise the message bubble's own padding.
+ * CTA inset used under agent text messages: the icon column when a company icon is configured,
+ * otherwise the message bubble's own padding. `--message-padding` does not move it.
  */
 @Composable
 private fun RenderCtaButton(
@@ -523,9 +523,9 @@ private fun AgentResponseContent(
  * Prompt suggestions and CTA button shown below the message card for bot responses.
  * Shared across all bot message render functions.
  *
- * @param ctaStartPadding Start inset for the CTA button, matching the start inset of the response
- * text above it so the two stay aligned. Callers that already offset this composable to the text
- * column (e.g. via a leading Spacer for the agent icon) should pass 0.dp.
+ * @param ctaStartPadding Start inset for the CTA button: the legacy text inset without an icon, or
+ * the bubble's leading edge beside an icon. It ignores `--message-padding`. Callers that already
+ * offset this composable past the agent icon (via a leading Spacer) should pass 0.dp.
  */
 @Composable
 private fun BotMessageSuffix(

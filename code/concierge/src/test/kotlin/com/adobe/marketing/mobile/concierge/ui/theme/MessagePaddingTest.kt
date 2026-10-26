@@ -28,6 +28,7 @@ class MessagePaddingTest {
             "8px 16px 4px" to listOf(8.0, 16.0, 4.0, 16.0),
             "8px 16px 4px 20px" to listOf(8.0, 16.0, 4.0, 20.0),
             "0px" to listOf(0.0, 0.0, 0.0, 0.0),
+            "0" to listOf(0.0, 0.0, 0.0, 0.0),
             "  8.5px\t16.25px  " to listOf(8.5, 16.25, 8.5, 16.25)
         )
         cases.forEach { (css, expected) ->
