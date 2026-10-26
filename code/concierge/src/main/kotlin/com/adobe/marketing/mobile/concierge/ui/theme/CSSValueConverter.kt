@@ -168,20 +168,20 @@ internal object CSSValueConverter {
     fun parsePadding(cssValue: String): List<Double>? {
         val parts = cssValue.trim().split(Regex("\\s+"))
         if (parts.size !in 1..4) return null
-        val values = parts.map {
-            val value = parsePxValue(it) ?: return null
-            if (!value.toFloat().isFinite() || value < 0) return null
-            value
+        val values = parts.map { part ->
+            parsePxValue(part)?.takeIf(::isValidPadding) ?: return null
         }
         
         return when (values.size) {
             1 -> listOf(values[0], values[0], values[0], values[0])
             2 -> listOf(values[0], values[1], values[0], values[1])
             3 -> listOf(values[0], values[1], values[2], values[1])
-            4 -> values
-            else -> null
+            else -> values
         }
     }
+
+    /** True when [value] is a usable padding: non-negative and finite once narrowed to dp. */
+    fun isValidPadding(value: Double): Boolean = value >= 0 && value.toFloat().isFinite()
     
     /**
      * Parses a CSS width value.

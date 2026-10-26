@@ -364,9 +364,9 @@ private fun RenderMixedMessage(
     } else 0.dp
     val escapeRight: Dp = listPadding
 
-    // First card aligns with the text content: escapeLeft + innerPadding (no icon) or escapeLeft
-    // alone (with icon). style.padding (card outer padding) is excluded because the carousel
-    // renders outside the card wrapper.
+    // First card uses the fixed legacy inset, independent of --message-padding: escapeLeft +
+    // innerPadding (no icon) or escapeLeft alone (with icon, i.e. the bubble's leading edge).
+    // style.padding (card outer padding) is excluded because the carousel renders outside the card.
     val carouselLeadingInset: Dp = escapeLeft + if (companyIconName == null) style.innerPadding else 0.dp
 
     Column(

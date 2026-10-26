@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
@@ -40,10 +41,14 @@ import androidx.compose.ui.unit.sp
 internal fun defaultRecordingIconColor(pulsingBackgroundEnabled: Boolean, onPrimary: Color, micColor: Color): Color =
     if (pulsingBackgroundEnabled) onPrimary else micColor
 
+/**
+ * Resolves `--message-padding` values (1-4, CSS shorthand order) to physical edges.
+ * Validated again here because [ConciergeLayout] can be constructed programmatically.
+ */
 internal fun resolveMessagePadding(values: List<Double>?): PaddingValues? {
     if (values == null) return null
-    if (values.size !in 1..4 || values.any { !it.toFloat().isFinite() || it < 0 }) {
-        android.util.Log.w("ConciergeTheme", "Ignoring invalid message padding.")
+    if (values.size !in 1..4 || !values.all(CSSValueConverter::isValidPadding)) {
+        Log.w(CSSKeyMapper.LOG_TAG, "Ignoring invalid message padding; expected 1-4 non-negative values.")
         return null
     }
     val top = values[0].dp

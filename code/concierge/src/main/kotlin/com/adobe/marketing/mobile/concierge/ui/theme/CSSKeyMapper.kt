@@ -25,7 +25,7 @@ typealias CSSAssignment = (String, ConciergeThemeTokens) -> ConciergeThemeTokens
  */
 internal object CSSKeyMapper {
     
-    private const val LOG_TAG = "ConciergeTheme"
+    internal const val LOG_TAG = "ConciergeTheme"
     
     // Helper functions to reduce boilerplate
 
