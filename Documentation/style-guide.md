@@ -687,7 +687,7 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, ALL agent response elements — message text, product cards, and prompt suggestion chips — are automatically aligned to the icon column (flush with the right edge of the icon). Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. See [Bundling local icons](#bundling-local-icons). |
+| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, the agent bubble, product cards, CTAs and prompt suggestion chips are offset past the icon column. The bubble's leading edge sits flush with the icon spacing; cards and CTAs align with that edge, and prompt chips keep their own 12dp inset. Agent text has no start padding unless `--message-padding` is set. A remote URL keeps the icon column even while loading or if it fails; a local asset that cannot be found falls back to the no-icon layout. Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. See [Bundling local icons](#bundling-local-icons). |
 
 ### Bundling local icons
 
@@ -928,9 +928,9 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--message-border-radius` | `cssLayout.messageBorderRadius` | `Double` | `10.0` | Message bubble corner radius (dp) |
-| `--message-padding` | `cssLayout.messagePadding` | `List<Double>` | `[8, 16]` | Message content padding (dp) |
+| `--message-padding` | `cssLayout.messagePadding` | `List<Double>?` | Unset | Agent bubble content padding (dp), applied to the response text and sources on all sides, including next to a company icon. Accepts 1–4 non-negative values in CSS shorthand order (top, right, bottom, left); left/right are physical edges in RTL too. Unset keeps the previous layout: 12dp on all sides, or 0dp at the start next to a company icon. `0` removes all content padding, so omit the token to keep the previous look. User bubbles keep 12dp; product cards, CTAs and prompt chips do not move. Invalid values are logged and ignored. |
 | `--message-max-width` | `cssLayout.messageMaxWidth` | `Double?` | `null` | Max message width (dp or %) |
-| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent messages. Also determines the start offset applied to product cards and prompt suggestion chips so they align with the message text column. |
+| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent messages. Also sets the start offset of product cards, CTAs and prompt chips so they stay in the icon's content column instead of under the icon. |
 | `--agent-icon-spacing` | `cssLayout.agentIconSpacing` | `Double?` | `12.0` | Horizontal gap (dp) between the agent icon and the message card. Also contributes to the start offset of product cards and prompt suggestion chips. |
 
 ### Layout - Chat
@@ -1543,7 +1543,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles. When set, product cards and prompt suggestion chips are automatically offset to align with the agent text column. | `ChatMessageItem` (`RenderTextMessageWithIcon`, `RenderMixedMessage`) |
+| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles. Product cards and CTAs align with the agent bubble's leading edge; prompt chips keep their own 12dp inset. `--message-padding` insets the text inside the bubble without moving them. | `ChatMessageItem` (`RenderTextMessageWithIcon`, `RenderMixedMessage`) |
 
 ### Theme Tokens - Typography
 
@@ -1670,7 +1670,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
 | `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
-| `--message-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--message-padding` | ✅ | Agent bubble text and sources only, with or without a company icon. Unset keeps the previous layout; user bubbles keep 12dp. | `ConciergeStyles`, `ChatMessageItem` |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--agent-icon-size` | ✅ | Size of agent icon next to agent messages | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
 | `--agent-icon-spacing` | ✅ | Gap between agent icon and message card | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
