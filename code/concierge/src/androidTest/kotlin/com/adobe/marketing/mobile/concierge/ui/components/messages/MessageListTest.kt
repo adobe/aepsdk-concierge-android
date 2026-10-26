@@ -13,10 +13,19 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToNode
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import com.adobe.marketing.mobile.concierge.ui.test.ComposeTestUtils
@@ -30,6 +39,48 @@ class MessageListTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @Test
+    fun messageList_noticeAppearsOnFirstSendAndResetsWithHistory() {
+        val messages = mutableStateOf(emptyList<ChatMessage>())
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    MessageList(
+                        messages = messages.value,
+                        privacyNotice = PrivacyNoticeConfig(text = "Conversation privacy.")
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Privacy Notice").assertDoesNotExist()
+        composeTestRule.runOnIdle {
+            messages.value = listOf(ComposeTestUtils.createTextMessage("Agent handoff"))
+        }
+        composeTestRule.onNodeWithText("Privacy Notice").assertDoesNotExist()
+        composeTestRule.runOnIdle {
+            messages.value = messages.value + ComposeTestUtils.createTextMessage("First query", isFromUser = true)
+        }
+        composeTestRule.onNodeWithText("Conversation privacy.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("First query").assertIsDisplayed()
+        val noticeBounds = composeTestRule.onNodeWithText("Conversation privacy.").getUnclippedBoundsInRoot()
+        val queryBounds = composeTestRule.onNodeWithText("First query").getUnclippedBoundsInRoot()
+        org.junit.Assert.assertTrue(noticeBounds.bottom <= queryBounds.top)
+
+        composeTestRule.runOnIdle {
+            messages.value = messages.value + ComposeTestUtils.createTextMessage("Second query", isFromUser = true)
+        }
+        composeTestRule.onNode(hasScrollAction()).performScrollToNode(hasText("Privacy Notice"))
+        composeTestRule.onAllNodesWithText("Privacy Notice").assertCountEquals(1)
+        composeTestRule.runOnIdle { messages.value = emptyList() }
+        composeTestRule.onNodeWithText("Privacy Notice").assertDoesNotExist()
+        composeTestRule.runOnIdle {
+            messages.value = listOf(ComposeTestUtils.createTextMessage("New conversation", isFromUser = true))
+        }
+        composeTestRule.onNodeWithText("Conversation privacy.").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Privacy Notice").assertCountEquals(1)
+    }
 
     @Test
     fun messageList_displaysMessages() {
