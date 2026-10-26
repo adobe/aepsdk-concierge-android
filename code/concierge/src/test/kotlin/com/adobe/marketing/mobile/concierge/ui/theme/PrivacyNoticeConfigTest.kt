@@ -35,9 +35,11 @@ class PrivacyNoticeConfigTest {
         assertEquals(PrivacyNoticeConfig(), missing.behavior.privacyNotice)
         assertEquals(PrivacyNoticeConfig(), explicitNulls.behavior.privacyNotice)
         assertEquals(
-            PrivacyNoticeConfig(title = "Privacy Notice", text = "Keep this copy exactly. "),
+            PrivacyNoticeConfig(text = "Keep this copy exactly. "),
             partial.behavior.privacyNotice
         )
+        // Null title defers to the localized default heading at render time.
+        assertNull(partial.behavior.privacyNotice.title)
         assertFalse(missing.behavior.privacyNotice.hasContent)
     }
 

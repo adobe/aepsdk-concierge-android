@@ -220,6 +220,7 @@ object ConciergeConstants {
             const val PRODUCT_CARD = "productCard"
             const val DISCLAIMER   = "disclaimer"
             const val CTA          = "cta"
+            const val PRIVACY_NOTICE = "privacyNotice"
         }
     }
 }

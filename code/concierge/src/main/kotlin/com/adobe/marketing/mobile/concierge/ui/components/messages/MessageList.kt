@@ -66,7 +66,6 @@ internal fun MessageList(
     // Keep track of the last user message index we've scrolled to
     var lastScrolledUserMessageIndex by remember { mutableStateOf<Int?>(null) }
 
-    val lastUserIndex = remember(messages) { messages.indexOfLast { it.isFromUser } }
     val privacyNoticeIndex = remember(messages, privacyNotice) { privacyNoticeIndex(messages, privacyNotice) }
 
     // When a new user message arrives, scroll so that it is anchored at the top
@@ -109,7 +108,7 @@ internal fun MessageList(
                 ) {
                     if (index == privacyNoticeIndex && privacyNotice != null) {
                         Column(verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)) {
-                            PrivacyNoticeView(config = privacyNotice)
+                            PrivacyNoticeView(config = privacyNotice, handleLink = handleLink)
                             ChatMessageItem(
                                 message = message,
                                 onFeedback = onFeedback,

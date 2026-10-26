@@ -12,10 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -24,13 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
@@ -40,39 +37,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.components.links.LinkedTextFormatter
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
-import com.adobe.marketing.mobile.services.Log
 
-internal fun openPrivacyNoticeLink(context: Context, url: String): Boolean {
-    return try {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        true
-    } catch (_: ActivityNotFoundException) {
-        Log.warning(
-            ConciergeConstants.EXTENSION_NAME,
-            "PrivacyNoticeView",
-            "Unable to open privacy notice link: no activity can handle the URI."
-        )
-        false
-    }
-}
-
+/**
+ * Informational privacy notice shown before the first user query.
+ *
+ * Links route through [handleLink] with the `privacyNotice` origin, so they get the same
+ * interception, tracking, and blocked-scheme handling as other chat links.
+ */
 @Composable
 internal fun PrivacyNoticeView(
     config: PrivacyNoticeConfig,
+    handleLink: (url: String, origin: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (!config.hasContent) return
 
-    val context = LocalContext.current
     val colors = ConciergeTheme.colors
     val bodyStyle = ConciergeStyles.messageBubbleStyle.textStyle
-    val bodyColor = (colors.conciergeMessageText ?: colors.onSurface).copy(alpha = 0.75f)
+    val textColor = colors.conciergeMessageText ?: colors.onSurface
+    val bodyColor = textColor.copy(alpha = 0.75f)
     val linkColor = colors.messageConciergeLink ?: colors.onSurface
-    val noticeShape = RoundedCornerShape(ConciergeTheme.tokens?.cssLayout?.borderRadiusCard?.dp ?: 12.dp)
+    val title = config.title ?: stringResource(R.string.concierge_privacy_notice_title)
+    val openLinkFormat = stringResource(R.string.concierge_privacy_notice_open_link)
+    val noticeShape = RoundedCornerShape(ConciergeTheme.tokens?.cssLayout?.borderRadiusCard?.dp ?: 16.dp)
+    val currentHandleLink by rememberUpdatedState(handleLink)
+    val openLink: (String) -> Unit = { url ->
+        currentHandleLink(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.PRIVACY_NOTICE)
+    }
     val annotatedText = remember(config, bodyStyle, bodyColor, linkColor) {
         LinkedTextFormatter.format(
             text = config.text,
@@ -86,15 +82,16 @@ internal fun PrivacyNoticeView(
             linkColor = linkColor
         )
     }
-    val linkActions = remember(annotatedText, context) {
+    val linkActions = remember(annotatedText, openLinkFormat) {
         annotatedText.getStringAnnotations("URL", 0, annotatedText.length)
             .map { range ->
                 range.item to annotatedText.text.substring(range.start, range.end)
             }
             .distinct()
             .map { (url, label) ->
-                CustomAccessibilityAction(label = "Open $label") {
-                    openPrivacyNoticeLink(context, url)
+                CustomAccessibilityAction(label = openLinkFormat.format(label)) {
+                    openLink(url)
+                    true
                 }
             }
     }
@@ -105,16 +102,16 @@ internal fun PrivacyNoticeView(
             .padding(top = ConciergeStyles.messageBubbleStyle.padding)
             .clip(noticeShape)
             .background(colors.conciergeMessageBackground ?: colors.surface)
-            .border(1.dp, colors.outline.copy(alpha = 0.5f), noticeShape)
+            .border(1.dp, textColor.copy(alpha = 0.12f), noticeShape)
             .padding(16.dp)
     ) {
         SelectionContainer {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (config.title.isNotBlank()) {
+                if (title.isNotBlank()) {
                     Text(
-                        text = config.title,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = colors.conciergeMessageText ?: colors.onSurface,
+                        text = title,
+                        style = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
+                        color = colors.onSurface,
                         modifier = Modifier.semantics { heading() }
                     )
                 }
@@ -122,9 +119,7 @@ internal fun PrivacyNoticeView(
                     text = annotatedText,
                     textStyle = bodyStyle,
                     textAlign = TextAlign.Start,
-                    handleLink = { url ->
-                        openPrivacyNoticeLink(context, url)
-                    },
+                    handleLink = openLink,
                     modifier = Modifier.semantics {
                         if (linkActions.isNotEmpty()) customActions = linkActions
                     }

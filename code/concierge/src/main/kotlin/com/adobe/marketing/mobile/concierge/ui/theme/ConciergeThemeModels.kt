@@ -138,8 +138,14 @@ data class DisclaimerConfig(
     val links: List<DisclaimerLink>? = null
 )
 
+/**
+ * First-query privacy notice from `behavior.privacyNotice`.
+ *
+ * @property title Heading text; `null` uses the localized default ("Privacy Notice") and a blank
+ * value hides only the heading.
+ */
 data class PrivacyNoticeConfig(
-    val title: String = "Privacy Notice",
+    val title: String? = null,
     val text: String = "",
     val links: List<DisclaimerLink> = emptyList()
 ) {

@@ -364,9 +364,9 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.privacyNotice.title` | string | `"Privacy Notice"` | Heading shown above the notice body. Blank hides only the heading. |
+| `behavior.privacyNotice.title` | string | `"Privacy Notice"` | Heading shown above the notice body. Blank hides only the heading. When omitted, the SDK uses its `concierge_privacy_notice_title` string resource, which apps can localize. |
 | `behavior.privacyNotice.text` | string | `""` | Notice copy with optional `{Label}` placeholders; absent, empty, or whitespace-only text hides the notice. |
-| `behavior.privacyNotice.links` | array | `[]` | Link objects use the same `{ "text": "...", "url": "..." }` shape as disclaimer links. The first exact label match is used. |
+| `behavior.privacyNotice.links` | array | `[]` | Link objects use the same `{ "text": "...", "url": "..." }` shape as disclaimer links. The first exact label match is used. A link whose URL is blank or malformed renders as plain, unlinked text. |
 
 The notice is informational and does not block submission or require acknowledgment.
 It appears immediately before the first user-authored text message in a conversation,
@@ -374,6 +374,16 @@ including typed, voice-transcript, and welcome-suggestion submissions. It is not
 included in requests to the conversation service and is shown again after a chat reset.
 The transcript card uses existing message colors and card radius; no privacy-specific
 theme tokens are required.
+
+Links open through the same handling as other chat links: the host app's link callback
+runs first, then App Links, an in-app web view for `http`/`https`, or the system handler
+for other schemes. `javascript`, `file`, `content`, `intent`, and `data` URLs are ignored.
+Taps are tracked as link clicks with origin `privacyNotice`.
+
+> **Strict decoding:** unlike other `behavior` keys, a wrong type anywhere under
+> `privacyNotice` (for example `"title": 42` or `"links": {}`) fails theme decoding, so the
+> whole theme falls back to the defaults and an error is logged. This matches iOS. Missing
+> or `null` fields are fine and use the defaults above.
 
 ### Product Card
 
@@ -494,7 +504,15 @@ text palette is used.
 
 This corrects earlier Android behavior where link spans lost their themed color and
 could fall back to black. Existing applications may see disclaimer link colors change
-after upgrading; no JSON migration or link-handling changes are required.
+after upgrading; no JSON migration is required.
+
+Disclaimer and privacy-notice text share one placeholder formatter, matching iOS. Compared
+with earlier Android releases, this changes how disclaimer placeholders render:
+
+- Placeholders are matched in text order, so the order of `links` no longer matters.
+- Every occurrence of a repeated placeholder is linked, not only the first.
+- A placeholder with no matching link renders its label without braces (`{Terms}` → `Terms`).
+- A link whose URL is blank or malformed renders as plain, unlinked text.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -1113,6 +1131,13 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
       "promptFullWidth": false,
       "promptMaxLines": 1,
       "contentAlignment": "top"
+    },
+    "privacyNotice": {
+      "title": "Privacy Notice",
+      "text": "Your messages are processed by {Company}.",
+      "links": [
+        {"text": "Company", "url": "https://example.com/privacy"}
+      ]
     }
   },
   "disclaimer": {
@@ -1460,7 +1485,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.welcomeCard.contentAlignment` | ✅ | `"top"` or `"center"` vertical position | `ConciergeChat` |
 | `behavior.privacyNotice.title` | ✅ | Optional heading; blank hides only the heading | `PrivacyNoticeView` |
 | `behavior.privacyNotice.text` | ✅ | First user-message transcript notice; blank body hides the card | `MessageList` → `PrivacyNoticeView` |
-| `behavior.privacyNotice.links` | ✅ | Brace placeholders share the disclaimer formatter; links open externally without disclaimer analytics | `PrivacyNoticeView` |
+| `behavior.privacyNotice.links` | ✅ | Brace placeholders share the disclaimer formatter; links use the shared chat link handling with origin `privacyNotice` | `PrivacyNoticeView` |
 
 ### Disclaimer
 
@@ -1654,7 +1679,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
-| `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
+| `--border-radius-card` | ✅ | Corner radius of the privacy notice card | `PrivacyNoticeView` |
 | `--multimodal-card-box-shadow` | ✅ | Card drop shadow (blur radius → elevation, color → ambient/spot shadow color) | `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-min-height` | ✅ | Minimum card height; card grows with content | `ExtendedProductCard` |

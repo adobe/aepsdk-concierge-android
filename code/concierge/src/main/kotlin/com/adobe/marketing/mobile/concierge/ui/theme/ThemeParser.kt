@@ -567,7 +567,7 @@ internal object ThemeParser {
         val noticeMap = value as? Map<*, *> ?: throw IllegalArgumentException(
             "behavior.privacyNotice must be an object or null"
         )
-        val title = privacyNoticeString(noticeMap, "title") ?: "Privacy Notice"
+        val title = privacyNoticeString(noticeMap, "title")
         val text = privacyNoticeString(noticeMap, "text") ?: ""
         val links = when (val linksValue = noticeMap["links"]) {
             null -> emptyList()

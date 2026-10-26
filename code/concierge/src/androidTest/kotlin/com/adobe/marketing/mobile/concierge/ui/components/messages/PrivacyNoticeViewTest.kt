@@ -12,13 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import android.content.ActivityNotFoundException
-import android.content.ContextWrapper
-import android.content.Intent
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -35,6 +30,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
@@ -59,6 +55,7 @@ class PrivacyNoticeViewTest {
                 expectedInset = ConciergeStyles.messageBubbleStyle.padding + 16.dp
                 PrivacyNoticeView(
                     config = PrivacyNoticeConfig(text = "Your privacy matters."),
+                    handleLink = noOpLink,
                     modifier = Modifier.testTag("notice")
                 )
             }
@@ -78,6 +75,7 @@ class PrivacyNoticeViewTest {
             ConciergeTheme {
                 PrivacyNoticeView(
                     config = PrivacyNoticeConfig(text = " \n\t"),
+                    handleLink = noOpLink,
                     modifier = Modifier.testTag("notice")
                 )
             }
@@ -91,7 +89,7 @@ class PrivacyNoticeViewTest {
     fun notice_blankTitleKeepsBodyWithoutLinkActions() {
         composeTestRule.setContent {
             ConciergeTheme {
-                PrivacyNoticeView(config = PrivacyNoticeConfig(title = " ", text = "Body only."))
+                PrivacyNoticeView(config = PrivacyNoticeConfig(title = " ", text = "Body only."), handleLink = noOpLink)
             }
         }
 
@@ -105,6 +103,7 @@ class PrivacyNoticeViewTest {
         val json = """
             {"theme":{
               "--message-concierge-text":"#123456",
+              "--color-text":"#0A0B0C",
               "--message-concierge-link-color":"#654321",
               "--message-concierge-background":"#EEEEEE",
               "--border-radius-card":"20px"
@@ -116,15 +115,19 @@ class PrivacyNoticeViewTest {
         )
         var expectedBody = Color.Unspecified
         var expectedLink = Color.Unspecified
+        var expectedTitle = Color.Unspecified
         composeTestRule.setContent {
             ConciergeTheme(theme = theme) {
                 expectedBody = requireNotNull(ConciergeTheme.colors.conciergeMessageText).copy(alpha = 0.75f)
                 expectedLink = requireNotNull(ConciergeTheme.colors.messageConciergeLink)
+                expectedTitle = ConciergeTheme.colors.onSurface
                 PrivacyNoticeView(
                     config = PrivacyNoticeConfig(
+                        title = "Legal",
                         text = "Read {Privacy}.",
                         links = listOf(DisclaimerLink("Privacy", "https://example.com/privacy"))
-                    )
+                    ),
+                    handleLink = noOpLink
                 )
             }
         }
@@ -136,71 +139,27 @@ class PrivacyNoticeViewTest {
             .fold(SpanStyle()) { style, range -> style.merge(range.item) }.color
         assertEquals(expectedBody, colorAt(0))
         assertEquals(expectedLink, colorAt(5))
+        val titleLayouts = mutableListOf<TextLayoutResult>()
+        composeTestRule.onNodeWithText("Legal")
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(titleLayouts) }
+        assertEquals(expectedTitle, titleLayouts.single().layoutInput.style.color)
     }
 
     @Test
-    fun notice_unhandledLinksDoNotCrashTouchOrAccessibility() {
-        val attempted = mutableListOf<String?>()
+    fun notice_touchAndDeduplicatedAccessibilityLinksUseSharedHandler() {
+        val routed = mutableListOf<Pair<String, String>>()
         composeTestRule.setContent {
-            val context = LocalContext.current
-            val failingContext = object : ContextWrapper(context) {
-                override fun startActivity(intent: Intent) {
-                    attempted.add(intent.dataString)
-                    throw ActivityNotFoundException("No handler")
-                }
-            }
             ConciergeTheme {
-                CompositionLocalProvider(LocalContext provides failingContext) {
-                    PrivacyNoticeView(
-                        config = PrivacyNoticeConfig(
-                            text = "{Relative} and {Custom}",
-                            links = listOf(
-                                DisclaimerLink("Relative", "/privacy"),
-                                DisclaimerLink("Custom", "unregistered-privacy://policy")
-                            )
+                PrivacyNoticeView(
+                    config = PrivacyNoticeConfig(
+                        text = "{Privacy} and {Privacy}, then {Terms}.",
+                        links = listOf(
+                            DisclaimerLink("Privacy", "https://example.com/privacy"),
+                            DisclaimerLink("Terms", "https://example.com/terms")
                         )
-                    )
-                }
-            }
-        }
-
-        val body = composeTestRule.onNodeWithText("Relative and Custom")
-        val actions = body.fetchSemanticsNode().config[SemanticsActions.CustomActions]
-        composeTestRule.runOnIdle {
-            assertEquals(2, actions.size)
-            actions.forEach { assertEquals(false, it.action()) }
-        }
-        val layouts = mutableListOf<TextLayoutResult>()
-        body.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
-        body.performTouchInput { click(layouts.single().getBoundingBox(1).center) }
-        composeTestRule.runOnIdle {
-            assertEquals(listOf("/privacy", "unregistered-privacy://policy", "/privacy"), attempted)
-        }
-        body.assertIsDisplayed()
-    }
-
-    @Test
-    fun notice_touchAndDeduplicatedAccessibilityLinksOpenExpectedUrls() {
-        val opened = mutableListOf<Intent>()
-        composeTestRule.setContent {
-            val context = LocalContext.current
-            val recordingContext = object : ContextWrapper(context) {
-                override fun startActivity(intent: Intent) {
-                    opened.add(intent)
-                }
-            }
-            ConciergeTheme {
-                CompositionLocalProvider(LocalContext provides recordingContext) {
-                    PrivacyNoticeView(
-                        config = PrivacyNoticeConfig(
-                            text = "{Privacy} and {Privacy}, then {Terms}.",
-                            links = listOf(
-                                DisclaimerLink("Privacy", "https://example.com/privacy"),
-                                DisclaimerLink("Terms", "https://example.com/terms")
-                            )
-                        )
-                    )
-                }
+                    ),
+                    handleLink = { url, origin -> routed.add(url to origin) }
+                )
             }
         }
 
@@ -215,10 +174,35 @@ class PrivacyNoticeViewTest {
         body.performTouchInput { click(layouts.single().getBoundingBox(1).center) }
         composeTestRule.runOnIdle {
             assertEquals(
-                listOf("https://example.com/privacy", "https://example.com/terms", "https://example.com/privacy"),
-                opened.map { it.dataString }
+                listOf("https://example.com/privacy", "https://example.com/terms", "https://example.com/privacy")
+                    .map { it to ConciergeConstants.TrackingEvent.LinkClickOrigin.PRIVACY_NOTICE },
+                routed
             )
-            assertTrue(opened.all { it.action == Intent.ACTION_VIEW })
         }
     }
+
+    @Test
+    fun notice_invalidLinkUrlRendersPlainTextWithoutActions() {
+        val routed = mutableListOf<String>()
+        composeTestRule.setContent {
+            ConciergeTheme {
+                PrivacyNoticeView(
+                    config = PrivacyNoticeConfig(
+                        text = "See {Policy}.",
+                        links = listOf(DisclaimerLink("Policy", "https://example.com/a b"))
+                    ),
+                    handleLink = { url, _ -> routed.add(url) }
+                )
+            }
+        }
+
+        val body = composeTestRule.onNodeWithText("See Policy.")
+        body.assertIsDisplayed().assert(SemanticsMatcher.keyNotDefined(SemanticsActions.CustomActions))
+        val layouts = mutableListOf<TextLayoutResult>()
+        body.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        body.performTouchInput { click(layouts.single().getBoundingBox(5).center) }
+        composeTestRule.runOnIdle { assertTrue(routed.isEmpty()) }
+    }
+
+    private val noOpLink: (String, String) -> Unit = { _, _ -> }
 }
