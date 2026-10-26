@@ -370,8 +370,14 @@ internal fun ConciergeChat(
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
+
+                    privacyNotice = ConciergeTheme.behavior?.privacyNotice,
+
                     // The ViewModel tracks the click and opens the CTA's click url.
-                    onCtaButtonClick = { cta -> onEvent(CtaButtonClick(cta)) },
+                    onCtaButtonClick = { cta ->
+                        onEvent(CtaButtonClick(cta))
+                        handleLink(cta.url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)
+                                       },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = messageListStyle.horizontalPadding)

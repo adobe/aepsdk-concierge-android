@@ -98,6 +98,21 @@ class ConciergeDisclaimerTest {
     }
 
     @Test
+    fun disclaimer_unmatchedPlaceholderDisplaysFormattedPlainText() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ConciergeDisclaimer(
+                    disclaimerConfig = DisclaimerConfig(text = "Read {Privacy}.", links = emptyList()),
+                    onEvent = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Read Privacy.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Read {Privacy}.").assertDoesNotExist()
+    }
+
+    @Test
     fun disclaimer_displaysTextWithLinkPlaceholder() {
         composeTestRule.setContent {
             ConciergeTheme {

@@ -360,6 +360,31 @@ Feature toggles and interaction configuration.
 | `behavior.chat.messageWidth` | string | `"100%"` | Max message width (e.g., `"100%"`, `"768px"`) |
 | `behavior.chat.userMessageBubbleStyle` | string | `"default"` | User message bubble shape. `"default"` = all corners rounded; `"balloon"` = rounded except bottom-right corner is square (speech balloon style). Corner radius is controlled by `--message-border-radius` (default `12dp`). |
 
+### Privacy Notice
+
+| JSON Key | Type | Default | Description |
+|----------|------|---------|-------------|
+| `behavior.privacyNotice.title` | string | `"Privacy Notice"` | Heading shown above the notice body. Blank hides only the heading. When omitted, the SDK uses its `concierge_privacy_notice_title` string resource, which apps can localize. |
+| `behavior.privacyNotice.text` | string | `""` | Notice copy with optional `{Label}` placeholders; absent, empty, or whitespace-only text hides the notice. |
+| `behavior.privacyNotice.links` | array | `[]` | Link objects use the same `{ "text": "...", "url": "..." }` shape as disclaimer links. The first exact label match is used. A link whose URL is blank or malformed renders as plain, unlinked text. |
+
+The notice is informational and does not block submission or require acknowledgment.
+It appears immediately before the first user-authored text message in a conversation,
+including typed, voice-transcript, and welcome-suggestion submissions. It is not
+included in requests to the conversation service and is shown again after a chat reset.
+The transcript card uses existing message colors and card radius; no privacy-specific
+theme tokens are required.
+
+Links open through the same handling as other chat links: the host app's link callback
+runs first, then App Links, an in-app web view for `http`/`https`, or the system handler
+for other schemes. `javascript`, `file`, `content`, `intent`, and `data` URLs are ignored.
+Taps are tracked as link clicks with origin `privacyNotice`.
+
+> **Strict decoding:** unlike other `behavior` keys, a wrong type anywhere under
+> `privacyNotice` (for example `"title": 42` or `"links": {}`) fails theme decoding, so the
+> whole theme falls back to the defaults and an error is logged. This matches iOS. Missing
+> or `null` fields are fine and use the defaults above.
+
 ### Product Card
 
 | JSON Key | Type | Default | Description |
@@ -433,6 +458,13 @@ Feature toggles and interaction configuration.
       "messageWidth": "100%",
       "userMessageBubbleStyle": "balloon"
     },
+    "privacyNotice": {
+      "title": "Privacy Notice",
+      "text": "Your messages are processed by {Company}.",
+      "links": [
+        {"text": "Company", "url": "https://example.com/privacy"}
+      ]
+    },
     "feedback": {
       "displayMode": "action",
       "thumbsPlacement": "below",
@@ -472,7 +504,15 @@ text palette is used.
 
 This corrects earlier Android behavior where link spans lost their themed color and
 could fall back to black. Existing applications may see disclaimer link colors change
-after upgrading; no JSON migration or link-handling changes are required.
+after upgrading; no JSON migration is required.
+
+Disclaimer and privacy-notice text share one placeholder formatter, matching iOS. Compared
+with earlier Android releases, this changes how disclaimer placeholders render:
+
+- Placeholders are matched in text order, so the order of `links` no longer matters.
+- Every occurrence of a repeated placeholder is linked, not only the first.
+- A placeholder with no matching link renders its label without braces (`{Terms}` → `Terms`).
+- A link whose URL is blank or malformed renders as plain, unlinked text.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -647,7 +687,7 @@ Icon and image asset configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, ALL agent response elements — message text, product cards, and prompt suggestion chips — are automatically aligned to the icon column (flush with the right edge of the icon). Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. See [Bundling local icons](#bundling-local-icons). |
+| `assets.icons.company` | string | `""` | Company icon displayed to the left of agent text message bubbles. When set, the agent bubble, product cards, CTAs and prompt suggestion chips are offset past the icon column. The bubble's leading edge sits flush with the icon spacing; cards and CTAs align with that edge, and prompt chips keep their own 12dp inset. Agent text has no start padding unless `--message-padding` is set. A remote URL keeps the icon column even while loading or if it fails; a local asset that cannot be found falls back to the no-icon layout. Accepts a remote URL (`http://` or `https://`) or a local asset name (without extension) resolved from the app's `assets/icons/` folder. Supported local formats: `.png`, `.webp`, `.jpg`, `.jpeg`. Leave empty to show no icon. See [Bundling local icons](#bundling-local-icons). |
 
 ### Bundling local icons
 
@@ -888,9 +928,9 @@ Used when `behavior.productCard.cardStyle` is `"productDetail"`.
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--message-border-radius` | `cssLayout.messageBorderRadius` | `Double` | `10.0` | Message bubble corner radius (dp) |
-| `--message-padding` | `cssLayout.messagePadding` | `List<Double>` | `[8, 16]` | Message content padding (dp) |
+| `--message-padding` | `cssLayout.messagePadding` | `List<Double>?` | Unset | Agent bubble content padding (dp), applied to the response text and sources on all sides, including next to a company icon. Accepts 1–4 non-negative values in CSS shorthand order (top, right, bottom, left); left/right are physical edges in RTL too. Unset keeps the previous layout: 12dp on all sides, or 0dp at the start next to a company icon. `0` removes all content padding, so omit the token to keep the previous look. User bubbles keep 12dp; product cards, CTAs and prompt chips do not move. Invalid values are logged and ignored. |
 | `--message-max-width` | `cssLayout.messageMaxWidth` | `Double?` | `null` | Max message width (dp or %) |
-| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent messages. Also determines the start offset applied to product cards and prompt suggestion chips so they align with the message text column. |
+| `--agent-icon-size` | `cssLayout.agentIconSize` | `Double?` | `39.0` | Size (dp) of the agent icon shown to the left of agent messages. Also sets the start offset of product cards, CTAs and prompt chips so they stay in the icon's content column instead of under the icon. |
 | `--agent-icon-spacing` | `cssLayout.agentIconSpacing` | `Double?` | `12.0` | Horizontal gap (dp) between the agent icon and the message card. Also contributes to the start offset of product cards and prompt suggestion chips. |
 
 ### Layout - Chat
@@ -1091,6 +1131,13 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
       "promptFullWidth": false,
       "promptMaxLines": 1,
       "contentAlignment": "top"
+    },
+    "privacyNotice": {
+      "title": "Privacy Notice",
+      "text": "Your messages are processed by {Company}.",
+      "links": [
+        {"text": "Company", "url": "https://example.com/privacy"}
+      ]
     }
   },
   "disclaimer": {
@@ -1387,14 +1434,14 @@ This section documents which properties are fully implemented, partially impleme
 - **Colors**: ~70% implemented (most core colors used, hover states not applicable)
 - **Typography**: 60% implemented (`fontFamily` not yet supported)
 - **Layout**: ~15% implemented (only outline widths and font sizes currently used)
-- **Behavior**: ~10% implemented (only `enableVoiceInput` functional)
+- **Behavior**: `enableVoiceInput` and the first-query privacy notice are functional; additional settings remain unsupported
 - **Text/Copy**: ~50% implemented (main strings used; `*.aria` accessibility-label keys and `text["header.*"]` are not supported at all — see [Header](#header) for the real title/subtitle keys)
 
 **Key Differences from Web/iOS:**
 - Hover states (`--button-primary-hover`, `--feedback-icon-btn-hover-background`) are parsed but not applicable on Android
 - Box shadows are parsed but not currently rendered
 - Most layout dimensions (padding, margins, border radius) are hardcoded rather than theme-driven
-- `*.aria` text keys and `behavior.privacyNotice.*` are not parsed by the Android SDK at all (not just unused) — omit them
+- `*.aria` accessibility-label text keys are not parsed by the Android SDK at all — omit them
 
 ### Metadata
 
@@ -1436,12 +1483,15 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.welcomeCard.promptFullWidth` | ✅ | Full-width cards vs compact pill chips | `SuggestedPromptItem` |
 | `behavior.welcomeCard.promptMaxLines` | ✅ | Max lines for prompt text (uniform pill height) | `SuggestedPromptItem` |
 | `behavior.welcomeCard.contentAlignment` | ✅ | `"top"` or `"center"` vertical position | `ConciergeChat` |
+| `behavior.privacyNotice.title` | ✅ | Optional heading; blank hides only the heading | `PrivacyNoticeView` |
+| `behavior.privacyNotice.text` | ✅ | First user-message transcript notice; blank body hides the card | `MessageList` → `PrivacyNoticeView` |
+| `behavior.privacyNotice.links` | ✅ | Brace placeholders share the disclaimer formatter; links use the shared chat link handling with origin `privacyNotice` | `PrivacyNoticeView` |
 
 ### Disclaimer
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `disclaimer.text` | ✅ | Rendered below chat input; default used if omitted | `ConciergeDisclaimer` |
+| `disclaimer.text` | ✅ | Rendered below chat input; default used if omitted; shares the brace-placeholder formatter | `ConciergeDisclaimer` |
 | `disclaimer.links` | ✅ | Placeholders in text replaced by tappable links | `ConciergeDisclaimer` |
 
 ### Text (Copy)
@@ -1493,7 +1543,7 @@ This section documents which properties are fully implemented, partially impleme
 
 | Property | Status | Notes | Used In |
 |----------|--------|-------|---------|
-| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles. When set, product cards and prompt suggestion chips are automatically offset to align with the agent text column. | `ChatMessageItem` (`RenderTextMessageWithIcon`, `RenderMixedMessage`) |
+| `assets.icons.company` | ✅ | Company icon displayed to the left of agent text message bubbles. Product cards and CTAs align with the agent bubble's leading edge; prompt chips keep their own 12dp inset. `--message-padding` insets the text inside the bubble without moving them. | `ChatMessageItem` (`RenderTextMessageWithIcon`, `RenderMixedMessage`) |
 
 ### Theme Tokens - Typography
 
@@ -1620,7 +1670,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
 | `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
 | `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
-| `--message-padding` | ⚠️ | Parsed but not used in composables | - |
+| `--message-padding` | ✅ | Agent bubble text and sources only, with or without a company icon. Unset keeps the previous layout; user bubbles keep 12dp. | `ConciergeStyles`, `ChatMessageItem` |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
 | `--agent-icon-size` | ✅ | Size of agent icon next to agent messages | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
 | `--agent-icon-spacing` | ✅ | Gap between agent icon and message card | `ChatMessageItem` (`RenderTextMessageWithIcon`) |
@@ -1629,7 +1679,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--chat-history-padding-top-expanded` | ⚠️ | Parsed but not used in composables | - |
 | `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
-| `--border-radius-card` | ⚠️ | Parsed but not used in composables | - |
+| `--border-radius-card` | ✅ | Corner radius of the privacy notice card | `PrivacyNoticeView` |
 | `--multimodal-card-box-shadow` | ✅ | Card drop shadow (blur radius → elevation, color → ambient/spot shadow color) | `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-min-height` | ✅ | Minimum card height; card grows with content | `ExtendedProductCard` |
