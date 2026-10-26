@@ -11,7 +11,9 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -228,6 +230,19 @@ class TempConversationResponseTest {
         assertEquals("http://example.com/chat?summary=hi", CtaButton(label = "Chat", url = "http://example.com/chat", summary = "hi").clickUrl)
         listOf("tel:+15555550100", "mailto:help@example.com", "myapp://support/chat", "javascript://x%0Aalert(1)", "/support/chat")
             .forEach { url -> assertEquals(url, CtaButton(label = "Chat", url = url, summary = "hi").clickUrl) }
+    }
+
+    @Test
+    fun `CtaButton toString redacts the summary`() {
+        val summary = "Asked about a refund for order 12345"
+        val button = CtaButton(label = "Chat", url = "https://example.com/chat", summary = summary)
+
+        assertEquals("CtaButton(label=Chat, url=https://example.com/chat, hasSummary=true)", button.toString())
+        assertFalse(MessageContent.CtaButton(button).toString().contains(summary))
+        assertEquals(
+            "CtaButton(label=Chat, url=https://example.com/chat, hasSummary=false)",
+            CtaButton(label = "Chat", url = "https://example.com/chat").toString()
+        )
     }
 
     @Test

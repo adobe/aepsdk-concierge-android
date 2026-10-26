@@ -129,6 +129,9 @@ internal data class CtaButton(
             return withSummary
         }
 
+    /** Redacts [summary], which can contain conversation details, from logs and state dumps. */
+    override fun toString(): String = "CtaButton(label=$label, url=$url, hasSummary=${summary != null})"
+
     companion object {
         private const val TAG = "CtaButton"
         private const val SUMMARY_PARAM = "summary"
