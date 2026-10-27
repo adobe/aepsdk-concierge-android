@@ -14,13 +14,16 @@ package com.adobe.marketing.mobile.concierge.ui.components.disclaimer
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerLink
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -32,6 +35,91 @@ class ConciergeDisclaimerTest {
         linkTextDecoration = TextDecoration.Underline,
         padding = 8.dp
     )
+
+    private fun assertCharacterStyles(
+        result: AnnotatedString,
+        style: ConciergeStyles.DisclaimerStyle
+    ) {
+        val links = result.getStringAnnotations("URL", 0, result.length)
+        for (index in result.text.indices) {
+            val isLink = links.any { index >= it.start && index < it.end }
+            val resolved = result.spanStyles
+                .filter { index >= it.start && index < it.end }
+                .fold(SpanStyle()) { current, range -> current.merge(range.item) }
+            assertEquals("Color at index $index", if (isLink) style.linkTextColor else style.textColor, resolved.color)
+            assertEquals(style.textStyle.fontSize, resolved.fontSize)
+            assertEquals(style.textStyle.fontWeight, resolved.fontWeight)
+            assertEquals(if (isLink) style.linkTextDecoration else null, resolved.textDecoration)
+        }
+    }
+
+    @Test
+    fun `dark theme link retains typography and uses text color without leaking into surrounding text`() {
+        val style = testDisclaimerStyle().copy(
+            textStyle = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            textColor = Color(0xFFADADAD),
+            linkTextColor = Color.White
+        )
+        val result = buildDisclaimerAnnotatedString(
+            DisclaimerConfig(
+                text = "Read {Terms} before continuing.",
+                links = listOf(DisclaimerLink("Terms", "https://example.com/terms"))
+            ),
+            style
+        )
+        assertEquals("Read Terms before continuing.", result.text)
+        val annotation = result.getStringAnnotations("URL", 0, result.length).single()
+        assertEquals(5, annotation.start)
+        assertEquals(10, annotation.end)
+        assertEquals("https://example.com/terms", annotation.item)
+        assertCharacterStyles(result, style)
+    }
+
+    @Test
+    fun `light theme multiple links use text color and preserve all annotation ranges`() {
+        val style = testDisclaimerStyle().copy(
+            textStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal),
+            textColor = Color.Gray,
+            linkTextColor = Color(0xFF131313)
+        )
+        val result = buildDisclaimerAnnotatedString(
+            DisclaimerConfig(
+                text = "{Terms} and {Privacy}.",
+                links = listOf(
+                    DisclaimerLink("Terms", "https://example.com/terms"),
+                    DisclaimerLink("Privacy", "https://example.com/privacy")
+                )
+            ),
+            style
+        )
+        assertEquals("Terms and Privacy.", result.text)
+        val annotations = result.getStringAnnotations("URL", 0, result.length)
+        assertEquals(listOf(0, 10), annotations.map { it.start })
+        assertEquals(listOf(5, 17), annotations.map { it.end })
+        assertEquals(listOf("https://example.com/terms", "https://example.com/privacy"), annotations.map { it.item })
+        assertCharacterStyles(result, style)
+    }
+
+    @Test
+    fun `plain text keeps disclaimer color even with a distinct link color`() {
+        val style = testDisclaimerStyle().copy(
+            textStyle = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+            textColor = Color.Gray,
+            linkTextColor = Color.White
+        )
+        val result = buildDisclaimerAnnotatedString(
+            DisclaimerConfig(text = "No links here.", links = emptyList()),
+            style
+        )
+        assertEquals("No links here.", result.text)
+        assertCharacterStyles(result, style)
+    }
+
+    @Test
+    fun `existing style constructor defaults link color to disclaimer color`() {
+        val style = testDisclaimerStyle()
+        assertEquals(style.textColor, style.linkTextColor)
+    }
 
     @Test
     fun `buildDisclaimerAnnotatedString with no links returns plain text`() {

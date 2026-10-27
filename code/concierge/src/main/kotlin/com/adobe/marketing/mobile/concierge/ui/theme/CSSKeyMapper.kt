@@ -25,7 +25,7 @@ typealias CSSAssignment = (String, ConciergeThemeTokens) -> ConciergeThemeTokens
  */
 internal object CSSKeyMapper {
     
-    private const val LOG_TAG = "ConciergeTheme"
+    internal const val LOG_TAG = "ConciergeTheme"
     
     // Helper functions to reduce boilerplate
 
@@ -455,9 +455,14 @@ internal object CSSKeyMapper {
             }
         },
         "message-padding" to { cssValue, theme ->
-            updateLayout(theme) { layout ->
-                val padding = CSSValueConverter.parsePadding(cssValue)
-                layout?.copy(messagePadding = padding) ?: ConciergeLayout(messagePadding = padding)
+            val padding = CSSValueConverter.parsePadding(cssValue)
+            if (padding == null) {
+                Log.w(LOG_TAG, "Ignoring invalid --message-padding; expected 1-4 non-negative pixel values.")
+                theme
+            } else {
+                updateLayout(theme) { layout ->
+                    layout?.copy(messagePadding = padding) ?: ConciergeLayout(messagePadding = padding)
+                }
             }
         },
         "message-max-width" to { cssValue, theme ->
