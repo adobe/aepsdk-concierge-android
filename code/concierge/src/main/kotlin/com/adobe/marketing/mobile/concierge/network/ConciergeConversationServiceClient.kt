@@ -37,6 +37,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runInterruptible
@@ -74,6 +75,13 @@ internal interface ConversationService {
     suspend fun sendFeedback(feedback: Feedback): Boolean
     // Keep existing fake implementations compatible; production enforces the submission boundary.
     suspend fun sendFeedback(feedback: Feedback, generation: Long): Boolean = sendFeedback(feedback)
+
+    /**
+     * Requests voice session credentials. Emits at most one [VoiceSessionBootstrap] and completes
+     * when the stream closes; completing without an emission means the bootstrap failed. Services
+     * without voice support complete immediately.
+     */
+    fun bootstrapVoiceSession(sessionId: String? = null): Flow<VoiceSessionBootstrap> = emptyFlow()
     fun cleanup()
 }
 
@@ -111,9 +119,17 @@ internal class ConciergeConversationServiceClient(
         private const val DEFAULT_READ_TIMEOUT = 15
     }
     
-    private fun endpoint(state: ConciergeState, sessionId: String): String {
-        val regionSegment = state.conciergeRegion?.let { "/$it" }.orEmpty()
-        return "https://${state.conciergeServer}/brand-concierge$regionSegment/conversations" +
+    /**
+     * Builds the conversations endpoint. The voice service path has no region segment, matching
+     * the Web SDK's voice routing.
+     */
+    private fun endpoint(state: ConciergeState, sessionId: String, voice: Boolean = false): String {
+        val servicePath = if (voice) {
+            "/brand-concierge-voice"
+        } else {
+            "/brand-concierge" + state.conciergeRegion?.let { "/$it" }.orEmpty()
+        }
+        return "https://${state.conciergeServer}$servicePath/conversations" +
                 "?configId=${state.conciergeConfigId}" +
                 "&sessionId=$sessionId" +
                 "&requestId=${UUID.randomUUID()}"
@@ -153,61 +169,118 @@ internal class ConciergeConversationServiceClient(
         val generation = stateRepository.state.value.resetGeneration
         return DefaultRequestStartedFlow { onRequestStarted ->
             flow {
-                val state = stateRepository.withConversation(generation) { stateRepository.state.value }
-                val requestBody = createRequestBody(message, state, xdmFields)
-                val request = createConversationServiceRequest(endpoint(state, sessionId), requestBody)
-
-                stateRepository.withConversation(generation) { sessionManager.refreshSessionActivity() }
-                onRequestStarted()
-                val connection = connect(request, generation)
                 var eventOrDataReceived = false
-
-                coroutineScope {
-                    val cancellationCloser = launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
-                        try {
-                            awaitCancellation()
-                        } finally {
-                            connection.close()
-                        }
+                streamConversationEvents(
+                    generation,
+                    onRequestStarted,
+                    prepareRequest = { state ->
+                        createConversationServiceRequest(
+                            endpoint(state, sessionId),
+                            createRequestBody(message, state, xdmFields)
+                        )
                     }
-                    try {
-                        processResponse(connection).collect { event ->
-                            stateRepository.withConversation(generation) { }
-                            when (event) {
-                                is StreamingEvent.EventReceived -> {
-                                    val parsed = ConversationResponseParser.parseConversationData(event.data)
-                                    eventOrDataReceived = true
-                                    parsed.forEach { emit(it) }
-                                }
+                ) { event ->
+                    when (event) {
+                        is StreamingEvent.EventReceived -> {
+                            val parsed = ConversationResponseParser.parseConversationData(event.data)
+                            eventOrDataReceived = true
+                            parsed.forEach { emit(it) }
+                        }
 
-                                is StreamingEvent.DataReceived -> {
-                                    val parsed = ConversationResponseParser.parseConversationData(event.data)
-                                    eventOrDataReceived = true
-                                    parsed.forEach { emit(it) }
-                                }
+                        is StreamingEvent.DataReceived -> {
+                            val parsed = ConversationResponseParser.parseConversationData(event.data)
+                            eventOrDataReceived = true
+                            parsed.forEach { emit(it) }
+                        }
 
-                                is StreamingEvent.Closed -> {
-                                    // Emit a final completion when the stream closes without data.
-                                    if (!eventOrDataReceived) {
-                                        emit(ParsedConversationMessage("", ConversationState.COMPLETED))
-                                    }
-                                }
-
-                                is StreamingEvent.Retry -> {
-                                    // TODO: Implement retry logic if needed
-                                }
-
-                                else -> {
-                                    // Started is informational; processResponse rethrows Error.
-                                }
+                        is StreamingEvent.Closed -> {
+                            // Emit a final completion when the stream closes without data.
+                            if (!eventOrDataReceived) {
+                                emit(ParsedConversationMessage("", ConversationState.COMPLETED))
                             }
                         }
-                    } finally {
-                        cancellationCloser.cancel()
-                        connection.close()
+
+                        is StreamingEvent.Retry -> {
+                            // TODO: Implement retry logic if needed
+                        }
+
+                        else -> {
+                            // Started is informational; processResponse rethrows Error.
+                        }
                     }
                 }
             }.flowOn(Dispatchers.IO)
+        }
+    }
+
+    /**
+     * Sends a `livekit-bootstrap` conversation event to the voice endpoint and emits the first
+     * `livekit_session` credentials it streams back, at most once. The flow completes when the
+     * stream closes, so a stream that closes without credentials completes without an emission.
+     */
+    override fun bootstrapVoiceSession(sessionId: String?): Flow<VoiceSessionBootstrap> {
+        val resolvedSessionId = sessionId ?: sessionManager.getSessionId()
+        val generation = stateRepository.state.value.resetGeneration
+        return flow {
+            var bootstrapped = false
+            streamConversationEvents(
+                generation,
+                onRequestStarted = {},
+                prepareRequest = { state ->
+                    createConversationServiceRequest(
+                        endpoint(state, resolvedSessionId, voice = true),
+                        createVoiceBootstrapRequestBody(state)
+                    )
+                }
+            ) { event ->
+                if (bootstrapped) return@streamConversationEvents
+                val data = when (event) {
+                    is StreamingEvent.DataReceived -> event.data
+                    is StreamingEvent.EventReceived -> event.data
+                    else -> return@streamConversationEvents
+                }
+                ConversationResponseParser.parseVoiceBootstrap(data)?.let {
+                    bootstrapped = true
+                    emit(it)
+                }
+            }
+        }.flowOn(Dispatchers.IO)
+    }
+
+    /**
+     * Prepares and sends one streaming conversation request bound to [generation], delivering each
+     * [StreamingEvent] to [onEvent]. Cancellation closes the connection proactively.
+     */
+    private suspend fun streamConversationEvents(
+        generation: Long,
+        onRequestStarted: () -> Unit,
+        prepareRequest: suspend (ConciergeState) -> NetworkRequest,
+        onEvent: suspend (StreamingEvent) -> Unit
+    ) {
+        val state = stateRepository.withConversation(generation) { stateRepository.state.value }
+        val request = prepareRequest(state)
+
+        stateRepository.withConversation(generation) { sessionManager.refreshSessionActivity() }
+        onRequestStarted()
+        val connection = connect(request, generation)
+
+        coroutineScope {
+            val cancellationCloser = launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    connection.close()
+                }
+            }
+            try {
+                processResponse(connection).collect { event ->
+                    stateRepository.withConversation(generation) { }
+                    onEvent(event)
+                }
+            } finally {
+                cancellationCloser.cancel()
+                connection.close()
+            }
         }
     }
 
@@ -258,15 +331,42 @@ internal class ConciergeConversationServiceClient(
         state: ConciergeState,
         xdmFields: Map<String, Any>
     ): String {
-        val surfaces = state.surfaces
-        check(surfaces.any { it.isNotBlank() }) {
-            "Unable to create Concierge request payload. No surfaces were provided."
-        }
-        val conversationFields = listOfNotNull(
-            """"surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }}""",
-            """"message": "${message.escapedForJson()}"""",
-            authDataPart()
-        ).joinToString(",")
+        // Validate before resolving the auth token so a misconfigured turn never asks the app for one.
+        requireSurfaces(state)
+        return createConversationEventBody(
+            state,
+            listOfNotNull(""""message": "${message.escapedForJson()}"""", authDataPart()),
+            xdmFields
+        )
+    }
+
+    /**
+     * Creates the JSON request body for a voice-bootstrap request. Same envelope as a chat turn
+     * (surfaces, identityMap, consent), but `conversation.data` carries the `livekit-bootstrap`
+     * discriminator instead of a message. No auth token is attached: the `data` slot holds the
+     * discriminator, and the voice endpoint identifies the user through the identityMap.
+     */
+    private fun createVoiceBootstrapRequestBody(state: ConciergeState): String =
+        createConversationEventBody(
+            state,
+            listOf(""""data": {"type": "${ConciergeConstants.VoiceBootstrap.TYPE_LIVEKIT_BOOTSTRAP}"}"""),
+            emptyMap()
+        )
+
+    /**
+     * Wraps the given `conversation` fields (after `surfaces`) in the single-event envelope shared
+     * by chat-turn and voice-bootstrap requests.
+     */
+    private fun createConversationEventBody(
+        state: ConciergeState,
+        conversationParts: List<String>,
+        xdmFields: Map<String, Any>
+    ): String {
+        val surfaces = requireSurfaces(state)
+        val conversationFields = (
+            listOf(""""surfaces": ${surfaces.joinToString(",", "[", "]") { "\"${it.escapedForJson()}\"" }}""") +
+                conversationParts
+            ).joinToString(",")
         return """
         {
             "events": [
@@ -286,6 +386,12 @@ internal class ConciergeConversationServiceClient(
             ]
         }
     """.trimIndent()
+    }
+
+    private fun requireSurfaces(state: ConciergeState): List<String> = state.surfaces.also { surfaces ->
+        check(surfaces.any { it.isNotBlank() }) {
+            "Unable to create Concierge request payload. No surfaces were provided."
+        }
     }
 
     private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
