@@ -62,6 +62,9 @@ import kotlinx.coroutines.withContext
  * @param buttonSpacing Gap between adjacent action buttons; defaults to the shared input-panel
  * style, but callers that already hold that style (e.g. [ChatInputPanel]) should pass it in
  * directly rather than have it recomputed here.
+ * @param isEnabled Whether the buttons are enabled
+ * @param voiceControl What to show for voice conversations; hidden unless a voice plugin is registered
+ * @param onVoicePressed Callback when the voice conversation button is pressed
  */
 @Composable
 internal fun InputActionButtons(
@@ -74,7 +77,9 @@ internal fun InputActionButtons(
     onSend: (String) -> Unit,
     onClear: () -> Unit = {},
     buttonSpacing: Dp = ConciergeStyles.inputPanelStyle.buttonSpacing,
-    isEnabled: Boolean = true
+    isEnabled: Boolean = true,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    onVoicePressed: () -> Unit = {}
 ) {
     val micButtonStyle = ConciergeStyles.micButtonStyle
 
@@ -96,66 +101,84 @@ internal fun InputActionButtons(
         val iconContainerSize = ConciergeStyles.inputRowIconSize
         val hasText = text.isNotBlank()
 
-        if (enableVoiceInput) {
-            when {
-                // Clear button (X) — only shown when typing
-                hasText && inputState !is UserInputState.Recording -> {
-                    ClearButton(
-                        size = iconContainerSize,
-                        onClick = onClear
+        val control = trailingControl(
+            isRecording = inputState is UserInputState.Recording,
+            hasText = hasText,
+            showMic = enableVoiceInput,
+            isVoiceAvailable = voiceControl.isAvailable,
+            isVoiceSessionActive = voiceControl.isActive,
+            isVoiceConnecting = voiceControl.isConnecting
+        )
+
+        when (control) {
+            // Recording state — animated mic + stop button, both visible together
+            TrailingControl.RECORDING -> {
+                // The mic's container must be sized to fit whatever it visually needs while
+                // recording, or this Row's animateContentSize (which clips to its own bounds)
+                // truncates the overflow: either the enlarged glyph when there's no pulsing
+                // disc (see micIconSize), or the pulsing ring's peak size when the disc is
+                // shown -- the ring scales up to pulseScaleRange.second, well past the base
+                // glyph size.
+                val micSize = if (micButtonStyle.pulsingBackgroundEnabled) {
+                    iconContainerSize * micButtonStyle.pulseScaleRange.second
+                } else {
+                    micIconSize(
+                        baseSize = iconContainerSize,
+                        isRecording = true,
+                        showPulsingBackground = false
                     )
                 }
-                // Recording state — animated mic + stop button, both visible together
-                inputState is UserInputState.Recording -> {
-                    // The mic's container must be sized to fit whatever it visually needs while
-                    // recording, or this Row's animateContentSize (which clips to its own bounds)
-                    // truncates the overflow: either the enlarged glyph when there's no pulsing
-                    // disc (see micIconSize), or the pulsing ring's peak size when the disc is
-                    // shown -- the ring scales up to pulseScaleRange.second, well past the base
-                    // glyph size.
-                    val micSize = if (micButtonStyle.pulsingBackgroundEnabled) {
-                        iconContainerSize * micButtonStyle.pulseScaleRange.second
-                    } else {
-                        micIconSize(
-                            baseSize = iconContainerSize,
-                            isRecording = true,
-                            showPulsingBackground = false
-                        )
-                    }
-                    MicButton(
-                        modifier = Modifier.size(micSize),
-                        userInputState = inputState,
-                        isEnabled = isEnabled,
-                        onClick = {} // animation tap no longer stops recording — stop button does
-                    )
-                    StopRecordingButton(
-                        // Stop's own glyph always renders at MIC_INNER_DISC_SCALE (see
-                        // StopRecordingButton), so its container always matches that enlarged size.
-                        modifier = Modifier.size(iconContainerSize * MIC_INNER_DISC_SCALE),
-                        onClick = onVoiceCancel
-                    )
-                }
-                // Idle — mic icon, tap to start recording
-                else -> {
+                MicButton(
+                    modifier = Modifier.size(micSize),
+                    userInputState = inputState,
+                    isEnabled = isEnabled,
+                    onClick = {} // animation tap no longer stops recording — stop button does
+                )
+                StopRecordingButton(
+                    // Stop's own glyph always renders at MIC_INNER_DISC_SCALE (see
+                    // StopRecordingButton), so its container always matches that enlarged size.
+                    modifier = Modifier.size(iconContainerSize * MIC_INNER_DISC_SCALE),
+                    onClick = onVoiceCancel
+                )
+            }
+            // Voice conversation button, with the dictation mic ahead of it when shown. Dictation
+            // is held off while a conversation is running.
+            TrailingControl.VOICE -> {
+                if (enableVoiceInput) {
                     MicButton(
                         modifier = Modifier.size(iconContainerSize),
                         userInputState = inputState,
-                        isEnabled = isEnabled,
+                        isEnabled = isEnabled && !voiceControl.isActive,
                         onClick = onMicPressed
                     )
                 }
+                VoiceSessionButton(
+                    voiceControl = voiceControl.copy(isEnabled = isEnabled && voiceControl.isEnabled),
+                    onClick = onVoicePressed
+                )
             }
-        } else if (hasText) {
-            // Voice disabled — clear button (X) accompanies the send button when typing
-            ClearButton(
-                size = iconContainerSize,
-                onClick = onClear
-            )
+            // Clear button (X) — accompanies the send button when typing
+            TrailingControl.SEND -> {
+                ClearButton(
+                    size = iconContainerSize,
+                    onClick = onClear
+                )
+            }
+            // Idle — mic icon, tap to start recording
+            TrailingControl.MIC -> {
+                MicButton(
+                    modifier = Modifier.size(iconContainerSize),
+                    userInputState = inputState,
+                    isEnabled = isEnabled,
+                    onClick = onMicPressed
+                )
+            }
+            TrailingControl.NONE -> Unit
         }
 
         // Send button - only visible when there is text or a response is processing.
         AnimatedVisibility(
-            visible = inputState !is UserInputState.Recording && hasText,
+            visible = control == TrailingControl.SEND,
             enter = fadeIn(animationSpec = tween(durationMillis = 200)) +
                     slideInHorizontally(
                         animationSpec = tween(durationMillis = 200),

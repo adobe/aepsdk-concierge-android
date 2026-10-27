@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,9 +59,11 @@ import com.adobe.marketing.mobile.concierge.ui.components.feedback.FeedbackDialo
 import com.adobe.marketing.mobile.concierge.ui.theme.FeedbackDisplayMode
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
+import com.adobe.marketing.mobile.concierge.ui.components.input.VoiceControlState
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import kotlinx.coroutines.flow.StateFlow
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
@@ -92,6 +95,9 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
  * @param viewModel The ConciergeChatViewModel to use for the chat session
  * @param surfaces List of surface URLs for the chat experience.
  * @param modifier Modifier to be applied to the chat content when displayed
+ * @param handleLink Optional callback to intercept link clicks. Return true if handled; false for default WebView.
+ * @param voiceTransport Optional transport that carries voice conversations. When provided, the
+ *                       chat offers a voice control; when null, voice is hidden.
  * @param content The content composable that will be displayed. This composable receives
  *                a `showChat` callback function that can be invoked to show the chat dialog.
  *
@@ -118,8 +124,10 @@ fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
     surfaces: List<String>? = null,
     handleLink: LinkHandler? = null,
+    voiceTransport: VoiceTransport? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
+    SideEffect { viewModel.setVoiceTransport(voiceTransport) }
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
     val conciergeState by ConciergeStateRepository.instance.state.collectAsStateWithLifecycle()
     val repository = ConciergeStateRepository.instance
@@ -192,7 +200,8 @@ fun ConciergeChat(
                     viewModel = viewModel,
                     onClose = { viewModel.closeConcierge() },
                     modifier = modifier,
-                    handleLink = handleLink
+                    handleLink = handleLink,
+                    voiceTransport = voiceTransport
                 )
             }
         }
@@ -216,14 +225,18 @@ typealias LinkHandler = (url: String) -> Boolean
  * @param handleLink Optional callback to intercept link clicks (product cards, in-message links, citations).
  *        Return true if the link was handled (e.g., opened as a deep link); return false to use
  *        default behavior (in-app WebView overlay). When null, all links use the WebView overlay.
+ * @param voiceTransport Optional transport that carries voice conversations. When provided, the
+ *        chat offers a voice control; when null, voice is hidden.
  */
 @Composable
 fun ConciergeChat(
     viewModel: ConciergeChatViewModel,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    handleLink: LinkHandler? = null
+    handleLink: LinkHandler? = null,
+    voiceTransport: VoiceTransport? = null
 ) {
+    SideEffect { viewModel.setVoiceTransport(voiceTransport) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isInputEmpty by viewModel.isInputEmpty.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
@@ -231,6 +244,16 @@ fun ConciergeChat(
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
     val welcomeConfig by viewModel.welcomeConfig.collectAsStateWithLifecycle()
+    val isVoiceSessionActive by viewModel.isVoiceSessionActive.collectAsStateWithLifecycle()
+    val isVoiceConnecting by viewModel.isVoiceConnecting.collectAsStateWithLifecycle()
+    val voiceEnabled by viewModel.voiceEnabled.collectAsStateWithLifecycle()
+    val isVoiceAvailable by viewModel.isVoiceAvailable.collectAsStateWithLifecycle()
+    val voiceControl = VoiceControlState(
+        isAvailable = isVoiceAvailable,
+        isActive = isVoiceSessionActive,
+        isConnecting = isVoiceConnecting,
+        isEnabled = voiceEnabled
+    )
     
     val isReturningUser = remember { viewModel.isReturningUser() }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -262,6 +285,7 @@ fun ConciergeChat(
         viewModel.activateDataHandoffSession()
         viewModel.trackChatOpened()
         onDispose {
+            viewModel.stopVoiceSession()
             viewModel.deactivateDataHandoffSession()
             viewModel.trackChatClosed()
         }
@@ -291,7 +315,9 @@ fun ConciergeChat(
             handleLink = resolvedLinkClick,
             onPermissionResult = { viewModel.refreshPermissionStatus() },
             onClose = onClose,
-            modifier = modifier
+            modifier = modifier,
+            voiceControl = voiceControl,
+            onVoiceToggle = viewModel::toggleVoiceSession
         )
     }
 
@@ -328,6 +354,8 @@ internal fun ConciergeChat(
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     identityResetInProgress: Boolean = false,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    onVoiceToggle: () -> Unit = {},
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
@@ -425,6 +453,8 @@ internal fun ConciergeChat(
                 onSend = { text -> onEvent(ChatEvent.SendMessage(text)) },
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
+                voiceControl = voiceControl,
+                onVoiceToggle = onVoiceToggle,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -472,6 +502,8 @@ private fun UserInputSection(
     onSend: (String) -> Unit,
     onMicEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
+    voiceControl: VoiceControlState,
+    onVoiceToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val inputState by inputStateFlow.collectAsStateWithLifecycle()
@@ -485,6 +517,8 @@ private fun UserInputSection(
         onSend = onSend,
         onMicEvent = onMicEvent,
         onPermissionResult = onPermissionResult,
+        voiceControl = voiceControl,
+        onVoiceToggle = onVoiceToggle,
         modifier = modifier
     )
 }
