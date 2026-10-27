@@ -278,23 +278,71 @@ app owns any failure UI based on the completion result.
 
 Brand Concierge can hold a spoken conversation with the agent. The SDK runs the conversation (credentials, microphone permission, session lifecycle, transcript and UI), and your app supplies the audio connection by implementing the `VoiceTransport` interface. Brand Concierge has no WebRTC dependency, so apps that don't use voice ship no WebRTC code.
 
-Pass your transport to the chat:
+The test app's [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) is a complete transport built on the [LiveKit Android SDK](https://github.com/livekit/client-sdk-android). To add voice to your app:
+
+#### 1. Add LiveKit to your app
+
+```kotlin
+dependencies {
+    implementation("io.livekit:livekit-android:2.29.1")
+}
+```
+
+LiveKit is your app's dependency: you choose and update its version, and Brand Concierge does not constrain it. The test app pins 2.29.1. LiveKit depends on artifacts published to JitPack, so add `maven { url = uri("https://jitpack.io") }` to the repositories in your `settings.gradle.kts`.
+
+#### 2. Declare the microphone permission
+
+Declare `RECORD_AUDIO` in your app's `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted. No foreground service is needed: the conversation ends when the app moves to the background.
+
+#### 3. Copy the transport
+
+Copy `LiveKitTransport.kt` into your app (change the package and log tag to your own). A `VoiceTransport` connects to the URL and token Brand Concierge passes to `connect(url, token)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. The reference transport also records the microphone while the room connects and sends that audio once the agent joins, so the user can start speaking right away.
+
+If you change the transport, keep the rules in the `VoiceTransport` documentation: Brand Concierge calls the transport on the main thread, and the transport may call the listener from any thread. When you update LiveKit, check that the file still builds and repeat the device checks below.
+
+#### 4. Pass the transport to the chat
+
+Keep one instance for the life of the app, created with the application context: Brand Concierge reuses it for each conversation, sets the listener before connecting and clears it before disconnecting.
+
+```kotlin
+object Voice {
+    lateinit var transport: VoiceTransport
+        private set
+
+    fun initialize(application: Application) {
+        transport = LiveKitTransport(application)
+    }
+}
+
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        Voice.initialize(this)
+        // ... MobileCore.initialize ...
+    }
+}
+```
 
 ```kotlin
 ConciergeChat(
     viewModel = viewModel,
     surfaces = listOf("my-surface"),
-    voiceTransport = myVoiceTransport
+    voiceTransport = Voice.transport
 ) { showChat -> /* ... */ }
 ```
 
-The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends.
+The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends. When several `ConciergeChat` calls share a view model, pass the same transport to each of them; otherwise the last one to recompose decides which transport the chat uses.
 
-A `VoiceTransport` connects to the URL and token Brand Concierge passes to `connect(url, token)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. Keep one instance for the life of the app (create it with the application context): Brand Concierge reuses it for each conversation, sets the listener before connecting and clears it before disconnecting. Brand Concierge calls the transport on the main thread; the transport may call the listener from any thread. The test app contains a complete implementation built on the LiveKit Android SDK to copy.
+When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. A denied permission or a failed connection ends the conversation and shows an error message in the chat.
 
-The app must declare the `RECORD_AUDIO` permission in its `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted.
+#### Audio quality
 
-When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. A failed connection ends the conversation and shows an error message in the chat.
+The transport, and therefore LiveKit, owns audio focus, audio routing and audio processing:
+
+- **Keep echo cancellation and noise suppression on.** LiveKit enables them by default. Without them, the agent's voice from the speaker reaches the microphone and the agent can interrupt itself. Even with them, loud speaker playback can occasionally be heard as the user speaking; headphones avoid this.
+- **Speaker output.** LiveKit prefers a Bluetooth headset, then wired headphones, then the speaker over the earpiece. Headphones and Bluetooth devices take over when connected.
+- **Interruptions.** The reference transport reports a loss of audio focus (a phone call, another app playing audio) as an audio interruption, and Brand Concierge mutes the microphone until focus returns.
+- **Test on a device.** The emulator proves the wiring and the connection, but not echo, audio routes or interruptions. Check a conversation on the speaker, connecting and disconnecting wired and Bluetooth headphones mid-session, a call during a session, and moving the app to the background. Repeat these checks when you update LiveKit or change its audio settings elsewhere in your app.
 
 ---
 
