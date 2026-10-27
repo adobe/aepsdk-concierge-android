@@ -259,7 +259,7 @@ Concierge.sendDataHandoff(
   | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
   | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
   | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. |
-  | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. |
+  | `CHAT_IN_PROGRESS` | A chat turn, a voice conversation, or another handoff is active or waiting. Retry after it completes. |
   | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. |
   | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. |
   | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. |
@@ -271,6 +271,30 @@ render `localMessage` or call the service. Retry the handoff after the active re
 After an accepted handoff starts, delivery failures, empty responses, and timeouts do not add an
 error message to the transcript. An already-rendered `localMessage` remains visible, and the host
 app owns any failure UI based on the completion result.
+
+---
+
+## Voice conversations (optional)
+
+Brand Concierge can hold a spoken conversation with the agent. The SDK runs the conversation (credentials, microphone permission, session lifecycle, transcript and UI), and your app supplies the audio connection by implementing the `VoiceTransport` interface. Brand Concierge has no WebRTC dependency, so apps that don't use voice ship no WebRTC code.
+
+Pass your transport to the chat:
+
+```kotlin
+ConciergeChat(
+    viewModel = viewModel,
+    surfaces = listOf("my-surface"),
+    voiceTransport = myVoiceTransport
+) { showChat -> /* ... */ }
+```
+
+The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends.
+
+A `VoiceTransport` connects to the URL and token Brand Concierge passes to `connect(url, token)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. Keep one instance for the life of the app (create it with the application context): Brand Concierge reuses it for each conversation, sets the listener before connecting and clears it before disconnecting. Brand Concierge calls the transport on the main thread; the transport may call the listener from any thread. The test app contains a complete implementation built on the LiveKit Android SDK to copy.
+
+The app must declare the `RECORD_AUDIO` permission in its `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted.
+
+When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. A failed connection ends the conversation and shows an error message in the chat.
 
 ---
 
