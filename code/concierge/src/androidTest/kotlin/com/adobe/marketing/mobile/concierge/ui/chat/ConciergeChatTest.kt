@@ -16,10 +16,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.test.ComposeTestUtils
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
@@ -30,6 +36,8 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -231,5 +239,50 @@ class ConciergeChatTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Disclaimer text below input.").assertIsDisplayed()
+    }
+
+    @Test
+    fun conciergeChat_ctaButtonClick_sendsOneEventAndLeavesOpeningToTheViewModel() {
+        // The ViewModel opens the CTA's click url (with its summary); the composable must not
+        // also open the raw url, or the link would open twice.
+        val cta = NetworkCtaButton(label = "Chat now", url = "https://example.com/chat", summary = "hi")
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(cta),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+        val events = mutableListOf<ChatEvent>()
+        val openedUrls = mutableListOf<String>()
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    ConciergeChat(
+                        messages = listOf(message),
+                        chatState = ChatScreenState.Idle(),
+                        isInputEmpty = true,
+                        inputStateFlow = MutableStateFlow(UserInputState.Empty),
+                        hasAudioPermission = true,
+                        showWelcomeCard = false,
+                        welcomeConfig = WelcomeConfig(),
+                        isReturningUser = true,
+                        onTextChanged = {},
+                        onEvent = { events += it },
+                        handleLink = { url, _ -> openedUrls += url },
+                        onPermissionResult = {},
+                        onClose = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton").performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(
+            listOf(MessageInteractionEvent.CtaButtonClick(cta)),
+            events.filterIsInstance<MessageInteractionEvent.CtaButtonClick>()
+        )
+        assertTrue("handleLink must not be called directly, got $openedUrls", openedUrls.isEmpty())
     }
 }

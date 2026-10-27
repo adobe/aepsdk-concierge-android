@@ -68,6 +68,7 @@ internal object ConversationResponseParser {
     private const val FIELD_SECONDARY = "secondary"
     private const val FIELD_BUTTON_TEXT = "text"
     private const val FIELD_BUTTON_URL = "url"
+    private const val FIELD_SUMMARY = "summary"
     private const val FIELD_ENTITY_INFO = "entity_info"
     private const val FIELD_PRODUCT_PRICE = "productPrice"
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
@@ -213,16 +214,18 @@ internal object ConversationResponseParser {
 
     /**
      * Parses a CTA button from an element map.
-     * Reads label and url from entity_info.primary.text and entity_info.primary.url.
-     * Returns null if label or url is missing.
+     * Reads label, url and an optional summary from entity_info.primary.text, entity_info.primary.url
+     * and entity_info.primary.summary (a non-blank string, trimmed).
+     * Returns null if label or url is missing or blank.
      */
     private fun parseCtaButton(elementMap: Map<String, Any?>): CtaButton? {
         val entityInfo = DataReader.optTypedMap(Any::class.java, elementMap, FIELD_ENTITY_INFO, null)
         val primaryAction = entityInfo?.let { DataReader.optTypedMap(Any::class.java, it, FIELD_PRIMARY, null) }
-        val label = DataReader.optString(primaryAction, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotEmpty() }
-        val url = DataReader.optString(primaryAction, FIELD_BUTTON_URL, null)?.takeIf { it.isNotEmpty() }
-        if (label.isNullOrEmpty() || url.isNullOrEmpty()) return null
-        return CtaButton(label = label, url = url)
+        val label = DataReader.optString(primaryAction, FIELD_BUTTON_TEXT, null)?.takeIf { it.isNotBlank() }
+        val url = DataReader.optString(primaryAction, FIELD_BUTTON_URL, null)?.takeIf { it.isNotBlank() }
+        if (label == null || url == null) return null
+        val summary = DataReader.optString(primaryAction, FIELD_SUMMARY, null)?.trim()?.takeIf { it.isNotEmpty() }
+        return CtaButton(label = label, url = url, summary = summary)
     }
 
     /**

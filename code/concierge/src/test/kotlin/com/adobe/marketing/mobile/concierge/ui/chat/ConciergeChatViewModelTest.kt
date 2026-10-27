@@ -93,6 +93,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -3852,5 +3853,179 @@ class ConciergeChatViewModelTest {
 
         verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
         assertNull(vm.webviewOverlay.value)
+    }
+
+    // ========== CTA Button Click Tests ==========
+
+    private fun createVmCapturingEvents(dispatchedEvents: MutableList<Event>): ConciergeChatViewModel =
+        ConciergeChatViewModel(
+            app,
+            FakeSpeechCapturing(),
+            DefaultImageProvider(),
+            mockk<ConciergeConversationServiceClient>(relaxed = true),
+            sessionDispatcher = testDispatcher
+        ) { dispatchedEvents += it }
+
+    private val linkEventKeys = with(ConciergeConstants.TrackingEvent.EventData.Key) { setOf(URL, LABEL, ORIGIN) }
+
+    /** The CTA and link click tracking events, as (event name, url/label/origin data) pairs. */
+    private fun trackedClicks(events: List<Event>): List<Pair<String, Map<String, Any?>>> {
+        val names = with(ConciergeConstants.TrackingEvent.Name) { setOf(CTA_BUTTON_CLICKED, LINK_CLICKED) }
+        return events.filter { it.name in names }.map { it.name to it.eventData.filterKeys { key -> key in linkEventKeys } }
+    }
+
+    /** The tracking events expected for a CTA click: CTA Button Clicked, then Link Clicked with origin `cta`. */
+    private fun ctaClicks(label: String, url: String): List<Pair<String, Map<String, Any?>>> {
+        val key = ConciergeConstants.TrackingEvent.EventData.Key
+        val name = ConciergeConstants.TrackingEvent.Name
+        return listOf(
+            name.CTA_BUTTON_CLICKED to mapOf(key.URL to url, key.LABEL to label),
+            name.LINK_CLICKED to mapOf(key.URL to url, key.ORIGIN to ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)
+        )
+    }
+
+    @Test
+    fun `CtaButtonClick opens url with summary appended and tracks raw url`() = runTest {
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = createVmCapturingEvents(dispatchedEvents)
+        val cta = NetworkCtaButton(
+            label = "Chat now",
+            url = "https://example.com/chat",
+            summary = "refund for order 12345"
+        )
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(cta))
+
+        assertEquals("https://example.com/chat?summary=refund%20for%20order%2012345", vm.webviewOverlay.value)
+        assertEquals(ctaClicks("Chat now", "https://example.com/chat"), trackedClicks(dispatchedEvents))
+    }
+
+    @Test
+    fun `CtaButtonClick passes url with summary to host link handler`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        var receivedUrl: String? = null
+        val cta = NetworkCtaButton(
+            label = "Chat now",
+            url = "https://example.com/chat",
+            summary = "abc123"
+        )
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(cta)) { url ->
+            receivedUrl = url
+            true
+        }
+
+        assertEquals("https://example.com/chat?summary=abc123", receivedUrl)
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `CtaButtonClick without summary opens and tracks raw url`() = runTest {
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = createVmCapturingEvents(dispatchedEvents)
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(NetworkCtaButton("Shop", "https://example.com/shop")))
+
+        assertEquals("https://example.com/shop", vm.webviewOverlay.value)
+        assertEquals(ctaClicks("Shop", "https://example.com/shop"), trackedClicks(dispatchedEvents))
+    }
+
+    @Test
+    fun `CtaButtonClick without summary passes raw url to host link handler`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        var receivedUrl: String? = null
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(NetworkCtaButton("Shop", "https://example.com/shop?a=1"))) {
+            receivedUrl = it
+            true
+        }
+
+        assertEquals("https://example.com/shop?a=1", receivedUrl)
+    }
+
+    @Test
+    fun `CtaButtonClick with summary falls back to overlay with appended url when host declines`() = runTest {
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = createVmCapturingEvents(dispatchedEvents)
+        var receivedUrl: String? = null
+        val cta = NetworkCtaButton("Chat", "https://example.com/chat", summary = "hi")
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(cta)) {
+            receivedUrl = it
+            false
+        }
+        advanceUntilIdle()
+
+        assertEquals("https://example.com/chat?summary=hi", receivedUrl)
+        assertEquals("https://example.com/chat?summary=hi", vm.webviewOverlay.value)
+        assertEquals(ctaClicks("Chat", "https://example.com/chat"), trackedClicks(dispatchedEvents))
+    }
+
+    @Test
+    fun `CtaButtonClick with summary passes opaque url unchanged to host link handler`() = runTest {
+        val vm = createVmCapturingEvents(mutableListOf())
+        var receivedUrl: String? = null
+        val cta = NetworkCtaButton("Call us", "tel:+15555550100", summary = "hi")
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(cta)) {
+            receivedUrl = it
+            true
+        }
+        advanceUntilIdle()
+
+        assertEquals("tel:+15555550100", receivedUrl)
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `CtaButtonClick with summary on blocked scheme does not modify or open the url`() = runTest {
+        val vm = createVmCapturingEvents(mutableListOf())
+        var receivedUrl: String? = null
+        val url = "javascript://comment%0Aalert(1)"
+        val cta = NetworkCtaButton("Open", url, summary = "hi")
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(cta)) {
+            receivedUrl = it
+            false
+        }
+        advanceUntilIdle()
+
+        assertEquals(url, receivedUrl)
+        assertNull(vm.webviewOverlay.value)
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+    }
+
+    @Test
+    fun `CtaButtonClick with summary on blank url does not navigate`() = runTest {
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = createVmCapturingEvents(dispatchedEvents)
+        var handlerCalled = false
+        val cta = NetworkCtaButton("Chat", "   ", summary = "hi")
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(cta)) {
+            handlerCalled = true
+            true
+        }
+        advanceUntilIdle()
+
+        assertFalse(handlerCalled)
+        assertNull(vm.webviewOverlay.value)
+        assertEquals(ctaClicks("Chat", "   ").take(1), trackedClicks(dispatchedEvents))
+    }
+
+    @Test
+    fun `CtaButtonClick keeps a url that already has a summary parameter`() = runTest {
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = createVmCapturingEvents(dispatchedEvents)
+        var receivedUrl: String? = null
+        val url = "https://example.com/chat?summary=existing"
+
+        vm.processEvent(MessageInteractionEvent.CtaButtonClick(NetworkCtaButton("Chat", url, summary = "hi"))) {
+            receivedUrl = it
+            true
+        }
+
+        assertEquals(url, receivedUrl)
+        assertEquals(ctaClicks("Chat", url), trackedClicks(dispatchedEvents))
     }
 }
