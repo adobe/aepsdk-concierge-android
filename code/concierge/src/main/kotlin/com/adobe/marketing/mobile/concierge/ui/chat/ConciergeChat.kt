@@ -371,6 +371,7 @@ internal fun ConciergeChat(
                     onImageClick = { element -> onEvent(ProductImageClick(element)) },
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
+                    privacyNotice = ConciergeTheme.behavior?.privacyNotice,
                     onCtaButtonClick = { cta ->
                         onEvent(CtaButtonClick(cta))
                         handleLink(cta.url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)

@@ -26,6 +26,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,13 +105,18 @@ class ConciergeChatTest {
 
     @Test
     fun conciergeChat_withMessages_displaysMessageList() {
+        val themeJson = """{"behavior":{"privacyNotice":{"text":"Your conversation is private."}}}"""
+        val theme = ConciergeThemeData(
+            config = requireNotNull(ThemeParser.parseThemeJson(themeJson)),
+            tokens = requireNotNull(ThemeParser.parseThemeTokens(themeJson))
+        )
         val messages = listOf(
             ComposeTestUtils.createTextMessage("Hello", isFromUser = true),
             ComposeTestUtils.createTextMessage("Hi there!", isFromUser = false)
         )
 
         composeTestRule.setContent {
-            ConciergeTheme {
+            ConciergeTheme(theme = theme) {
                 CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                     ConciergeChat(
                         messages = messages,
@@ -133,6 +139,8 @@ class ConciergeChatTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Hello").assertIsDisplayed()
         composeTestRule.onNodeWithText("Hi there!").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Privacy Notice").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Your conversation is private.").assertIsDisplayed()
     }
 
     @Test

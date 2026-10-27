@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import android.util.Log
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +40,23 @@ import androidx.compose.ui.unit.sp
  */
 internal fun defaultRecordingIconColor(pulsingBackgroundEnabled: Boolean, onPrimary: Color, micColor: Color): Color =
     if (pulsingBackgroundEnabled) onPrimary else micColor
+
+/**
+ * Resolves `--message-padding` values (1-4, CSS shorthand order) to physical edges.
+ * Validated again here because [ConciergeLayout] can be constructed programmatically.
+ */
+internal fun resolveMessagePadding(values: List<Double>?): PaddingValues? {
+    if (values == null) return null
+    if (values.size !in 1..4 || !values.all(CSSValueConverter::isValidPadding)) {
+        Log.w(CSSKeyMapper.LOG_TAG, "Ignoring invalid message padding; expected 1-4 non-negative values.")
+        return null
+    }
+    val top = values[0].dp
+    val right = values.getOrElse(1) { values[0] }.dp
+    val bottom = values.getOrElse(2) { values[0] }.dp
+    val left = values.getOrElse(3) { values.getOrElse(1) { values[0] } }.dp
+    return PaddingValues.Absolute(left = left, top = top, right = right, bottom = bottom)
+}
 
 /**
  * Central styling configuration for all Concierge UI composables.
@@ -218,7 +236,8 @@ internal object ConciergeStyles {
         val contentSpacing: Dp,
         val segmentSpacing: Dp,
         val agentIconSize: Dp,
-        val agentIconSpacing: Dp
+        val agentIconSpacing: Dp,
+        val agentContentPadding: PaddingValues? = null
     )
 
     val messageBubbleStyle: MessageBubbleStyle
@@ -251,7 +270,8 @@ internal object ConciergeStyles {
                 contentSpacing = 12.dp,
                 segmentSpacing = 4.dp,
                 agentIconSize = cssLayout?.agentIconSize?.dp ?: 39.dp,
-                agentIconSpacing = cssLayout?.agentIconSpacing?.dp ?: 12.dp
+                agentIconSpacing = cssLayout?.agentIconSpacing?.dp ?: 12.dp,
+                agentContentPadding = resolveMessagePadding(cssLayout?.messagePadding)
             )
         }
 
@@ -925,7 +945,8 @@ internal object ConciergeStyles {
         val textStyle: TextStyle,
         val textColor: Color,
         val linkTextDecoration: TextDecoration,
-        val padding: Dp
+        val padding: Dp,
+        val linkTextColor: Color = textColor
     )
 
     val disclaimerStyle: DisclaimerStyle
@@ -944,7 +965,8 @@ internal object ConciergeStyles {
                 ),
                 textColor = themeColors.disclaimerColor ?: themeColors.onSurfaceVariant,
                 linkTextDecoration = TextDecoration.Underline,
-                padding = 8.dp
+                padding = 8.dp,
+                linkTextColor = themeColors.onSurface
             )
         }
 

@@ -3820,6 +3820,32 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `handleLinkClick from privacy notice tracks its origin and drops blocked schemes`() = runTest {
+        val dispatchedEvents = mutableListOf<Event>()
+        val vm = ConciergeChatViewModel(
+            app,
+            FakeSpeechCapturing(),
+            DefaultImageProvider(),
+            mockk<ConciergeConversationServiceClient>(relaxed = true),
+            sessionDispatcher = testDispatcher
+        ) { dispatchedEvents += it }
+        val origin = ConciergeConstants.TrackingEvent.LinkClickOrigin.PRIVACY_NOTICE
+
+        listOf("javascript:alert(1)", "file:///sdcard/privacy.html", "intent://privacy#Intent;end")
+            .forEach { vm.handleLinkClick(it, origin, null) }
+        vm.handleLinkClick("https://example.com/privacy", origin, null)
+
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertEquals("https://example.com/privacy", vm.webviewOverlay.value)
+        assertEquals(
+            List(4) { "privacyNotice" },
+            dispatchedEvents
+                .filter { it.name == ConciergeConstants.TrackingEvent.Name.LINK_CLICKED }
+                .map { it.eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ORIGIN) }
+        )
+    }
+
+    @Test
     fun `handleLinkClick host callback returning false falls through to normal routing`() = runTest {
         val vm = ConciergeChatViewModel(app)
         vm.handleLinkClick("tel:+15555550100", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, handleLink = { false })
