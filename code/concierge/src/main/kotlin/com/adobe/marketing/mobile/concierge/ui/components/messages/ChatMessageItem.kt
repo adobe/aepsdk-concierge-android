@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -135,8 +138,8 @@ private fun NativeCardItem(
  * Renders a CTA button that is itself a standalone list item (an ordered element the backend
  * sent as its own message, rather than attached via [ChatMessage.ctaButton] to a text response).
  * It has no text bubble of its own to inherit alignment from, so it must independently match the
- * start inset used by agent text messages: the icon column when a company icon is configured,
- * otherwise the message bubble's own padding.
+ * CTA inset used under agent text messages: the icon column when a company icon is configured,
+ * otherwise the message bubble's own padding. `--message-padding` does not move it.
  */
 @Composable
 private fun RenderCtaButton(
@@ -219,7 +222,11 @@ private fun RenderTextMessage(
         ) {
             Box(
                 modifier = Modifier.padding(
-                    if (isThinking) thinkingStyle.bubblePadding else PaddingValues(style.innerPadding)
+                    when {
+                        isThinking -> thinkingStyle.bubblePadding
+                        message.isFromUser -> PaddingValues(style.innerPadding)
+                        else -> style.agentContentPadding ?: PaddingValues(style.innerPadding)
+                    }
                 )
             ) {
                 Column(
@@ -258,8 +265,7 @@ private fun RenderTextMessage(
 
 /**
  * Icon + message layout for agent text responses when a company icon is configured in the theme.
- * The icon sits to the left of the card; start padding is removed from the card and its inner
- * box so that text aligns flush with the 12dp gap between icon and content.
+ * The icon gap is outside the card; configured content padding stays inside it.
  */
 @Composable
 private fun RenderTextMessageWithIcon(
@@ -316,7 +322,7 @@ private fun RenderTextMessageWithIcon(
                 ) {
                     Box(
                         modifier = Modifier.padding(
-                            if (isThinking) thinkingStyle.bubblePadding else PaddingValues(
+                            if (isThinking) thinkingStyle.bubblePadding else style.agentContentPadding ?: PaddingValues(
                                 top = style.innerPadding,
                                 bottom = style.innerPadding,
                                 end = style.innerPadding
@@ -372,6 +378,13 @@ private fun RenderMixedMessage(
     val hasText = content.text.isNotEmpty()
     val hasElements = !content.multimodalElements.isNullOrEmpty()
     val contentPad = if (companyIconName != null) 0.dp else style.innerPadding
+    val contentPadding = style.agentContentPadding?.takeUnless { message.isFromUser } ?: PaddingValues(
+        start = contentPad,
+        top = contentPad,
+        end = style.innerPadding,
+        bottom = style.innerPadding
+    )
+    val layoutDirection = LocalLayoutDirection.current
 
     // MessageList applies padding(horizontal = listPadding) to every item. The layout modifier on
     // the carousel Box escapes that constraint by measuring at full screen width and placing the
@@ -382,9 +395,9 @@ private fun RenderMixedMessage(
     } else 0.dp
     val escapeRight: Dp = listPadding
 
-    // First card aligns with the text content: escapeLeft + innerPadding (no icon) or escapeLeft
-    // alone (with icon). style.padding (card outer padding) is excluded because the carousel
-    // renders outside the card wrapper.
+    // First card uses the fixed legacy inset, independent of --message-padding: escapeLeft +
+    // innerPadding (no icon) or escapeLeft alone (with icon, i.e. the bubble's leading edge).
+    // style.padding (card outer padding) is excluded because the carousel renders outside the card.
     val carouselLeadingInset: Dp = escapeLeft + if (companyIconName == null) style.innerPadding else 0.dp
 
     Column(
@@ -420,10 +433,10 @@ private fun RenderMixedMessage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
-                                    top = contentPad,
-                                    bottom = if (!message.hasFooterContent) style.innerPadding else 0.dp,
-                                    start = contentPad,
-                                    end = style.innerPadding
+                                    top = contentPadding.calculateTopPadding(),
+                                    bottom = if (!message.hasFooterContent) contentPadding.calculateBottomPadding() else 0.dp,
+                                    start = contentPadding.calculateStartPadding(layoutDirection),
+                                    end = contentPadding.calculateEndPadding(layoutDirection)
                                 )
                         ) {
                             ConciergeResponse(
@@ -441,10 +454,10 @@ private fun RenderMixedMessage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
-                                    top = if (!hasText) contentPad else 0.dp,
-                                    bottom = style.innerPadding,
-                                    start = contentPad,
-                                    end = style.innerPadding
+                                    top = if (!hasText) contentPadding.calculateTopPadding() else 0.dp,
+                                    bottom = contentPadding.calculateBottomPadding(),
+                                    start = contentPadding.calculateStartPadding(layoutDirection),
+                                    end = contentPadding.calculateEndPadding(layoutDirection)
                                 )
                         ) {
                             ChatFooter(
@@ -541,9 +554,9 @@ private fun AgentResponseContent(
  * Prompt suggestions and CTA button shown below the message card for bot responses.
  * Shared across all bot message render functions.
  *
- * @param ctaStartPadding Start inset for the CTA button, matching the start inset of the response
- * text above it so the two stay aligned. Callers that already offset this composable to the text
- * column (e.g. via a leading Spacer for the agent icon) should pass 0.dp.
+ * @param ctaStartPadding Start inset for the CTA button: the legacy text inset without an icon, or
+ * the bubble's leading edge beside an icon. It ignores `--message-padding`. Callers that already
+ * offset this composable past the agent icon (via a leading Spacer) should pass 0.dp.
  */
 @Composable
 private fun BotMessageSuffix(

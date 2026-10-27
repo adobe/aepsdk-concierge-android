@@ -21,8 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.ui.components.links.LinkedTextFormatter
 import com.adobe.marketing.mobile.concierge.ui.components.messages.ClickableText
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.DisclaimerClickedEvent
@@ -63,7 +63,7 @@ internal fun ConciergeDisclaimer(
 
     if (annotatedText.getStringAnnotations("URL", 0, annotatedText.length).isEmpty()) {
         Text(
-            text = disclaimerConfig.text,
+            text = annotatedText,
             style = style.textStyle,
             color = style.textColor,
             textAlign = TextAlign.Center,
@@ -88,36 +88,16 @@ internal fun buildDisclaimerAnnotatedString(
     disclaimer: DisclaimerConfig,
     style: ConciergeStyles.DisclaimerStyle
 ): AnnotatedString {
-    val text = disclaimer.text ?: ""
-    val links = disclaimer.links.orEmpty()
     val baseSpanStyle = SpanStyle(
         color = style.textColor,
         fontSize = style.textStyle.fontSize,
         fontWeight = style.textStyle.fontWeight
     )
-
-    return buildAnnotatedString {
-        pushStyle(baseSpanStyle)
-        var remaining: String = text
-        for (link in links) {
-            val placeholder = "{${link.text}}"
-            val index = remaining.indexOf(placeholder)
-            if (index >= 0) {
-                append(remaining.substring(0, index))
-                pop()
-                pushStringAnnotation("URL", link.url)
-                pushStyle(baseSpanStyle.copy(
-                    color = style.linkTextColor,
-                    textDecoration = style.linkTextDecoration
-                ))
-                append(link.text)
-                pop()
-                pop()
-                pushStyle(baseSpanStyle)
-                remaining = remaining.substring(index + placeholder.length)
-            }
-        }
-        append(remaining)
-        pop()
-    }
+    return LinkedTextFormatter.format(
+        text = disclaimer.text ?: "",
+        links = disclaimer.links,
+        baseStyle = baseSpanStyle,
+        linkColor = style.linkTextColor,
+        linkTextDecoration = style.linkTextDecoration
+    )
 }

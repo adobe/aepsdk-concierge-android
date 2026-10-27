@@ -433,6 +433,7 @@ internal object ThemeParser {
         if (map == null) return ConciergeThemeBehavior()
         @Suppress("UNCHECKED_CAST")
         val typedMap = map as? MutableMap<String?, Any?>
+        val privacyNotice = parsePrivacyNotice(typedMap)
         val inputMap = typedMap?.get("input") as? Map<*, *>
         @Suppress("UNCHECKED_CAST")
         val inputTypedMap = inputMap as? MutableMap<String?, Any?>
@@ -561,9 +562,39 @@ internal object ThemeParser {
             multimodalCarousel = multimodalCarousel,
             welcomeCard = welcomeCard,
             chat = chat,
-            promptSuggestions = promptSuggestions
+            promptSuggestions = promptSuggestions,
+            privacyNotice = privacyNotice
         )
     }
+
+    private fun parsePrivacyNotice(behaviorMap: Map<String?, Any?>?): PrivacyNoticeConfig {
+        val value = behaviorMap?.get("privacyNotice") ?: return PrivacyNoticeConfig()
+        val noticeMap = value as? Map<*, *> ?: throw IllegalArgumentException(
+            "behavior.privacyNotice must be an object or null"
+        )
+        val title = privacyNoticeString(noticeMap, "title")
+        val text = privacyNoticeString(noticeMap, "text") ?: ""
+        val links = when (val linksValue = noticeMap["links"]) {
+            null -> emptyList()
+            is List<*> -> linksValue.mapNotNull { linkValue ->
+                val linkMap = linkValue as? Map<*, *> ?: throw IllegalArgumentException(
+                    "Each behavior.privacyNotice.links entry must be an object"
+                )
+                val linkText = privacyNoticeString(linkMap, "text")
+                val url = privacyNoticeString(linkMap, "url")
+                if (linkText != null && url != null) DisclaimerLink(linkText, url) else null
+            }
+            else -> throw IllegalArgumentException("behavior.privacyNotice.links must be an array or null")
+        }
+        return PrivacyNoticeConfig(title = title, text = text, links = links)
+    }
+
+    private fun privacyNoticeString(map: Map<*, *>, key: String): String? =
+        when (val value = map[key]) {
+            null -> null
+            is String -> value
+            else -> throw IllegalArgumentException("behavior.privacyNotice.$key must be a string or null")
+        }
 
     private fun parseAssets(map: Map<*, *>?): ConciergeThemeAssets {
         if (map == null) return ConciergeThemeAssets()
