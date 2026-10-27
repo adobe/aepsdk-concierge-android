@@ -61,12 +61,8 @@ internal object CardJson {
             Collections.unmodifiableList(value.mapIndexed { index, item -> copyValue(item, "$path[$index]", depth + 1, budget) })
         }
         null, is String, is Boolean -> value.also { budget.consume(path) }
-        is Double -> value.also {
-            require(it.isFinite()) { "$path is not a finite number" }
-            budget.consume(path)
-        }
-        is Float -> value.also {
-            require(it.isFinite()) { "$path is not a finite number" }
+        is Double, is Float -> value.also {
+            require((value as Number).toDouble().isFinite()) { "$path is not a finite number" }
             budget.consume(path)
         }
         is Int, is Long, is Short, is Byte, is BigDecimal, is BigInteger -> value.also { budget.consume(path) }
