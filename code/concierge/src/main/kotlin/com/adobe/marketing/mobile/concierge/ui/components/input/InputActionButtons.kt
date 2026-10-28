@@ -63,7 +63,7 @@ import kotlinx.coroutines.withContext
  * style, but callers that already hold that style (e.g. [ChatInputPanel]) should pass it in
  * directly rather than have it recomputed here.
  * @param isEnabled Whether the buttons are enabled
- * @param voiceControl What to show for voice conversations; hidden unless a voice plugin is registered
+ * @param voiceControl What to show for voice conversations; hidden unless a voice transport is provided
  * @param onVoicePressed Callback when the voice conversation button is pressed
  */
 @Composable

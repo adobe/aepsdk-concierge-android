@@ -66,7 +66,7 @@ class TrailingControlTest {
     }
 
     @Test
-    fun `session flags are ignored when no plugin is registered`() {
+    fun `session flags are ignored when no voice transport is provided`() {
         assertEquals(TrailingControl.MIC, control(isVoiceAvailable = false, isVoiceSessionActive = true))
         assertEquals(TrailingControl.SEND, control(isVoiceAvailable = false, hasText = true, isVoiceConnecting = true))
     }

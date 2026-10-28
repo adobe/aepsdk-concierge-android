@@ -39,7 +39,7 @@ internal const val STOP_VOICE_CONVERSATION_LABEL = "Stop voice conversation"
 /**
  * What the composer shows for voice conversations.
  *
- * @property isAvailable A voice plugin is registered; without one the voice button is hidden.
+ * @property isAvailable A voice transport is provided; without one the voice button is hidden.
  * @property isActive A voice conversation is running (connecting or connected).
  * @property isConnecting The running conversation is still connecting.
  * @property isEnabled The voice button can be tapped.
