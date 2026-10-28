@@ -290,13 +290,35 @@ dependencies {
 
 LiveKit is your app's dependency: you choose and update its version, and Brand Concierge does not constrain it. The test app pins 2.29.1. LiveKit depends on artifacts published to JitPack, so add `maven { url = uri("https://jitpack.io") }` to the repositories in your `settings.gradle.kts`.
 
-#### 2. Declare the microphone permission
+#### 2. Set up the manifest permissions
 
 Declare `RECORD_AUDIO` in your app's `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted. No foreground service is needed: the conversation ends when the app moves to the background.
 
+LiveKit's manifest is merged into your app's. Besides `INTERNET`, `ACCESS_NETWORK_STATE` and `RECORD_AUDIO`, it adds `CAMERA`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PROJECTION`, and a screen-sharing service; LiveKit's audio routing library also adds `MODIFY_AUDIO_SETTINGS`. Voice uses none of the camera or screen-sharing entries, so unless your app needs them for something else, remove them with `tools:node="remove"`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.CAMERA"
+        tools:node="remove"
+        tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
+
+    <application>
+        <service
+            android:name="io.livekit.android.room.track.screencapture.ScreenCaptureService"
+            tools:node="remove" />
+    </application>
+</manifest>
+```
+
+Android lint reports the removed `CAMERA` entry as if it were declared, hence `tools:ignore`. Check the merged manifest (Android Studio's **Merged Manifest** tab) after you update LiveKit, because a new version can add entries.
+
 #### 3. Copy the transport
 
-Copy `LiveKitTransport.kt` into your app (change the package and log tag to your own). A `VoiceTransport` connects to the URL and token Brand Concierge passes to `connect(url, token)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. The reference transport also records the microphone while the room connects and sends that audio once the agent joins, so the user can start speaking right away.
+Copy [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) into your app (change the package and log tag to your own). A `VoiceTransport` connects to the URL and token Brand Concierge passes to `connect(url, token)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. The reference transport also records the microphone while the room connects and sends that audio once the agent joins, so the user can start speaking right away.
 
 If you change the transport, keep the rules in the `VoiceTransport` documentation: Brand Concierge calls the transport on the main thread, and the transport may call the listener from any thread. When you update LiveKit, check that the file still builds and repeat the device checks below.
 
