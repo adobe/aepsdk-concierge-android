@@ -52,12 +52,11 @@ class ConversationResponseParserRawElementsTest {
         assertNull(product["note"])
         assertEquals(listOf(true, null, 2), (menu["custom"] as Map<*, *>)["nested"])
 
-        // A custom type keeps its parsed form for the record, but only built-in types are ordered elements.
         assertTrue(message.rawElements[0].parsedBuiltIn is ParsedMultimodalItem.Card)
-        assertNull(message.rawElements[0].builtInFallback)
+        assertEquals(message.rawElements[0].parsedBuiltIn, message.rawElements[0].builtInFallback)
         assertTrue(message.rawElements[2].parsedBuiltIn is ParsedMultimodalItem.Cta)
-        assertEquals(message.rawElements.drop(1).mapNotNull { it.parsedBuiltIn }, message.orderedElements)
-        assertEquals(listOf("p1"), message.multimodalElements.map { it.id })
+        assertEquals(message.rawElements.mapNotNull { it.parsedBuiltIn }, message.orderedElements)
+        assertEquals(listOf("menu-1", "p1"), message.multimodalElements.map { it.id })
     }
 
     @Test
@@ -72,14 +71,14 @@ class ConversationResponseParserRawElementsTest {
                 "primary": {"text": "Book on ParkWhiz", "url": "https://example.com/checkout"},
                 "secondary": {"text": "Get directions", "url": "https://example.com/directions"}
               }},
-              {"type": "acme.other", "id": "hidden"},
+              {"type": "acme.other", "id": "other"},
               {"type": "horizontalCard", "id": "quote-2", "entity_info": {"productName": "Second garage"}}
             ]
             """.trimIndent()
         )
 
-        assertEquals(listOf("quote-1", "quote-2"), message.multimodalElements.map { it.id })
-        assertEquals(message.rawElements.filter { it.type == "horizontalCard" }.map { it.parsedBuiltIn }, message.orderedElements)
+        assertEquals(listOf("quote-1", "other", "quote-2"), message.multimodalElements.map { it.id })
+        assertEquals(message.rawElements.map { it.parsedBuiltIn }, message.orderedElements)
         val content = message.multimodalElements.first().content
         assertEquals("Practice Facility Garage", content["productName"])
         assertEquals("${'$'}0.00 · 2.3 min walk · Covered, Guaranteed spot", content["productDescription"])
@@ -88,11 +87,11 @@ class ConversationResponseParserRawElementsTest {
         assertEquals("https://example.com/checkout", content["primaryUrl"])
         assertEquals("Get directions", content["secondaryText"])
         assertEquals("https://example.com/directions", content["secondaryUrl"])
-        assertNull(message.rawElements[1].builtInFallback)
+        assertTrue(message.rawElements[1].builtInFallback is ParsedMultimodalItem.Card)
     }
 
     @Test
-    fun `untyped elements keep built-in rendering and custom types get none`() {
+    fun `untyped and custom types keep legacy built-in rendering`() {
         val message = parse(
             """
             [
@@ -102,8 +101,8 @@ class ConversationResponseParserRawElementsTest {
             """.trimIndent()
         )
 
-        assertEquals(listOf("legacy"), message.multimodalElements.map { it.id })
-        assertEquals(1, message.orderedElements.size)
+        assertEquals(listOf("legacy", "other"), message.multimodalElements.map { it.id })
+        assertEquals(2, message.orderedElements.size)
         assertEquals(2, message.rawElements.size)
     }
 

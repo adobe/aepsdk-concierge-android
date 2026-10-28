@@ -26,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.cards.NativeCardController
 import com.adobe.marketing.mobile.concierge.ui.components.image.rememberIsIconConfigured
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -36,8 +38,6 @@ internal val LocalNativeCardController = staticCompositionLocalOf<NativeCardCont
 
 internal const val NATIVE_CARD_TEST_TAG = "NativeCard"
 internal const val UNAVAILABLE_CARD_TEST_TAG = "NativeCardUnavailable"
-
-private const val UNAVAILABLE_CARD_TEXT = "This content isn't available right now."
 
 /**
  * One native card transcript row: the host owns the outer insets (aligned with agent messages),
@@ -92,7 +92,7 @@ private fun UnavailableCard() {
         shape = style.shape
     ) {
         Text(
-            text = UNAVAILABLE_CARD_TEXT,
+            text = stringResource(R.string.concierge_native_card_unavailable),
             style = style.textStyle,
             color = style.botMessageTextColor,
             modifier = Modifier.padding(style.innerPadding)

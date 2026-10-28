@@ -22,9 +22,12 @@ import com.adobe.marketing.mobile.ExtensionApi
 import com.adobe.marketing.mobile.SharedStateResult
 import com.adobe.marketing.mobile.SharedStateStatus
 import com.adobe.marketing.mobile.concierge.Concierge
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffEvent
+import com.adobe.marketing.mobile.concierge.ConciergeDataHandoffRejectReason
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.cards.ConciergeCardRenderers
 import com.adobe.marketing.mobile.concierge.cards.NativeCardController.ContextKeys
 import com.adobe.marketing.mobile.concierge.network.ConversationResponseParser
@@ -32,6 +35,7 @@ import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
@@ -118,7 +122,7 @@ class ConciergeChatViewModelNativeCardTest {
         Dispatchers.resetMain()
     }
 
-    private fun frame(message: String, vararg elements: Map<String, Any?>): String {
+    private fun frame(message: String, vararg elements: Map<String, Any?>, state: String = "completed"): String {
         val response = JSONObject().put("message", message)
         if (elements.isNotEmpty()) {
             response.put(
@@ -135,7 +139,7 @@ class ConciergeChatViewModelNativeCardTest {
                         "payload",
                         JSONArray().put(
                             JSONObject()
-                                .put("state", "completed")
+                                .put("state", state)
                                 .put("conversationId", "conversation-1")
                                 .put("interactionId", "interaction-1")
                                 .put("response", response)
@@ -184,6 +188,146 @@ class ConciergeChatViewModelNativeCardTest {
 
     private fun ConciergeChatViewModel.nativeCardIds() =
         messages.value.mapNotNull { (it.content as? MessageContent.NativeCard)?.cardId }
+
+    private fun rejectedMenu(): Map<String, Any?> {
+        var nested: Any? = "value"
+        repeat(65) { nested = mapOf("nested" to nested) }
+        return (menu - "id") + ("custom" to nested)
+    }
+
+    @Test
+    fun `handoff rejects a registered card with an invalid payload as an empty response`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("", rejectedMenu()))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(
+            ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"), "Opening menu")
+        ) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE),
+            result
+        )
+        assertEquals(listOf("Opening menu"), vm.messages.value.map { it.text })
+        assertTrue(vm.nativeCardIds().isEmpty())
+        assertEquals(ChatScreenState.Idle(), vm.state.value)
+    }
+
+    @Test
+    fun `handoff with an accepted native card is delivered without response text`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("", menu))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        assertEquals(1, vm.nativeCardIds().size)
+        assertEquals(1, vm.messages.value.size)
+    }
+
+    @Test
+    fun `handoff does not count native candidates received before completion as visible content`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("", menu, state = "in_progress")) {
+            emit(ParsedConversationMessage("", ConversationState.COMPLETED))
+        }
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(
+            DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE),
+            result
+        )
+        assertTrue(vm.messages.value.isEmpty())
+        assertTrue(vm.nativeCardIds().isEmpty())
+    }
+
+    @Test
+    fun `handoff delivers accepted cards alongside rejected cards`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("", rejectedMenu(), menu + ("id" to "valid-menu")))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        val cardId = vm.nativeCardIds().single()
+        assertEquals("valid-menu", requireNotNull(vm.nativeCards.renderableCard(cardId)).element["id"])
+        assertEquals(1, vm.messages.value.size)
+    }
+
+    @Test
+    fun `handoff with a rejected card still delivers response text`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("Menu unavailable", rejectedMenu()))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        assertEquals(listOf("Menu unavailable"), vm.messages.value.map { it.text })
+        assertTrue(vm.nativeCardIds().isEmpty())
+    }
+
+    @Test
+    fun `rejected final card preserves streamed text and delivers the handoff`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("Menu unavailable", state = "in_progress")) {
+            ConversationResponseParser.parseConversationData(frame("", rejectedMenu())).forEach { emit(it) }
+        }
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        assertEquals(listOf("Menu unavailable"), vm.messages.value.map { it.text })
+        assertTrue(vm.messages.value.single().sseComplete)
+        assertTrue(vm.nativeCardIds().isEmpty())
+    }
+
+    @Test
+    fun `handoff delivers built-in fallback when native activation rejects its payload`() = runTest {
+        Concierge.registerCardRenderer("productCard") { _, _, _ -> Unit }
+        val element = rejectedMenu() + mapOf(
+            "type" to "productCard",
+            "id" to "menu-1",
+            "entity_info" to mapOf("productName" to "A")
+        )
+        val vm = viewModel(frame("", element))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        assertTrue(vm.nativeCardIds().isEmpty())
+        val content = vm.messages.value.single().content as MessageContent.Mixed
+        assertEquals(listOf("menu-1"), requireNotNull(content.multimodalElements).map { it.id })
+    }
+
+    @Test
+    fun `handoff delivers legacy fallback when a custom renderer payload is rejected`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("", rejectedMenu() + ("id" to "fallback-menu")))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        assertTrue(vm.nativeCardIds().isEmpty())
+        val content = vm.messages.value.single().content as MessageContent.Mixed
+        assertEquals(listOf("fallback-menu"), requireNotNull(content.multimodalElements).map { it.id })
+    }
 
     @Test
     fun `registered JSON elements are separate transcript rows and preserve complete input`() = runTest {
@@ -262,14 +406,14 @@ class ConciergeChatViewModelNativeCardTest {
 
         val replies = vm.messages.value.filterNot { it.isFromUser }
         val cards = replies.mapNotNull { (it.content as? MessageContent.Mixed)?.multimodalElements }.single()
-        assertEquals(listOf("p1", "parking", "legacy"), cards.map { it.id })
+        assertEquals(listOf("p1", "parking", "other", "legacy", "menu-1"), cards.map { it.id })
         assertEquals(1, vm.nativeCardIds().size)
         assertEquals(1, replies.count { it.content is MessageContent.CtaButton })
         assertEquals(4, replies.size)
     }
 
     @Test
-    fun `an unknown type renders nothing even when no renderer is registered`() = runTest {
+    fun `an unknown type keeps built-in rendering when no renderer is registered`() = runTest {
         val vm = viewModel(
             frame(
                 "Here you go",
@@ -283,12 +427,12 @@ class ConciergeChatViewModelNativeCardTest {
         advanceUntilIdle()
 
         val cards = vm.messages.value.mapNotNull { (it.content as? MessageContent.Mixed)?.multimodalElements }.flatten()
-        assertEquals(listOf("p1", "parking"), cards.map { it.id })
+        assertEquals(listOf("other", "p1", "parking"), cards.map { it.id })
         assertTrue(vm.messages.value.none { it.content is MessageContent.NativeCard })
     }
 
     @Test
-    fun `a response with only unknown types shows no card`() = runTest {
+    fun `an unregistered type keeps built-in rendering when another renderer is registered`() = runTest {
         registerMenu()
         val vm = viewModel(frame("Text only", mapOf("type" to "acme.other", "id" to "other", "entity_info" to mapOf("x" to 1))))
 
@@ -296,8 +440,9 @@ class ConciergeChatViewModelNativeCardTest {
         advanceUntilIdle()
 
         assertTrue(vm.messages.value.none { it.content is MessageContent.NativeCard })
-        assertTrue(vm.messages.value.none { !(it.content as? MessageContent.Mixed)?.multimodalElements.isNullOrEmpty() })
-        assertEquals(MessageContent.Text("Text only"), vm.messages.value.last().content)
+        val content = vm.messages.value.mapNotNull { it.content as? MessageContent.Mixed }.single()
+        assertEquals(listOf("other"), requireNotNull(content.multimodalElements).map { it.id })
+        assertEquals("Text only", vm.messages.value.first { !it.isFromUser }.text)
     }
 
     @Test
@@ -390,7 +535,7 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
-    fun `a configuration change re-renders the same live card with its saved state`() = runTest {
+    fun `looking up a live card again returns the same instance with its saved state`() = runTest {
         registerMenu()
         val vm = viewModel(frame("Here you go", menu))
         vm.processEvent(ChatEvent.SendMessage("menu"))
@@ -400,7 +545,6 @@ class ConciergeChatViewModelNativeCardTest {
         before.saveState(mapOf("status" to "submitted", "rev" to 3))
         advanceUntilIdle()
 
-        // The retained VM outlives the activity; recomposition looks the card up again by id.
         val after = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
 
         assertSame(before, after)

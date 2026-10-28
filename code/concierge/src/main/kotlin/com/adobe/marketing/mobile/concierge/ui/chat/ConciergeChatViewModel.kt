@@ -554,6 +554,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
         sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         appLifecycle: Lifecycle? = null,
+        nativeCardController: NativeCardController? = null,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
@@ -567,7 +568,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
         stateRepository.registerResetParticipant(resetParticipant)
-        this.nativeCards = NativeCardController(scope = viewModelScope)
+        this.nativeCards = nativeCardController ?: NativeCardController(scope = viewModelScope)
         speechCapturing.setListener(captureListener)
         startConversationProcessor()
         viewModelScope.launch {
@@ -1457,10 +1458,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                     true
                 }
             }.collect { parsedMessage ->
-                hasVisibleContent = hasVisibleContent ||
-                    parsedMessage.messageContent.isNotBlank() || hasRenderableElements(parsedMessage)
+                val renderedContent = onParsedMessage(parsedMessage, contentBuilder)
+                hasVisibleContent = hasVisibleContent || renderedContent
                 hasCompleted = hasCompleted || parsedMessage.state == ConversationState.COMPLETED
-                onParsedMessage(parsedMessage, contentBuilder)
             }
             when {
                 hasError -> ConversationStreamResult.Failed(failureDetail)
@@ -1582,11 +1582,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      *
      * @param parsedMessage The parsed conversation message
      * @param contentBuilder StringBuilder tracking the full content
+     * @return whether this update added renderable content to the transcript.
      */
     private fun onParsedMessage(
         parsedMessage: ParsedConversationMessage,
         contentBuilder: StringBuilder
-    ) {
+    ): Boolean {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
@@ -1605,10 +1606,9 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
         parsedMessage.interactionId?.let { currentTurnInteractionId = it }
 
-        when (parsedMessage.state) {
+        return when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    hasRenderableElements(parsedMessage)
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank()
                 if (!responseStartedDispatched && hasVisibleContent) {
                     responseStartedDispatched = true
                     dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
@@ -1617,18 +1617,13 @@ class ConciergeChatViewModel : AndroidViewModel {
                     ))
                 }
                 appendToAssistantMessage(parsedMessage, contentBuilder)
+                hasVisibleContent
             }
 
             ConversationState.COMPLETED -> {
                 // For COMPLETED state, replace content if there is text or ordered elements.
                 // If both are absent, keep existing streamed content and just transition to Idle.
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    hasRenderableElements(parsedMessage)
-                if (hasVisibleContent) {
-                    replaceAssistantMessageContent(parsedMessage)
-                } else {
-                    setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
-                }
+                val hasVisibleContent = replaceAssistantMessageContent(parsedMessage)
                 // Ensure ResponseStarted precedes ResponseCompleted even if the server jumped
                 // straight to COMPLETED without an IN_PROGRESS chunk.
                 if (!responseStartedDispatched && hasVisibleContent) {
@@ -1650,13 +1645,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                         else -> currentState
                     }
                 }
+                hasVisibleContent
             }
 
             ConversationState.ERROR -> {
                 handleConversationError("Conversation error: ${parsedMessage.messageContent}")
+                false
             }
 
-            else -> appendToAssistantMessage(parsedMessage, contentBuilder)
+            else -> {
+                appendToAssistantMessage(parsedMessage, contentBuilder)
+                parsedMessage.messageContent.isNotBlank()
+            }
         }
     }
 
@@ -1690,11 +1690,16 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Replaces the assistant message content with the final complete message
      *
      * @param parsedMessage The parsed message containing the final complete content
+     * @return whether the final content contains text or accepted render targets.
      */
-    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
-        if (hasRenderableElements(parsedMessage)) {
+    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage): Boolean {
+        if (hasElementCandidates(parsedMessage)) {
             // Native cards are activated here, once the turn has completed.
             val renderTargets = resolveElementRenderTargets(parsedMessage)
+            if (renderTargets.isEmpty() && parsedMessage.messageContent.isBlank()) {
+                setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
+                return false
+            }
             if (parsedMessage.messageContent.isNotEmpty()) {
                 // Text + ordered elements: keep the text message, then append elements.
                 // Suppress interactionId (and thus feedback controls) when CTAs are present —
@@ -1725,7 +1730,12 @@ class ConciergeChatViewModel : AndroidViewModel {
                 removeLastAssistantPlaceholder()
             }
             appendOrderedElementMessages(renderTargets, parsedMessage.promptSuggestions)
+            return parsedMessage.messageContent.isNotBlank() || renderTargets.isNotEmpty()
         } else {
+            if (parsedMessage.messageContent.isBlank() && parsedMessage.multimodalElements.isEmpty()) {
+                setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
+                return false
+            }
             // Legacy path: text-only or mixed message
             val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
                 MessageContent.Text(parsedMessage.messageContent)
@@ -1753,6 +1763,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 feedbackEligible = parsedMessage.feedbackEligible,
                 linkHints = parsedMessage.linkHints
             )
+            return true
         }
     }
 
@@ -1763,8 +1774,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         data class NativeCard(val cardId: String) : ElementRenderTarget()
     }
 
-    /** True when [parsedMessage] has elements the transcript will show. */
-    private fun hasRenderableElements(parsedMessage: ParsedConversationMessage): Boolean =
+    /** True when elements need resolution before their visibility can be determined. */
+    private fun hasElementCandidates(parsedMessage: ParsedConversationMessage): Boolean =
         parsedMessage.orderedElements.isNotEmpty() ||
             (nativeCards.hasAnyRenderer && parsedMessage.rawElements.any { nativeCards.hasRenderer(it.type) })
 

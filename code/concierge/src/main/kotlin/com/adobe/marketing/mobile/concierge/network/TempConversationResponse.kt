@@ -111,11 +111,7 @@ internal class RawMultimodalElement(
 ) {
 
     val builtInFallback: ParsedMultimodalItem?
-        get() = parsedBuiltIn?.takeIf { type == null || type in BUILT_IN_ELEMENT_TYPES }
-
-    companion object {
-        val BUILT_IN_ELEMENT_TYPES = setOf("productCard", "horizontalCard", "ctaButton")
-    }
+        get() = parsedBuiltIn
 }
 
 /**

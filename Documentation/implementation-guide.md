@@ -13,6 +13,39 @@ Both approaches are available for Compose and XML/Views-based apps.
 
 ---
 
+## Offline renderer edge-case demo (debug testapp)
+
+Open **Main screen → Renderer Edge Cases** in a debug build. Select a case from **Cases**
+or use **Previous / Next**, then **Run**. **Repeat** retains earlier turns and card state;
+**Clear** creates a fresh isolated session. **Payload** shows the exact static wire fixture
+(display capped at 12,000 characters per frame; the full fixture is parsed).
+
+The 40 cases cover built-in `productCard`, `horizontalCard`, `ctaButton` and untyped routing;
+custom/unknown types and isolated overrides; null, missing, empty and wrong-shaped fields;
+complete JSON values; ordered mixed responses and duplicate IDs; depth-64 and 100,000-node
+boundaries with/without fallback; invalid envelopes/JSON; empty and whitespace completions;
+retained final/streamed text; and ERROR/IOException rollback. **Transcript** separates expected
+behavior from actual delivery callback, parser candidate counts and response row routes.
+Counts include all retained turns; callbacks and parser counts describe the latest run.
+
+Fixtures use the real response parser → ViewModel → native controller → SDK message list.
+The handoff is injected at the internal ViewModel boundary, not the public Event Hub API.
+Renderer lookups and session data are private; no global renderer registrations, identity/reset
+events, service requests, tracking dispatches, speech recognition or image downloads are used.
+The normal testapp's startup configuration is unchanged. CTA/link/image/feedback callbacks are
+captured locally, never launched or submitted. The demo renderer's placeholder and disabled
+stale/busy button are app policy, not SDK schema validation. Last-registration replacement is a
+private lookup simulation, not a call to the process-wide public registration API.
+
+For lifecycle inspection, save state in a native card, **Repeat**, then compare card IDs/state.
+**Try invalid saved state (NaN)** exercises SDK state validation; the saved count stays unchanged.
+**Mark stale** and **Discard controller** simulate local controller lifecycle only (no identity
+reset); discard retains real transcript rows so the SDK's unavailable-card UI can be inspected.
+Throwing composables and unbounded/OOM stress are deliberately excluded: composition exceptions
+cannot be caught by the SDK. No emulator is required for the fixture regression suite:
+`cd code && ./gradlew :concierge:testPhoneDebugUnitTest --tests '*RendererDemo*Test' --offline`.
+Visual interaction still requires a device/emulator.
+
 ## Prerequisites
 
 ### Required SDK modules
@@ -278,8 +311,11 @@ app owns any failure UI based on the completion result.
 
 Register a Compose renderer for a response element `type`. When an element in
 `multimodalElements.elements` has that type, the chat renders your card inline in the transcript,
-after its assistant turn completes. Without a matching renderer, `productCard`, `horizontalCard`,
-`ctaButton`, and untyped elements keep their built-in rendering. Other types render nothing.
+after its assistant turn completes. Without a matching renderer, elements keep their existing
+built-in rendering when parsing succeeds, including unknown types and untyped elements.
+`ctaButton` elements use CTA parsing; all other types use the existing card parser.
+If native activation rejects an element, the same built-in fallback applies. Elements that
+cannot be parsed for built-in rendering and have no accepted native renderer are omitted.
 
 ```kotlin
 // Once at app start, after MobileCore setup. The last registration for a type wins.

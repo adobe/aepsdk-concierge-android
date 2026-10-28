@@ -227,6 +227,26 @@ fun MainScreen() {
                             color = Color.White
                         )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent().setClassName(
+                                        context,
+                                        "com.adobe.marketing.mobile.conciergetestapp.RendererEdgeCasesActivity"
+                                    )
+                                )
+                            } catch (e: ActivityNotFoundException) {
+                                Toast.makeText(context, "Renderer demo is unavailable in this build", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.size(width = 240.dp, height = 60.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Renderer Edge Cases", fontSize = 16.sp, color = Color.White)
+                    }
                 }
             }
         }
