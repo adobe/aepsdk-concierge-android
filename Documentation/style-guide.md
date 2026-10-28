@@ -130,9 +130,11 @@ The theme JSON file contains these top-level keys:
 | `components` | Non-CSS component overrides (currently feedback dialog only) |
 | `theme` | Visual styling tokens (CSS variables) |
 
-**Custom theme keys.** Any `--`-prefixed key in the `theme` block that the SDK does not recognize is
-retained as a string (up to 256 keys, values up to 512 characters) and exposed to your own
+**Custom theme keys.** Unrecognized keys in the `theme` block with a nonempty name after `--`
+are retained as strings (up to 256 keys, values up to 512 characters) and exposed to your own
 composables through `ConciergeTheme.tokens?.cssVariables`, keyed with its `--` prefix.
+Keys and string values are trimmed; empty values are ignored. Numeric values are converted
+to strings; booleans, nulls, objects and arrays are ignored.
 Custom renderers can use this to read their own theme values
 (for example, `--my-card-accent-color`); the SDK does not interpret them.
 
