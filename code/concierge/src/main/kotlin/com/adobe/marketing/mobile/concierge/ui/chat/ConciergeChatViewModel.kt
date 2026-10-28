@@ -33,6 +33,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
+import com.adobe.marketing.mobile.concierge.cards.NativeCardController
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConciergeHttpStatusException
@@ -43,6 +44,7 @@ import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
+import com.adobe.marketing.mobile.concierge.network.RawMultimodalElement
 import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
@@ -88,6 +90,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -96,13 +99,13 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
@@ -327,6 +330,19 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private var responseStartedDispatched = false
 
+    /**
+     * Native JSON renderers of this chat and their element occurrences.
+     * Main-thread confined.
+     */
+    internal val nativeCards: NativeCardController
+
+    /** Identifies the turn being streamed; native card occurrences are keyed by it. */
+    private var turnSequence = 0L
+    private var currentTurnId = "turn-0"
+
+    /** The latest backend interaction id seen in the turn being streamed. */
+    private var currentTurnInteractionId: String? = null
+
     private sealed class ConversationRequest {
         data class Chat(
             val message: String,
@@ -484,7 +500,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     // Chat messages increment/decrement this unconditionally as a queue-depth count; a data
     // handoff instead requires it to be exactly 0 to be admitted at all (reserveDataHandoffSlot),
     // making this field double as both a FIFO depth counter and a single-occupant exclusivity gate.
-    private val pendingConversationRequests = AtomicInteger(0)
+    private val pendingConversationRequests = PendingRequestCounter()
 
     @Volatile
     private var isDataHandoffSessionActive = false
@@ -551,11 +567,18 @@ class ConciergeChatViewModel : AndroidViewModel {
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
         stateRepository.registerResetParticipant(resetParticipant)
+        this.nativeCards = NativeCardController(scope = viewModelScope)
         speechCapturing.setListener(captureListener)
         startConversationProcessor()
         viewModelScope.launch {
+            combine(pendingConversationRequests.count, stateRepository.state) { pending, state ->
+                pending > 0 || state.resetInProgress
+            }.collect(nativeCards::setBusy)
+        }
+        viewModelScope.launch {
             stateRepository.state.collect { state ->
                 _identityResetInProgress.value = state.resetInProgress
+                if (state.resetInProgress) nativeCards.markAllStale()
                 if (state.resetGeneration != observedResetGeneration) {
                     observedResetGeneration = state.resetGeneration
                     endConversationForIdentityReset(state.resetGeneration)
@@ -929,7 +952,8 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         val contextSnapshot = stateRepository.captureXDMContext()
         pendingConversationRequests.incrementAndGet()
-        if (conversationRequests.trySend(ConversationRequest.Chat(messageText, contextSnapshot)).isFailure) {
+        val request = ConversationRequest.Chat(messageText, contextSnapshot)
+        if (conversationRequests.trySend(request).isFailure) {
             pendingConversationRequests.decrementAndGet()
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
@@ -1377,6 +1401,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         resendAvailable: Boolean = false,
         attemptBackgrounded: () -> Boolean = { false }
     ): ConversationStreamResult {
+        currentTurnId = "turn-${++turnSequence}"
+        currentTurnInteractionId = null
         val contentBuilder = StringBuilder()
         var hasVisibleContent = false
         var hasCompleted = false
@@ -1423,6 +1449,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                         _messages.update { currentMessages ->
                             currentMessages.take(turnStartIndex) + assistantMessage
                         }
+                        disposeRemovedNativeCards()
                         onParsedMessage(parsedMessage, contentBuilder)
                     }
                     false
@@ -1430,10 +1457,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                     true
                 }
             }.collect { parsedMessage ->
-                hasVisibleContent = hasVisibleContent ||
-                    parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                val renderedContent = onParsedMessage(parsedMessage, contentBuilder)
+                hasVisibleContent = hasVisibleContent || renderedContent
                 hasCompleted = hasCompleted || parsedMessage.state == ConversationState.COMPLETED
-                onParsedMessage(parsedMessage, contentBuilder)
             }
             when {
                 hasError -> ConversationStreamResult.Failed(failureDetail)
@@ -1454,6 +1480,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                         _messages.update { currentMessages ->
                             currentMessages.take(turnStartIndex) + assistantMessage
                         }
+                        disposeRemovedNativeCards()
                         handleConversationError("Stream ended before completion")
                         ConversationStreamResult.Failed("Stream ended before completion")
                     }
@@ -1523,13 +1550,21 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Truncates the transcript back to [index], dropping everything a turn added. Used to roll
-     * back an empty or cancelled data handoff turn in one step, rather than removing a fixed
+     * back an empty or canceled data handoff turn in one step, rather than removing a fixed
      * number of trailing messages.
      */
     private fun truncateMessagesTo(index: Int) {
         _messages.update { currentMessages ->
             if (index in 0..currentMessages.size) currentMessages.take(index) else currentMessages
         }
+        disposeRemovedNativeCards()
+    }
+
+    /** Disposes native cards whose transcript message was rolled back. */
+    private fun disposeRemovedNativeCards() {
+        nativeCards.disposeAllExcept(
+            _messages.value.mapNotNullTo(HashSet()) { (it.content as? MessageContent.NativeCard)?.cardId }
+        )
     }
 
     private fun finishConversation() {
@@ -1546,11 +1581,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      *
      * @param parsedMessage The parsed conversation message
      * @param contentBuilder StringBuilder tracking the full content
+     * @return whether this update added renderable content to the transcript.
      */
     private fun onParsedMessage(
         parsedMessage: ParsedConversationMessage,
         contentBuilder: StringBuilder
-    ) {
+    ): Boolean {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
@@ -1567,11 +1603,11 @@ class ConciergeChatViewModel : AndroidViewModel {
                 Log.debug(TAG, "onParsedMessage", "Captured conversationId: $conversationId")
             }
         }
+        parsedMessage.interactionId?.let { currentTurnInteractionId = it }
 
-        when (parsedMessage.state) {
+        return when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    parsedMessage.orderedElements.isNotEmpty()
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank()
                 if (!responseStartedDispatched && hasVisibleContent) {
                     responseStartedDispatched = true
                     dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
@@ -1580,18 +1616,13 @@ class ConciergeChatViewModel : AndroidViewModel {
                     ))
                 }
                 appendToAssistantMessage(parsedMessage, contentBuilder)
+                hasVisibleContent
             }
 
             ConversationState.COMPLETED -> {
                 // For COMPLETED state, replace content if there is text or ordered elements.
                 // If both are absent, keep existing streamed content and just transition to Idle.
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    parsedMessage.orderedElements.isNotEmpty()
-                if (hasVisibleContent) {
-                    replaceAssistantMessageContent(parsedMessage)
-                } else {
-                    setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
-                }
+                val hasVisibleContent = replaceAssistantMessageContent(parsedMessage)
                 // Ensure ResponseStarted precedes ResponseCompleted even if the server jumped
                 // straight to COMPLETED without an IN_PROGRESS chunk.
                 if (!responseStartedDispatched && hasVisibleContent) {
@@ -1613,13 +1644,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                         else -> currentState
                     }
                 }
+                hasVisibleContent
             }
 
             ConversationState.ERROR -> {
                 handleConversationError("Conversation error: ${parsedMessage.messageContent}")
+                false
             }
 
-            else -> appendToAssistantMessage(parsedMessage, contentBuilder)
+            else -> {
+                appendToAssistantMessage(parsedMessage, contentBuilder)
+                parsedMessage.messageContent.isNotBlank()
+            }
         }
     }
 
@@ -1653,9 +1689,16 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Replaces the assistant message content with the final complete message
      *
      * @param parsedMessage The parsed message containing the final complete content
+     * @return whether the final content contains text or accepted render targets.
      */
-    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
-        if (parsedMessage.orderedElements.isNotEmpty()) {
+    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage): Boolean {
+        if (hasElementCandidates(parsedMessage)) {
+            // Native cards are activated here, once the turn has completed.
+            val renderTargets = resolveElementRenderTargets(parsedMessage)
+            if (renderTargets.isEmpty() && parsedMessage.messageContent.isBlank()) {
+                setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
+                return false
+            }
             if (parsedMessage.messageContent.isNotEmpty()) {
                 // Text + ordered elements: keep the text message, then append elements.
                 // Suppress interactionId (and thus feedback controls) when CTAs are present —
@@ -1681,12 +1724,17 @@ class ConciergeChatViewModel : AndroidViewModel {
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
-                    "No text content, removing placeholder and appending ${parsedMessage.orderedElements.size} ordered elements."
+                    "No text content, removing placeholder and appending ${renderTargets.size} ordered elements."
                 )
                 removeLastAssistantPlaceholder()
             }
-            appendOrderedElementMessages(parsedMessage.orderedElements, parsedMessage.promptSuggestions)
+            appendOrderedElementMessages(renderTargets, parsedMessage.promptSuggestions)
+            return parsedMessage.messageContent.isNotBlank() || renderTargets.isNotEmpty()
         } else {
+            if (parsedMessage.messageContent.isBlank() && parsedMessage.multimodalElements.isEmpty()) {
+                setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
+                return false
+            }
             // Legacy path: text-only or mixed message
             val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
                 MessageContent.Text(parsedMessage.messageContent)
@@ -1714,54 +1762,117 @@ class ConciergeChatViewModel : AndroidViewModel {
                 feedbackEligible = parsedMessage.feedbackEligible,
                 linkHints = parsedMessage.linkHints
             )
+            return true
         }
     }
 
+    /** How one response element is placed in the transcript. */
+    private sealed class ElementRenderTarget {
+        data class BuiltInCard(val element: MultimodalElement) : ElementRenderTarget()
+        data class Cta(val button: CtaButton) : ElementRenderTarget()
+        data class NativeCard(val cardId: String) : ElementRenderTarget()
+    }
+
+    /** True when elements need resolution before their visibility can be determined. */
+    private fun hasElementCandidates(parsedMessage: ParsedConversationMessage): Boolean =
+        parsedMessage.orderedElements.isNotEmpty() ||
+            (nativeCards.hasAnyRenderer && parsedMessage.rawElements.any { nativeCards.hasRenderer(it.type) })
+
     /**
-     * Appends standalone messages for each ordered element.
-     * All cards are batched into one Mixed message at the position of the first Card element.
-     * Each CTA becomes its own CtaButton message.
+     * Decides how each element renders: a registered `type` goes to its app-owned renderer first;
+     * otherwise, or when it can't be activated (invalid JSON or a duplicate id), the element uses its
+     * built-in rendering if it has one (see [RawMultimodalElement.builtInFallback]), else nothing.
+     */
+    private fun resolveElementRenderTargets(parsedMessage: ParsedConversationMessage): List<ElementRenderTarget> {
+        // Services that only fill orderedElements (no raw dictionaries) keep built-in rendering.
+        if (!nativeCards.hasAnyRenderer) {
+            return parsedMessage.orderedElements.map(::toBuiltInRenderTarget)
+        }
+        if (parsedMessage.rawElements.isEmpty()) return parsedMessage.orderedElements.map(::toBuiltInRenderTarget)
+        return parsedMessage.rawElements.mapNotNull { element ->
+            if (!nativeCards.hasRenderer(element.type)) return@mapNotNull element.builtInFallback?.let(::toBuiltInRenderTarget)
+            when (val activation = nativeCards.activate(toActivationRequest(element))) {
+                is NativeCardController.ActivationResult.Activated -> ElementRenderTarget.NativeCard(activation.cardId)
+                // Already in the transcript from an earlier pass over this same response.
+                is NativeCardController.ActivationResult.AlreadyActive -> null
+                NativeCardController.ActivationResult.Rejected -> element.builtInFallback?.let(::toBuiltInRenderTarget)
+            }
+        }
+    }
+
+    private fun toActivationRequest(element: RawMultimodalElement) = NativeCardController.ActivationRequest(
+        element = element.payload,
+        type = element.type.orEmpty(),
+        turnId = currentTurnId,
+        sessionId = sessionManager.currentSessionIdOrNull(),
+        conversationId = currentConversationId,
+        interactionId = currentTurnInteractionId,
+        position = element.position
+    )
+
+    private fun toBuiltInRenderTarget(item: ParsedMultimodalItem): ElementRenderTarget = when (item) {
+        is ParsedMultimodalItem.Card -> ElementRenderTarget.BuiltInCard(item.element)
+        is ParsedMultimodalItem.Cta -> ElementRenderTarget.Cta(item.button)
+    }
+
+    /**
+     * Appends one message per render target, in response order.
+     * - Built-in product cards are batched into one Mixed message at the first one's position.
+     * - Each CTA becomes its own CtaButton message.
+     * - Each native card becomes its own NativeCard message; it is never merged into a carousel.
+     *
+     * Prompt suggestions go on the product-card message, or on the last native card when there
+     * are no product cards.
      */
     private fun appendOrderedElementMessages(
-        orderedElements: List<ParsedMultimodalItem>,
+        renderTargets: List<ElementRenderTarget>,
         promptSuggestions: List<String> = emptyList()
     ) {
-        val cardElements = orderedElements
-            .filterIsInstance<ParsedMultimodalItem.Card>()
+        val builtInCardElements = renderTargets
+            .filterIsInstance<ElementRenderTarget.BuiltInCard>()
             .map { it.element }
         var cardMessageAppended = false
 
-        if (cardElements.isNotEmpty()) {
-            val displayMode = if (cardElements.size == 1) "single" else "carousel"
-            val elementDicts = cardElements.map { element -> buildCardElementDict(element.content) }
+        if (builtInCardElements.isNotEmpty()) {
+            val displayMode = if (builtInCardElements.size == 1) "single" else "carousel"
+            val elementDicts = builtInCardElements.map { element -> buildCardElementDict(element.content) }
             dispatchTrackingEvent(ConciergeTrackingEvent.CardsRendered(displayMode, elementDicts))
         }
 
-        for (element in orderedElements) {
-            when (element) {
-                is ParsedMultimodalItem.Cta -> {
-                    val ctaMessage = ChatMessage(
-                        content = MessageContent.CtaButton(element.button),
+        val promptSuggestionsNativeCardIndex = if (builtInCardElements.isEmpty()) renderTargets.indexOfLast { it is ElementRenderTarget.NativeCard } else -1
+        val newMessages = mutableListOf<ChatMessage>()
+        renderTargets.forEachIndexed { index, element ->
+            val message = when (element) {
+                is ElementRenderTarget.Cta -> ChatMessage(
+                    content = MessageContent.CtaButton(element.button),
+                    isFromUser = false,
+                    timestamp = System.currentTimeMillis(),
+                    sseComplete = true
+                )
+                is ElementRenderTarget.BuiltInCard -> if (cardMessageAppended) {
+                    null
+                } else {
+                    cardMessageAppended = true
+                    ChatMessage(
+                        content = MessageContent.Mixed(text = "", multimodalElements = builtInCardElements),
                         isFromUser = false,
                         timestamp = System.currentTimeMillis(),
-                        sseComplete = true
+                        sseComplete = true,
+                        promptSuggestions = promptSuggestions
                     )
-                    _messages.update { it + ctaMessage }
                 }
-                is ParsedMultimodalItem.Card -> {
-                    if (!cardMessageAppended) {
-                        cardMessageAppended = true
-                        val cardMessage = ChatMessage(
-                            content = MessageContent.Mixed(text = "", multimodalElements = cardElements),
-                            isFromUser = false,
-                            timestamp = System.currentTimeMillis(),
-                            sseComplete = true,
-                            promptSuggestions = promptSuggestions
-                        )
-                        _messages.update { it + cardMessage }
-                    }
-                }
-            }
+                is ElementRenderTarget.NativeCard -> ChatMessage(
+                    content = MessageContent.NativeCard(element.cardId),
+                    isFromUser = false,
+                    timestamp = System.currentTimeMillis(),
+                    sseComplete = true,
+                    promptSuggestions = if (index == promptSuggestionsNativeCardIndex) promptSuggestions else emptyList()
+                )
+            } ?: return@forEachIndexed
+            newMessages += message
+        }
+        if (newMessages.isNotEmpty()) {
+            _messages.update { it + newMessages }
         }
     }
 
@@ -1811,6 +1922,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
+    /** Removes the trailing assistant placeholder after an ordered-elements-only response. */
     private fun removeLastAssistantPlaceholder() {
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
@@ -2088,6 +2200,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         speechCapturing.setListener(captureListener)
         _inputState.value = UserInputState.Empty
         _messages.value = emptyList()
+        nativeCards.disposeAll()
         imageProvider.clear()
         currentConversationId = null
         responseStartedDispatched = false
@@ -2131,6 +2244,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         val conversationId = currentConversationId
         appLifecycle?.removeObserver(appLifecycleObserver)
         deactivateDataHandoffSession()
+        nativeCards.disposeAll()
         conversationRequests.close()
         currentChatJob?.cancel()
         feedbackJobs.toList().forEach { it.cancel() }
@@ -2145,4 +2259,20 @@ class ConciergeChatViewModel : AndroidViewModel {
         stateRepository.unregisterResetParticipant(resetParticipant)
         super.onCleared()
     }
+}
+
+/**
+ * Count of conversation requests queued or processing. Updates are atomic:
+ * [compareAndSet] is the single-occupant gate used by data handoffs and programmatic messages.
+ */
+internal class PendingRequestCounter {
+    private val value = MutableStateFlow(0)
+
+    val count: StateFlow<Int> = value.asStateFlow()
+
+    fun incrementAndGet(): Int = value.updateAndGet { it + 1 }
+
+    fun decrementAndGet(): Int = value.updateAndGet { it - 1 }
+
+    fun compareAndSet(expect: Int, update: Int): Boolean = value.compareAndSet(expect, update)
 }

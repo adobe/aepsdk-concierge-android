@@ -95,6 +95,26 @@ internal sealed class ParsedMultimodalItem {
 }
 
 /**
+ * One element of `response.multimodalElements.elements`, kept whole for native card dispatch.
+ *
+ * @property position index in the elements array.
+ * @property type the element `type`, when it is a string.
+ * @property payload the complete element dictionary as parsed (every field, nulls included).
+ * @property parsedBuiltIn the built-in representation ([ParsedMultimodalItem.Card] or
+ * [ParsedMultimodalItem.Cta]) or null when the element has none (e.g. no `id`).
+ */
+internal class RawMultimodalElement(
+    val position: Int,
+    val type: String?,
+    val payload: Map<String, Any?>,
+    val parsedBuiltIn: ParsedMultimodalItem?
+) {
+
+    val builtInFallback: ParsedMultimodalItem?
+        get() = parsedBuiltIn
+}
+
+/**
  * Multimodal elements for rich content
  */
 internal data class MultimodalElement(
@@ -155,6 +175,7 @@ internal data class ParsedConversationMessage(
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val orderedElements: List<ParsedMultimodalItem> = emptyList(),
+    val rawElements: List<RawMultimodalElement> = emptyList(),
     val sources: List<Citation> = emptyList(),
     val feedbackEligible: Boolean = false,
     val linkHints: List<LinkHint> = emptyList()

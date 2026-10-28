@@ -274,6 +274,62 @@ app owns any failure UI based on the completion result.
 
 ---
 
+## Native card renderers (preview)
+
+Register a Compose renderer for a response element `type`. When an element in
+`multimodalElements.elements` has that type, the chat renders your card inline in the transcript,
+after its assistant turn completes. Without a matching renderer, elements keep their existing
+built-in rendering when parsing succeeds, including unknown types and untyped elements.
+`ctaButton` elements use CTA parsing; all other types use the existing card parser.
+If native activation rejects an element, the same built-in fallback applies. Elements that
+cannot be parsed for built-in rendering and have no accepted native renderer are omitted.
+Type matching is exact and case-sensitive. Registering a built-in type overrides its rendering.
+Replacing a registration affects subsequently activated cards; existing cards retain their renderer.
+Native cards and CTAs have separate transcript rows; built-in cards are grouped into a carousel
+at the first built-in card's position, so mixed responses do not preserve every element's interleaving.
+
+```kotlin
+// Once at app start, after MobileCore setup. The last registration for a type wins.
+Concierge.registerCardRenderer("customCard") { element, context, saveState ->
+    CustomCard(element, context, saveState)
+}
+```
+
+- **`element`**: the complete, deeply read-only element dictionary, including null values.
+  Custom payload schemas are not validated: `entity_info` may be null or absent, and the
+  renderer must handle it safely. Elements are copied with depth-64 and 100,000-node limits;
+  invalid or over-limit elements are rejected and logged before rendering.
+- **`context`**: updated when card state or busy/stale flags change. `cardId`; `sessionId`, `conversationId`,
+  `interactionId` (each may be absent); `isBusy` (a chat or handoff turn is in progress);
+  `isStale` (the identity was reset); `state` (this card's last saved state, if any).
+- **`saveState(map)`**: replaces this card's private, in-memory state while its chat ViewModel
+  survives (including scrolling, hiding the chat, and configuration changes that retain that
+  ViewModel). It is not persisted across process death or a new ViewModel. Callable from any
+  thread; applied on the main thread and never sent to Brand Concierge. Values must be JSON data
+  within the same depth/node limits; invalid saves are logged and ignored.
+
+Cards are disposed when their rows are rolled back, on transcript clear/identity reset, and on
+ViewModel teardown. Identity reset marks cards stale before disposal. Saves after disposal are ignored.
+
+Cards talk back with the existing APIs: `Concierge.sendDataHandoff` to start a turn with data, and
+`Concierge.updateXDMContext` for committed facts later turns need.
+The `sendDataHandoff` completion runs on a background thread, and the SDK doesn't deduplicate calls.
+`Delivered` means the response supplied nonblank text or accepted render targets, not that a
+custom renderer's business payload is valid or its UI shows useful content. A renderer that
+shows its own unavailable placeholder does not trigger built-in fallback or change that result.
+
+Each card gates its own controls: disable handoff controls while `isBusy` or `isStale`, and on tap,
+since `isBusy` can lag it. Read both from the current `context` rather than copying them into
+`remember`. The SDK keeps older cards active when newer ones arrive; keep workflow flags such as
+`submitted` in `saveState`. Rules that span cards, such as allowing actions only on the newest
+card of a given type, belong to the app: coordinate them in app-owned state keyed by `cardId`, and put only
+business facts Brand Concierge needs in `updateXDMContext`. The SDK draws no card surface: cards
+render at their natural height, full width.
+Renderers must not throw, must not start work during composition, and, since they are held for
+the life of the process, must not capture an `Activity` or a `View`.
+
+---
+
 ## Integration
 
 ### Managed Integration
