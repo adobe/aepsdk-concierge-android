@@ -554,7 +554,6 @@ class ConciergeChatViewModel : AndroidViewModel {
         sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
         sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         appLifecycle: Lifecycle? = null,
-        nativeCardController: NativeCardController? = null,
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
@@ -568,7 +567,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
         stateRepository.registerResetParticipant(resetParticipant)
-        this.nativeCards = nativeCardController ?: NativeCardController(scope = viewModelScope)
+        this.nativeCards = NativeCardController(scope = viewModelScope)
         speechCapturing.setListener(captureListener)
         startConversationProcessor()
         viewModelScope.launch {
