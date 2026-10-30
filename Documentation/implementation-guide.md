@@ -259,7 +259,7 @@ Concierge.sendDataHandoff(
   | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
   | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
   | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. |
-  | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. |
+  | `CHAT_IN_PROGRESS` | A chat turn, a voice conversation, or another handoff is active or waiting. Retry after it completes. |
   | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. |
   | `EMPTY_RESPONSE` | Brand Concierge completed without any text, cards, or CTAs to render. |
   | `DELIVERY_TIMEOUT` | Brand Concierge did not complete within the handoff delivery timeout. |
@@ -271,6 +271,100 @@ render `localMessage` or call the service. Retry the handoff after the active re
 After an accepted handoff starts, delivery failures, empty responses, and timeouts do not add an
 error message to the transcript. An already-rendered `localMessage` remains visible, and the host
 app owns any failure UI based on the completion result.
+
+---
+
+## Voice conversations (optional)
+
+Brand Concierge can hold a spoken conversation with the agent. The SDK runs the conversation (credentials, microphone permission, session lifecycle, transcript and UI), and your app supplies the audio connection by implementing the `VoiceTransport` interface. Brand Concierge has no WebRTC dependency, so apps that don't use voice ship no WebRTC code.
+
+The test app's [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) is a complete transport built on the [LiveKit Android SDK](https://github.com/livekit/client-sdk-android). To add voice to your app:
+
+#### 1. Add LiveKit to your app
+
+```kotlin
+dependencies {
+    implementation("io.livekit:livekit-android:2.29.1")
+}
+```
+
+LiveKit is your app's dependency: you choose and update its version, and Brand Concierge does not constrain it. The test app pins 2.29.1. LiveKit depends on artifacts published to JitPack, so add `maven { url = uri("https://jitpack.io") }` to the repositories in your `settings.gradle.kts`.
+
+#### 2. Set up the manifest permissions
+
+Declare `RECORD_AUDIO` in your app's `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted. No foreground service is needed: the conversation ends when the app moves to the background.
+
+LiveKit's manifest is merged into your app's. Besides `INTERNET`, `ACCESS_NETWORK_STATE` and `RECORD_AUDIO`, it adds `CAMERA`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PROJECTION`, and a screen-sharing service; LiveKit's audio routing library also adds `MODIFY_AUDIO_SETTINGS`. Voice uses none of the camera or screen-sharing entries, so unless your app needs them for something else, remove them with `tools:node="remove"`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.CAMERA"
+        tools:node="remove"
+        tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
+
+    <application>
+        <service
+            android:name="io.livekit.android.room.track.screencapture.ScreenCaptureService"
+            tools:node="remove" />
+    </application>
+</manifest>
+```
+
+Android lint reports the removed `CAMERA` entry as if it were declared, hence `tools:ignore`. Check the merged manifest (Android Studio's **Merged Manifest** tab) after you update LiveKit, because a new version can add entries.
+
+#### 3. Copy the transport
+
+Copy [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) into your app (change the package and log tag to your own). A `VoiceTransport` connects to the URL and token Brand Concierge passes to `connect(url, token)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. The reference transport also records the microphone while the room connects and sends that audio once the agent joins, so the user can start speaking right away.
+
+If you change the transport, keep the rules in the `VoiceTransport` documentation: Brand Concierge calls the transport on the main thread, and the transport may call the listener from any thread. When you update LiveKit, check that the file still builds and repeat the device checks below.
+
+#### 4. Pass the transport to the chat
+
+Keep one instance for the life of the app, created with the application context: Brand Concierge reuses it for each conversation, sets the listener before connecting and clears it before disconnecting.
+
+```kotlin
+object Voice {
+    lateinit var transport: VoiceTransport
+        private set
+
+    fun initialize(application: Application) {
+        transport = LiveKitTransport(application)
+    }
+}
+
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        Voice.initialize(this)
+        // ... MobileCore.initialize ...
+    }
+}
+```
+
+```kotlin
+ConciergeChat(
+    viewModel = viewModel,
+    surfaces = listOf("my-surface"),
+    voiceTransport = Voice.transport
+) { showChat -> /* ... */ }
+```
+
+The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends. When several `ConciergeChat` calls share a view model, pass the same transport to each of them; otherwise the last one to recompose decides which transport the chat uses.
+
+When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. Without microphone permission, the voice button first asks for it (the same flow as dictation) and starts the conversation only once it is granted; if the user denies it, no conversation starts. A failed connection ends the conversation and shows an error message in the chat.
+
+#### Audio quality
+
+The transport, and therefore LiveKit, owns audio focus, audio routing and audio processing:
+
+- **Keep echo cancellation and noise suppression on.** LiveKit enables them by default. Without them, the agent's voice from the speaker reaches the microphone and the agent can interrupt itself. Even with them, loud speaker playback can occasionally be heard as the user speaking; headphones avoid this.
+- **Speaker output.** LiveKit prefers a Bluetooth headset, then wired headphones, then the speaker over the earpiece. Headphones and Bluetooth devices take over when connected.
+- **Interruptions.** The reference transport reports a loss of audio focus (a phone call, another app playing audio) as an audio interruption, and Brand Concierge mutes the microphone until focus returns.
+- **Test on a device.** The emulator proves the wiring and the connection, but not echo, audio routes or interruptions. Check a conversation on the speaker, connecting and disconnecting wired and Bluetooth headphones mid-session, a call during a session, and moving the app to the background. Repeat these checks when you update LiveKit or change its audio settings elsewhere in your app.
 
 ---
 
