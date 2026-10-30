@@ -60,6 +60,14 @@ internal sealed class ChatScreenState {
     ) : ChatScreenState()
 
     /**
+     * A voice conversation owns the chat. Typed sends, dictation, and data handoffs are held off
+     * until it ends.
+     */
+    data class VoiceSession(
+        override val feedback: Feedback? = null
+    ) : ChatScreenState()
+
+    /**
      * Chat is in an error state.
      */
     data class Error(
