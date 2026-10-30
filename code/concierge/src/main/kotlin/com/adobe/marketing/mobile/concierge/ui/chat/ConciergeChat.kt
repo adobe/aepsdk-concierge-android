@@ -127,7 +127,6 @@ fun ConciergeChat(
     voiceTransport: VoiceTransport? = null,
     content: @Composable (showChat: () -> Unit) -> Unit
 ) {
-    SideEffect { viewModel.setVoiceTransport(voiceTransport) }
     val showChatDialog by viewModel.isConciergeActive.collectAsStateWithLifecycle()
     val conciergeState by ConciergeStateRepository.instance.state.collectAsStateWithLifecycle()
     val repository = ConciergeStateRepository.instance
