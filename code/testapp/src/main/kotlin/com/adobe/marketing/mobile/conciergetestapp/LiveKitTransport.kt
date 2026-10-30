@@ -233,11 +233,13 @@ class LiveKitTransport(context: Context) : VoiceTransport {
     private companion object {
         const val TAG = "LiveKitTransport"
 
-        /** The user or the agent ending the conversation, rather than a lost connection. */
+        /**
+         * Leaving, the room being deleted or the user being removed ends the conversation
+         * normally; any other reason is a failure. Matches the iOS reference transport.
+         */
         val NORMAL_DISCONNECT_REASONS = setOf(
             DisconnectReason.CLIENT_INITIATED,
             DisconnectReason.ROOM_DELETED,
-            DisconnectReason.ROOM_CLOSED,
             DisconnectReason.PARTICIPANT_REMOVED
         )
 
