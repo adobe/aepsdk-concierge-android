@@ -355,7 +355,7 @@ ConciergeChat(
 
 The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends. When several `ConciergeChat` calls share a view model, pass the same transport to each of them; otherwise the last one to recompose decides which transport the chat uses.
 
-When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. A denied permission or a failed connection ends the conversation and shows an error message in the chat.
+When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. Without microphone permission, the voice button first asks for it (the same flow as dictation) and starts the conversation only once it is granted; if the user denies it, no conversation starts. A failed connection ends the conversation and shows an error message in the chat.
 
 #### Audio quality
 
