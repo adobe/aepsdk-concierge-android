@@ -14,8 +14,6 @@ package com.adobe.marketing.mobile.concierge.cards
 
 import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.concierge.ConciergeCardRenderer
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -112,14 +110,6 @@ class CardJsonTest {
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("value limit"))
         }
-    }
-
-    @Test
-    fun `toJsonValue converts nulls and nested collections`() {
-        val json = CardJson.toJsonValue(mapOf("a" to null, "b" to listOf(1, mapOf("c" to "d")))) as JSONObject
-        assertTrue(json.isNull("a"))
-        assertEquals("d", (json.getJSONArray("b").get(1) as JSONObject).getString("c"))
-        assertTrue(CardJson.toJsonValue(listOf(1)) is JSONArray)
     }
 
     private fun assertRejected(value: Map<String, Any?>, path: String) {

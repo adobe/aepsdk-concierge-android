@@ -12,8 +12,6 @@
 
 package com.adobe.marketing.mobile.concierge.cards
 
-import org.json.JSONArray
-import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.Collections
@@ -67,13 +65,5 @@ internal object CardJson {
         }
         is Int, is Long, is Short, is Byte, is BigDecimal, is BigInteger -> value.also { budget.consume(path) }
         else -> throw IllegalArgumentException("$path has an unsupported ${value.javaClass.simpleName} value")
-    }
-
-    /** Converts a value of the JSON model to org.json types (null becomes [JSONObject.NULL]). */
-    fun toJsonValue(value: Any?): Any = when (value) {
-        null -> JSONObject.NULL
-        is Map<*, *> -> JSONObject().apply { value.forEach { (key, entry) -> put(key.toString(), toJsonValue(entry)) } }
-        is List<*> -> JSONArray().apply { value.forEach { put(toJsonValue(it)) } }
-        else -> value
     }
 }

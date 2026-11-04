@@ -148,7 +148,7 @@ internal object ConversationResponseParser {
             ?: emptyList()).filter { it.isNotEmpty() }
 
         val rawElements = extractElements(response)
-        val orderedElements = rawElements.mapNotNull { it.builtInFallback }
+        val orderedElements = rawElements.mapNotNull { it.parsedBuiltIn }
         val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
         val sources = extractSources(response)
         val feedbackInfo = DataReader.optTypedMap(Any::class.java, response, FIELD_FEEDBACK, null)

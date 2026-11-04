@@ -122,8 +122,16 @@ class ConciergeChatViewModelNativeCardTest {
         Dispatchers.resetMain()
     }
 
-    private fun frame(message: String, vararg elements: Map<String, Any?>, state: String = "completed"): String {
+    private fun frame(
+        message: String,
+        vararg elements: Map<String, Any?>,
+        state: String = "completed",
+        promptSuggestions: List<String> = emptyList()
+    ): String {
         val response = JSONObject().put("message", message)
+        if (promptSuggestions.isNotEmpty()) {
+            response.put("promptSuggestions", JSONArray(promptSuggestions))
+        }
         if (elements.isNotEmpty()) {
             response.put(
                 "multimodalElements",
@@ -266,7 +274,8 @@ class ConciergeChatViewModelNativeCardTest {
     @Test
     fun `handoff with a rejected card still delivers response text`() = runTest {
         registerMenu()
-        val vm = viewModel(frame("Menu unavailable", rejectedMenu()))
+        val suggestions = listOf("Try another option", "Browse categories")
+        val vm = viewModel(frame("Menu unavailable", rejectedMenu(), promptSuggestions = suggestions))
         var result: DataHandoffDeliveryResult? = null
 
         vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
@@ -274,7 +283,29 @@ class ConciergeChatViewModelNativeCardTest {
 
         assertEquals(DataHandoffDeliveryResult.Delivered, result)
         assertEquals(listOf("Menu unavailable"), vm.messages.value.map { it.text })
+        assertEquals(suggestions, vm.messages.value.single().promptSuggestions)
         assertTrue(vm.nativeCardIds().isEmpty())
+    }
+
+    @Test
+    fun `CTA-only responses still do not attach suggestions to text`() = runTest {
+        val suggestions = listOf("Try another option")
+        val vm = viewModel(
+            frame(
+                "Choose an option",
+                mapOf("type" to "ctaButton", "id" to "cta-1", "entity_info" to mapOf(
+                    "primary" to mapOf("text" to "Continue", "url" to "https://example.com")
+                )),
+                promptSuggestions = suggestions
+            )
+        )
+
+        vm.processEvent(ChatEvent.SendMessage("continue"))
+        advanceUntilIdle()
+
+        val replies = vm.messages.value.filterNot { it.isFromUser }
+        assertEquals(2, replies.size)
+        assertTrue(replies.all { it.promptSuggestions.isEmpty() })
     }
 
     @Test

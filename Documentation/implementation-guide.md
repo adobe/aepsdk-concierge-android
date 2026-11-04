@@ -281,12 +281,15 @@ Register a Compose renderer for a response element `type`. When an element in
 after its assistant turn completes. Without a matching renderer, elements keep their existing
 built-in rendering when parsing succeeds, including unknown types and untyped elements.
 `ctaButton` elements use CTA parsing; all other types use the existing card parser.
-If native activation rejects an element, the same built-in fallback applies. Elements that
+If native activation rejects an element, it uses its parsed built-in representation when available. Elements that
 cannot be parsed for built-in rendering and have no accepted native renderer are omitted.
 Type matching is exact and case-sensitive. Registering a built-in type overrides its rendering.
 Replacing a registration affects subsequently activated cards; existing cards retain their renderer.
 Native cards and CTAs have separate transcript rows; built-in cards are grouped into a carousel
 at the first built-in card's position, so mixed responses do not preserve every element's interleaving.
+Native cards do not emit the SDK's `CardsRendered` analytics event; tracking native-card impressions
+and other app-specific interactions is the host app's responsibility. The SDK does not send native
+card payloads through product-oriented card analytics.
 
 ```kotlin
 // Once at app start, after MobileCore setup. The last registration for a type wins.

@@ -1694,7 +1694,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage): Boolean {
         if (hasElementCandidates(parsedMessage)) {
             // Native cards are activated here, once the turn has completed.
-            val renderTargets = resolveElementRenderTargets(parsedMessage)
+            val resolution = resolveElementRenderTargets(parsedMessage)
+            val renderTargets = resolution.renderTargets
             if (renderTargets.isEmpty() && parsedMessage.messageContent.isBlank()) {
                 setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
                 return false
@@ -1711,7 +1712,12 @@ class ConciergeChatViewModel : AndroidViewModel {
                 )
                 updateAssistantMessageContent(
                     MessageContent.Text(parsedMessage.messageContent),
-                    emptyList(),
+                    parsedMessage.promptSuggestions.takeIf {
+                        resolution.hasRejectedNativeCard &&
+                            renderTargets.none { target ->
+                                target is ElementRenderTarget.BuiltInCard || target is ElementRenderTarget.NativeCard
+                            }
+                    }.orEmpty(),
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
                     sseComplete = true,
@@ -1773,6 +1779,11 @@ class ConciergeChatViewModel : AndroidViewModel {
         data class NativeCard(val cardId: String) : ElementRenderTarget()
     }
 
+    private data class ElementResolution(
+        val renderTargets: List<ElementRenderTarget>,
+        val hasRejectedNativeCard: Boolean
+    )
+
     /** True when elements need resolution before their visibility can be determined. */
     private fun hasElementCandidates(parsedMessage: ParsedConversationMessage): Boolean =
         parsedMessage.orderedElements.isNotEmpty() ||
@@ -1781,23 +1792,30 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Decides how each element renders: a registered `type` goes to its app-owned renderer first;
      * otherwise, or when it can't be activated (invalid JSON or a duplicate id), the element uses its
-     * built-in rendering if it has one (see [RawMultimodalElement.builtInFallback]), else nothing.
+     * built-in rendering if it has one, else nothing.
      */
-    private fun resolveElementRenderTargets(parsedMessage: ParsedConversationMessage): List<ElementRenderTarget> {
+    private fun resolveElementRenderTargets(parsedMessage: ParsedConversationMessage): ElementResolution {
         // Services that only fill orderedElements (no raw dictionaries) keep built-in rendering.
         if (!nativeCards.hasAnyRenderer) {
-            return parsedMessage.orderedElements.map(::toBuiltInRenderTarget)
+            return ElementResolution(parsedMessage.orderedElements.map(::toBuiltInRenderTarget), false)
         }
-        if (parsedMessage.rawElements.isEmpty()) return parsedMessage.orderedElements.map(::toBuiltInRenderTarget)
-        return parsedMessage.rawElements.mapNotNull { element ->
-            if (!nativeCards.hasRenderer(element.type)) return@mapNotNull element.builtInFallback?.let(::toBuiltInRenderTarget)
+        if (parsedMessage.rawElements.isEmpty()) {
+            return ElementResolution(parsedMessage.orderedElements.map(::toBuiltInRenderTarget), false)
+        }
+        var hasRejectedNativeCard = false
+        val renderTargets = parsedMessage.rawElements.mapNotNull { element ->
+            if (!nativeCards.hasRenderer(element.type)) return@mapNotNull element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
             when (val activation = nativeCards.activate(toActivationRequest(element))) {
                 is NativeCardController.ActivationResult.Activated -> ElementRenderTarget.NativeCard(activation.cardId)
                 // Already in the transcript from an earlier pass over this same response.
                 is NativeCardController.ActivationResult.AlreadyActive -> null
-                NativeCardController.ActivationResult.Rejected -> element.builtInFallback?.let(::toBuiltInRenderTarget)
+                NativeCardController.ActivationResult.Rejected -> {
+                    hasRejectedNativeCard = true
+                    element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
+                }
             }
         }
+        return ElementResolution(renderTargets, hasRejectedNativeCard)
     }
 
     private fun toActivationRequest(element: RawMultimodalElement) = NativeCardController.ActivationRequest(

@@ -53,7 +53,6 @@ class ConversationResponseParserRawElementsTest {
         assertEquals(listOf(true, null, 2), (menu["custom"] as Map<*, *>)["nested"])
 
         assertTrue(message.rawElements[0].parsedBuiltIn is ParsedMultimodalItem.Card)
-        assertEquals(message.rawElements[0].parsedBuiltIn, message.rawElements[0].builtInFallback)
         assertTrue(message.rawElements[2].parsedBuiltIn is ParsedMultimodalItem.Cta)
         assertEquals(message.rawElements.mapNotNull { it.parsedBuiltIn }, message.orderedElements)
         assertEquals(listOf("menu-1", "p1"), message.multimodalElements.map { it.id })
@@ -68,7 +67,7 @@ class ConversationResponseParserRawElementsTest {
                 "productName": "Practice Facility Garage",
                 "productDescription": "${'$'}0.00 · 2.3 min walk · Covered, Guaranteed spot",
                 "productImageURL": "https://example.com/garage.jpeg",
-                "primary": {"text": "Book on ParkWhiz", "url": "https://example.com/checkout"},
+                "primary": {"text": "Book now", "url": "https://example.com/checkout"},
                 "secondary": {"text": "Get directions", "url": "https://example.com/directions"}
               }},
               {"type": "acme.other", "id": "other"},
@@ -83,11 +82,11 @@ class ConversationResponseParserRawElementsTest {
         assertEquals("Practice Facility Garage", content["productName"])
         assertEquals("${'$'}0.00 · 2.3 min walk · Covered, Guaranteed spot", content["productDescription"])
         assertEquals("https://example.com/garage.jpeg", content["productImageURL"])
-        assertEquals("Book on ParkWhiz", content["primaryText"])
+        assertEquals("Book now", content["primaryText"])
         assertEquals("https://example.com/checkout", content["primaryUrl"])
         assertEquals("Get directions", content["secondaryText"])
         assertEquals("https://example.com/directions", content["secondaryUrl"])
-        assertTrue(message.rawElements[1].builtInFallback is ParsedMultimodalItem.Card)
+        assertTrue(message.rawElements[1].parsedBuiltIn is ParsedMultimodalItem.Card)
     }
 
     @Test

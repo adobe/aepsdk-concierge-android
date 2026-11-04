@@ -597,7 +597,7 @@ class ExtendedProductCardTest {
             content = mapOf(
                 "productName" to "Practice Facility Garage",
                 "productDescription" to "\$0.00 · Covered, Guaranteed spot",
-                "primaryText" to "Book on ParkWhiz",
+                "primaryText" to "Book now",
                 "primaryUrl" to "https://widget.example.com/checkout",
                 "secondaryText" to "Get directions",
                 "secondaryUrl" to "https://maps.example.com/directions"
@@ -616,7 +616,7 @@ class ExtendedProductCardTest {
         }
 
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithText("Book on ParkWhiz").assertExists()
+        composeTestRule.onNodeWithText("Book now").assertExists()
         composeTestRule.onNodeWithText("Get directions").assertExists()
     }
 

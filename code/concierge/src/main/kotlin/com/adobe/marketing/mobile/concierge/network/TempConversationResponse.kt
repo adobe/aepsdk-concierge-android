@@ -108,11 +108,7 @@ internal class RawMultimodalElement(
     val type: String?,
     val payload: Map<String, Any?>,
     val parsedBuiltIn: ParsedMultimodalItem?
-) {
-
-    val builtInFallback: ParsedMultimodalItem?
-        get() = parsedBuiltIn
-}
+)
 
 /**
  * Multimodal elements for rich content
