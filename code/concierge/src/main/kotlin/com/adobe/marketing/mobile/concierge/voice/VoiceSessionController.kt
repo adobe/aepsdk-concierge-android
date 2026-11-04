@@ -133,6 +133,9 @@ internal class VoiceSessionController(
             fail(FailureReasons.INVALID_CONNECTION)
             return
         }
+        // ConciergeChatViewModel already checks the permission before requesting the session. This
+        // second check is a safety net for any caller that starts a session without going through
+        // it, and for a permission revoked while the session was being requested.
         // This runs in a posted Runnable, so nothing may escape: report failures instead.
         val permissionGranted = try {
             hasMicrophonePermission()
