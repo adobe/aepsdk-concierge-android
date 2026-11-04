@@ -125,6 +125,43 @@ class VoiceSessionControllerTest {
     }
 
     @Test
+    fun connect_failsAndDisconnectsWhenTheTransportNeverReports() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val transportListener = requireNotNull(transport.listener)
+
+        advanceMain(VoiceSessionController.CONNECT_TIMEOUT_MILLIS - 1)
+        transport.report(VoiceTransportState.Reconnecting)
+        assertEquals(VoiceSessionState.Connecting, session.state)
+        advanceMain(1)
+
+        assertEquals(
+            VoiceSessionState.Failed("The voice connection was not established within 20 seconds."),
+            session.state
+        )
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listener)
+        transportListener.onStateChanged(transport, VoiceTransportState.Connected)
+        assertEquals("a late Connected is ignored", 2, listener.states.size)
+    }
+
+    @Test
+    fun connect_connectedBeforeTheDeadline_keepsTheSession() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        advanceMain(VoiceSessionController.CONNECT_TIMEOUT_MILLIS - 1)
+        transport.report(VoiceTransportState.Connected)
+        advanceMain(VoiceSessionController.CONNECT_TIMEOUT_MILLIS * 2)
+
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening), listener.states)
+        assertEquals(0, transport.disconnectCount)
+    }
+
+    @Test
     fun permissionDenied_failsWithoutTouchingTheTransport() {
         permissionGranted = false
         val transport = FakeVoiceTransport()
