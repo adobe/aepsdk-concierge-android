@@ -314,6 +314,24 @@ class ConciergeChatViewModelVoiceSessionTest {
     }
 
     @Test
+    fun `reconnecting keeps the conversation and shows the connecting indicator until listening`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+        session.report(VoiceSessionState.Listening)
+
+        session.report(VoiceSessionState.Reconnecting)
+        assertTrue(vm.isVoiceConnecting.value)
+        assertTrue(vm.isVoiceSessionActive.value)
+
+        session.report(VoiceSessionState.Listening)
+        assertFalse(vm.isVoiceConnecting.value)
+        assertTrue(vm.isVoiceSessionActive.value)
+        assertTrue(vm.state.value is ChatScreenState.VoiceSession)
+        assertTrue("no error bubble", vm.messages.value.isEmpty())
+        assertTrue(errorEvents().isEmpty())
+    }
+
+    @Test
     fun `callbacks are delivered on the voice callback dispatcher`() = runTest(testDispatcher) {
         val vm = makeViewModel(voiceCallbackDispatcher = testDispatcher)
         val session = startConnectedSession(vm)

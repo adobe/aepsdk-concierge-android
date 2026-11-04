@@ -27,6 +27,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.IOException
+import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -46,6 +47,8 @@ class VoiceSessionControllerTest {
         }
 
     private fun drainMain() = shadowOf(Looper.getMainLooper()).idle()
+
+    private fun advanceMain(millis: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
 
     private fun start(
         transport: FakeVoiceTransport,
@@ -252,6 +255,65 @@ class VoiceSessionControllerTest {
         assertEquals(VoiceSessionState.Ended, session.state)
         assertEquals(VoiceSessionState.Ended, listener.states.last())
         assertTrue(listener.callbackLoopers.all { it == Looper.getMainLooper() })
+    }
+
+    @Test
+    fun reconnecting_keepsTheSessionAndReturnsToListeningWithoutUnmuting() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        assertEquals(VoiceSessionState.Reconnecting, session.state)
+        transport.interruptionBegan()
+        transport.report(VoiceTransportState.Connected)
+        advanceMain(VoiceSessionController.RECONNECT_TIMEOUT_MILLIS * 2)
+
+        assertEquals(
+            listOf(
+                VoiceSessionState.Connecting,
+                VoiceSessionState.Listening,
+                VoiceSessionState.Reconnecting,
+                VoiceSessionState.Listening
+            ),
+            listener.states
+        )
+        assertEquals("the interruption mute stays after reconnecting", listOf(false), transport.microphoneChanges)
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+        assertEquals(0, transport.disconnectCount)
+        assertTrue(transport.listener != null)
+    }
+
+    @Test
+    fun reconnecting_failsAndDisconnectsWhenNotRestoredInTime() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val transportListener = requireNotNull(transport.listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        advanceMain(VoiceSessionController.RECONNECT_TIMEOUT_MILLIS - 1)
+        assertEquals(VoiceSessionState.Reconnecting, session.state)
+        advanceMain(1)
+
+        assertTrue(session.state is VoiceSessionState.Failed)
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listener)
+        transportListener.onStateChanged(transport, VoiceTransportState.Connected)
+        assertEquals("a late reconnect is ignored", 4, listener.states.size)
+    }
+
+    @Test
+    fun reconnecting_beforeConnected_isIgnored() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        assertEquals(VoiceSessionState.Connecting, session.state)
+        transport.report(VoiceTransportState.Connected)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening), listener.states)
     }
 
     @Test

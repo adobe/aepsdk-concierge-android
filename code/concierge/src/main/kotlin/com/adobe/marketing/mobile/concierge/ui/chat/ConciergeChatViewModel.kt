@@ -197,7 +197,10 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val _isVoiceSessionActive = MutableStateFlow(false)
     internal val isVoiceSessionActive: StateFlow<Boolean> = _isVoiceSessionActive.asStateFlow()
 
-    /** Whether the active voice conversation is still connecting. */
+    /**
+     * Whether the active voice conversation is still connecting, or is restoring a lost
+     * connection.
+     */
     private val _isVoiceConnecting = MutableStateFlow(false)
     internal val isVoiceConnecting: StateFlow<Boolean> = _isVoiceConnecting.asStateFlow()
 
@@ -2139,6 +2142,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         when (state) {
             is VoiceSessionState.Connecting -> Unit
             is VoiceSessionState.Listening -> _isVoiceConnecting.value = false
+            is VoiceSessionState.Reconnecting -> _isVoiceConnecting.value = true
             is VoiceSessionState.Ended -> finishVoiceSession(run)
             is VoiceSessionState.Failed -> failVoiceSession(run, state.reason)
         }

@@ -13,6 +13,7 @@
 package com.adobe.marketing.mobile.concierge.voice
 
 import android.os.Looper
+import com.adobe.marketing.mobile.concierge.VoiceConnection
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
@@ -37,8 +38,8 @@ internal class FakeVoiceTransport(
     var listenerAtDisconnect: VoiceTransportListener? = null
         private set
 
-    override fun connect(url: String, token: String) {
-        connections += url to token
+    override fun connect(connection: VoiceConnection) {
+        connections += connection.url to connection.token
         connectError?.let { throw it }
         if (connectsImmediately) report(VoiceTransportState.Connected)
     }

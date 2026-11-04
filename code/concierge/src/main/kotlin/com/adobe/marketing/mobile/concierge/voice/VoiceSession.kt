@@ -42,6 +42,11 @@ internal interface VoiceSessionListener {
     fun onTranscriptUpdated(session: VoiceSession, text: String, role: VoiceTranscriptRole, isFinal: Boolean)
 }
 
+/**
+ * The lifecycle of a [VoiceSession]: [Connecting], then [Listening] (moving to [Reconnecting] and
+ * back while the transport restores a lost connection), then [Ended] or [Failed], which are
+ * terminal.
+ */
 internal sealed class VoiceSessionState {
     object Connecting : VoiceSessionState() {
         override fun toString(): String = "Connecting"
@@ -50,6 +55,11 @@ internal sealed class VoiceSessionState {
     /** Connected, with the microphone live. */
     object Listening : VoiceSessionState() {
         override fun toString(): String = "Listening"
+    }
+
+    /** The transport lost the connection and is restoring it; the conversation stays open. */
+    object Reconnecting : VoiceSessionState() {
+        override fun toString(): String = "Reconnecting"
     }
 
     object Ended : VoiceSessionState() {
