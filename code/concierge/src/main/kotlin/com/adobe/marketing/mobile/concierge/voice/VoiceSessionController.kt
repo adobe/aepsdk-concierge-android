@@ -286,9 +286,24 @@ internal class VoiceSessionController(
                 emit(VoiceTranscriptRole.ASSISTANT, text, true)
             }
             is DataChannelMessage.SessionNotice -> {
-                if (message.data is SessionNoticeData.SessionEnded) stop()
+                val notice = message.data
+                if (notice is SessionNoticeData.SessionEnded) handleSessionEnded(notice.reason)
             }
             is DataChannelMessage.UiPayload, is DataChannelMessage.StateUpdate -> Unit
+        }
+    }
+
+    /**
+     * The voice agent ended the session. Only its timeouts are a normal end. An error, a shutdown or
+     * a reason this SDK doesn't know is a failure, so the user sees a message and it is tracked.
+     */
+    private fun handleSessionEnded(reason: EndReason?) {
+        when (reason) {
+            EndReason.ROOM_EMPTY_TIMEOUT,
+            EndReason.USER_JOIN_TIMEOUT,
+            EndReason.USER_INACTIVITY_TIMEOUT -> finish(VoiceSessionState.Ended)
+            EndReason.ERROR, EndReason.WORKER_SHUTDOWN, null ->
+                fail("The voice agent ended the session (${reason?.wireValue ?: "unknown reason"}).")
         }
     }
 
