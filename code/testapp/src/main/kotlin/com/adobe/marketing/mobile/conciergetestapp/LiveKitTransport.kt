@@ -187,6 +187,10 @@ class LiveKitTransport(context: Context) : VoiceTransport {
             }
             is RoomEvent.DataReceived ->
                 listener?.onDataReceived(this, event.data, event.topic?.takeIf { it.isNotEmpty() })
+            // Full reconnects only; LiveKit sends no room event for a quick resume. If it gives up,
+            // it sends Disconnected.
+            is RoomEvent.Reconnecting -> report(VoiceTransportState.Reconnecting)
+            is RoomEvent.Reconnected -> report(VoiceTransportState.Connected)
             is RoomEvent.TrackSubscribed ->
                 Log.i(TAG, "Subscribed to ${event.track.kind} track from ${event.participant.identity?.value ?: "unknown"}.")
             else -> Unit
