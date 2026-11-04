@@ -490,12 +490,34 @@ class VoiceSessionControllerTest {
     }
 
     @Test
-    fun sessionEndedNotice_endsTheSession() {
-        val transport = FakeVoiceTransport()
-        val session = start(transport)
-        transport.send("""{"type":"session_notice","data":{"kind":"session_ended","reason":"user_inactivity_timeout"}}""")
-        assertEquals(VoiceSessionState.Ended, session.state)
-        assertEquals(1, transport.disconnectCount)
+    fun sessionEnded_byATimeout_endsNormally() {
+        listOf("room_empty_timeout", "user_join_timeout", "user_inactivity_timeout").forEach { reason ->
+            val transport = FakeVoiceTransport()
+            val session = start(transport)
+            transport.send("""{"type":"session_notice","data":{"kind":"session_ended","reason":"$reason"}}""")
+            assertEquals(reason, VoiceSessionState.Ended, session.state)
+            assertEquals(reason, 1, transport.disconnectCount)
+        }
+    }
+
+    @Test
+    fun sessionEnded_byAnErrorShutdownOrUnknownReason_fails() {
+        listOf(
+            """"reason":"error",""" to "error",
+            """"reason":"worker_shutdown",""" to "worker_shutdown",
+            """"reason":"brand_new_reason",""" to "unknown reason",
+            "" to "unknown reason"
+        ).forEach { (reasonField, expected) ->
+            val transport = FakeVoiceTransport()
+            val session = start(transport)
+            transport.send("""{"type":"session_notice","data":{$reasonField"kind":"session_ended"}}""")
+            assertEquals(
+                expected,
+                VoiceSessionState.Failed("The voice agent ended the session ($expected)."),
+                session.state
+            )
+            assertEquals(expected, 1, transport.disconnectCount)
+        }
     }
 
     @Test
