@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
+import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -125,6 +126,9 @@ private data class ImageResult(
 @Composable
 private fun rememberRemoteImage(url: String, onError: ((Throwable) -> Unit)? = null): ImageResult {
     val provider = LocalImageProvider.current
+    // Key the state holder on `url` so that when the URL changes (e.g. the welcome config is
+    // swapped in after the first composition) the image reloads from a fresh Loading state instead
+    // of reusing a stale Success/Error state for the previous URL.
     return produceState(
         initialValue = provider.getCached(url)?.asImageBitmap()?.let { bitmap ->
             ImageResult(image = bitmap, state = ImageLoadingState.Success)
@@ -135,6 +139,11 @@ private fun rememberRemoteImage(url: String, onError: ((Throwable) -> Unit)? = n
             try {
                 val bitmap = provider.get(url).asImageBitmap()
                 value = ImageResult(image = bitmap, state = ImageLoadingState.Success)
+            } catch (e: CancellationException) {
+                // Normal coroutine cancellation (e.g. the composable left composition or the URL
+                // changed). Rethrow so it is not misreported as a load error and so the state is
+                // not stuck in Error for the next URL.
+                throw e
             } catch (e: Exception) {
                 // Image loading failed
                 value = ImageResult(image = null, state = ImageLoadingState.Error)
