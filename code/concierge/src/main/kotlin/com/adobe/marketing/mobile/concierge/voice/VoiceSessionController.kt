@@ -285,7 +285,8 @@ internal class VoiceSessionController(
         const val RECONNECT_TIMEOUT_MILLIS = 30_000L
 
         private const val SELF_TAG = "VoiceSessionController"
-        private val SUPPORTED_SCHEMES = setOf("ws", "wss", "http", "https")
+        /** Encrypted schemes only: the access token travels on this connection. */
+        private val SUPPORTED_SCHEMES = setOf("wss", "https")
 
         private fun isValidServerUrl(url: String): Boolean {
             val parsed = Uri.parse(url)

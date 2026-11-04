@@ -106,6 +106,8 @@ class VoiceSessionControllerTest {
             url to "",
             url to "  ",
             "ftp://voice.example.com" to token,
+            "ws://voice.example.com" to token,
+            "http://voice.example.com" to token,
             "wss://" to token,
             "not a url" to token
         ).forEach { (invalidUrl, invalidToken) ->
