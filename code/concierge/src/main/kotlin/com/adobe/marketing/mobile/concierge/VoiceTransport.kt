@@ -41,7 +41,8 @@ interface VoiceTransport {
      * Joins the voice agent's room, publishes the microphone and plays the agent's audio.
      *
      * Report [VoiceTransportState.Connected] once the microphone is live, or
-     * [VoiceTransportState.Failed] if the connection cannot be made.
+     * [VoiceTransportState.Failed] if the connection cannot be made. If neither arrives within 20
+     * seconds, Brand Concierge fails the conversation and calls [disconnect].
      *
      * @param connection where to connect and the credentials to use, from the Concierge service.
      */
