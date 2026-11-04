@@ -41,7 +41,7 @@ internal const val STOP_VOICE_CONVERSATION_LABEL = "Stop voice conversation"
  *
  * @property isAvailable A voice transport is provided; without one the voice button is hidden.
  * @property isActive A voice conversation is running (connecting or connected).
- * @property isConnecting The running conversation is still connecting.
+ * @property isConnecting The running conversation is connecting, or restoring a lost connection.
  * @property isEnabled The voice button can be tapped.
  */
 @Immutable
@@ -90,7 +90,7 @@ internal fun trailingControl(
 
 /**
  * Starts or stops a voice conversation. Shows a waveform, filled while a conversation runs, with
- * a spinner while it connects.
+ * a spinner while it connects or reconnects.
  */
 @Composable
 internal fun VoiceSessionButton(

@@ -43,10 +43,9 @@ interface VoiceTransport {
      * Report [VoiceTransportState.Connected] once the microphone is live, or
      * [VoiceTransportState.Failed] if the connection cannot be made.
      *
-     * @param url the real-time media server URL from the Concierge service.
-     * @param token the access token for the room, from the Concierge service.
+     * @param connection where to connect and the credentials to use, from the Concierge service.
      */
-    fun connect(url: String, token: String)
+    fun connect(connection: VoiceConnection)
 
     /**
      * Mutes or unmutes the microphone without leaving the room. Brand Concierge mutes it while
@@ -87,11 +86,32 @@ interface VoiceTransportListener {
     fun onAudioInterruptionEnded(transport: VoiceTransport)
 }
 
+/**
+ * Where and how a [VoiceTransport] connects, from the Concierge service. Brand Concierge creates
+ * it; later releases may add properties.
+ *
+ * @property url the real-time media server URL.
+ * @property token the access token for the room.
+ */
+class VoiceConnection internal constructor(
+    val url: String,
+    val token: String
+)
+
 /** The state of a [VoiceTransport] connection. */
 sealed class VoiceTransportState {
-    /** Connected, with the microphone live. */
+    /** Connected, with the microphone live. Also reported when a reconnect succeeds. */
     object Connected : VoiceTransportState() {
         override fun toString(): String = "Connected"
+    }
+
+    /**
+     * The connection was lost and the transport is restoring it. Report [Connected] once it is
+     * back, or [Failed] if it gives up. Brand Concierge keeps the conversation open meanwhile, and
+     * fails it if the connection is not back within 30 seconds.
+     */
+    object Reconnecting : VoiceTransportState() {
+        override fun toString(): String = "Reconnecting"
     }
 
     /** The connection ended without an error, for example because the room closed. */

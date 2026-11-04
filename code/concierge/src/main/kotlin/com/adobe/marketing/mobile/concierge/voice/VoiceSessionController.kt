@@ -16,6 +16,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
+import com.adobe.marketing.mobile.concierge.VoiceConnection
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
@@ -60,6 +61,12 @@ internal class VoiceSessionController(
     private var audioInterrupted = false
     private var micWasEnabledBeforeInterruption = false
 
+    private val reconnectTimeout = Runnable {
+        if (currentState == VoiceSessionState.Reconnecting) {
+            fail("The voice connection was not restored within ${RECONNECT_TIMEOUT_MILLIS / 1000} seconds.")
+        }
+    }
+
     private val transportListener = object : VoiceTransportListener {
         override fun onStateChanged(transport: VoiceTransport, state: VoiceTransportState) {
             onMain { if (ownsCallback(transport)) handleTransportState(state) }
@@ -79,7 +86,7 @@ internal class VoiceSessionController(
 
         override fun onAudioInterruptionBegan(transport: VoiceTransport) {
             onMain {
-                if (!ownsCallback(transport) || currentState != VoiceSessionState.Listening || audioInterrupted) {
+                if (!ownsCallback(transport) || !isConnected || audioInterrupted) {
                     return@onMain
                 }
                 audioInterrupted = true
@@ -103,6 +110,10 @@ internal class VoiceSessionController(
 
     private val isActive: Boolean
         get() = !currentState.isTerminal
+
+    /** Listening, or restoring a connection that was live; the microphone may be changed. */
+    private val isConnected: Boolean
+        get() = currentState == VoiceSessionState.Listening || currentState == VoiceSessionState.Reconnecting
 
     /** Always deferred, including validation failures, so the caller can keep the session first. */
     override fun start(url: String, token: String) {
@@ -136,7 +147,7 @@ internal class VoiceSessionController(
         holdsTransport = true
         transport.listener = transportListener
         try {
-            transport.connect(url, token)
+            transport.connect(VoiceConnection(url, token))
         } catch (e: Exception) {
             fail(e.message ?: FailureReasons.CONNECT_FAILED)
         }
@@ -148,10 +159,25 @@ internal class VoiceSessionController(
 
     private fun handleTransportState(transportState: VoiceTransportState) {
         when (transportState) {
-            is VoiceTransportState.Connected -> {
-                if (currentState != VoiceSessionState.Connecting) return
-                isMicrophoneEnabled = true
-                setState(VoiceSessionState.Listening)
+            is VoiceTransportState.Connected -> when (currentState) {
+                VoiceSessionState.Connecting -> {
+                    isMicrophoneEnabled = true
+                    setState(VoiceSessionState.Listening)
+                }
+                VoiceSessionState.Reconnecting -> {
+                    // The transport keeps the microphone as it was; an interruption mute stays.
+                    mainHandler.removeCallbacks(reconnectTimeout)
+                    setState(VoiceSessionState.Listening)
+                }
+                else -> Unit
+            }
+            is VoiceTransportState.Reconnecting -> {
+                if (currentState != VoiceSessionState.Listening) return
+                setState(VoiceSessionState.Reconnecting)
+                // setState may have run a listener that ended the session.
+                if (currentState == VoiceSessionState.Reconnecting) {
+                    mainHandler.postDelayed(reconnectTimeout, RECONNECT_TIMEOUT_MILLIS)
+                }
             }
             is VoiceTransportState.Disconnected -> finish(VoiceSessionState.Ended)
             is VoiceTransportState.Failed ->
@@ -187,6 +213,7 @@ internal class VoiceSessionController(
      */
     private fun finish(terminalState: VoiceSessionState) {
         if (!isActive) return
+        mainHandler.removeCallbacks(reconnectTimeout)
         if (holdsTransport) {
             holdsTransport = false
             if (transport.listener === transportListener) {
@@ -253,11 +280,14 @@ internal class VoiceSessionController(
         const val CONNECT_FAILED = "Failed to connect to the voice session."
     }
 
-    private companion object {
-        const val SELF_TAG = "VoiceSessionController"
-        val SUPPORTED_SCHEMES = setOf("ws", "wss", "http", "https")
+    internal companion object {
+        /** How long a lost connection may take to come back before the session fails. */
+        const val RECONNECT_TIMEOUT_MILLIS = 30_000L
 
-        fun isValidServerUrl(url: String): Boolean {
+        private const val SELF_TAG = "VoiceSessionController"
+        private val SUPPORTED_SCHEMES = setOf("ws", "wss", "http", "https")
+
+        private fun isValidServerUrl(url: String): Boolean {
             val parsed = Uri.parse(url)
             val scheme = parsed.scheme?.lowercase() ?: return false
             return scheme in SUPPORTED_SCHEMES && !parsed.host.isNullOrEmpty()

@@ -17,6 +17,7 @@ import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.adobe.marketing.mobile.concierge.VoiceConnection
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
@@ -84,7 +85,7 @@ class LiveKitTransport(context: Context) : VoiceTransport {
     /** Microphone changes run one after another, so a quick mute and unmute land in order. */
     private val microphoneLock = Mutex()
 
-    override fun connect(url: String, token: String) {
+    override fun connect(connection: VoiceConnection) {
         disconnect()
         val id = connectionId
         val connectionScope = CoroutineScope(SupervisorJob() + roomDispatcher)
@@ -111,7 +112,7 @@ class LiveKitTransport(context: Context) : VoiceTransport {
                 newRoom.events.collect { event -> onMain(ifCurrent = newRoom) { handle(event) } }
             }
             val error = try {
-                newRoom.connect(url, token, ConnectOptions(audio = true))
+                newRoom.connect(connection.url, connection.token, ConnectOptions(audio = true))
                 val participant = newRoom.localParticipant
                 if (!participant.isMicrophoneEnabled && !participant.setMicrophoneEnabled(true)) {
                     throw IllegalStateException("Failed to publish the microphone track.")
