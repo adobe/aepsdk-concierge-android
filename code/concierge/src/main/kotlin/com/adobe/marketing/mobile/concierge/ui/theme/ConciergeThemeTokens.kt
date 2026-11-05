@@ -403,7 +403,9 @@ data class ConciergeCitationsBehavior(
     val phoneIcon: String? = null,
     val storeIcon: String? = null,
     val defaultLinkIcon: String? = null,
-    val linkIconStyle: ConciergeLinkIconStyle? = null
+    val linkIconStyle: ConciergeLinkIconStyle? = null,
+    /** Whether inline citation number badges are rendered in the message text. The "Sources" footer is unaffected. */
+    val showCitationNumbers: Boolean = true
 )
 
 /**

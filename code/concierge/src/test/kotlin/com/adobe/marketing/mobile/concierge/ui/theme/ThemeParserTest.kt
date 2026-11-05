@@ -761,6 +761,44 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `parseThemeTokens parses citations behavior showCitationNumbers`() {
+        val json = """
+            {
+                "behavior": {
+                    "citations": {
+                        "showLinkIcon": true,
+                        "showCitationNumbers": false
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val citations = tokens?.behavior?.citations
+
+        assertNotNull(citations)
+        assertEquals(true, citations?.showLinkIcon)
+        assertEquals(false, citations?.showCitationNumbers)
+    }
+
+    @Test
+    fun `parseThemeTokens defaults citations showCitationNumbers to true when key is missing`() {
+        val json = """
+            {
+                "behavior": {
+                    "citations": {
+                        "showLinkIcon": true
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertEquals(true, tokens?.behavior?.citations?.showCitationNumbers)
+    }
+
+    @Test
     fun `parseThemeTokens parses feedback behavior showCloseButton and showCancelButton`() {
         val json = """
             {
