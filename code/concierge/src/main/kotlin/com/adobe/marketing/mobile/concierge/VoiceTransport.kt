@@ -28,6 +28,8 @@ package com.adobe.marketing.mobile.concierge
  *   reports its outcome to [listener].
  * - One instance serves every conversation: [connect] can be called again after [disconnect]. Keep
  *   it for the lifetime of the app (for example, in your `Application`), not in an `Activity`.
+ *   Brand Concierge runs one conversation at a time across the app, so it never calls [connect]
+ *   while an earlier connection is still open.
  * - Brand Concierge sets [listener] before each [connect] and clears it before [disconnect].
  * - After [disconnect], report nothing more about that connection, even if a new connection has
  *   started since.

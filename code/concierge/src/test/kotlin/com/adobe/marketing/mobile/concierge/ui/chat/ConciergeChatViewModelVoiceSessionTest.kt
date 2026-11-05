@@ -40,6 +40,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.voice.FakeVoiceTransport
+import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole
 import com.adobe.marketing.mobile.services.ServiceProvider
@@ -136,7 +137,8 @@ class ConciergeChatViewModelVoiceSessionTest {
         appLifecycle: Lifecycle? = null,
         // Unconfined delivers session callbacks inline, as Dispatchers.Main.immediate does on the
         // main thread, so synchronous callbacks during start are exercised as in production.
-        voiceCallbackDispatcher: CoroutineDispatcher = Dispatchers.Unconfined
+        voiceCallbackDispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
+        voiceOwnership: VoiceSessionOwnership = VoiceSessionOwnership()
     ): ConciergeChatViewModel {
         val vm = ConciergeChatViewModel(
             app, speech, DefaultImageProvider(), service,
@@ -146,7 +148,8 @@ class ConciergeChatViewModelVoiceSessionTest {
             dispatch = { dispatched.add(it) },
             voiceTransport = voiceTransport,
             voiceSessionFactory = factory::create,
-            voiceCallbackDispatcher = voiceCallbackDispatcher
+            voiceCallbackDispatcher = voiceCallbackDispatcher,
+            voiceOwnership = voiceOwnership
         )
         viewModels.add(ViewModelStore().apply { put("chat-${viewModels.size}", vm) })
         return vm
@@ -468,6 +471,70 @@ class ConciergeChatViewModelVoiceSessionTest {
             "room disconnected",
             errorEvents().single().eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ERROR_MESSAGE)
         )
+    }
+
+    // MARK: - One conversation app-wide
+
+    @Test
+    fun `another chat cannot start voice while a conversation runs, and its stop does not end it`() = runTest(testDispatcher) {
+        val ownership = VoiceSessionOwnership()
+        val owner = makeViewModel(voiceOwnership = ownership)
+        val other = makeViewModel(voiceOwnership = ownership)
+        runCurrent()
+        assertTrue(other.voiceEnabled.value)
+
+        owner.startVoiceSession()
+        runCurrent()
+        assertFalse("voice is claimed before the credentials arrive", other.voiceEnabled.value)
+        service.emitBootstrap()
+        runCurrent()
+        val session = requireNotNull(factory.lastSession)
+        session.report(VoiceSessionState.Listening)
+
+        other.startVoiceSession()
+        runCurrent()
+        assertFalse(other.isVoiceSessionActive.value)
+        assertEquals(1, service.bootstrapSessionIds.size)
+        other.stopVoiceSession()
+        assertEquals(0, session.stopCallCount)
+        assertTrue(owner.isVoiceSessionActive.value)
+        assertTrue("the owner can still stop", owner.voiceEnabled.value)
+        assertFalse(other.voiceEnabled.value)
+    }
+
+    @Test
+    fun `ending the conversation frees voice for another chat`() = runTest(testDispatcher) {
+        val ownership = VoiceSessionOwnership()
+        val owner = makeViewModel(voiceOwnership = ownership)
+        val other = makeViewModel(voiceOwnership = ownership)
+        startConnectedSession(owner)
+        other.startVoiceSession()
+
+        owner.stopVoiceSession()
+        runCurrent()
+
+        assertTrue(other.voiceEnabled.value)
+        other.startVoiceSession()
+        runCurrent()
+        assertTrue("the ignored start released its request slot", other.isVoiceSessionActive.value)
+        assertEquals(2, service.bootstrapSessionIds.size)
+        assertFalse(owner.voiceEnabled.value)
+    }
+
+    @Test
+    fun `clearing the owning view model ends its conversation and frees voice`() = runTest(testDispatcher) {
+        val ownership = VoiceSessionOwnership()
+        val owner = makeViewModel(voiceOwnership = ownership)
+        val other = makeViewModel(voiceOwnership = ownership)
+        val session = startConnectedSession(owner)
+        runCurrent()
+        assertFalse(other.voiceEnabled.value)
+
+        viewModels.removeAt(0).clear()
+        runCurrent()
+
+        assertEquals(1, session.stopCallCount)
+        assertTrue(other.voiceEnabled.value)
     }
 
     // MARK: - Stop
