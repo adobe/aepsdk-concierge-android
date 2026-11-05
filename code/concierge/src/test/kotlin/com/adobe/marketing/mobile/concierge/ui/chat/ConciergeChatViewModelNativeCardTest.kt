@@ -503,7 +503,7 @@ class ConciergeChatViewModelNativeCardTest {
         )
     )
 
-    private fun completeReset(repository: ConciergeStateRepository) {
+    private fun completeReset(repository: ConciergeStateRepository, request: Event = resetRequest) {
         val api = mockk<ExtensionApi>()
         every { api.getXDMSharedState(any(), any(), any(), any()) } returns SharedStateResult(
             SharedStateStatus.SET, mapOf("identityMap" to mapOf("ECID" to listOf(mapOf("id" to "new-ecid"))))
@@ -511,7 +511,7 @@ class ConciergeChatViewModelNativeCardTest {
         repository.completeIdentityReset(
             api,
             Event.Builder("Complete", EventType.EDGE_IDENTITY, EventSource.RESET_COMPLETE)
-                .inResponseToEvent(resetRequest).build()
+                .inResponseToEvent(request).build()
         )
     }
 
@@ -563,6 +563,91 @@ class ConciergeChatViewModelNativeCardTest {
         val card = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
         assertFalse(card.isStale.value)
         assertNull(card.state.value)
+    }
+
+    @Test
+    fun `state changes during a reset do not make post-reset cards stale`() = runTest {
+        registerMenu()
+        val repository = readyRepository()
+        val vm = viewModel(frame("Here you go", menu), repository)
+        vm.processEvent(ChatEvent.SendMessage("menu"))
+        advanceUntilIdle()
+        val oldCard = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
+
+        repository.beginIdentityReset(resetRequest) { }
+        runCurrent()
+        assertTrue(oldCard.isStale.value)
+        assertTrue(vm.nativeCards.isBusy.value)
+        repository.setSurfaces(listOf("surface-during-reset"))
+        runCurrent()
+        repository.setSurfaces(listOf("updated-surface-during-reset"))
+        runCurrent()
+        vm.processEvent(ChatEvent.SendMessage("blocked during reset"))
+        runCurrent()
+        assertTrue(vm.nativeCardIds().isEmpty())
+
+        completeReset(repository)
+        advanceUntilIdle()
+        vm.processEvent(ChatEvent.SendMessage("menu after reset"))
+        advanceUntilIdle()
+
+        val newCard = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
+        assertFalse(newCard.isStale.value)
+        assertFalse(vm.nativeCards.isBusy.value)
+        assertNull(newCard.state.value)
+        assertNull(vm.nativeCards.renderableCard(oldCard.cardId))
+    }
+
+    @Test
+    fun `a view model created during a reset produces live cards after it completes`() = runTest {
+        registerMenu()
+        val repository = readyRepository()
+        repository.beginIdentityReset(resetRequest) { }
+        val vm = viewModel(frame("Here you go", menu), repository)
+        runCurrent()
+        assertTrue(vm.nativeCards.isBusy.value)
+
+        completeReset(repository)
+        advanceUntilIdle()
+        vm.processEvent(ChatEvent.SendMessage("menu after reset"))
+        advanceUntilIdle()
+
+        val card = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
+        assertFalse(card.isStale.value)
+        assertFalse(vm.nativeCards.isBusy.value)
+    }
+
+    @Test
+    fun `superseded resets invalidate old cards and leave new cards live`() = runTest {
+        registerMenu()
+        val repository = readyRepository()
+        val vm = viewModel(frame("Here you go", menu), repository)
+        vm.processEvent(ChatEvent.SendMessage("menu"))
+        advanceUntilIdle()
+        val oldCard = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
+        val newerRequest = Event.Builder("Reset again", EventType.GENERIC_IDENTITY, EventSource.REQUEST_RESET).build()
+
+        repository.beginIdentityReset(resetRequest) { }
+        repository.beginIdentityReset(newerRequest) { }
+        runCurrent()
+        assertTrue(oldCard.isStale.value)
+        assertTrue(vm.nativeCards.isBusy.value)
+        assertTrue(vm.nativeCardIds().isEmpty())
+        completeReset(repository, resetRequest)
+        runCurrent()
+        assertTrue(repository.state.value.resetInProgress)
+        repository.setSurfaces(listOf("surface-during-newer-reset"))
+        runCurrent()
+
+        completeReset(repository, newerRequest)
+        advanceUntilIdle()
+        vm.processEvent(ChatEvent.SendMessage("menu after resets"))
+        advanceUntilIdle()
+
+        val newCard = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
+        assertFalse(newCard.isStale.value)
+        assertFalse(vm.nativeCards.isBusy.value)
+        assertNull(vm.nativeCards.renderableCard(oldCard.cardId))
     }
 
     @Test
