@@ -53,7 +53,8 @@ interface VoiceTransport {
     /**
      * Mutes or unmutes the microphone without leaving the room. Brand Concierge mutes it while
      * another app or a phone call holds the audio (see
-     * [VoiceTransportListener.onAudioInterruptionBegan]), and unmutes it afterwards.
+     * [VoiceTransportListener.onAudioInterruptionBegan]), including an interruption that began
+     * while connecting, and unmutes it afterwards. Called only while connected.
      */
     fun setMicrophoneEnabled(enabled: Boolean)
 
@@ -78,10 +79,14 @@ interface VoiceTransportListener {
     fun onDataReceived(transport: VoiceTransport, data: ByteArray, topic: String?)
 
     /**
-     * Called when another app or a phone call takes the audio, for example when the transport's
-     * audio focus is lost. Brand Concierge mutes the microphone until
-     * [onAudioInterruptionEnded]. A transport that never reports interruptions keeps the
-     * microphone live throughout.
+     * Called when another app or a phone call takes the audio for a while, for example when the
+     * transport's audio focus is lost transiently (`AUDIOFOCUS_LOSS_TRANSIENT`). Brand Concierge
+     * mutes the microphone until [onAudioInterruptionEnded]. A transport that never reports
+     * interruptions keeps the microphone live throughout.
+     *
+     * If the audio will not come back (for example, `AUDIOFOCUS_LOSS`), report
+     * [VoiceTransportState.Failed] instead: the chat has no unmute control, so a muted
+     * conversation would look live while the agent hears nothing.
      */
     fun onAudioInterruptionBegan(transport: VoiceTransport)
 
