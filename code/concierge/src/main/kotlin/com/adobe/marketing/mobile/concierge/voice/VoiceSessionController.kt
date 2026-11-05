@@ -55,12 +55,12 @@ internal class VoiceSessionController(
     private var holdsTransport = false
 
     /**
-     * The transport has no microphone getter: the microphone is live once connected, and only this
-     * session changes it after that.
+     * True from an audio interruption (a phone call, another app) until it ends, in any active
+     * state. Tracked apart from the session state, so a `Connected` that arrives during the
+     * interruption doesn't leave the microphone live. The transport has no microphone getter: the
+     * microphone is live once connected, and only interruptions change it after that.
      */
-    private var isMicrophoneEnabled = false
-    private var audioInterrupted = false
-    private var micWasEnabledBeforeInterruption = false
+    private var isAudioInterrupted = false
 
     /** Runs while waiting for `Connected`, first after `connect` and again while reconnecting. */
     private var connectionTimeout: Runnable? = null
@@ -84,21 +84,17 @@ internal class VoiceSessionController(
 
         override fun onAudioInterruptionBegan(transport: VoiceTransport) {
             onMain {
-                if (!ownsCallback(transport) || !isConnected || audioInterrupted) {
-                    return@onMain
-                }
-                audioInterrupted = true
-                micWasEnabledBeforeInterruption = isMicrophoneEnabled
-                if (micWasEnabledBeforeInterruption) setMicrophoneEnabled(false)
+                if (!ownsCallback(transport) || isAudioInterrupted) return@onMain
+                isAudioInterrupted = true
+                setMicrophoneEnabled(false)
             }
         }
 
         override fun onAudioInterruptionEnded(transport: VoiceTransport) {
             onMain {
-                if (!ownsCallback(transport) || !audioInterrupted) return@onMain
-                audioInterrupted = false
-                if (micWasEnabledBeforeInterruption) setMicrophoneEnabled(true)
-                micWasEnabledBeforeInterruption = false
+                if (!ownsCallback(transport) || !isAudioInterrupted) return@onMain
+                isAudioInterrupted = false
+                setMicrophoneEnabled(true)
             }
         }
     }
@@ -170,8 +166,10 @@ internal class VoiceSessionController(
             is VoiceTransportState.Connected -> when (currentState) {
                 VoiceSessionState.Connecting -> {
                     cancelConnectionTimeout()
-                    isMicrophoneEnabled = true
                     setState(VoiceSessionState.Listening)
+                    // The transport turned the microphone on; an interruption that began while
+                    // connecting turns it off again.
+                    if (isAudioInterrupted) setMicrophoneEnabled(false)
                 }
                 VoiceSessionState.Reconnecting -> {
                     // The transport keeps the microphone as it was; an interruption mute stays.
@@ -214,9 +212,12 @@ internal class VoiceSessionController(
         connectionTimeout = null
     }
 
+    /**
+     * Changes the microphone once connected. Before that it is left alone: the transport turns it
+     * on when it connects, and `Connected` applies any interruption.
+     */
     private fun setMicrophoneEnabled(enabled: Boolean) {
-        if (!holdsTransport || !isActive) return
-        isMicrophoneEnabled = enabled
+        if (!holdsTransport || !isConnected) return
         try {
             transport.setMicrophoneEnabled(enabled)
         } catch (e: Exception) {

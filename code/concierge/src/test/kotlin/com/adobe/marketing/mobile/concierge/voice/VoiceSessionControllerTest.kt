@@ -543,7 +543,7 @@ class VoiceSessionControllerTest {
         val transport = FakeVoiceTransport()
         val session = start(transport)
         transport.interruptionBegan()
-        // A second loss (e.g. transient followed by permanent) must not forget the original state.
+        // A repeated began mutes once, and one ended resumes.
         transport.interruptionBegan()
         transport.interruptionEnded()
         assertEquals(listOf(false, true), transport.microphoneChanges)
@@ -559,10 +559,26 @@ class VoiceSessionControllerTest {
     }
 
     @Test
-    fun audioInterruption_beforeListening_isIgnored() {
+    fun audioInterruption_whileConnecting_mutesOnConnectedAndResumesWhenItEnds() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val session = start(transport)
+        transport.interruptionBegan()
+        assertTrue("the microphone is left alone until connected", transport.microphoneChanges.isEmpty())
+
+        transport.report(VoiceTransportState.Connected)
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertEquals(listOf(false), transport.microphoneChanges)
+
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+    }
+
+    @Test
+    fun audioInterruption_endingWhileConnecting_leavesTheMicrophoneAlone() {
         val transport = FakeVoiceTransport(connectsImmediately = false)
         start(transport)
         transport.interruptionBegan()
+        transport.interruptionEnded()
         transport.report(VoiceTransportState.Connected)
         transport.interruptionEnded()
         assertTrue(transport.microphoneChanges.isEmpty())
