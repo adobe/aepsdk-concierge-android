@@ -27,8 +27,9 @@ import com.adobe.marketing.mobile.services.Log
  * connection lifecycle, audio interruptions, and turning the voice agent's data messages into
  * transcript updates.
  *
- * The transport is shared by every conversation in the app, so a session claims it (becomes its
- * listener) only for the time it is connected, and releases it before disconnecting. Callbacks
+ * The transport is shared by every conversation in the app. Only one conversation runs at a time
+ * (see [VoiceSessionOwnership]), and a session claims the transport (becomes its listener) only for
+ * the time it is connected, and releases it before disconnecting. Callbacks
  * from any other transport, or after the release, are dropped. Lifecycle and transcript work runs
  * on the main thread; [state] may be read, and [stop] called, from any thread.
  *

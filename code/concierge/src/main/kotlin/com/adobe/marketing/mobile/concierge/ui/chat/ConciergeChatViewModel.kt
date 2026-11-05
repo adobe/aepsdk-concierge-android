@@ -78,6 +78,7 @@ import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.voice.VoiceSession
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionListener
+import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole
 import com.adobe.marketing.mobile.services.Log
@@ -277,12 +278,15 @@ class ConciergeChatViewModel : AndroidViewModel {
     // Voice session callbacks are delivered on this dispatcher.
     private val voiceCallbackDispatcher: CoroutineDispatcher
 
+    // Shared by every chat in the app, so only one of them runs a voice conversation at a time.
+    private val voiceOwnership: VoiceSessionOwnership
+
     /**
      * One voice conversation, from requesting its credentials until it ends. Only the run held in
      * [activeVoice] is live; callbacks for any other session are stale and dropped. Confined to
      * the main thread.
      */
-    private class VoiceRun(val transport: VoiceTransport) {
+    private class VoiceRun(val transport: VoiceTransport, val claim: VoiceSessionOwnership.Claim) {
         var session: VoiceSession? = null
         var bootstrapJob: Job? = null
 
@@ -601,7 +605,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         DefaultImageProvider(),
         ConciergeConversationServiceClient(),
         dispatch = MobileCore::dispatchEvent,
-        appLifecycle = ProcessLifecycleOwner.get().lifecycle
+        appLifecycle = ProcessLifecycleOwner.get().lifecycle,
+        voiceOwnership = VoiceSessionOwnership.shared
     )
 
     internal constructor(application: Application, speechCapturing: AndroidSpeechCapturing) : this(
@@ -610,7 +615,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         DefaultImageProvider(),
         ConciergeConversationServiceClient(),
         dispatch = MobileCore::dispatchEvent,
-        appLifecycle = ProcessLifecycleOwner.get().lifecycle
+        appLifecycle = ProcessLifecycleOwner.get().lifecycle,
+        voiceOwnership = VoiceSessionOwnership.shared
     )
 
     internal constructor(
@@ -638,6 +644,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         voiceTransport: VoiceTransport? = null,
         voiceSessionFactory: ((VoiceTransport, VoiceSessionListener) -> VoiceSession)? = null,
         voiceCallbackDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+        voiceOwnership: VoiceSessionOwnership = VoiceSessionOwnership(),
         dispatch: ((Event) -> Unit)? = null
     ) : super(application) {
         this.speechCapturing = speechCapturing
@@ -653,17 +660,25 @@ class ConciergeChatViewModel : AndroidViewModel {
             VoiceSessionController(transport, listener, ::checkAudioPermission)
         }
         this.voiceCallbackDispatcher = voiceCallbackDispatcher
+        this.voiceOwnership = voiceOwnership
         isVoiceAvailable = combine(_voiceTransport, _isVoiceSessionActive) { transport, isActive ->
             transport != null || isActive
         }.stateIn(viewModelScope, SharingStarted.Eagerly, voiceTransport != null)
+        // A claim while this chat has no conversation belongs to another chat's conversation.
+        val canStartVoice = combine(_voiceTransport, voiceOwnership.currentClaim) { transport, claim ->
+            transport != null && claim == null
+        }
         voiceEnabled = combine(
-            stateRepository.state, _state, _inputState, _isVoiceSessionActive, _voiceTransport
-        ) { conciergeState, chatState, inputState, isActive, transport ->
-            isVoiceEnabled(conciergeState, chatState, inputState, isActive, transport != null)
+            stateRepository.state, _state, _inputState, _isVoiceSessionActive, canStartVoice
+        ) { conciergeState, chatState, inputState, isActive, canStart ->
+            isVoiceEnabled(conciergeState, chatState, inputState, isActive, canStart)
         }.stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            isVoiceEnabled(stateRepository.state.value, _state.value, _inputState.value, false, voiceTransport != null)
+            isVoiceEnabled(
+                stateRepository.state.value, _state.value, _inputState.value, false,
+                voiceTransport != null && voiceOwnership.currentClaim.value == null
+            )
         )
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
@@ -2018,11 +2033,11 @@ class ConciergeChatViewModel : AndroidViewModel {
         chatState: ChatScreenState,
         inputState: UserInputState,
         isVoiceActive: Boolean,
-        hasTransport: Boolean
+        canStartVoice: Boolean
     ): Boolean {
         if (!isIdentityReady(conciergeState)) return false
         if (isVoiceActive) return true
-        if (!hasTransport) return false
+        if (!canStartVoice) return false
         val isIdle = chatState is ChatScreenState.Idle || chatState is ChatScreenState.Error
         return isIdle && inputState !is UserInputState.Recording
     }
@@ -2050,8 +2065,8 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Starts a voice conversation: requests credentials from the conversation service, then
      * connects the app's voice transport with them. Ignored unless the identity is ready, the app
-     * provided a transport, the chat is idle and not dictating, and microphone permission has been
-     * granted.
+     * provided a transport, the chat is idle and not dictating, microphone permission has been
+     * granted, and no other chat's voice conversation is running.
      */
     internal fun startVoiceSession() {
         val transport = _voiceTransport.value ?: run {
@@ -2082,8 +2097,13 @@ class ConciergeChatViewModel : AndroidViewModel {
             Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored while a conversation request is pending.")
             return
         }
+        val claim = voiceOwnership.claim() ?: run {
+            pendingConversationRequests.decrementAndGet()
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored while another chat's voice conversation is running.")
+            return
+        }
 
-        val run = VoiceRun(transport)
+        val run = VoiceRun(transport, claim)
         _isVoiceConnecting.value = true
         activeVoice = run
         val generation = conciergeState.resetGeneration
@@ -2191,6 +2211,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         activeVoice = null
         run.session?.stop()
         run.bootstrapJob?.cancel()
+        // After the session has disconnected, so the next chat finds the transport free.
+        run.claim.release()
     }
 
     private fun failVoiceSession(run: VoiceRun, reason: String) {
