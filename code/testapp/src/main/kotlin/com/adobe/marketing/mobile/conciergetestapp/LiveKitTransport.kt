@@ -60,6 +60,14 @@ import java.util.concurrent.TimeUnit
  * (`AUDIOFOCUS_LOSS_TRANSIENT`), the transport reports an audio interruption and Brand Concierge
  * mutes the microphone until focus returns. When the focus is lost for good (`AUDIOFOCUS_LOSS`),
  * the transport leaves the room and reports [VoiceTransportState.Failed].
+ *
+ * The transport reports [VoiceTransportState.Reconnecting] only for LiveKit's full reconnects,
+ * because LiveKit sends no room event for its first attempt, a quick resume. A resume that
+ * succeeds (for example, after a switch from Wi-Fi to cellular) therefore shows no spinner, and
+ * after a network loss the spinner can take a while to appear. On a device, with a LiveKit server
+ * that cellular couldn't reach, it appeared about 30 seconds after Wi-Fi was turned off: LiveKit
+ * checks the server before it reconnects and waited 20 seconds for that check to time out, and the
+ * resume took another 10.
  */
 class LiveKitTransport(context: Context) : VoiceTransport {
 
