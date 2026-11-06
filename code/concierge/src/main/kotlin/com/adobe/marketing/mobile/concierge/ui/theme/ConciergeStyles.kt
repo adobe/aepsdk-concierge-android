@@ -979,6 +979,10 @@ internal object ConciergeStyles {
         val iconSize: Dp,
         val spacing: Dp,
         val iconColor: Color,
+        /** Tint for the thumb that was selected after feedback is submitted. Defaults to the primary brand color, matching iOS. */
+        val selectedIconColor: Color,
+        /** Tint for the unselected thumb after feedback is submitted (the vote that was not chosen). */
+        val dimmedIconColor: Color,
         val backgroundColor: Color = Color.Transparent,
         val hoverBackgroundColor: Color? = null,
         val helpfulLabelText: String,
@@ -995,6 +999,8 @@ internal object ConciergeStyles {
                 iconSize = 16.dp,
                 spacing = 4.dp,
                 iconColor = textColor,
+                selectedIconColor = themeColors.primary,
+                dimmedIconColor = textColor.copy(alpha = 0.4f),
                 backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
                 hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground,
                 helpfulLabelText = ConciergeTheme.text?.feedbackHelpfulLabel ?: "Was this helpful?",

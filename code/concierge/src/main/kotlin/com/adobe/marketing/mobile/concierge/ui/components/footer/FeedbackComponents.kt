@@ -91,6 +91,20 @@ private fun ThumbsRow(
     feedbackState: FeedbackState,
     style: ConciergeStyles.FeedbackButtonsStyle
 ) {
+    // Resolve the tint for each thumb from the feedback state, matching iOS:
+    // no vote yet -> default text color; selected thumb -> primary brand color;
+    // the thumb not chosen -> dimmed.
+    val thumbUpTint = when (feedbackState) {
+        FeedbackState.None -> style.iconColor
+        FeedbackState.Positive -> style.selectedIconColor
+        FeedbackState.Negative -> style.dimmedIconColor
+    }
+    val thumbDownTint = when (feedbackState) {
+        FeedbackState.None -> style.iconColor
+        FeedbackState.Negative -> style.selectedIconColor
+        FeedbackState.Positive -> style.dimmedIconColor
+    }
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(style.spacing),
@@ -116,7 +130,7 @@ private fun ThumbsRow(
                 ),
                 contentDescription = "Thumbs up",
                 modifier = Modifier.size(style.iconSize),
-                tint = style.iconColor
+                tint = thumbUpTint
             )
         }
 
@@ -140,7 +154,7 @@ private fun ThumbsRow(
                 ),
                 contentDescription = "Thumbs down",
                 modifier = Modifier.size(style.iconSize),
-                tint = style.iconColor
+                tint = thumbDownTint
             )
         }
     }
