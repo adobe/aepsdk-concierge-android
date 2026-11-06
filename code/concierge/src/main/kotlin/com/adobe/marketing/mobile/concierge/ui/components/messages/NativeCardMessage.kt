@@ -69,8 +69,11 @@ internal fun NativeCardMessage(cardId: String, modifier: Modifier = Modifier) {
 private fun RegisteredRendererCard(controller: NativeCardController, card: NativeCardController.RenderableCard) {
     val isBusy by controller.isBusy.collectAsState()
     val isStale by card.isStale.collectAsState()
+    val isLatest by card.isLatest.collectAsState()
     val state by card.state.collectAsState()
-    val context = remember(card, isBusy, isStale, state) { card.rendererContext(isBusy, isStale, state) }
+    val context = remember(card, isBusy, isStale, isLatest, state) {
+        card.rendererContext(isBusy, isStale, isLatest, state)
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()

@@ -93,11 +93,13 @@ class NativeCardControllerTest {
                 ContextKeys.SESSION_ID to "session-1",
                 ContextKeys.CONVERSATION_ID to "conversation-1",
                 ContextKeys.INTERACTION_ID to "interaction-1",
+                ContextKeys.SEQUENCE to 0,
                 ContextKeys.IS_BUSY to true,
                 ContextKeys.IS_STALE to false,
+                ContextKeys.IS_LATEST to true,
                 ContextKeys.STATE to mapOf("status" to "draft")
             ),
-            card.rendererContext(isBusy = true, isStale = false, state = mapOf("status" to "draft"))
+            card.rendererContext(isBusy = true, isStale = false, isLatest = true, state = mapOf("status" to "draft"))
         )
     }
 
@@ -107,8 +109,8 @@ class NativeCardControllerTest {
         val card = harness.card(harness.activate(sessionId = null, conversationId = null, interactionId = null))
 
         assertEquals(
-            setOf(ContextKeys.CARD_ID, ContextKeys.IS_BUSY, ContextKeys.IS_STALE),
-            card.rendererContext(isBusy = false, isStale = false, state = null).keys
+            setOf(ContextKeys.CARD_ID, ContextKeys.SEQUENCE, ContextKeys.IS_BUSY, ContextKeys.IS_STALE, ContextKeys.IS_LATEST),
+            card.rendererContext(isBusy = false, isStale = false, isLatest = true, state = null).keys
         )
     }
 
@@ -240,5 +242,72 @@ class NativeCardControllerTest {
         assertSame(kept, harness.controller.renderableCard(kept.cardId))
         assertNull(harness.controller.renderableCard(dropped.cardId))
         assertNull(dropped.state.value)
+    }
+
+    @Test
+    fun `sequence follows activation order and rejected elements don't use a number`() = runTest {
+        val harness = Harness(this)
+        val first = harness.card(harness.activate())
+        assertEquals(ActivationResult.Rejected, harness.activate(mapOf("type" to "acme.menu", "id" to "menu-1"), position = 1))
+        assertEquals(
+            ActivationResult.Rejected,
+            harness.activate(mapOf("type" to "acme.menu", "id" to "bad", "x" to Any()), turnId = "turn-2")
+        )
+        assertTrue(harness.activate() is ActivationResult.AlreadyActive)
+        val second = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "cart-1"), position = 1))
+        val third = harness.card(harness.activate(turnId = "turn-2"))
+
+        assertEquals(listOf(0, 1, 2), listOf(first.sequence, second.sequence, third.sequence))
+        assertEquals(2, third.rendererContext(isBusy = false, isStale = false, isLatest = true, state = null)[ContextKeys.SEQUENCE])
+    }
+
+    @Test
+    fun `only the newest card of each type is latest`() = runTest {
+        val harness = Harness(this)
+        val firstMenu = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "a")))
+        val secondMenu = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "b"), position = 1))
+        val cart = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "c"), position = 2))
+
+        assertFalse(firstMenu.isLatest.value)
+        assertTrue(secondMenu.isLatest.value)
+        assertTrue(cart.isLatest.value)
+
+        val laterMenu = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "a"), turnId = "turn-2"))
+        assertFalse(secondMenu.isLatest.value)
+        assertTrue(laterMenu.isLatest.value)
+        assertTrue(cart.isLatest.value)
+    }
+
+    @Test
+    fun `rolling back the latest card promotes the newest remaining card of its type`() = runTest {
+        val harness = Harness(this)
+        val older = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "a")))
+        val middle = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "b"), position = 1))
+        val cart = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "c"), turnId = "turn-2"))
+        val newest = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "d"), turnId = "turn-2", position = 1))
+
+        harness.controller.disposeAllExcept(setOf(older.cardId, middle.cardId))
+
+        assertFalse(older.isLatest.value)
+        assertTrue(middle.isLatest.value)
+        assertFalse(newest.isLatest.value)
+        assertFalse(cart.isLatest.value)
+
+        val nextCart = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "c"), turnId = "turn-3"))
+        assertTrue(nextCart.isLatest.value)
+        assertEquals(4, nextCart.sequence)
+    }
+
+    @Test
+    fun `clearing the transcript drops latest cards but never reuses a sequence`() = runTest {
+        val harness = Harness(this)
+        val before = harness.card(harness.activate())
+
+        harness.controller.disposeAll()
+        val after = harness.card(harness.activate(turnId = "turn-2"))
+
+        assertFalse(before.isLatest.value)
+        assertTrue(after.isLatest.value)
+        assertEquals(1, after.sequence)
     }
 }

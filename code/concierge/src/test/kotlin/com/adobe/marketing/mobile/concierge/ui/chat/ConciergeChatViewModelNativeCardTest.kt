@@ -400,6 +400,53 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
+    fun `the last menu in a response is the latest and carries the highest sequence`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("Two menus", menu, menu + ("id" to "menu-2")))
+
+        vm.processEvent(ChatEvent.SendMessage("menu"))
+        advanceUntilIdle()
+
+        val (first, second) = vm.nativeCardIds().map { requireNotNull(vm.nativeCards.renderableCard(it)) }
+        assertTrue(first.sequence < second.sequence)
+        assertFalse(first.isLatest.value)
+        assertTrue(second.isLatest.value)
+    }
+
+    @Test
+    fun `a newer turn's menu becomes the latest`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("Here you go", menu))
+        vm.processEvent(ChatEvent.SendMessage("menu"))
+        advanceUntilIdle()
+        vm.processEvent(ChatEvent.SendMessage("menu again"))
+        advanceUntilIdle()
+
+        val (older, newer) = vm.nativeCardIds().map { requireNotNull(vm.nativeCards.renderableCard(it)) }
+        assertTrue(older.sequence < newer.sequence)
+        assertFalse(older.isLatest.value)
+        assertTrue(newer.isLatest.value)
+    }
+
+    @Test
+    fun `a rolled-back menu hands latest back to the previous menu`() = runTest {
+        registerMenu()
+        var turns = 0
+        val vm = viewModel(frame("Here you go", menu)) {
+            if (++turns == 2) emit(ParsedConversationMessage("boom", ConversationState.ERROR))
+        }
+        vm.processEvent(ChatEvent.SendMessage("menu"))
+        advanceUntilIdle()
+        val first = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
+
+        vm.processEvent(ChatEvent.SendMessage("menu again"))
+        advanceUntilIdle()
+
+        assertEquals(listOf(first.cardId), vm.nativeCardIds())
+        assertTrue(first.isLatest.value)
+    }
+
+    @Test
     fun `card context reports the turn's ids and that the chat is idle`() = runTest {
         registerMenu()
         val vm = viewModel(frame("Here you go", menu))
@@ -408,7 +455,7 @@ class ConciergeChatViewModelNativeCardTest {
         advanceUntilIdle()
 
         val card = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
-        val context = card.rendererContext(vm.nativeCards.isBusy.value, card.isStale.value, card.state.value)
+        val context = card.rendererContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)
         assertEquals("session-1", context[ContextKeys.SESSION_ID])
         assertEquals("conversation-1", context[ContextKeys.CONVERSATION_ID])
         assertEquals("interaction-1", context[ContextKeys.INTERACTION_ID])
@@ -531,7 +578,7 @@ class ConciergeChatViewModelNativeCardTest {
         runCurrent()
         assertTrue(card.isStale.value)
         assertTrue(vm.nativeCards.isBusy.value)
-        assertEquals(true, card.rendererContext(vm.nativeCards.isBusy.value, card.isStale.value, card.state.value)[ContextKeys.IS_STALE])
+        assertEquals(true, card.rendererContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)[ContextKeys.IS_STALE])
 
         completeReset(repository)
         advanceUntilIdle()

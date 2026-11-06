@@ -302,9 +302,11 @@ Concierge.registerCardRenderer("customCard") { element, context, saveState ->
   Custom payload schemas are not validated: `entity_info` may be null or absent, and the
   renderer must handle it safely. Elements are copied with depth-64 and 100,000-node limits;
   invalid or over-limit elements are rejected and logged before rendering.
-- **`context`**: updated when card state or busy/stale flags change. `cardId`; `sessionId`, `conversationId`,
-  `interactionId` (each may be absent); `isBusy` (a chat or handoff turn is in progress);
-  `isStale` (the identity was reset); `state` (this card's last saved state, if any).
+- **`context`**: updated when card state or busy/stale/latest flags change. `cardId`; `sessionId`, `conversationId`,
+  `interactionId` (each may be absent); `sequence` (Int, this card's activation order in the chat);
+  `isBusy` (a chat or handoff turn is in progress); `isStale` (the identity was reset); `isLatest`
+  (this is the most recently activated card of its `type` in the chat); `state` (this card's last
+  saved state, if any).
 - **`saveState(map)`**: replaces this card's private, in-memory state while its chat ViewModel
   survives (including scrolling, hiding the chat, and configuration changes that retain that
   ViewModel). It is not persisted across process death or a new ViewModel. Callable from any
@@ -324,9 +326,20 @@ shows its own unavailable placeholder does not trigger built-in fallback or chan
 Each card gates its own controls: disable handoff controls while `isBusy` or `isStale`, and on tap,
 since `isBusy` can lag it. Read both from the current `context` rather than copying them into
 `remember`. The SDK keeps older cards active when newer ones arrive; keep workflow flags such as
-`submitted` in `saveState`. Rules that span cards, such as allowing actions only on the newest
-card of a given type, belong to the app: coordinate them in app-owned state keyed by `cardId`, and put only
-business facts Brand Concierge needs in `updateXDMContext`. The SDK draws no card surface: cards
+`submitted` in `saveState`. Put only business facts Brand Concierge needs in `updateXDMContext`.
+
+Card order comes from the SDK, never from composition: Compose doesn't compose transcript rows in
+transcript order (lazy rows, recomposition), so "the last card my effect saw" is not the newest card.
+- `isLatest` covers the common rule "only the newest card of a type is actionable": gate controls on
+  `isLatest && !isStale && !isBusy`. It reports order, not availability, so a stale card can still be
+  latest. Activating a newer card of the same type flips the older one to `false`. If the newest card
+  is rolled back, the newest remaining card of that type becomes latest again.
+- `sequence` supports other cross-card rules (for example, newest per location): it strictly increases in
+  transcript order (including element order within one response), is fixed for the card's lifetime,
+  and is never reused in the chat. Rejected elements don't use a number. Compare it only between cards of
+  the same chat; it is not meaningful across chats or app launches.
+
+The SDK draws no card surface: cards
 render at their natural height, full width.
 Renderers must not throw, must not start work during composition, and, since they are held for
 the life of the process, must not capture an `Activity` or a `View`.

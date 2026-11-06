@@ -20,8 +20,13 @@ import androidx.compose.runtime.Composable
  *
  * - `element`: the complete, read-only element dictionary from `multimodalElements.elements`.
  * - `context`: read-only card context, rebuilt on every recomposition: `cardId`, `sessionId`,
- *   `conversationId`, `interactionId` (each may be absent), `isBusy`, `isStale`, and `state`
- *   (this card's last saved state, if any).
+ *   `conversationId`, `interactionId` (each may be absent), `sequence`, `isBusy`, `isStale`,
+ *   `isLatest`, and `state` (this card's last saved state, if any).
+ *   - `sequence` (Int): this card's activation order in the chat. It strictly increases in
+ *     transcript order and is never reused; compare it only between cards of the same chat.
+ *   - `isLatest` (Boolean): true while this is the most recently activated card of its `type`
+ *     in the chat. It reports order, not availability: gate actions on
+ *     `isLatest && !isStale && !isBusy`.
  * - `saveState`: replaces this card's private state. Callable from any thread; applied on the main
  *   thread. Never sent to Brand Concierge.
  *

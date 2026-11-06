@@ -26,8 +26,9 @@ import java.util.Collections
 import java.util.UUID
 
 /**
- * Owns the native cards of one chat: their element, saved state, and the busy/stale flags their
- * `context` reports. Main-thread confined, except [RenderableCard.saveState].
+ * Owns the native cards of one chat: their element, saved state, transcript order, and the
+ * busy/stale/latest flags their `context` reports. Main-thread confined, except
+ * [RenderableCard.saveState].
  */
 internal class NativeCardController(
     private val scope: CoroutineScope,
@@ -47,6 +48,8 @@ internal class NativeCardController(
         const val INTERACTION_ID = "interactionId"
         const val IS_BUSY = "isBusy"
         const val IS_STALE = "isStale"
+        const val IS_LATEST = "isLatest"
+        const val SEQUENCE = "sequence"
         const val STATE = "state"
     }
 
@@ -71,18 +74,29 @@ internal class NativeCardController(
         val cardId: String,
         val renderer: ConciergeCardRenderer,
         val element: Map<String, Any?>,
+        /** Activation order within this chat; strictly increasing, never reused. */
+        val sequence: Int,
         val isStale: StateFlow<Boolean>,
+        /** True while this is the most recently activated card of its `type` in this chat. */
+        val isLatest: StateFlow<Boolean>,
         val state: StateFlow<Map<String, Any?>?>,
         val saveState: (Map<String, Any?>) -> Unit,
         private val identifiers: Map<String, String>
     ) {
         /** The renderer's `context`; absent identifiers and an unsaved state are omitted. */
-        fun rendererContext(isBusy: Boolean, isStale: Boolean, state: Map<String, Any?>?): Map<String, Any?> {
-            val context = LinkedHashMap<String, Any?>(identifiers.size + 4)
+        fun rendererContext(
+            isBusy: Boolean,
+            isStale: Boolean,
+            isLatest: Boolean,
+            state: Map<String, Any?>?
+        ): Map<String, Any?> {
+            val context = LinkedHashMap<String, Any?>(identifiers.size + 6)
             context[ContextKeys.CARD_ID] = cardId
             context.putAll(identifiers)
+            context[ContextKeys.SEQUENCE] = sequence
             context[ContextKeys.IS_BUSY] = isBusy
             context[ContextKeys.IS_STALE] = isStale
+            context[ContextKeys.IS_LATEST] = isLatest
             state?.let { context[ContextKeys.STATE] = it }
             return Collections.unmodifiableMap(context)
         }
@@ -92,7 +106,10 @@ internal class NativeCardController(
         val card: RenderableCard,
         val elementKey: String?,
         val position: Int,
+        val type: String,
+        val sequence: Int,
         val stale: MutableStateFlow<Boolean>,
+        val latest: MutableStateFlow<Boolean>,
         val state: MutableStateFlow<Map<String, Any?>?>
     ) {
         @Volatile
@@ -103,6 +120,10 @@ internal class NativeCardController(
     private var allCardsStale = false
     private val entries = LinkedHashMap<String, CardEntry>()
     private val cardIdsByElementKey = HashMap<String, String>()
+    private val latestCardIdByType = HashMap<String, String>()
+
+    /** Next activation's [RenderableCard.sequence]; never reset, so values aren't reused. */
+    private var nextSequence = 0
 
     /** True while a chat or handoff turn is queued or running. */
     val isBusy: StateFlow<Boolean> = busyState.asStateFlow()
@@ -143,7 +164,9 @@ internal class NativeCardController(
         }
 
         val cardId = cardIdGenerator()
+        val sequence = nextSequence++
         val stale = MutableStateFlow(allCardsStale)
+        val latest = MutableStateFlow(true)
         val state = MutableStateFlow<Map<String, Any?>?>(null)
         val identifiers = LinkedHashMap<String, String>(3).apply {
             request.sessionId?.let { put(ContextKeys.SESSION_ID, it) }
@@ -155,15 +178,19 @@ internal class NativeCardController(
             cardId = cardId,
             renderer = renderer,
             element = element,
+            sequence = sequence,
             isStale = stale.asStateFlow(),
+            isLatest = latest.asStateFlow(),
             state = state.asStateFlow(),
             saveState = { saveState(entry, cardId, it) },
             identifiers = identifiers
         )
-        entry = CardEntry(card, key, request.position, stale, state)
+        entry = CardEntry(card, key, request.position, request.type, sequence, stale, latest, state)
+        // Cards activate in transcript order, so the newest card of a type is always the latest.
+        latestCardIdByType.put(request.type, cardId)?.let { previousId -> entries[previousId]?.latest?.value = false }
         entries[cardId] = entry
         cardIdsByElementKey[key] = cardId
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Activated card $cardId (type=${request.type}).")
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Activated card $cardId (type=${request.type}, sequence=$sequence).")
         return ActivationResult.Activated(cardId)
     }
 
@@ -199,11 +226,13 @@ internal class NativeCardController(
         entries.values.forEach(::dispose)
         entries.clear()
         cardIdsByElementKey.clear()
+        latestCardIdByType.clear()
         allCardsStale = false
     }
 
     /** Drops cards whose transcript message was rolled back. */
     fun disposeAllExcept(cardIds: Set<String>) {
+        val typesLosingLatest = HashSet<String>()
         val iterator = entries.entries.iterator()
         while (iterator.hasNext()) {
             val (cardId, entry) = iterator.next()
@@ -211,11 +240,24 @@ internal class NativeCardController(
             dispose(entry)
             iterator.remove()
             entry.elementKey?.let { key -> if (cardIdsByElementKey[key] == cardId) cardIdsByElementKey.remove(key) }
+            if (latestCardIdByType[entry.type] == cardId) {
+                latestCardIdByType.remove(entry.type)
+                typesLosingLatest += entry.type
+            }
         }
+        typesLosingLatest.forEach(::promoteLatest)
+    }
+
+    /** Makes the remaining card of [type] with the highest sequence the latest, if any remains. */
+    private fun promoteLatest(type: String) {
+        val newest = entries.values.filter { it.type == type }.maxByOrNull { it.sequence } ?: return
+        latestCardIdByType[type] = newest.card.cardId
+        newest.latest.value = true
     }
 
     private fun dispose(entry: CardEntry) {
         entry.isDisposed = true
         entry.stale.value = true
+        entry.latest.value = false
     }
 }
