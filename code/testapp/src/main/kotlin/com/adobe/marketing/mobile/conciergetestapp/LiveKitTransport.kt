@@ -56,10 +56,10 @@ import java.util.concurrent.TimeUnit
  * block (WebRTC initialization and teardown), so all room work runs on one background thread.
  *
  * Audio routing and playback are left to LiveKit's default audio handler, which prefers headsets,
- * then the speaker, over the earpiece. When another app or a phone call takes audio focus for a
- * while (`AUDIOFOCUS_LOSS_TRANSIENT`), the transport reports an audio interruption and Brand
- * Concierge mutes the microphone until focus returns. When the focus is lost for good
- * (`AUDIOFOCUS_LOSS`), the transport leaves the room and reports [VoiceTransportState.Failed].
+ * then the speaker, over the earpiece. When another app takes audio focus for a while
+ * (`AUDIOFOCUS_LOSS_TRANSIENT`), the transport reports an audio interruption and Brand Concierge
+ * mutes the microphone until focus returns. When the focus is lost for good (`AUDIOFOCUS_LOSS`),
+ * the transport leaves the room and reports [VoiceTransportState.Failed].
  */
 class LiveKitTransport(context: Context) : VoiceTransport {
 
