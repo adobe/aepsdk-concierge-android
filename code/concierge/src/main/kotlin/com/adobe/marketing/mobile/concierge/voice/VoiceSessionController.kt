@@ -55,7 +55,7 @@ internal class VoiceSessionController(
     private var holdsTransport = false
 
     /**
-     * True from an audio interruption (a phone call, another app) until it ends, in any active
+     * True from an audio interruption (another app taking the audio) until it ends, in any active
      * state. Tracked apart from the session state, so a `Connected` that arrives during the
      * interruption doesn't leave the microphone live. The transport has no microphone getter: the
      * microphone is live once connected, and only interruptions change it after that.
