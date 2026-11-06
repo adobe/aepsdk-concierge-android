@@ -352,6 +352,34 @@ internal object CSSKeyMapper {
                     ?: ConciergeTypography(lineHeight = lineHeight)
             )
         },
+        "message-font-size" to { cssValue, theme ->
+            val fontSize = CSSValueConverter.parsePxValue(cssValue)
+            theme.copy(
+                typography = theme.typography?.copy(fontSize = fontSize)
+                    ?: ConciergeTypography(fontSize = fontSize)
+            )
+        },
+        "message-font-weight" to { cssValue, theme ->
+            val fontWeight = CSSValueConverter.parseFontWeight(cssValue)
+            theme.copy(
+                typography = theme.typography?.copy(fontWeight = fontWeight)
+                    ?: ConciergeTypography(fontWeight = fontWeight)
+            )
+        },
+        "message-concierge-link-font-weight" to { cssValue, theme ->
+            val linkFontWeight = CSSValueConverter.parseFontWeight(cssValue)
+            theme.copy(
+                typography = theme.typography?.copy(linkFontWeight = linkFontWeight)
+                    ?: ConciergeTypography(linkFontWeight = linkFontWeight)
+            )
+        },
+        "message-concierge-link-underline" to { cssValue, theme ->
+            val linkUnderline = cssValue.trim().equals("false", ignoreCase = true).not()
+            theme.copy(
+                typography = theme.typography?.copy(linkUnderline = linkUnderline)
+                    ?: ConciergeTypography(linkUnderline = linkUnderline)
+            )
+        },
         
         // Colors - Primary/Surface/Message/Button/Input/Feedback/Citations/Prompt Pill/Prompt Suggestions
         // are generated below via colorCssAssignments -- the couple of bespoke ones that don't fit the

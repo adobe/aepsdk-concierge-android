@@ -99,7 +99,9 @@ internal object ConciergeStyles {
         return this.copy(
             // Note: Font family would require loading custom fonts, which is not implemented yet
             // fontFamily = typography.fontFamily?.let { FontFamily(...) },
-            lineHeight = typography.lineHeight?.let { (this.fontSize.value * it).sp } ?: this.lineHeight
+            fontSize = typography.fontSize?.sp ?: this.fontSize,
+            fontWeight = typography.fontWeight?.let { FontWeight(it) } ?: this.fontWeight,
+            lineHeight = typography.lineHeight?.let { ((typography.fontSize?.toFloat() ?: this.fontSize.value) * it).sp } ?: this.lineHeight
         )
     }
 

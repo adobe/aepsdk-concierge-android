@@ -34,7 +34,15 @@ data class ConciergeThemeTokens(
  */
 data class ConciergeTypography(
     val fontFamily: String? = null,
-    val lineHeight: Double? = null
+    val lineHeight: Double? = null,
+    /** Message body font size in sp. When null, the Material default for the text style is used. */
+    val fontSize: Double? = null,
+    /** Message body font weight (100-900). When null, the text style default is used. */
+    val fontWeight: Int? = null,
+    /** Font weight applied to inline hyperlinks in message text. When null, links inherit [fontWeight]. */
+    val linkFontWeight: Int? = null,
+    /** Whether inline hyperlinks in message text are underlined. Defaults to true (WCAG 1.4.1). */
+    val linkUnderline: Boolean = true
 )
 
 /**

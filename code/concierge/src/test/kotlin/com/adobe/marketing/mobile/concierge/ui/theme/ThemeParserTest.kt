@@ -568,6 +568,47 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `parseThemeTokens parses message typography keys`() {
+        val json = """
+            {
+                "theme": {
+                    "--message-font-size": "18px",
+                    "--message-font-weight": "600",
+                    "--message-concierge-link-font-weight": "700",
+                    "--message-concierge-link-underline": "false"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        val typography = tokens?.typography
+
+        assertNotNull(typography)
+        assertEquals(18.0, typography?.fontSize)
+        assertEquals(600, typography?.fontWeight)
+        assertEquals(700, typography?.linkFontWeight)
+        assertEquals(false, typography?.linkUnderline)
+    }
+
+    @Test
+    fun `parseThemeTokens defaults linkUnderline to true when key is missing`() {
+        val json = """
+            {
+                "theme": {
+                    "--message-font-size": "16px"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+
+        assertNotNull(tokens?.typography)
+        assertEquals(true, tokens?.typography?.linkUnderline)
+        assertNull(tokens?.typography?.linkFontWeight)
+        assertNull(tokens?.typography?.fontWeight)
+    }
+
+    @Test
     fun `parseThemeJson should handle complex theme with multiple sections`() {
         val json = """
             {

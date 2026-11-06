@@ -74,7 +74,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkHints: List<LinkHint> = emptyList(),
-        linkColor: Color = Color.Unspecified
+        linkColor: Color = Color.Unspecified,
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ): AnnotatedString {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
@@ -91,7 +93,7 @@ internal object MarkdownRenderer {
             if (token.start < currentIndex) return@forEach
 
             appendGapText(markdown, currentIndex, token.start, builder, colorScheme, baseTextStyle)
-            renderToken(token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref)
+            renderToken(token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref, linkFontWeight, linkUnderline)
             currentIndex = token.end
         }
 
@@ -134,14 +136,16 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         when (token.type) {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme, baseTextStyle)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme, baseTextStyle)
-            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
-            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
-            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline)
+            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline)
+            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline)
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
@@ -203,7 +207,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -212,7 +218,8 @@ internal object MarkdownRenderer {
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = linkColor,
-                textDecoration = TextDecoration.Underline
+                textDecoration = if (linkUnderline) TextDecoration.Underline else null,
+                fontWeight = linkFontWeight ?: baseTextStyle.fontWeight
             ),
             styleStart,
             builder.length
@@ -234,7 +241,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -243,8 +252,8 @@ internal object MarkdownRenderer {
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = linkColor,
-                textDecoration = TextDecoration.Underline,
-                fontWeight = FontWeight.Bold
+                textDecoration = if (linkUnderline) TextDecoration.Underline else null,
+                fontWeight = linkFontWeight ?: FontWeight.Bold
             ),
             styleStart,
             builder.length
@@ -266,7 +275,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -275,7 +286,8 @@ internal object MarkdownRenderer {
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = linkColor,
-                textDecoration = TextDecoration.Underline,
+                textDecoration = if (linkUnderline) TextDecoration.Underline else null,
+                fontWeight = linkFontWeight ?: baseTextStyle.fontWeight,
                 fontStyle = FontStyle.Italic
             ),
             styleStart,
