@@ -25,7 +25,8 @@ import com.adobe.marketing.mobile.concierge.VoiceTransportState
 internal class FakeVoiceTransport(
     /** When true, [connect] reports [VoiceTransportState.Connected] before it returns. */
     private val connectsImmediately: Boolean = true,
-    var connectError: Exception? = null
+    var connectError: Exception? = null,
+    override var continuesInBackground: Boolean = false
 ) : VoiceTransport {
 
     override var listener: VoiceTransportListener? = null

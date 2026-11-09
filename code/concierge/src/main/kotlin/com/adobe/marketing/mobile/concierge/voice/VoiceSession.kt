@@ -18,6 +18,14 @@ internal interface VoiceSession {
     val state: VoiceSessionState
 
     /**
+     * Whether the conversation may keep running while the app is in the background: the transport
+     * [continues in the background][com.adobe.marketing.mobile.concierge.VoiceTransport.continuesInBackground]
+     * (read when the session connected it), the session has already called `connect`, and it has
+     * not ended. Safe to read from any thread.
+     */
+    val continuesInBackground: Boolean
+
+    /**
      * Starts the conversation and returns immediately. Invalid credentials, a missing microphone
      * permission and connection failures are reported to the listener as [VoiceSessionState.Failed].
      */

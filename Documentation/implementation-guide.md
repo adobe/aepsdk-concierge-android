@@ -355,7 +355,46 @@ ConciergeChat(
 
 The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends. When several `ConciergeChat` calls share a view model, pass the same transport to each of them; otherwise the last one to recompose decides which transport the chat uses.
 
-When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Only one voice conversation runs at a time across the app: if two chats are alive together (for example, a chat in one activity and another chat in an activity opened over it), the voice button in the other one is disabled until the conversation ends. Leaving the chat, resetting identities, or moving the app to the background ends the conversation. Without microphone permission, the voice button first asks for it (the same flow as dictation) and starts the conversation only once it is granted; if the user denies it, no conversation starts. A failed connection ends the conversation and shows an error message in the chat, as does a transport that does not report `Connected` within 20 seconds of `connect(connection)` (Brand Concierge then calls `disconnect()`). The same message appears when the voice agent ends the session because of a server error; when it ends an idle session, the conversation ends without a message. While the transport reports `VoiceTransportState.Reconnecting`, the conversation stays open and the voice button shows a spinner; if the transport does not report `Connected` again within 30 seconds, the conversation ends with the same error message. While another app holds the audio for a while (the transport reports `onAudioInterruptionBegan`), Brand Concierge mutes the microphone through the transport, including for an interruption that began while connecting, and unmutes it when the transport reports `onAudioInterruptionEnded`. When the audio will not come back (for example, `AUDIOFOCUS_LOSS`), the transport should report `VoiceTransportState.Failed` instead, so the conversation ends with the error message rather than staying muted, because the chat has no unmute control. A phone call works differently: Android doesn't tell other apps about a ringing call (without the `READ_PHONE_STATE` permission), so the conversation continues while the phone rings, and answering opens the call screen, which moves the app to the background and ends the conversation.
+When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Only one voice conversation runs at a time across the app: if two chats are alive together (for example, a chat in one activity and another chat in an activity opened over it), the voice button in the other one is disabled until the conversation ends. Leaving the chat, resetting identities, or moving the app to the background ends the conversation, unless the transport keeps it running in the background (see [Background conversations](#background-conversations)). Every conversation ends without a message 60 minutes after it connects. Without microphone permission, the voice button first asks for it (the same flow as dictation) and starts the conversation only once it is granted; if the user denies it, no conversation starts. A failed connection ends the conversation and shows an error message in the chat, as does a transport that does not report `Connected` within 20 seconds of `connect(connection)` (Brand Concierge then calls `disconnect()`). The same message appears when the voice agent ends the session because of a server error; when it ends an idle session, the conversation ends without a message. While the transport reports `VoiceTransportState.Reconnecting`, the conversation stays open and the voice button shows a spinner; if the transport does not report `Connected` again within 30 seconds, the conversation ends with the same error message. While another app holds the audio for a while (the transport reports `onAudioInterruptionBegan`), Brand Concierge mutes the microphone through the transport, including for an interruption that began while connecting, and unmutes it when the transport reports `onAudioInterruptionEnded`. When the audio will not come back (for example, `AUDIOFOCUS_LOSS`), the transport should report `VoiceTransportState.Failed` instead, so the conversation ends with the error message rather than staying muted, because the chat has no unmute control. A phone call works differently: Android doesn't tell other apps about a ringing call (without the `READ_PHONE_STATE` permission), so the conversation continues while the phone rings, and answering opens the call screen, which moves the app to the background. That ends the conversation, unless the transport continues in the background: then the call takes the audio, the microphone stays muted until the call ends, and a call longer than the voice agent's inactivity timeout (60 seconds) still ends the conversation.
+
+### Background conversations
+
+By default a voice conversation ends when the app moves to the background, including when the user locks the screen. A transport can keep it running there instead, so the user can lock the phone or switch to another app and keep talking, by returning `true` from `continuesInBackground`:
+
+```kotlin
+class MyVoiceTransport(/* ... */) : VoiceTransport {
+    override val continuesInBackground = true
+    // ...
+}
+```
+
+Brand Concierge reads the property once per conversation, when it calls `connect(connection)`, so an app with an in-app setting can return the setting's value; a change applies to the next conversation. With it on, a conversation that has reached `connect(connection)` keeps running in the background, with the microphone live and the agent audible, until the user ends it, the voice agent ends it (for example after 60 seconds without activity), the connection ends, or it reaches 60 minutes. A conversation still waiting for its connection details when the app moves to the background ends as before, because Android does not let an app start using the microphone from the background. Transcripts and product cards received in the background are in the chat when the user returns.
+
+Android 11 and later allow microphone access in the background only through a foreground service of type `microphone` started while the app is in the foreground. Brand Concierge declares no service or permission for this; the app provides them:
+
+- Declare the permissions and the service in the app's `AndroidManifest.xml`:
+
+  ```xml
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+      <service
+          android:name=".VoiceForegroundService"
+          android:exported="false"
+          android:foregroundServiceType="microphone" />
+  </application>
+  ```
+
+- Start the service from `connect(connection)`, before it returns. Brand Concierge calls `connect` on the main thread while the app is in the foreground and after `RECORD_AUDIO` has been granted, which is what Android requires to start a `microphone` foreground service. Stop the service in `disconnect()` and whenever the connection ends (failure, room closed).
+- The service shows an ongoing notification while the conversation runs, for example "Voice conversation in progress", that opens the app when tapped and has an **End** action. End leaves the room and reports `VoiceTransportState.Disconnected`, which Brand Concierge treats as a normal end. On Android 13 and later, if the user has not granted the notification permission, the service still runs and the notification appears only in the task manager; Brand Concierge does not ask for that permission.
+- End the conversation in the service's `onTaskRemoved` (leave the room and report `Disconnected`), so removing the app from the recent apps ends it. Otherwise the foreground service keeps the process, and the conversation, alive.
+- Declare the `microphone` foreground service in the Google Play Console (App content > Foreground service permissions): describe its use (a voice conversation the user starts and can end at any time) and provide a video that shows it.
+
+The 60-minute limit applies to every conversation, in the foreground too and whether or not the transport continues in the background. It counts from the moment the conversation first connects; reconnecting after a network loss does not restart it. When it is reached, the conversation ends without a message and Brand Concierge calls `disconnect()`. It cannot be changed.
+
+The test app's `LiveKitTransport` and `VoiceForegroundService` implement all of the above. To keep voice foreground-only, return `false` (the default) and leave out the service and its permissions.
 
 #### Audio quality
 

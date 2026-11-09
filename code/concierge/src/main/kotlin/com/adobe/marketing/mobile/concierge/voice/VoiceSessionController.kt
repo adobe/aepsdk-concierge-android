@@ -35,6 +35,9 @@ import com.adobe.marketing.mobile.services.Log
  *
  * The listener is held until the session reaches a terminal state and is then released, so a
  * host that forgets the session after [stop] does not leak its UI.
+ *
+ * Every conversation ends normally [MAX_SESSION_MILLIS] after it first reports `Connected`,
+ * whether or not it runs in the background.
  */
 internal class VoiceSessionController(
     private val transport: VoiceTransport,
@@ -64,6 +67,13 @@ internal class VoiceSessionController(
 
     /** Runs while waiting for `Connected`, first after `connect` and again while reconnecting. */
     private var connectionTimeout: Runnable? = null
+
+    /** Ends the conversation at its maximum length; started by the first `Connected` only. */
+    private var sessionLengthLimit: Runnable? = null
+
+    /** The transport's [VoiceTransport.continuesInBackground], read when this session connected it. */
+    @Volatile
+    private var transportContinuesInBackground = false
 
     private val transportListener = object : VoiceTransportListener {
         override fun onStateChanged(transport: VoiceTransport, state: VoiceTransportState) {
@@ -101,6 +111,9 @@ internal class VoiceSessionController(
 
     override val state: VoiceSessionState
         get() = currentState
+
+    override val continuesInBackground: Boolean
+        get() = transportContinuesInBackground && isActive
 
     private val isActive: Boolean
         get() = !currentState.isTerminal
@@ -151,6 +164,7 @@ internal class VoiceSessionController(
             "The voice connection was not established within ${CONNECT_TIMEOUT_MILLIS / 1000} seconds."
         )
         try {
+            transportContinuesInBackground = transport.continuesInBackground
             transport.connect(VoiceConnection(url, token))
         } catch (e: Exception) {
             fail(e.message ?: FailureReasons.CONNECT_FAILED)
@@ -166,6 +180,7 @@ internal class VoiceSessionController(
             is VoiceTransportState.Connected -> when (currentState) {
                 VoiceSessionState.Connecting -> {
                     cancelConnectionTimeout()
+                    startSessionLengthLimit()
                     setState(VoiceSessionState.Listening)
                     // The transport turned the microphone on; an interruption that began while
                     // connecting turns it off again.
@@ -213,6 +228,20 @@ internal class VoiceSessionController(
     }
 
     /**
+     * Ends the conversation [MAX_SESSION_MILLIS] from now, as a normal end that also disconnects
+     * the transport, so a forgotten conversation cannot hold the room indefinitely. Not restarted
+     * by a reconnect.
+     */
+    private fun startSessionLengthLimit() {
+        val limit = Runnable {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Voice session reached its maximum length.")
+            finish(VoiceSessionState.Ended)
+        }
+        sessionLengthLimit = limit
+        mainHandler.postDelayed(limit, MAX_SESSION_MILLIS)
+    }
+
+    /**
      * Changes the microphone once connected. Before that it is left alone: the transport turns it
      * on when it connects, and `Connected` applies any interruption.
      */
@@ -244,6 +273,8 @@ internal class VoiceSessionController(
     private fun finish(terminalState: VoiceSessionState) {
         if (!isActive) return
         cancelConnectionTimeout()
+        sessionLengthLimit?.let(mainHandler::removeCallbacks)
+        sessionLengthLimit = null
         if (holdsTransport) {
             holdsTransport = false
             if (transport.listener === transportListener) {
@@ -331,6 +362,9 @@ internal class VoiceSessionController(
 
         /** How long a lost connection may take to come back before the session fails. */
         const val RECONNECT_TIMEOUT_MILLIS = 30_000L
+
+        /** How long a conversation may last from its first `Connected` before it ends normally. */
+        const val MAX_SESSION_MILLIS = 60 * 60_000L
 
         private const val SELF_TAG = "VoiceSessionController"
         /** Encrypted schemes only: the access token travels on this connection. */

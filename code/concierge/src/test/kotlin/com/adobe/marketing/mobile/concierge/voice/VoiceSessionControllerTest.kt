@@ -18,6 +18,7 @@ import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController.Failure
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.ASSISTANT
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.USER
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -534,6 +535,90 @@ class VoiceSessionControllerTest {
         transport.listener!!.onDataReceived(transport, byteArrayOf(0, 1, 2), null)
         assertTrue(listener.transcripts.isEmpty())
         assertEquals(VoiceSessionState.Listening, session.state)
+    }
+
+    // Background and maximum length
+
+    @Test
+    fun continuesInBackground_fromConnectUntilTheEnd_whenTheTransportOptsIn() {
+        val transport = FakeVoiceTransport(connectsImmediately = false, continuesInBackground = true)
+        val session = session(transport, RecordingVoiceListener())
+        session.start(url, token)
+        assertFalse("not before connect", session.continuesInBackground)
+
+        drainMain()
+        assertTrue("connecting", session.continuesInBackground)
+        transport.continuesInBackground = false
+        transport.report(VoiceTransportState.Connected)
+        transport.report(VoiceTransportState.Reconnecting)
+        assertTrue("read once, at connect", session.continuesInBackground)
+
+        session.stop()
+        assertFalse(session.continuesInBackground)
+    }
+
+    @Test
+    fun continuesInBackground_isFalseWithoutTheOptInOrBeforeConnect() {
+        assertFalse(start(FakeVoiceTransport()).continuesInBackground)
+
+        permissionGranted = false
+        val denied = start(FakeVoiceTransport(continuesInBackground = true))
+        assertTrue(denied.state is VoiceSessionState.Failed)
+        assertFalse(denied.continuesInBackground)
+    }
+
+    @Test
+    fun maxLength_endsNormallyAndDisconnects_anHourAfterConnected() {
+        listOf(false, true).forEach { optedIn ->
+            val transport = FakeVoiceTransport(connectsImmediately = false, continuesInBackground = optedIn)
+            val listener = RecordingVoiceListener()
+            val session = start(transport, listener)
+            advanceMain(5_000)
+            transport.report(VoiceTransportState.Connected)
+
+            advanceMain(VoiceSessionController.MAX_SESSION_MILLIS - 1)
+            assertEquals("optedIn=$optedIn", VoiceSessionState.Listening, session.state)
+            advanceMain(1)
+
+            assertEquals(
+                "optedIn=$optedIn",
+                listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening, VoiceSessionState.Ended),
+                listener.states
+            )
+            assertEquals(1, transport.disconnectCount)
+            assertNull(transport.listener)
+        }
+    }
+
+    @Test
+    fun maxLength_isNotRestartedByAReconnect() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+        transport.report(VoiceTransportState.Reconnecting)
+        advanceMain(10_000)
+        transport.report(VoiceTransportState.Connected)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2 - 10_000)
+
+        assertEquals(VoiceSessionState.Ended, session.state)
+        assertEquals(1, transport.disconnectCount)
+    }
+
+    @Test
+    fun maxLength_startsAgainForANewConversation() {
+        val transport = FakeVoiceTransport()
+        val first = start(transport)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+        first.stop()
+
+        val second = start(transport)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+        assertEquals(VoiceSessionState.Listening, second.state)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+
+        assertEquals(VoiceSessionState.Ended, second.state)
+        assertEquals(2, transport.disconnectCount)
     }
 
     // Audio interruptions
