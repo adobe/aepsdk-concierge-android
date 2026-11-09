@@ -292,9 +292,24 @@ LiveKit is your app's dependency: you choose and update its version, and Brand C
 
 #### 2. Set up the manifest permissions
 
-Declare `RECORD_AUDIO` in your app's `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted. No foreground service is needed: the conversation ends when the app moves to the background.
+Declare `RECORD_AUDIO` in your app's `AndroidManifest.xml` (see [Permissions](#permissions-for-speech-input)). Brand Concierge requests it at runtime when the user taps the voice button and starts the conversation once it is granted.
 
-LiveKit's manifest is merged into your app's. Besides `INTERNET`, `ACCESS_NETWORK_STATE` and `RECORD_AUDIO`, it adds `CAMERA`, `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_MEDIA_PROJECTION`, and a screen-sharing service; LiveKit's audio routing library also adds `MODIFY_AUDIO_SETTINGS`. Voice uses none of the camera or screen-sharing entries, so unless your app needs them for something else, remove them with `tools:node="remove"`:
+The reference transport keeps the conversation running when the app moves to the background, through the test app's `VoiceForegroundService` (see [Background conversations](#background-conversations)). Declare that service with `android:foregroundServiceType="microphone"`, and the permissions it needs:
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+<application>
+    <service
+        android:name=".VoiceForegroundService"
+        android:exported="false"
+        android:foregroundServiceType="microphone" />
+</application>
+```
+
+LiveKit's manifest is merged into your app's. Besides `INTERNET`, `ACCESS_NETWORK_STATE`, `RECORD_AUDIO` and `FOREGROUND_SERVICE`, it adds `CAMERA` and `FOREGROUND_SERVICE_MEDIA_PROJECTION`, and a screen-sharing service; LiveKit's audio routing library also adds `MODIFY_AUDIO_SETTINGS`. Voice uses none of the camera or screen-sharing entries, so unless your app needs them for something else, remove them with `tools:node="remove"`. Keep `FOREGROUND_SERVICE`, which the voice service needs:
 
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -303,7 +318,6 @@ LiveKit's manifest is merged into your app's. Besides `INTERNET`, `ACCESS_NETWOR
     <uses-permission android:name="android.permission.CAMERA"
         tools:node="remove"
         tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
 
     <application>
@@ -318,7 +332,7 @@ Android lint reports the removed `CAMERA` entry as if it were declared, hence `t
 
 #### 3. Copy the transport
 
-Copy [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) into your app (change the package and log tag to your own). A `VoiceTransport` connects to the URL and token in the `VoiceConnection` Brand Concierge passes to `connect(connection)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. The reference transport also records the microphone while the room connects and sends that audio once the agent joins, so the user can start speaking right away.
+Copy [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) and [`VoiceForegroundService.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/VoiceForegroundService.kt) into your app (change the package, log tags and notification action to your own). The service uses the test app's notification strings (`voice_notification_channel`, `voice_notification_title`, `voice_notification_end`) and icon (`ic_voice_notification`); copy them or use your own. It also needs AndroidX Core 1.12 or later, which apps using Compose or AppCompat already have. Before you publish, declare the `microphone` foreground service in the Google Play Console (see [Background conversations](#background-conversations)). A `VoiceTransport` connects to the URL and token in the `VoiceConnection` Brand Concierge passes to `connect(connection)`, publishes the microphone, plays the agent's audio, and reports its state, incoming data messages and audio interruptions to its `listener`. The reference transport also records the microphone while the room connects and sends that audio once the agent joins, so the user can start speaking right away.
 
 If you change the transport, keep the rules in the `VoiceTransport` documentation: Brand Concierge calls the transport on the main thread, and the transport may call the listener from any thread. When you update LiveKit, check that the file still builds and repeat the device checks below.
 
@@ -356,6 +370,15 @@ ConciergeChat(
 The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends. When several `ConciergeChat` calls share a view model, pass the same transport to each of them; otherwise the last one to recompose decides which transport the chat uses.
 
 When a transport is provided, the composer shows a voice button; without one, the button is hidden. While a voice conversation runs, the transcript renders in the chat, and typed messages, dictation, and data handoffs are paused. A data handoff sent during a voice conversation completes with `CHAT_IN_PROGRESS`. Only one voice conversation runs at a time across the app: if two chats are alive together (for example, a chat in one activity and another chat in an activity opened over it), the voice button in the other one is disabled until the conversation ends. Leaving the chat, resetting identities, or moving the app to the background ends the conversation, unless the transport keeps it running in the background (see [Background conversations](#background-conversations)). Every conversation ends without a message 60 minutes after it connects. Without microphone permission, the voice button first asks for it (the same flow as dictation) and starts the conversation only once it is granted; if the user denies it, no conversation starts. A failed connection ends the conversation and shows an error message in the chat, as does a transport that does not report `Connected` within 20 seconds of `connect(connection)` (Brand Concierge then calls `disconnect()`). The same message appears when the voice agent ends the session because of a server error; when it ends an idle session, the conversation ends without a message. While the transport reports `VoiceTransportState.Reconnecting`, the conversation stays open and the voice button shows a spinner; if the transport does not report `Connected` again within 30 seconds, the conversation ends with the same error message. While another app holds the audio for a while (the transport reports `onAudioInterruptionBegan`), Brand Concierge mutes the microphone through the transport, including for an interruption that began while connecting, and unmutes it when the transport reports `onAudioInterruptionEnded`. When the audio will not come back (for example, `AUDIOFOCUS_LOSS`), the transport should report `VoiceTransportState.Failed` instead, so the conversation ends with the error message rather than staying muted, because the chat has no unmute control. A phone call works differently: Android doesn't tell other apps about a ringing call (without the `READ_PHONE_STATE` permission), so the conversation continues while the phone rings, and answering opens the call screen, which moves the app to the background. That ends the conversation, unless the transport continues in the background: then the call takes the audio, the microphone stays muted until the call ends, and a call longer than the voice agent's inactivity timeout (60 seconds) still ends the conversation.
+
+#### Audio quality
+
+The transport, and therefore LiveKit, owns audio focus, audio routing and audio processing:
+
+- **Keep echo cancellation and noise suppression on.** LiveKit enables them by default. Without them, the agent's voice from the speaker reaches the microphone and the agent can interrupt itself. Even with them, loud speaker playback can occasionally be heard as the user speaking; headphones avoid this.
+- **Speaker output.** LiveKit prefers a Bluetooth headset, then wired headphones, then the speaker over the earpiece. Headphones and Bluetooth devices take over when connected.
+- **Interruptions.** The reference transport reports a transient loss of audio focus (another app playing audio for a while) as an audio interruption, and Brand Concierge mutes the microphone until focus returns, including for a loss that began while connecting. A permanent loss (`AUDIOFOCUS_LOSS`, for example when another app starts playing music) ends the conversation with an error message, because the chat has no unmute control. A phone call doesn't end the conversation: while it rings, the conversation continues, and once it is answered, the call takes the audio and the microphone stays muted until the call ends. A call longer than the voice agent's inactivity timeout (60 seconds) ends the conversation.
+- **Test on a device.** The emulator proves the wiring and the connection, but not echo, audio routes or interruptions. Check a conversation on the speaker, connecting and disconnecting wired and Bluetooth headphones mid-session, a call during a session (ringing, then answering, short and longer than 60 seconds), locking the screen and switching to another app mid-session, ending the conversation from the notification, removing the app from the recent apps, a session with the app's notifications turned off, and turning Wi-Fi off mid-session. With the reference transport, the spinner appears only when LiveKit starts a full reconnect, because LiveKit doesn't report its first attempt (a quick resume); after a network loss that can take about 30 seconds, and a resume that succeeds shows no spinner. Repeat these checks when you update LiveKit or change its audio settings elsewhere in your app.
 
 ### Background conversations
 
@@ -395,15 +418,6 @@ Android 11 and later allow microphone access in the background only through a fo
 The 60-minute limit applies to every conversation, in the foreground too and whether or not the transport continues in the background. It counts from the moment the conversation first connects; reconnecting after a network loss does not restart it. When it is reached, the conversation ends without a message and Brand Concierge calls `disconnect()`. It cannot be changed.
 
 The test app's `LiveKitTransport` and `VoiceForegroundService` implement all of the above. To keep voice foreground-only, return `false` (the default) and leave out the service and its permissions.
-
-#### Audio quality
-
-The transport, and therefore LiveKit, owns audio focus, audio routing and audio processing:
-
-- **Keep echo cancellation and noise suppression on.** LiveKit enables them by default. Without them, the agent's voice from the speaker reaches the microphone and the agent can interrupt itself. Even with them, loud speaker playback can occasionally be heard as the user speaking; headphones avoid this.
-- **Speaker output.** LiveKit prefers a Bluetooth headset, then wired headphones, then the speaker over the earpiece. Headphones and Bluetooth devices take over when connected.
-- **Interruptions.** The reference transport reports a transient loss of audio focus (another app playing audio for a while) as an audio interruption, and Brand Concierge mutes the microphone until focus returns, including for a loss that began while connecting. A permanent loss (`AUDIOFOCUS_LOSS`, for example when another app starts playing music) ends the conversation with an error message, because the chat has no unmute control. A phone call ends the conversation when it is answered, because the call screen moves the app to the background; while it rings, the conversation continues.
-- **Test on a device.** The emulator proves the wiring and the connection, but not echo, audio routes or interruptions. Check a conversation on the speaker, connecting and disconnecting wired and Bluetooth headphones mid-session, a call during a session (ringing, then answering), moving the app to the background, and turning Wi-Fi off mid-session. With the reference transport, the spinner appears only when LiveKit starts a full reconnect, because LiveKit doesn't report its first attempt (a quick resume); after a network loss that can take about 30 seconds, and a resume that succeeds shows no spinner. Repeat these checks when you update LiveKit or change its audio settings elsewhere in your app.
 
 ---
 
