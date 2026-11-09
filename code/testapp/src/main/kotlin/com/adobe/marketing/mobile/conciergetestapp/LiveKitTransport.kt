@@ -46,20 +46,28 @@ import java.util.concurrent.TimeUnit
 /**
  * Brand Concierge's [VoiceTransport] built on the LiveKit Android SDK.
  *
- * Copy this file into your app and add `io.livekit:livekit-android` to your app's dependencies.
- * Create one instance with the application context and pass it to every `ConciergeChat(...)` call
- * and `ConciergeChatView`.
+ * Copy this file and [VoiceForegroundService] into your app and add `io.livekit:livekit-android` to
+ * your app's dependencies. Create one instance with the application context and pass it to every
+ * `ConciergeChat(...)` call and `ConciergeChatView`.
  *
  * Brand Concierge calls this class on the main thread, and the class keeps its own state on the
  * main thread too: LiveKit callbacks hop to main and are dropped unless they come from the current
  * room. That is how a connection reports nothing after [disconnect]. Creating and releasing a room
  * block (WebRTC initialization and teardown), so all room work runs on one background thread.
  *
+ * The conversation keeps running when the app goes to the background: the transport opts in with
+ * [continuesInBackground] and runs [VoiceForegroundService] from [connect] until the connection
+ * ends, however it ends. Declare the service and its permissions in the manifest. The service's
+ * notification can end the conversation, which the transport reports as
+ * [VoiceTransportState.Disconnected], a normal end.
+ *
  * Audio routing and playback are left to LiveKit's default audio handler, which prefers headsets,
  * then the speaker, over the earpiece. When another app takes audio focus for a while
  * (`AUDIOFOCUS_LOSS_TRANSIENT`), the transport reports an audio interruption and Brand Concierge
- * mutes the microphone until focus returns. When the focus is lost for good (`AUDIOFOCUS_LOSS`),
- * the transport leaves the room and reports [VoiceTransportState.Failed].
+ * mutes the microphone until focus returns. A phone call does this too, so the conversation
+ * survives a short call muted; the agent still ends it after 60 seconds without speech. When the
+ * focus is lost for good (`AUDIOFOCUS_LOSS`), the transport leaves the room and reports
+ * [VoiceTransportState.Failed].
  *
  * The transport reports [VoiceTransportState.Reconnecting] only for LiveKit's full reconnects,
  * because LiveKit sends no room event for its first attempt, a quick resume. A resume that
@@ -73,6 +81,9 @@ class LiveKitTransport(context: Context) : VoiceTransport {
 
     @Volatile
     override var listener: VoiceTransportListener? = null
+
+    /** The conversation keeps running in the background, held there by [VoiceForegroundService]. */
+    override val continuesInBackground = true
 
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -96,7 +107,10 @@ class LiveKitTransport(context: Context) : VoiceTransport {
     private val microphoneLock = Mutex()
 
     override fun connect(connection: VoiceConnection) {
-        disconnect()
+        leaveRoom()
+        // Brand Concierge connects while the app is on screen and has the microphone permission,
+        // which is when Android lets the app start a microphone foreground service.
+        VoiceForegroundService.start(appContext, ::end)
         val id = connectionId
         val connectionScope = CoroutineScope(SupervisorJob() + roomDispatcher)
         scope = connectionScope
@@ -157,6 +171,21 @@ class LiveKitTransport(context: Context) : VoiceTransport {
     }
 
     override fun disconnect() {
+        leaveRoom()
+        VoiceForegroundService.stop()
+    }
+
+    /**
+     * Ends the conversation normally, as if the user had stopped it in the chat. Called when the
+     * user ends it from [VoiceForegroundService]'s notification or removes the app from the recent
+     * apps screen.
+     */
+    private fun end() {
+        disconnect()
+        report(VoiceTransportState.Disconnected)
+    }
+
+    private fun leaveRoom() {
         connectionId++
         // Cancelling first stops pending connect and microphone work from touching the room; the
         // release task is queued behind any room work already running on the room thread.

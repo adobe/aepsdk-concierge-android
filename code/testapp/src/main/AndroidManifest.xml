@@ -28,6 +28,10 @@
     </queries>
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Keep a voice conversation running in the background (VoiceForegroundService). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -62,6 +66,11 @@
             android:label="XML Integration Demo"
             android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
             android:windowSoftInputMode="adjustResize"/>
+
+        <service
+            android:name="com.adobe.marketing.mobile.conciergetestapp.VoiceForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
     </application>
 

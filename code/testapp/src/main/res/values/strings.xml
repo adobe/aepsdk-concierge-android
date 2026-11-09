@@ -13,4 +13,7 @@
 -->
 <resources>
     <string name="app_name">Concierge Test App</string>
+    <string name="voice_notification_channel">Voice conversations</string>
+    <string name="voice_notification_title">Voice conversation in progress</string>
+    <string name="voice_notification_end">End</string>
 </resources>
