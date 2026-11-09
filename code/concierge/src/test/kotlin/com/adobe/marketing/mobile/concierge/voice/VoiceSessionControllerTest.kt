@@ -18,6 +18,7 @@ import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController.Failure
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.ASSISTANT
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.USER
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -534,6 +535,36 @@ class VoiceSessionControllerTest {
         transport.listener!!.onDataReceived(transport, byteArrayOf(0, 1, 2), null)
         assertTrue(listener.transcripts.isEmpty())
         assertEquals(VoiceSessionState.Listening, session.state)
+    }
+
+    // Background
+
+    @Test
+    fun continuesInBackground_fromConnectUntilTheEnd_whenTheTransportOptsIn() {
+        val transport = FakeVoiceTransport(connectsImmediately = false, continuesInBackground = true)
+        val session = session(transport, RecordingVoiceListener())
+        session.start(url, token)
+        assertFalse("not before connect", session.continuesInBackground)
+
+        drainMain()
+        assertTrue("connecting", session.continuesInBackground)
+        transport.continuesInBackground = false
+        transport.report(VoiceTransportState.Connected)
+        transport.report(VoiceTransportState.Reconnecting)
+        assertTrue("read once, at connect", session.continuesInBackground)
+
+        session.stop()
+        assertFalse(session.continuesInBackground)
+    }
+
+    @Test
+    fun continuesInBackground_isFalseWithoutTheOptInOrBeforeConnect() {
+        assertFalse(start(FakeVoiceTransport()).continuesInBackground)
+
+        permissionGranted = false
+        val denied = start(FakeVoiceTransport(continuesInBackground = true))
+        assertTrue(denied.state is VoiceSessionState.Failed)
+        assertFalse(denied.continuesInBackground)
     }
 
     // Audio interruptions

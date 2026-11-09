@@ -1267,13 +1267,19 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Called when the host app moves to the background (process lifecycle `ON_STOP`).
+     *
+     * A voice conversation keeps running only if its transport continues in the background and
+     * the session has already called `connect`, which started the microphone while the app was in
+     * the foreground. Any other conversation is stopped, including one still waiting for its
+     * credentials or its session start: Android does not let it start the microphone from the
+     * background.
      */
     private fun onAppBackgrounded() {
         isAppInBackground.value = true
         chatAttemptBackgrounded = true
-        // Voice doesn't continue in the background; this also keeps a still-pending bootstrap
-        // from opening the microphone there.
-        stopVoiceSession()
+        if (activeVoice?.session?.continuesInBackground != true) {
+            stopVoiceSession()
+        }
     }
 
     /**

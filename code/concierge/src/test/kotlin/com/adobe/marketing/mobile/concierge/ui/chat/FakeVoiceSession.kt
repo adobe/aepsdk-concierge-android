@@ -59,6 +59,9 @@ internal class FakeVoiceSession(
 ) : VoiceSession {
     override var state: VoiceSessionState = VoiceSessionState.Connecting
         private set
+
+    /** Set by a test to model a session that has connected a transport which continues in the background. */
+    override var continuesInBackground: Boolean = false
     var connection: Pair<String, String>? = null
         private set
     var stopCallCount = 0

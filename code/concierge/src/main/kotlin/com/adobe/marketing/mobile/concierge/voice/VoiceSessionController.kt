@@ -65,6 +65,10 @@ internal class VoiceSessionController(
     /** Runs while waiting for `Connected`, first after `connect` and again while reconnecting. */
     private var connectionTimeout: Runnable? = null
 
+    /** The transport's [VoiceTransport.continuesInBackground], read when this session connected it. */
+    @Volatile
+    private var transportContinuesInBackground = false
+
     private val transportListener = object : VoiceTransportListener {
         override fun onStateChanged(transport: VoiceTransport, state: VoiceTransportState) {
             onMain { if (ownsCallback(transport)) handleTransportState(state) }
@@ -101,6 +105,9 @@ internal class VoiceSessionController(
 
     override val state: VoiceSessionState
         get() = currentState
+
+    override val continuesInBackground: Boolean
+        get() = transportContinuesInBackground && isActive
 
     private val isActive: Boolean
         get() = !currentState.isTerminal
@@ -151,6 +158,7 @@ internal class VoiceSessionController(
             "The voice connection was not established within ${CONNECT_TIMEOUT_MILLIS / 1000} seconds."
         )
         try {
+            transportContinuesInBackground = transport.continuesInBackground
             transport.connect(VoiceConnection(url, token))
         } catch (e: Exception) {
             fail(e.message ?: FailureReasons.CONNECT_FAILED)

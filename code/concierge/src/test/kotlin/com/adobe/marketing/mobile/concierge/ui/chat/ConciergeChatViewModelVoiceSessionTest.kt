@@ -787,9 +787,12 @@ class ConciergeChatViewModelVoiceSessionTest {
     }
 
     @Test
-    fun `backgrounding the app ends the voice session`() = runTest(testDispatcher) {
+    fun `backgrounding while requesting credentials ends the voice session`() = runTest(testDispatcher) {
         val owner = TestAppLifecycleOwner()
-        val vm = makeViewModel(appLifecycle = owner.lifecycle)
+        val vm = makeViewModel(
+            voiceTransport = FakeVoiceTransport(continuesInBackground = true),
+            appLifecycle = owner.lifecycle
+        )
         vm.startVoiceSession()
         runCurrent()
 
@@ -799,6 +802,58 @@ class ConciergeChatViewModelVoiceSessionTest {
 
         vm.assertIdle()
         assertTrue(factory.connections.isEmpty())
+    }
+
+    @Test
+    fun `backgrounding ends a conversation that does not continue in the background`() = runTest(testDispatcher) {
+        val owner = TestAppLifecycleOwner()
+        val vm = makeViewModel(appLifecycle = owner.lifecycle)
+        val session = startConnectedSession(vm)
+        session.report(VoiceSessionState.Listening)
+
+        owner.moveToBackground()
+
+        vm.assertIdle()
+        assertEquals(1, session.stopCallCount)
+        assertTrue(errorEvents().isEmpty())
+    }
+
+    @Test
+    fun `backgrounding keeps a connecting or connected conversation that continues in the background`() =
+        runTest(testDispatcher) {
+            listOf(false, true).forEach { connected ->
+                val owner = TestAppLifecycleOwner()
+                val vm = makeViewModel(appLifecycle = owner.lifecycle)
+                val session = startConnectedSession(vm)
+                session.continuesInBackground = true
+                if (connected) session.report(VoiceSessionState.Listening)
+
+                owner.moveToBackground()
+                session.report(VoiceSessionState.Listening)
+                session.transcript("While locked", VoiceTranscriptRole.USER, isFinal = true)
+                owner.moveToForeground()
+
+                assertEquals("connected=$connected", 0, session.stopCallCount)
+                assertTrue(vm.state.value is ChatScreenState.VoiceSession)
+                assertEquals(listOf(true to "While locked"), vm.texts())
+                vm.stopVoiceSession()
+            }
+        }
+
+    @Test
+    fun `a conversation that ends in the background returns to idle without an error bubble`() = runTest(testDispatcher) {
+        val owner = TestAppLifecycleOwner()
+        val vm = makeViewModel(appLifecycle = owner.lifecycle)
+        val session = startConnectedSession(vm)
+        session.continuesInBackground = true
+        session.report(VoiceSessionState.Listening)
+        owner.moveToBackground()
+
+        session.report(VoiceSessionState.Ended)
+
+        vm.assertIdle()
+        assertTrue(vm.messages.value.isEmpty())
+        assertTrue(errorEvents().isEmpty())
     }
 
     // MARK: - Microphone permission

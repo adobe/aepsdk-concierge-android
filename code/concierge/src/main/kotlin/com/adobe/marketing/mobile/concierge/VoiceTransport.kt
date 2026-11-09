@@ -40,6 +40,36 @@ interface VoiceTransport {
     var listener: VoiceTransportListener?
 
     /**
+     * Whether a conversation keeps running when the app leaves the foreground, for example when
+     * the user locks the screen or switches to another app. False by default: Brand Concierge ends
+     * the conversation when the app moves to the background.
+     *
+     * When true, a conversation that has reached [connect] keeps running in the background until
+     * the user ends it, the voice agent ends it, or the connection ends. A conversation still
+     * waiting for its connection details when the app moves to the background ends as before:
+     * Android does not let an app start using the microphone from the background.
+     *
+     * Return true only if the app keeps the microphone available in the background:
+     * - [connect] starts a foreground service of type `microphone` before it returns. Brand
+     *   Concierge calls [connect] on the main thread while the app is in the foreground, with the
+     *   `RECORD_AUDIO` permission already granted; Android refuses a `microphone` foreground
+     *   service started from the background. [disconnect] and any end of the connection stop it.
+     * - The app's manifest declares the `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MICROPHONE` and
+     *   `POST_NOTIFICATIONS` permissions, and the service with
+     *   `android:foregroundServiceType="microphone"`. Brand Concierge declares none of them and
+     *   does not ask for the notification permission.
+     * - The app declares the `microphone` foreground service in the Google Play Console (its use
+     *   and a video).
+     * - The service ends the conversation when the user removes the app from the recent apps
+     *   (`Service.onTaskRemoved`): leave the room and report [VoiceTransportState.Disconnected].
+     *
+     * Brand Concierge reads this once per conversation, when it calls [connect]; a change applies
+     * to the next conversation. An app with an in-app setting can return the setting's value.
+     */
+    val continuesInBackground: Boolean
+        get() = false
+
+    /**
      * Joins the voice agent's room, publishes the microphone and plays the agent's audio.
      *
      * Report [VoiceTransportState.Connected] once the microphone is live, or
@@ -84,9 +114,13 @@ interface VoiceTransportListener {
      * until [onAudioInterruptionEnded]. A transport that never reports interruptions keeps the
      * microphone live throughout.
      *
-     * A phone call rarely gets this far: Android doesn't tell other apps about a ringing call
-     * without the `READ_PHONE_STATE` permission, and answering opens the call screen, which moves
-     * the app to the background and so ends the conversation.
+     * A phone call: Android doesn't tell other apps about a ringing call without the
+     * `READ_PHONE_STATE` permission, and answering opens the call screen, which moves the app to
+     * the background and takes the audio. If the transport
+     * [continues in the background][VoiceTransport.continuesInBackground], the conversation stays
+     * open and the call is reported here, so the microphone stays muted until the call ends; a
+     * call longer than the voice agent's inactivity timeout (60 seconds) still ends the
+     * conversation. Otherwise, moving to the background ends the conversation.
      *
      * If the audio will not come back (for example, `AUDIOFOCUS_LOSS`), report
      * [VoiceTransportState.Failed] instead: the chat has no unmute control, so a muted
