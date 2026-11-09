@@ -45,9 +45,10 @@ interface VoiceTransport {
      * the conversation when the app moves to the background.
      *
      * When true, a conversation that has reached [connect] keeps running in the background until
-     * the user ends it, the voice agent ends it, or the connection ends. A conversation still
-     * waiting for its connection details when the app moves to the background ends as before:
-     * Android does not let an app start using the microphone from the background.
+     * the user ends it, the voice agent ends it, the connection ends, or it reaches the 60-minute
+     * limit that applies to every conversation. A conversation still waiting for its connection
+     * details when the app moves to the background ends as before: Android does not let an app
+     * start using the microphone from the background.
      *
      * Return true only if the app keeps the microphone available in the background:
      * - [connect] starts a foreground service of type `microphone` before it returns. Brand
