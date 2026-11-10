@@ -12,15 +12,29 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.card
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeTokens
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -295,5 +309,88 @@ class ProductCardTest {
 
         composeTestRule.onNodeWithText("Read Reviews")
             .assertIsDisplayed()
+    }
+
+    // -----------------------------------------------------------------------
+    // Drop shadow rendering (--multimodal-card-box-shadow)
+    // -----------------------------------------------------------------------
+
+    private val shadowOuterPadding = 40.dp
+
+    private fun renderProductCardOnWhiteBackground(themeData: ConciergeThemeData?) {
+        val element = MultimodalElement(
+            id = "shadow-test",
+            title = "Product",
+            url = null
+        )
+
+        composeTestRule.setContent {
+            val content = @androidx.compose.runtime.Composable {
+                CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White)
+                            .padding(shadowOuterPadding)
+                    ) {
+                        ProductCard(element = element)
+                    }
+                }
+            }
+            if (themeData != null) {
+                ConciergeTheme(theme = themeData) { content() }
+            } else {
+                ConciergeTheme { content() }
+            }
+        }
+    }
+
+    /** Red channel of the pixel just left of the full-width card's edge, near its top. */
+    private fun redJustOutsideCardLeftEdge(): Int {
+        composeTestRule.waitForIdle()
+        val bitmap = composeTestRule.onRoot().captureToImage().asAndroidBitmap()
+        val density = composeTestRule.density.density
+        val outerPaddingPx = shadowOuterPadding.value * density
+        val sampleX = (outerPaddingPx - (4.dp.value * density)).toInt().coerceAtLeast(0)
+        val sampleY = (outerPaddingPx + (80.dp.value * density)).toInt()
+        return android.graphics.Color.red(bitmap.getPixel(sampleX, sampleY))
+    }
+
+    @Test
+    fun productCard_rendersShadowBeyondCardBounds_whenThemeConfiguresBoxShadow() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    multimodalCardBoxShadow = mapOf(
+                        "offsetX" to 0.0,
+                        "offsetY" to 0.0,
+                        "blurRadius" to 16.0,
+                        "spreadRadius" to 0.0,
+                        "color" to Color.Black
+                    )
+                )
+            )
+        )
+
+        renderProductCardOnWhiteBackground(themeData)
+        val red = redJustOutsideCardLeftEdge()
+
+        assertTrue(
+            "Expected a visible shadow (darker pixel) just outside the card's left edge, but " +
+                "found red=$red (pure white background would be 255)",
+            red < 250
+        )
+    }
+
+    @Test
+    fun productCard_noShadowBeyondCardBounds_whenThemeHasNoBoxShadow() {
+        renderProductCardOnWhiteBackground(themeData = null)
+        val red = redJustOutsideCardLeftEdge()
+
+        assertTrue(
+            "Expected no custom box-shadow (near-white background) just outside the card's left " +
+                "edge when no box-shadow token is configured, but found red=$red",
+            red >= 250
+        )
     }
 }

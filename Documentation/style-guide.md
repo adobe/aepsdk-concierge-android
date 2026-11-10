@@ -207,19 +207,19 @@ Shadows use CSS box-shadow syntax:
 
 Format: `offsetX offsetY blurRadius spreadRadius color`. Set to `"none"` to disable a shadow entirely.
 
-`--multimodal-card-box-shadow` renders as a drop shadow on `ExtendedProductCard`, but only two of the five values are actually applied — Compose's `Modifier.shadow` is elevation-based, not a literal box-shadow renderer:
+Both shadow tokens render as CSS-accurate drop shadows: `--input-box-shadow` behind the chat input bar (`ChatInputPanel`) and `--multimodal-card-box-shadow` behind the product recommendation cards — both the `actionButton` `ProductCard` and the `productDetail` `ExtendedProductCard`. On Android 9 (API 28) and above, all five values are applied:
 
 | Token | Consumed? | Effect |
 |-------|-----------|--------|
-| `offsetX` | ❌ | Parsed but ignored — no horizontal-offset equivalent in Compose's shadow |
-| `offsetY` | ❌ | Parsed but ignored — no vertical-offset equivalent either |
-| `blurRadius` | ✅ | Becomes the shadow's `elevation` (dp) |
-| `spreadRadius` | ❌ | Parsed but ignored — no spread equivalent |
-| `color` | ✅ | Used as both `ambientColor` and `spotColor` |
+| `offsetX` | ✅ | Horizontal shadow offset (dp) |
+| `offsetY` | ✅ | Vertical shadow offset (dp) |
+| `blurRadius` | ✅ | Gaussian blur matching CSS (sigma = blur / 2) |
+| `spreadRadius` | ✅ | Grows (or, if negative, shrinks) the shadow before blurring |
+| `color` | ✅ | Shadow color, including its alpha |
 
-Low alpha values (e.g. `#00000014` ≈ 8%) are barely visible against a white background — increase alpha (e.g. `#00000040`+) for a more visible effect.
+As with CSS, the shadow is not drawn underneath the input bar or card itself.
 
-`--input-box-shadow` is parsed into the same shape but isn't rendered by any composable yet (see status table below).
+Below API 28 the shadows fall back to Compose's elevation-based `Modifier.shadow`, with `blurRadius` as the elevation. Offset and spread are ignored, and so is `color`: Android only supports custom shadow colors from API 28, so these devices always draw the system's default grey elevation shadow.
 
 ### Gradients
 
@@ -1439,7 +1439,7 @@ This section documents which properties are fully implemented, partially impleme
 
 **Key Differences from Web/iOS:**
 - Hover states (`--button-primary-hover`, `--feedback-icon-btn-hover-background`) are parsed but not applicable on Android
-- Box shadows are parsed but not currently rendered
+- Box shadows render CSS-accurately on API 28+; older devices use an elevation-based approximation that ignores offset, spread and color
 - Most layout dimensions (padding, margins, border radius) are hardcoded rather than theme-driven
 - `*.aria` accessibility-label text keys are not parsed by the Android SDK at all — omit them
 
@@ -1668,7 +1668,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--input-button-height` | ✅ | Sizes every input-row icon (leading AI-chat icon, clear, mic, send, stop-recording) | `ConciergeStyles.inputRowIconSize` |
 | `--input-button-width` | ✅ | Sizes every input-row icon (leading AI-chat icon, clear, mic, send, stop-recording) | `ConciergeStyles.inputRowIconSize` |
 | `--input-button-border-radius` | ⚠️ | Parsed but not used in composables | - |
-| `--input-box-shadow` | ⚠️ | Parsed but shadows not rendered | - |
+| `--input-box-shadow` | ✅ | Input bar drop shadow (offset, blur, spread and color on API 28+; elevation-based fallback below) | `ChatInputPanel` |
 | `--message-border-radius` | ✅ | Corner radius for all message bubbles; applies to both user and agent bubbles | `ChatMessageItem` |
 | `--message-padding` | ✅ | Agent bubble text and sources only, with or without a company icon. Unset keeps the previous layout; user bubbles keep 12dp. | `ConciergeStyles`, `ChatMessageItem` |
 | `--message-max-width` | ⚠️ | Parsed but not used in composables | - |
@@ -1680,7 +1680,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
 | `--border-radius-card` | ✅ | Corner radius of the privacy notice card | `PrivacyNoticeView` |
-| `--multimodal-card-box-shadow` | ✅ | Card drop shadow (blur radius → elevation, color → ambient/spot shadow color) | `ExtendedProductCard` |
+| `--multimodal-card-box-shadow` | ✅ | Card drop shadow (offset, blur, spread and color on API 28+; elevation-based fallback below) | `ProductCard`, `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-min-height` | ✅ | Minimum card height; card grows with content | `ExtendedProductCard` |
 | `--product-card-max-height` | ✅ | Maximum card height; content beyond this scrolls internally | `ExtendedProductCard` |
@@ -1850,7 +1850,6 @@ When creating themes for the Android SDK, focus on these **actively used** prope
 These properties are parsed but **not currently used** and can be omitted without affecting the UI:
 
 - Hover states (all `*-hover` properties)
-- Box shadows (all `*-box-shadow` properties)
 - Most layout dimensions (padding, margins, border radius) - currently hardcoded
 - Disabled button states
 - Accessibility labels (`*.aria` text keys are not parsed by the Android SDK at all)
