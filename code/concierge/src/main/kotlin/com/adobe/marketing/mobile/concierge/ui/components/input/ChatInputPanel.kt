@@ -35,6 +35,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradient
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeBoxShadow
 import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
 
 /**
@@ -76,6 +77,7 @@ internal fun ChatInputPanel(
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .conciergeBoxShadow(style.boxShadow, style.innerShape)
             .then(borderModifier),
         shape = style.innerShape,
         color = style.backgroundColor

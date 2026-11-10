@@ -1207,6 +1207,38 @@ class ExtendedProductCardTest {
     }
 
     @Test
+    fun extendedProductCard_shadowHonorsVerticalOffset() {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    multimodalCardBoxShadow = mapOf(
+                        "offsetX" to 0.0,
+                        "offsetY" to 8.0,
+                        "blurRadius" to 4.0,
+                        "spreadRadius" to 0.0,
+                        "color" to Color.Black
+                    )
+                )
+            )
+        )
+
+        renderCardOnWhiteBackground(themeData)
+        composeTestRule.waitForIdle()
+        val bitmap = composeTestRule.onRoot().captureToImage().asAndroidBitmap()
+        val density = composeTestRule.density.density
+        val outerPaddingPx = shadowOuterPadding.value * density
+        val sampleX = (outerPaddingPx + 40.dp.value * density).toInt()
+        val aboveY = (outerPaddingPx - 4.dp.value * density).toInt()
+        val belowY = (outerPaddingPx + (cardMaxHeight.value + 4.dp.value) * density).toInt()
+        val redAbove = android.graphics.Color.red(bitmap.getPixel(sampleX, aboveY))
+        val redBelow = android.graphics.Color.red(bitmap.getPixel(sampleX, belowY))
+
+        assertTrue("Expected no shadow above a downward-offset card, but found red=$redAbove", redAbove >= 250)
+        assertTrue("Expected a shadow below a downward-offset card, but found red=$redBelow", redBelow < 250)
+    }
+
+    @Test
     fun extendedProductCard_noShadowBeyondCardBounds_whenThemeHasNoBoxShadow() {
         renderCardOnWhiteBackground(themeData = null)
         val red = samplePixelJustOutsideCardLeftEdge()

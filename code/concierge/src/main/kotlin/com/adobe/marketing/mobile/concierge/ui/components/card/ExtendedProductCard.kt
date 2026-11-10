@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -53,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.image.AsyncImage
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeBoxShadow
 
 /** Test tag on the [ExtendedProductCard] primary CTA button so UI tests can target it unambiguously. */
 internal const val CTA_BUTTON_TEST_TAG = "ExtendedProductCardCtaButton"
@@ -126,16 +126,7 @@ internal fun ExtendedProductCard(
         modifier = modifier
             .width(style.cardWidth)
             .heightIn(min = style.cardMinHeight, max = style.cardMaxHeight)
-            .then(
-                if (style.shadowElevation > 0.dp) {
-                    Modifier.shadow(
-                        elevation = style.shadowElevation,
-                        shape = style.cardShape,
-                        ambientColor = style.shadowColor,
-                        spotColor = style.shadowColor
-                    )
-                } else Modifier
-            )
+            .conciergeBoxShadow(style.boxShadow, style.cardShape)
             .clip(style.cardShape)
             .then(
                 if (style.cardOutlineColor != Color.Transparent) {
