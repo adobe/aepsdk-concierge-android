@@ -94,7 +94,7 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     }
 
     @Test
-    fun `bootstrap posts to the region-less voice endpoint as an event stream`() = runTest {
+    fun `bootstrap posts to the regional conversations endpoint as an event stream`() = runTest {
         respondWith("")
 
         client().bootstrapVoiceSession().toList()
@@ -103,7 +103,7 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
         val uri = URI(request.url)
         assertEquals(HttpMethod.POST, request.method)
         assertEquals("edge.example.com", uri.host)
-        assertEquals("/brand-concierge-voice/conversations", uri.path)
+        assertEquals("/brand-concierge/va6/conversations", uri.path)
         assertTrue(uri.query.contains("configId=test-config-id"))
         assertTrue(uri.query.contains("sessionId=test-session-id"))
         assertTrue(uri.query.contains("requestId="))
@@ -143,6 +143,30 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     }
 
     @Test
+    fun `bootstrap body marks xdm eventType as voice`() = runTest {
+        respondWith("")
+
+        client().bootstrapVoiceSession().toList()
+
+        val xdm = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
+            .getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
+        // The service needs both this and `data.type` to treat the request as a bootstrap.
+        assertEquals("conversation.voice", xdm.getString("eventType"))
+        assertTrue(xdm.has("identityMap"))
+    }
+
+    @Test
+    fun `chat body has no voice eventType`() = runTest {
+        respondWith("")
+
+        client().chat("hi").toList()
+
+        val xdm = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
+            .getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
+        assertFalse(xdm.has("eventType"))
+    }
+
+    @Test
     fun `bootstrap emits credentials when the session payload arrives`() = runTest {
         respondWith(sse(session("wss://lk.example.com", "jwt")))
 
@@ -178,6 +202,19 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     fun `bootstrap completes without emission when no voice payload arrives`() = runTest {
         respondWith(
             sse("""{"handle": [{"type": "brand-concierge:conversation", "payload": [{"response": {"message": "Hi"}, "state": "completed"}]}]}""")
+        )
+
+        assertTrue(client().bootstrapVoiceSession().toList().isEmpty())
+    }
+
+    @Test
+    fun `bootstrap completes without emission on the hand-off error chunk`() = runTest {
+        // A session pinned to an external target (human hand-off, 3rd-party agent) gets an error
+        // chunk instead of credentials; callers treat the empty completion as a failed bootstrap.
+        respondWith(
+            "event: error\n" + sse(
+                """{"handle": [{"type": "brand-concierge:conversation", "payload": [{"response": {"message": "Something went wrong.", "sources": []}, "state": "error", "metadata": {"errorCode": "VOICE_NOT_SUPPORTED_DURING_HANDOFF"}}]}]}"""
+            )
         )
 
         assertTrue(client().bootstrapVoiceSession().toList().isEmpty())
