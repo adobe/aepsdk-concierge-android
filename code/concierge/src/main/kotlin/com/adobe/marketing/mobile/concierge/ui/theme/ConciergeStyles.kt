@@ -358,6 +358,7 @@ internal object ConciergeStyles {
     data class ProductCardStyle(
         val shape: Shape,
         val elevation: Dp,
+        val boxShadow: ConciergeBoxShadow?,
         val backgroundColor: Color,
         val imageHeight: Dp,
         val titleStyle: TextStyle,
@@ -375,9 +376,13 @@ internal object ConciergeStyles {
     val productCardStyle: ProductCardStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val layout = ConciergeTheme.tokens?.cssLayout
             return ProductCardStyle(
                 shape = RoundedCornerShape(0.dp),
                 elevation = 1.dp,
+                // multimodalCardBoxShadow is null for both an unset theme and an explicit CSS
+                // "none"; in those cases the card falls back to its default elevation.
+                boxShadow = ConciergeBoxShadow.fromTokens(layout?.multimodalCardBoxShadow),
                 backgroundColor = themeColors.container,
                 imageHeight = 250.dp,
                 titleStyle = MaterialTheme.typography.bodyLarge,

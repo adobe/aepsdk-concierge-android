@@ -207,7 +207,7 @@ Shadows use CSS box-shadow syntax:
 
 Format: `offsetX offsetY blurRadius spreadRadius color`. Set to `"none"` to disable a shadow entirely.
 
-Both shadow tokens render as CSS-accurate drop shadows: `--input-box-shadow` behind the chat input bar (`ChatInputPanel`) and `--multimodal-card-box-shadow` behind each `ExtendedProductCard` (`cardStyle: productDetail`). On Android 9 (API 28) and above, all five values are applied:
+Both shadow tokens render as CSS-accurate drop shadows: `--input-box-shadow` behind the chat input bar (`ChatInputPanel`) and `--multimodal-card-box-shadow` behind the product recommendation cards — both the `actionButton` `ProductCard` and the `productDetail` `ExtendedProductCard`. On Android 9 (API 28) and above, all five values are applied:
 
 | Token | Consumed? | Effect |
 |-------|-----------|--------|
@@ -1680,7 +1680,7 @@ Note: The feedback dialog checkbox uses `--color-primary` for the check box fill
 | `--chat-history-bottom-padding` | ⚠️ | Parsed but not used in composables | - |
 | `--message-blocker-height` | ⚠️ | Parsed but not used in composables | - |
 | `--border-radius-card` | ✅ | Corner radius of the privacy notice card | `PrivacyNoticeView` |
-| `--multimodal-card-box-shadow` | ✅ | Card drop shadow (offset, blur, spread and color on API 28+; elevation-based fallback below) | `ExtendedProductCard` |
+| `--multimodal-card-box-shadow` | ✅ | Card drop shadow (offset, blur, spread and color on API 28+; elevation-based fallback below) | `ProductCard`, `ExtendedProductCard` |
 | `--product-card-width` | ✅ | Extended product card width | `ExtendedProductCard`, `ProductCarousel` |
 | `--product-card-min-height` | ✅ | Minimum card height; card grows with content | `ExtendedProductCard` |
 | `--product-card-max-height` | ✅ | Maximum card height; content beyond this scrolls internally | `ExtendedProductCard` |

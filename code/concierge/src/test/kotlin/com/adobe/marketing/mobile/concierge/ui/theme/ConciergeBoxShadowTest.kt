@@ -12,14 +12,36 @@
 
 package com.adobe.marketing.mobile.concierge.ui.theme
 
+import android.os.Build
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
 class ConciergeBoxShadowTest {
+
+    private val sampleShadow = ConciergeBoxShadow(
+        offsetX = 0.dp,
+        offsetY = 2.dp,
+        blurRadius = 8.dp,
+        spreadRadius = 0.dp,
+        color = Color(0, 0, 0, 0x26)
+    )
+    private val sampleShape = RoundedCornerShape(8.dp)
+
+    private fun Modifier.elementClassNames(): List<String> =
+        foldIn(mutableListOf()) { names, element -> names.apply { add(element.javaClass.simpleName) } }
 
     @Test
     fun fromTokens_parsedCssValue_mapsAllComponents() {
@@ -86,5 +108,37 @@ class ConciergeBoxShadowTest {
     fun cssBlurToMaskFilterRadius_zeroOrTinyBlur_returnsNull() {
         assertNull(cssBlurToMaskFilterRadius(0f))
         assertNull(cssBlurToMaskFilterRadius(1f))
+    }
+
+    @Test
+    fun conciergeBoxShadow_nullShadow_returnsReceiverUnchanged() {
+        val base: Modifier = Modifier
+
+        assertSame(base, base.conciergeBoxShadow(null, sampleShape))
+    }
+
+    @Test
+    @Config(sdk = [Build.VERSION_CODES.P])
+    fun conciergeBoxShadow_api28Plus_appliesCustomDrawElement() {
+        val names = Modifier.conciergeBoxShadow(sampleShadow, sampleShape).elementClassNames()
+
+        assertTrue("expected a custom box-shadow element, got $names", names.any { it.contains("CssBoxShadow") })
+    }
+
+    @Test
+    @Config(sdk = [Build.VERSION_CODES.O_MR1])
+    fun conciergeBoxShadow_belowApi28_withBlur_appliesElevationShadowFallback() {
+        val names = Modifier.conciergeBoxShadow(sampleShadow, sampleShape).elementClassNames()
+
+        assertFalse("expected the elevation fallback, not the custom draw", names.any { it.contains("CssBoxShadow") })
+        assertTrue("expected the elevation fallback to apply a modifier, got $names", names.isNotEmpty())
+    }
+
+    @Test
+    @Config(sdk = [Build.VERSION_CODES.O_MR1])
+    fun conciergeBoxShadow_belowApi28_zeroBlur_returnsReceiverUnchanged() {
+        val base: Modifier = Modifier
+
+        assertSame(base, base.conciergeBoxShadow(sampleShadow.copy(blurRadius = 0.dp), sampleShape))
     }
 }
