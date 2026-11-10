@@ -206,6 +206,15 @@ class ConciergeChatViewModel : AndroidViewModel {
     internal val isVoiceConnecting: StateFlow<Boolean> = _isVoiceConnecting.asStateFlow()
 
     /**
+     * Index of the transcript bubble a running voice conversation keeps at the top of the list:
+     * the latest user bubble, or the agent's first one when it speaks before the user.
+     * [MessageList] reserves space below it, as for a typed turn, so the scroll reaches it and the
+     * agent's replies show below it. Null when no voice conversation runs.
+     */
+    private val _voiceScrollAnchorIndex = MutableStateFlow<Int?>(null)
+    internal val voiceScrollAnchorIndex: StateFlow<Int?> = _voiceScrollAnchorIndex.asStateFlow()
+
+    /**
      * Whether the voice control can be used: it can always stop a running conversation, and can
      * start one when the identity is ready and the chat is idle and not dictating.
      */
@@ -2195,14 +2204,19 @@ class ConciergeChatViewModel : AndroidViewModel {
                 }
             }
         } else if (text.isNotEmpty()) {
+            var newIndex = 0
             _messages.update { currentMessages ->
-                run.openMessageIndices[role] = currentMessages.size
+                newIndex = currentMessages.size
                 currentMessages + ChatMessage(
                     content = MessageContent.Text(text),
                     isFromUser = isFromUser,
                     timestamp = System.currentTimeMillis(),
                     sseComplete = !isFromUser
                 )
+            }
+            run.openMessageIndices[role] = newIndex
+            if (isFromUser || _voiceScrollAnchorIndex.value == null) {
+                _voiceScrollAnchorIndex.value = newIndex
             }
         }
         if (isFinal) {
@@ -2214,6 +2228,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         if (activeVoice !== run) return
         run.releaseReservation { pendingConversationRequests.decrementAndGet() }
         _isVoiceConnecting.value = false
+        _voiceScrollAnchorIndex.value = null
         activeVoice = null
         run.session?.stop()
         run.bootstrapJob?.cancel()

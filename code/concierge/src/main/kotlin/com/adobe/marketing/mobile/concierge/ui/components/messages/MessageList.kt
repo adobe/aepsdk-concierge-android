@@ -46,6 +46,46 @@ internal fun privacyNoticeIndex(
 }
 
 /**
+ * Whether the message at [index] reserves the list's height below itself, so the scroll can bring
+ * the turn's first message to the top and the reply shows below it. That's the last message when it
+ * is the assistant's reply right after the latest user message, or, during a voice conversation,
+ * when only assistant bubbles follow [voiceScrollAnchorIndex] (or it is the anchor).
+ */
+internal fun shouldFillRemainingHeight(
+    messages: List<ChatMessage>,
+    index: Int,
+    voiceScrollAnchorIndex: Int?
+): Boolean {
+    if (index != messages.lastIndex || index < 0) return false
+    if (voiceScrollAnchorIndex != null && voiceScrollAnchorIndex in 0..index &&
+        (voiceScrollAnchorIndex + 1..index).none { messages[it].isFromUser }
+    ) {
+        return true
+    }
+    return !messages[index].isFromUser && messages.indexOfLast { it.isFromUser } == index - 1
+}
+
+/**
+ * The message to scroll to the top, or null to stay: the voice anchor during a voice conversation,
+ * otherwise the latest user message, once each. Only a later one than [lastScrolledIndex] scrolls,
+ * so the end of a voice conversation doesn't jump back to an earlier user message; a cleared
+ * list starts over.
+ */
+internal fun scrollTargetIndex(
+    messages: List<ChatMessage>,
+    voiceScrollAnchorIndex: Int?,
+    lastScrolledIndex: Int?
+): Int? {
+    val target = voiceScrollAnchorIndex ?: messages.indexOfLast { it.isFromUser }
+    if (target !in messages.indices) return null
+    return if (lastScrolledIndex == null || target > lastScrolledIndex || lastScrolledIndex >= messages.size) {
+        target
+    } else {
+        null
+    }
+}
+
+/**
  * Component that displays a list of chat messages.
  */
 @Composable
@@ -58,22 +98,23 @@ internal fun MessageList(
     onSuggestionClick: (String) -> Unit = {},
     handleLink: (String, String) -> Unit = { _, _ -> },
     onCtaButtonClick: (CtaButton) -> Unit = {},
-    privacyNotice: PrivacyNoticeConfig? = null
+    privacyNotice: PrivacyNoticeConfig? = null,
+    voiceScrollAnchorIndex: Int? = null
 ) {
     val style = ConciergeStyles.messageListStyle
     val listState = rememberLazyListState()
 
-    // Keep track of the last user message index we've scrolled to
-    var lastScrolledUserMessageIndex by remember { mutableStateOf<Int?>(null) }
+    // Keep track of the last message index we've scrolled to the top
+    var lastScrolledIndex by remember { mutableStateOf<Int?>(null) }
 
     val privacyNoticeIndex = remember(messages, privacyNotice) { privacyNoticeIndex(messages, privacyNotice) }
 
-    // When a new user message arrives, scroll so that it is anchored at the top
-    LaunchedEffect(messages.size) {
-        val currentLastUserIndex = messages.indexOfLast { it.isFromUser }
-        if (currentLastUserIndex >= 0 && currentLastUserIndex != lastScrolledUserMessageIndex) {
-            listState.animateScrollToItem(currentLastUserIndex)
-            lastScrolledUserMessageIndex = currentLastUserIndex
+    // When a new user message (or voice anchor) arrives, scroll so that it is anchored at the top
+    LaunchedEffect(messages.size, voiceScrollAnchorIndex) {
+        val target = scrollTargetIndex(messages, voiceScrollAnchorIndex, lastScrolledIndex)
+        if (target != null) {
+            listState.animateScrollToItem(target)
+            lastScrolledIndex = target
         }
     }
 
@@ -89,13 +130,9 @@ internal fun MessageList(
                     message.interactionId ?: "${message.timestamp}:${message.isFromUser}:${message.text.hashCode()}"
                 }
             ) { index, message ->
-                // If the last item is an assistant message immediately following the latest user message,
-                // set its minimum height to the parent height so the response "fills the screen",
-                // but allow it to extend beyond if the content is larger.
-                val lastUserIndex = messages.indexOfLast { it.isFromUser }
-                val shouldFillRemaining = (index == messages.lastIndex &&
-                        !message.isFromUser &&
-                        lastUserIndex == index - 1)
+                // Set the filling item's minimum height to the parent height so the response
+                // "fills the screen", but allow it to extend beyond if the content is larger.
+                val shouldFillRemaining = shouldFillRemainingHeight(messages, index, voiceScrollAnchorIndex)
 
                 Box(
                     modifier = (
