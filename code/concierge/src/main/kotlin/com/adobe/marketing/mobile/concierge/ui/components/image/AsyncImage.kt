@@ -21,8 +21,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
-import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
+import kotlinx.coroutines.CancellationException
 
 /**
  * AsyncImage composable to load and display an image from a URL asynchronously.
@@ -129,27 +130,26 @@ private fun rememberRemoteImage(url: String, onError: ((Throwable) -> Unit)? = n
     // Key the state holder on `url` so that when the URL changes (e.g. the welcome config is
     // swapped in after the first composition) the image reloads from a fresh Loading state instead
     // of reusing a stale Success/Error state for the previous URL.
-    return produceState(
-        initialValue = provider.getCached(url)?.asImageBitmap()?.let { bitmap ->
-            ImageResult(image = bitmap, state = ImageLoadingState.Success)
-        } ?: ImageResult(image = null, state = ImageLoadingState.Loading),
-        key1 = url
-    ) {
-        if (value.state == ImageLoadingState.Loading) {
-            try {
-                val bitmap = provider.get(url).asImageBitmap()
-                value = ImageResult(image = bitmap, state = ImageLoadingState.Success)
-            } catch (e: CancellationException) {
-                // Normal coroutine cancellation (e.g. the composable left composition or the URL
-                // changed). Rethrow so it is not misreported as a load error and so the state is
-                // not stuck in Error for the next URL.
-                throw e
-            } catch (e: Exception) {
-                // Image loading failed
-                value = ImageResult(image = null, state = ImageLoadingState.Error)
-                onError?.invoke(e)
+    return key(url) {
+        produceState(
+            initialValue = provider.getCached(url)?.asImageBitmap()?.let { bitmap ->
+                ImageResult(image = bitmap, state = ImageLoadingState.Success)
+            } ?: ImageResult(image = null, state = ImageLoadingState.Loading),
+            key1 = url
+        ) {
+            if (value.state == ImageLoadingState.Loading) {
+                try {
+                    val bitmap = provider.get(url).asImageBitmap()
+                    value = ImageResult(image = bitmap, state = ImageLoadingState.Success)
+                } catch (e: CancellationException) {
+                    // Cancellation must not become a load error or invoke the error callback.
+                    throw e
+                } catch (e: Exception) {
+                    // Image loading failed
+                    value = ImageResult(image = null, state = ImageLoadingState.Error)
+                    onError?.invoke(e)
+                }
             }
-        }
-    }.value
+        }.value
+    }
 }
-
