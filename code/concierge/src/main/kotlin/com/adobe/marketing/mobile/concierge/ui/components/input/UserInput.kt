@@ -22,11 +22,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.stt.DICTATION_PERMISSION_RATIONALE_TEXT
+import com.adobe.marketing.mobile.concierge.ui.stt.DICTATION_PERMISSION_RATIONALE_TITLE
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechPermissionHandler
+import com.adobe.marketing.mobile.concierge.ui.stt.VOICE_PERMISSION_RATIONALE_TEXT
+import com.adobe.marketing.mobile.concierge.ui.stt.VOICE_PERMISSION_RATIONALE_TITLE
 
 /**
  * Component that handles user input including text input and voice recording.
  * Derives its behavior from UserInputState and processing state.
+ *
+ * Starting a voice conversation needs the microphone, so without permission the voice button
+ * first runs the same permission flow as dictation and only starts once it is granted.
  */
 @Composable
 internal fun UserInput(
@@ -39,18 +46,29 @@ internal fun UserInput(
     hasAudioPermission: Boolean,
     onPermissionResult: (Boolean) -> Unit,
     placeholder: String? = "How can I help",
-    isEnabled: Boolean = true
+    isEnabled: Boolean = true,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    onVoiceToggle: () -> Unit = {}
 ) {
     var shouldRequestPermission by remember { mutableStateOf(false) }
+    var pendingVoiceStart by remember { mutableStateOf(false) }
 
     // Handle speech permission if needed
     SpeechPermissionHandler(
         hasPermission = hasAudioPermission,
         shouldRequestPermission = shouldRequestPermission,
-        onPermissionResult = onPermissionResult,
+        onPermissionResult = { granted ->
+            onPermissionResult(granted)
+            if (granted && pendingVoiceStart) {
+                onVoiceToggle()
+            }
+        },
         onPermissionHandled = {
             shouldRequestPermission = false
-        }
+            pendingVoiceStart = false
+        },
+        rationaleTitle = if (pendingVoiceStart) VOICE_PERMISSION_RATIONALE_TITLE else DICTATION_PERMISSION_RATIONALE_TITLE,
+        rationaleText = if (pendingVoiceStart) VOICE_PERMISSION_RATIONALE_TEXT else DICTATION_PERMISSION_RATIONALE_TEXT
     )
 
     Column(
@@ -76,6 +94,15 @@ internal fun UserInput(
                 onMicEvent(MicEvent.StopRecording(isCancelled = false, isError = false))
             },
             onSend = onSend,
+            voiceControl = voiceControl,
+            onVoicePressed = {
+                if (voiceControl.isActive || hasAudioPermission) {
+                    onVoiceToggle()
+                } else {
+                    pendingVoiceStart = true
+                    shouldRequestPermission = true
+                }
+            }
         )
     }
 }

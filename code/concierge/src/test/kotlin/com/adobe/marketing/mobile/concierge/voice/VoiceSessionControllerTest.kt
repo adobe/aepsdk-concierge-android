@@ -1,0 +1,671 @@
+/*
+ * Copyright 2026 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+
+package com.adobe.marketing.mobile.concierge.voice
+
+import android.os.Looper
+import com.adobe.marketing.mobile.concierge.VoiceTransportState
+import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController.FailureReasons
+import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.ASSISTANT
+import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.USER
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import java.io.IOException
+import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class VoiceSessionControllerTest {
+
+    private val url = "wss://voice.example.com"
+    private val token = "test-token"
+    private var permissionChecks = 0
+    private var permissionGranted = true
+
+    private fun session(transport: FakeVoiceTransport, listener: RecordingVoiceListener) =
+        VoiceSessionController(transport, listener) {
+            permissionChecks++
+            permissionGranted
+        }
+
+    private fun drainMain() = shadowOf(Looper.getMainLooper()).idle()
+
+    private fun advanceMain(millis: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(millis))
+
+    private fun start(
+        transport: FakeVoiceTransport,
+        listener: RecordingVoiceListener = RecordingVoiceListener(),
+        url: String = this.url,
+        token: String = this.token
+    ): VoiceSession {
+        val session = session(transport, listener)
+        session.start(url, token)
+        drainMain()
+        return session
+    }
+
+    private fun runOnBackgroundThread(action: () -> Unit) {
+        val done = CountDownLatch(1)
+        Thread {
+            action()
+            done.countDown()
+        }.start()
+        assertTrue(done.await(2, TimeUnit.SECONDS))
+        drainMain()
+    }
+
+    // Start
+
+    @Test
+    fun start_isDeferredUntilTheMainLoopRuns() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = session(transport, listener)
+        session.start(url, token)
+        assertEquals(VoiceSessionState.Connecting, session.state)
+        assertTrue(listener.states.isEmpty())
+        assertTrue(transport.connections.isEmpty())
+        drainMain()
+        assertEquals(VoiceSessionState.Listening, session.state)
+    }
+
+    @Test
+    fun connect_passesCredentialsAndReportsListeningOnMain() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        assertEquals(listOf(url to token), transport.connections)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening), listener.states)
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertTrue(listener.callbackLoopers.all { it == Looper.getMainLooper() })
+        assertEquals(1, permissionChecks)
+    }
+
+    @Test
+    fun invalidCredentials_failWithoutPermissionCheckOrConnect() {
+        listOf(
+            "" to token,
+            url to "",
+            url to "  ",
+            "ftp://voice.example.com" to token,
+            "ws://voice.example.com" to token,
+            "http://voice.example.com" to token,
+            "wss://" to token,
+            "not a url" to token
+        ).forEach { (invalidUrl, invalidToken) ->
+            permissionChecks = 0
+            val transport = FakeVoiceTransport()
+            val listener = RecordingVoiceListener()
+            val session = start(transport, listener, invalidUrl, invalidToken)
+            val failed = VoiceSessionState.Failed(FailureReasons.INVALID_CONNECTION)
+            assertEquals("$invalidUrl / $invalidToken", listOf(VoiceSessionState.Connecting, failed), listener.states)
+            assertEquals(failed, session.state)
+            assertEquals(0, permissionChecks)
+            assertTrue(transport.connections.isEmpty())
+            assertNull(transport.listener)
+        }
+    }
+
+    @Test
+    fun connect_failsAndDisconnectsWhenTheTransportNeverReports() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val transportListener = requireNotNull(transport.listener)
+
+        advanceMain(VoiceSessionController.CONNECT_TIMEOUT_MILLIS - 1)
+        transport.report(VoiceTransportState.Reconnecting)
+        assertEquals(VoiceSessionState.Connecting, session.state)
+        advanceMain(1)
+
+        assertEquals(
+            VoiceSessionState.Failed("The voice connection was not established within 20 seconds."),
+            session.state
+        )
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listener)
+        transportListener.onStateChanged(transport, VoiceTransportState.Connected)
+        assertEquals("a late Connected is ignored", 2, listener.states.size)
+    }
+
+    @Test
+    fun connect_connectedBeforeTheDeadline_keepsTheSession() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        advanceMain(VoiceSessionController.CONNECT_TIMEOUT_MILLIS - 1)
+        transport.report(VoiceTransportState.Connected)
+        advanceMain(VoiceSessionController.CONNECT_TIMEOUT_MILLIS * 2)
+
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening), listener.states)
+        assertEquals(0, transport.disconnectCount)
+    }
+
+    @Test
+    fun permissionDenied_failsWithoutTouchingTheTransport() {
+        permissionGranted = false
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val failed = VoiceSessionState.Failed(FailureReasons.MICROPHONE_PERMISSION)
+        assertEquals(failed, session.state)
+        assertEquals(listOf(VoiceSessionState.Connecting, failed), listener.states)
+        assertTrue(transport.connections.isEmpty())
+        assertEquals(0, transport.disconnectCount)
+        assertNull(transport.listener)
+    }
+
+    @Test
+    fun throwingPermissionCheck_isReportedAsMissingPermission() {
+        val transport = FakeVoiceTransport()
+        val session = VoiceSessionController(transport, RecordingVoiceListener()) {
+            throw SecurityException("permission boom")
+        }
+        session.start(url, token)
+        drainMain()
+        assertEquals(VoiceSessionState.Failed(FailureReasons.MICROPHONE_PERMISSION), session.state)
+        assertTrue(transport.connections.isEmpty())
+    }
+
+    @Test
+    fun throwingConnect_failsAndReleasesTheTransport() {
+        val transport = FakeVoiceTransport(connectError = IllegalStateException("connect boom"))
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        assertEquals(VoiceSessionState.Failed("connect boom"), session.state)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Failed("connect boom")), listener.states)
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listener)
+    }
+
+    @Test
+    fun stopBeforeStartRuns_endsWithoutConnecting() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = session(transport, listener)
+        session.start(url, token)
+        session.stop()
+        drainMain()
+        assertEquals(listOf<VoiceSessionState>(VoiceSessionState.Ended), listener.states)
+        assertTrue(transport.connections.isEmpty())
+        assertEquals(0, permissionChecks)
+    }
+
+    @Test
+    fun stopFromConnectingCallback_doesNotConnect() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener().apply {
+            onState = { session, state -> if (state == VoiceSessionState.Connecting) session.stop() }
+        }
+        start(transport, listener)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Ended), listener.states)
+        assertTrue(transport.connections.isEmpty())
+    }
+
+    // Transport lifecycle
+
+    @Test
+    fun transportFailure_reportsTheReasonAndReleasesTheTransport() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        transport.report(VoiceTransportState.Failed(IOException("network lost")))
+        assertEquals(VoiceSessionState.Failed("network lost"), session.state)
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listener)
+    }
+
+    @Test
+    fun transportFailureWithoutMessage_reportsTheDefaultReason() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+        transport.report(VoiceTransportState.Failed(RuntimeException()))
+        assertEquals(VoiceSessionState.Failed(FailureReasons.CONNECT_FAILED), session.state)
+    }
+
+    @Test
+    fun transportCallbacksFromBackgroundThread_areDeliveredOnMain() {
+        listOf(false, true).forEach { failed ->
+            val transport = FakeVoiceTransport()
+            val listener = RecordingVoiceListener()
+            val session = start(transport, listener)
+            val state = if (failed) VoiceTransportState.Failed(IOException("lost")) else VoiceTransportState.Disconnected
+            runOnBackgroundThread { transport.report(state) }
+            val expected = if (failed) VoiceSessionState.Failed("lost") else VoiceSessionState.Ended
+            assertEquals(expected, session.state)
+            assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening, expected), listener.states)
+            assertTrue(listener.callbackLoopers.all { it == Looper.getMainLooper() })
+        }
+    }
+
+    @Test
+    fun stop_releasesTheTransportBeforeDisconnecting() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        session.stop()
+        assertEquals(VoiceSessionState.Ended, session.state)
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listenerAtDisconnect)
+        assertNull(transport.listener)
+        session.stop()
+        assertEquals(1, transport.disconnectCount)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening, VoiceSessionState.Ended), listener.states)
+    }
+
+    @Test
+    fun stopWhileConnecting_endsAndLateConnectedIsIgnored() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        assertEquals(VoiceSessionState.Connecting, session.state)
+        val transportListener = requireNotNull(transport.listener)
+        session.stop()
+        transportListener.onStateChanged(transport, VoiceTransportState.Connected)
+        assertEquals(VoiceSessionState.Ended, session.state)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Ended), listener.states)
+    }
+
+    @Test
+    fun stopFromBackgroundThread_reportsEndedOnMain() {
+        val listener = RecordingVoiceListener()
+        val session = start(FakeVoiceTransport(), listener)
+        runOnBackgroundThread { session.stop() }
+        assertEquals(VoiceSessionState.Ended, session.state)
+        assertEquals(VoiceSessionState.Ended, listener.states.last())
+        assertTrue(listener.callbackLoopers.all { it == Looper.getMainLooper() })
+    }
+
+    @Test
+    fun reconnecting_keepsTheSessionAndReturnsToListeningWithoutUnmuting() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        assertEquals(VoiceSessionState.Reconnecting, session.state)
+        transport.interruptionBegan()
+        transport.report(VoiceTransportState.Connected)
+        advanceMain(VoiceSessionController.RECONNECT_TIMEOUT_MILLIS * 2)
+
+        assertEquals(
+            listOf(
+                VoiceSessionState.Connecting,
+                VoiceSessionState.Listening,
+                VoiceSessionState.Reconnecting,
+                VoiceSessionState.Listening
+            ),
+            listener.states
+        )
+        assertEquals("the interruption mute stays after reconnecting", listOf(false), transport.microphoneChanges)
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+        assertEquals(0, transport.disconnectCount)
+        assertTrue(transport.listener != null)
+    }
+
+    @Test
+    fun reconnecting_failsAndDisconnectsWhenNotRestoredInTime() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val transportListener = requireNotNull(transport.listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        advanceMain(VoiceSessionController.RECONNECT_TIMEOUT_MILLIS - 1)
+        assertEquals(VoiceSessionState.Reconnecting, session.state)
+        advanceMain(1)
+
+        assertTrue(session.state is VoiceSessionState.Failed)
+        assertEquals(1, transport.disconnectCount)
+        assertNull(transport.listener)
+        transportListener.onStateChanged(transport, VoiceTransportState.Connected)
+        assertEquals("a late reconnect is ignored", 4, listener.states.size)
+    }
+
+    @Test
+    fun reconnecting_beforeConnected_isIgnored() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        assertEquals(VoiceSessionState.Connecting, session.state)
+        transport.report(VoiceTransportState.Connected)
+        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening), listener.states)
+    }
+
+    @Test
+    fun callbacksAfterRelease_areDropped() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val transportListener = requireNotNull(transport.listener)
+        session.stop()
+        transportListener.onStateChanged(transport, VoiceTransportState.Failed(IOException("late")))
+        transportListener.onDataReceived(transport, """{"event":"text_delta","delta":"late"}""".toByteArray(), null)
+        transportListener.onAudioInterruptionBegan(transport)
+        assertEquals(VoiceSessionState.Ended, session.state)
+        assertTrue(listener.transcripts.isEmpty())
+        assertTrue(transport.microphoneChanges.isEmpty())
+    }
+
+    @Test
+    fun callbacksFromAnotherTransport_areDropped() {
+        val transport = FakeVoiceTransport()
+        val other = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        val transportListener = requireNotNull(transport.listener)
+        transportListener.onStateChanged(other, VoiceTransportState.Disconnected)
+        transportListener.onDataReceived(other, """{"event":"text_delta","delta":"foreign"}""".toByteArray(), null)
+        transportListener.onAudioInterruptionBegan(other)
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertTrue(listener.transcripts.isEmpty())
+        assertTrue(transport.microphoneChanges.isEmpty())
+    }
+
+    @Test
+    fun oneTransport_carriesConsecutiveSessions() {
+        val transport = FakeVoiceTransport()
+        val firstListener = RecordingVoiceListener()
+        val first = start(transport, firstListener)
+        first.stop()
+
+        val secondListener = RecordingVoiceListener()
+        val second = start(transport, secondListener)
+        transport.send("""{"event":"text_delta","delta":"two"}""")
+
+        assertEquals(VoiceSessionState.Ended, first.state)
+        assertEquals(VoiceSessionState.Listening, second.state)
+        assertEquals(listOf(url to token, url to token), transport.connections)
+        assertTrue(firstListener.transcripts.isEmpty())
+        assertEquals(listOf(TranscriptEvent("two", ASSISTANT, false)), secondListener.transcripts)
+    }
+
+    @Test
+    fun endedSession_doesNotClearANewerSessionsClaim() {
+        val transport = FakeVoiceTransport()
+        val first = start(transport)
+        val firstTransportListener = requireNotNull(transport.listener)
+        first.stop()
+        val second = start(transport)
+        val secondTransportListener = transport.listener
+
+        firstTransportListener.onStateChanged(transport, VoiceTransportState.Disconnected)
+        first.stop()
+
+        assertSame(secondTransportListener, transport.listener)
+        assertEquals(VoiceSessionState.Listening, second.state)
+    }
+
+    // Transcripts
+
+    @Test
+    fun userTranscript_usesCumulativeSnapshots() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        start(transport, listener)
+        transport.send("""{"type":"transcript_delta","data":{"delta":" hello ","final":false}}""")
+        transport.send("""{"type":"transcript_delta","data":{"delta":" hello world ","final":true}}""")
+        assertEquals(
+            listOf(TranscriptEvent("hello", USER, false), TranscriptEvent("hello world", USER, true)),
+            listener.transcripts
+        )
+    }
+
+    @Test
+    fun assistantTranscript_accumulatesAndUsesAuthoritativeFinalText() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        start(transport, listener)
+        transport.send("""{"event":"text_delta","delta":" Hello"}""")
+        transport.send("""{"event":"text_delta","delta":" world "}""")
+        transport.send("""{"event":"turn_completed","fullText":" Corrected reply "}""")
+        transport.send("""{"event":"text_delta","delta":" Next turn"}""")
+        transport.send("""{"event":"turn_completed"}""")
+        assertEquals(
+            listOf(
+                TranscriptEvent("Hello", ASSISTANT, false),
+                TranscriptEvent("Hello world", ASSISTANT, false),
+                TranscriptEvent("Corrected reply", ASSISTANT, true),
+                TranscriptEvent("Next turn", ASSISTANT, false),
+                TranscriptEvent("Next turn", ASSISTANT, true)
+            ),
+            listener.transcripts
+        )
+    }
+
+    @Test
+    fun assistantTypeBasedFinal_closesTurn() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        start(transport, listener)
+        transport.send("""{"type":"transcript_delta","data":{"role":"assistant","delta":"first","final":true}}""")
+        transport.send("""{"event":"text_delta","delta":"second"}""")
+        assertEquals(
+            listOf(TranscriptEvent("first", ASSISTANT, true), TranscriptEvent("second", ASSISTANT, false)),
+            listener.transcripts
+        )
+    }
+
+    @Test
+    fun emptyInterim_isSuppressedButEmptyFinalClosesTurn() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        start(transport, listener)
+        transport.send("""{"type":"transcript_delta","data":{"delta":"  "}}""")
+        transport.send("""{"type":"transcript_delta","data":{"delta":"  ","final":true}}""")
+        assertEquals(listOf(TranscriptEvent("", USER, true)), listener.transcripts)
+    }
+
+    @Test
+    fun dataFromBackgroundThread_isDeliveredOnMain() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        start(transport, listener)
+        runOnBackgroundThread { transport.send("""{"event":"text_delta","delta":"hello"}""") }
+        assertEquals(listOf(TranscriptEvent("hello", ASSISTANT, false)), listener.transcripts)
+        assertTrue(listener.callbackLoopers.all { it == Looper.getMainLooper() })
+    }
+
+    @Test
+    fun sessionEnded_byATimeout_endsNormally() {
+        listOf("room_empty_timeout", "user_join_timeout", "user_inactivity_timeout").forEach { reason ->
+            val transport = FakeVoiceTransport()
+            val session = start(transport)
+            transport.send("""{"type":"session_notice","data":{"kind":"session_ended","reason":"$reason"}}""")
+            assertEquals(reason, VoiceSessionState.Ended, session.state)
+            assertEquals(reason, 1, transport.disconnectCount)
+        }
+    }
+
+    @Test
+    fun sessionEnded_byAnErrorShutdownOrUnknownReason_fails() {
+        listOf(
+            """"reason":"error",""" to "error",
+            """"reason":"worker_shutdown",""" to "worker_shutdown",
+            """"reason":"brand_new_reason",""" to "unknown reason",
+            "" to "unknown reason"
+        ).forEach { (reasonField, expected) ->
+            val transport = FakeVoiceTransport()
+            val session = start(transport)
+            transport.send("""{"type":"session_notice","data":{$reasonField"kind":"session_ended"}}""")
+            assertEquals(
+                expected,
+                VoiceSessionState.Failed("The voice agent ended the session ($expected)."),
+                session.state
+            )
+            assertEquals(expected, 1, transport.disconnectCount)
+        }
+    }
+
+    @Test
+    fun ignoredMessages_doNotEmitTranscriptOrChangeState() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+        listOf(
+            """{"event":"ui_payload","promptSuggestions":["one"]}""",
+            """{"event":"turn_started"}""",
+            """{"type":"session_notice","data":{"kind":"user_silence_warning"}}""",
+            """{"event":"unknown"}"""
+        ).forEach(transport::send)
+        transport.listener!!.onDataReceived(transport, byteArrayOf(0, 1, 2), null)
+        assertTrue(listener.transcripts.isEmpty())
+        assertEquals(VoiceSessionState.Listening, session.state)
+    }
+
+    // Background and maximum length
+
+    @Test
+    fun continuesInBackground_fromConnectUntilTheEnd_whenTheTransportOptsIn() {
+        val transport = FakeVoiceTransport(connectsImmediately = false, continuesInBackground = true)
+        val session = session(transport, RecordingVoiceListener())
+        session.start(url, token)
+        assertFalse("not before connect", session.continuesInBackground)
+
+        drainMain()
+        assertTrue("connecting", session.continuesInBackground)
+        transport.continuesInBackground = false
+        transport.report(VoiceTransportState.Connected)
+        transport.report(VoiceTransportState.Reconnecting)
+        assertTrue("read once, at connect", session.continuesInBackground)
+
+        session.stop()
+        assertFalse(session.continuesInBackground)
+    }
+
+    @Test
+    fun continuesInBackground_isFalseWithoutTheOptInOrBeforeConnect() {
+        assertFalse(start(FakeVoiceTransport()).continuesInBackground)
+
+        permissionGranted = false
+        val denied = start(FakeVoiceTransport(continuesInBackground = true))
+        assertTrue(denied.state is VoiceSessionState.Failed)
+        assertFalse(denied.continuesInBackground)
+    }
+
+    @Test
+    fun maxLength_endsNormallyAndDisconnects_anHourAfterConnected() {
+        listOf(false, true).forEach { optedIn ->
+            val transport = FakeVoiceTransport(connectsImmediately = false, continuesInBackground = optedIn)
+            val listener = RecordingVoiceListener()
+            val session = start(transport, listener)
+            advanceMain(5_000)
+            transport.report(VoiceTransportState.Connected)
+
+            advanceMain(VoiceSessionController.MAX_SESSION_MILLIS - 1)
+            assertEquals("optedIn=$optedIn", VoiceSessionState.Listening, session.state)
+            advanceMain(1)
+
+            assertEquals(
+                "optedIn=$optedIn",
+                listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening, VoiceSessionState.Ended),
+                listener.states
+            )
+            assertEquals(1, transport.disconnectCount)
+            assertNull(transport.listener)
+        }
+    }
+
+    @Test
+    fun maxLength_isNotRestartedByAReconnect() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+        transport.report(VoiceTransportState.Reconnecting)
+        advanceMain(10_000)
+        transport.report(VoiceTransportState.Connected)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2 - 10_000)
+
+        assertEquals(VoiceSessionState.Ended, session.state)
+        assertEquals(1, transport.disconnectCount)
+    }
+
+    @Test
+    fun maxLength_startsAgainForANewConversation() {
+        val transport = FakeVoiceTransport()
+        val first = start(transport)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+        first.stop()
+
+        val second = start(transport)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+        assertEquals(VoiceSessionState.Listening, second.state)
+        advanceMain(VoiceSessionController.MAX_SESSION_MILLIS / 2)
+
+        assertEquals(VoiceSessionState.Ended, second.state)
+        assertEquals(2, transport.disconnectCount)
+    }
+
+    // Audio interruptions
+
+    @Test
+    fun audioInterruption_mutesThenRestoresTheMicrophone() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+        transport.interruptionBegan()
+        // A repeated began mutes once, and one ended resumes.
+        transport.interruptionBegan()
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+        assertEquals(VoiceSessionState.Listening, session.state)
+    }
+
+    @Test
+    fun audioInterruptionEnded_withoutBegan_isIgnored() {
+        val transport = FakeVoiceTransport()
+        start(transport)
+        transport.interruptionEnded()
+        assertTrue(transport.microphoneChanges.isEmpty())
+    }
+
+    @Test
+    fun audioInterruption_whileConnecting_mutesOnConnectedAndResumesWhenItEnds() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val session = start(transport)
+        transport.interruptionBegan()
+        assertTrue("the microphone is left alone until connected", transport.microphoneChanges.isEmpty())
+
+        transport.report(VoiceTransportState.Connected)
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertEquals(listOf(false), transport.microphoneChanges)
+
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+    }
+
+    @Test
+    fun audioInterruption_endingWhileConnecting_leavesTheMicrophoneAlone() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        start(transport)
+        transport.interruptionBegan()
+        transport.interruptionEnded()
+        transport.report(VoiceTransportState.Connected)
+        transport.interruptionEnded()
+        assertTrue(transport.microphoneChanges.isEmpty())
+    }
+}
