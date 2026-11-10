@@ -247,6 +247,7 @@ fun ConciergeChat(
     val isVoiceConnecting by viewModel.isVoiceConnecting.collectAsStateWithLifecycle()
     val voiceEnabled by viewModel.voiceEnabled.collectAsStateWithLifecycle()
     val isVoiceAvailable by viewModel.isVoiceAvailable.collectAsStateWithLifecycle()
+    val voiceScrollAnchorIndex by viewModel.voiceScrollAnchorIndex.collectAsStateWithLifecycle()
     val voiceControl = VoiceControlState(
         isAvailable = isVoiceAvailable,
         isActive = isVoiceSessionActive,
@@ -316,6 +317,7 @@ fun ConciergeChat(
             onClose = onClose,
             modifier = modifier,
             voiceControl = voiceControl,
+            voiceScrollAnchorIndex = voiceScrollAnchorIndex,
             onVoiceToggle = viewModel::toggleVoiceSession
         )
     }
@@ -354,6 +356,7 @@ internal fun ConciergeChat(
     onClose: () -> Unit,
     identityResetInProgress: Boolean = false,
     voiceControl: VoiceControlState = VoiceControlState(),
+    voiceScrollAnchorIndex: Int? = null,
     onVoiceToggle: () -> Unit = {},
 ) {
     val style = ConciergeStyles.chatScreenStyle
@@ -399,6 +402,7 @@ internal fun ConciergeChat(
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
                     privacyNotice = ConciergeTheme.behavior?.privacyNotice,
+                    voiceScrollAnchorIndex = voiceScrollAnchorIndex,
                     onCtaButtonClick = { cta ->
                         onEvent(CtaButtonClick(cta))
                         handleLink(cta.url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)
