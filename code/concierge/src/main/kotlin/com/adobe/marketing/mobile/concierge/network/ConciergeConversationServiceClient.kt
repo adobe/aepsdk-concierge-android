@@ -120,15 +120,11 @@ internal class ConciergeConversationServiceClient(
     }
     
     /**
-     * Builds the conversations endpoint. The voice service path has no region segment, matching
-     * the Web SDK's voice routing.
+     * Builds the conversations endpoint, with the region segment when one is configured. Chat
+     * turns and voice bootstraps share it.
      */
-    private fun endpoint(state: ConciergeState, sessionId: String, voice: Boolean = false): String {
-        val servicePath = if (voice) {
-            "/brand-concierge-voice"
-        } else {
-            "/brand-concierge" + state.conciergeRegion?.let { "/$it" }.orEmpty()
-        }
+    private fun endpoint(state: ConciergeState, sessionId: String): String {
+        val servicePath = "/brand-concierge" + state.conciergeRegion?.let { "/$it" }.orEmpty()
         return "https://${state.conciergeServer}$servicePath/conversations" +
                 "?configId=${state.conciergeConfigId}" +
                 "&sessionId=$sessionId" +
@@ -214,7 +210,8 @@ internal class ConciergeConversationServiceClient(
     }
 
     /**
-     * Sends a `livekit-bootstrap` conversation event to the voice endpoint and emits the first
+     * Sends a `livekit-bootstrap` conversation event to the conversations endpoint (with the region,
+     * like a chat turn) and emits the first
      * `livekit_session` credentials it streams back, at most once. The flow completes when the
      * stream closes, so a stream that closes without credentials completes without an emission.
      */
@@ -228,7 +225,7 @@ internal class ConciergeConversationServiceClient(
                 onRequestStarted = {},
                 prepareRequest = { state ->
                     createConversationServiceRequest(
-                        endpoint(state, resolvedSessionId, voice = true),
+                        endpoint(state, resolvedSessionId),
                         createVoiceBootstrapRequestBody(state)
                     )
                 }
@@ -343,14 +340,16 @@ internal class ConciergeConversationServiceClient(
     /**
      * Creates the JSON request body for a voice-bootstrap request. Same envelope as a chat turn
      * (surfaces, identityMap, consent), but `conversation.data` carries the `livekit-bootstrap`
-     * discriminator instead of a message. No auth token is attached: the `data` slot holds the
-     * discriminator, and the voice endpoint identifies the user through the identityMap.
+     * discriminator instead of a message, and `xdm.eventType` is `conversation.voice`. The service
+     * needs both to treat the request as a bootstrap rather than a chat turn. No auth token is
+     * attached: the `data` slot holds the discriminator, and the service identifies the user through
+     * the identityMap.
      */
     private fun createVoiceBootstrapRequestBody(state: ConciergeState): String =
         createConversationEventBody(
             state,
             listOf(""""data": {"type": "${ConciergeConstants.VoiceBootstrap.TYPE_LIVEKIT_BOOTSTRAP}"}"""),
-            emptyMap()
+            mapOf(ConciergeConstants.VoiceBootstrap.XDM_EVENT_TYPE to ConciergeConstants.VoiceBootstrap.EVENT_TYPE_VOICE)
         )
 
     /**
