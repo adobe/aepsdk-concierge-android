@@ -50,6 +50,8 @@ object ConciergeConstants {
 
     internal object VoiceBootstrap {
         const val TYPE_LIVEKIT_BOOTSTRAP = "livekit-bootstrap"
+        const val XDM_EVENT_TYPE = "eventType"
+        const val EVENT_TYPE_VOICE = "conversation.voice"
     }
 
     object ChatInteraction {
