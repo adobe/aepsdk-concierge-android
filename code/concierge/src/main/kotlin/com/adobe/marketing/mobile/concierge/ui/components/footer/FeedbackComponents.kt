@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
@@ -91,19 +92,8 @@ private fun ThumbsRow(
     feedbackState: FeedbackState,
     style: ConciergeStyles.FeedbackButtonsStyle
 ) {
-    // Resolve the tint for each thumb from the feedback state, matching iOS:
-    // no vote yet -> default text color; selected thumb -> primary brand color;
-    // the thumb not chosen -> dimmed.
-    val thumbUpTint = when (feedbackState) {
-        FeedbackState.None -> style.iconColor
-        FeedbackState.Positive -> style.selectedIconColor
-        FeedbackState.Negative -> style.dimmedIconColor
-    }
-    val thumbDownTint = when (feedbackState) {
-        FeedbackState.None -> style.iconColor
-        FeedbackState.Negative -> style.selectedIconColor
-        FeedbackState.Positive -> style.dimmedIconColor
-    }
+    val thumbUpTint = style.iconTintFor(feedbackState, isThumbUp = true)
+    val thumbDownTint = style.iconTintFor(feedbackState, isThumbUp = false)
 
     Row(
         modifier = modifier,
@@ -158,6 +148,15 @@ private fun ThumbsRow(
             )
         }
     }
+}
+
+internal fun ConciergeStyles.FeedbackButtonsStyle.iconTintFor(
+    feedbackState: FeedbackState,
+    isThumbUp: Boolean
+): Color = when (feedbackState) {
+    FeedbackState.None -> iconColor
+    FeedbackState.Positive -> if (isThumbUp) selectedIconColor else dimmedIconColor
+    FeedbackState.Negative -> if (isThumbUp) dimmedIconColor else selectedIconColor
 }
 
 /**
