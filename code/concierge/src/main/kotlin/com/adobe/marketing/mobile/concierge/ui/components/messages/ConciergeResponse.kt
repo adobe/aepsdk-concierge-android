@@ -64,9 +64,14 @@ internal fun ConciergeResponse(
         targetState = text.isEmpty(),
         animationSpec = tween(durationMillis = 200)
     ) { isEmpty ->
-        // Apply citation annotations to the complete text first
-        val annotatedText = remember(text, sources) {
-            CitationAnnotator.annotateText(text.trimEnd(), sources)
+        val citationsBehavior = ConciergeTheme.tokens?.behavior?.citations ?: ConciergeCitationsBehavior()
+
+        // Apply citation annotations to the complete text first.
+        // When behavior.citations.showCitationNumbers is false, skip annotation so no inline
+        // citation number badges render; the Sources footer is driven separately by ChatFooter.
+        val annotatedText = remember(text, sources, citationsBehavior.showCitationNumbers) {
+            val effectiveSources = if (citationsBehavior.showCitationNumbers) sources else emptyList()
+            CitationAnnotator.annotateText(text.trimEnd(), effectiveSources)
         }
 
         // Create inline content maps once for all child components to share
@@ -78,8 +83,6 @@ internal fun ConciergeResponse(
                 handleLink
             )
         }
-        val citationsBehavior = ConciergeTheme.tokens?.behavior?.citations ?: ConciergeCitationsBehavior()
-
         // Compute style values from linkIconStyle, falling back to theme link color then onSurface
         val iconStyle = citationsBehavior.linkIconStyle
         val iconSize = iconStyle?.size?.dp ?: 16.dp

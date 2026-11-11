@@ -498,7 +498,8 @@ internal object ThemeParser {
                 phoneIcon = DataReader.optString(it, "phoneIcon", null),
                 storeIcon = DataReader.optString(it, "storeIcon", null),
                 defaultLinkIcon = DataReader.optString(it, "defaultLinkIcon", null),
-                linkIconStyle = linkIconStyle
+                linkIconStyle = linkIconStyle,
+                showCitationNumbers = DataReader.optBoolean(it, "showCitationNumbers", true)
             )
         }
 

@@ -33,6 +33,8 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeIconAssets
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeCitationsBehavior
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
@@ -199,6 +201,83 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithText("Information [1] from sources [2].", substring = true)
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun chatMessageItem_citationNumbersDisabled_hidesBadgesButKeepsSources() {
+        setCitationMessageContent(ConciergeCitationsBehavior(showCitationNumbers = false))
+
+        composeTestRule.onNodeWithText("1", useUnmergedTree = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("2", useUnmergedTree = true).assertDoesNotExist()
+        assertSourcesCanBeExpanded()
+    }
+
+    @Test
+    fun chatMessageItem_citationNumbersEnabled_showsBadgesAndSources() {
+        setCitationMessageContent(ConciergeCitationsBehavior(showCitationNumbers = true))
+
+        assertCitationBadgesAreDisplayed()
+        assertSourcesCanBeExpanded()
+    }
+
+    @Test
+    fun chatMessageItem_citationNumbersDefault_showsBadgesAndSources() {
+        setCitationMessageContent(ConciergeCitationsBehavior())
+
+        assertCitationBadgesAreDisplayed()
+        assertSourcesCanBeExpanded()
+    }
+
+    private fun setCitationMessageContent(citationsBehavior: ConciergeCitationsBehavior) {
+        val text = "First fact. Second fact."
+        val citations = listOf(
+            Citation(
+                url = "https://example.com/first",
+                title = "First source",
+                startIndex = 0,
+                endIndex = 11,
+                citationNumber = 1
+            ),
+            Citation(
+                url = "https://example.com/second",
+                title = "Second source",
+                startIndex = 12,
+                endIndex = text.length,
+                citationNumber = 2
+            )
+        )
+        val message = ChatMessage(
+            content = MessageContent.Text(text),
+            isFromUser = false,
+            timestamp = 0L,
+            citations = citations,
+            uniqueCitations = citations,
+            interactionId = "citation-toggle-test"
+        )
+        val theme = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                behavior = ConciergeThemeBehavior(citations = citationsBehavior)
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = theme) {
+                ChatMessageItem(message = message)
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun assertCitationBadgesAreDisplayed() {
+        composeTestRule.onNodeWithText("1", useUnmergedTree = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("2", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    private fun assertSourcesCanBeExpanded() {
+        composeTestRule.onNodeWithText("Sources").assertIsDisplayed().performClick()
+        composeTestRule.onNodeWithText("First source", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Second source", substring = true).assertIsDisplayed()
     }
 
     @Test
