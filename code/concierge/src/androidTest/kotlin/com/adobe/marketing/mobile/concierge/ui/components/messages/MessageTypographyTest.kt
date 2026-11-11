@@ -13,14 +13,19 @@
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.SpanStyle
@@ -28,6 +33,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.TextUnit
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
@@ -52,16 +58,20 @@ class MessageTypographyTest {
         val prefix = mutableStateOf("")
         val size = mutableStateOf(16)
         val lineHeight = mutableStateOf("24px")
+        // At the fixed 2x density, 160dp reproduces CI's 320px-wide viewport.
+        val width = mutableStateOf(160)
+        val text = "One\nTwo"
         var reference: TextLayoutResult? = null
         rule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(2f, scale.value)) {
                 val json = """{"theme":{"--message-font-size":"${size.value}px","--line-height-body":"${lineHeight.value}"}}"""
                 ConciergeTheme(theme = theme(ThemeParser.parseThemeTokens(json))) {
                     val bodyStyle = ConciergeStyles.messageBubbleStyle.textStyle
-                    Column {
-                        ConciergeResponse(text = "${prefix.value}First\nSecond")
+                    Column(Modifier.width(width.value.dp)) {
+                        ConciergeResponse(text = "${prefix.value}$text")
                         Text(
-                            text = "Reference\nSecond",
+                            text = text,
+                            modifier = Modifier.testTag("typography-reference"),
                             style = bodyStyle,
                             onTextLayout = { reference = it }
                         )
@@ -69,24 +79,30 @@ class MessageTypographyTest {
                 }
             }
         }
-        for (fontScale in listOf(1f, 1.3f, 1.5f, 2f)) {
-            for (fontSize in listOf(12, 16, 20)) {
-                for (blockPrefix in listOf("", "- ", "1. ", "> ")) {
-                    for (height in listOf("24px", "1.5")) {
-                        rule.runOnIdle {
-                            scale.value = fontScale
-                            size.value = fontSize
-                            prefix.value = blockPrefix
-                            lineHeight.value = height
+        for (viewportWidth in listOf(160, 320)) {
+            for (fontScale in listOf(1f, 1.3f, 1.5f, 2f)) {
+                for (fontSize in listOf(12, 16, 20)) {
+                    for (blockPrefix in listOf("", "- ", "1. ", "> ")) {
+                        for (height in listOf("24px", "1.5")) {
+                            rule.runOnIdle {
+                                width.value = viewportWidth
+                                scale.value = fontScale
+                                size.value = fontSize
+                                prefix.value = blockPrefix
+                                lineHeight.value = height
+                            }
+                            val actual = layout(text)
+                            val expected = checkNotNull(reference)
+                            val case = "width=$viewportWidth scale=$fontScale size=$fontSize prefix=$blockPrefix lineHeight=$height"
+                            assertEquals(case, 2, actual.lineCount)
+                            assertEquals(case, 2, expected.lineCount)
+                            assertEquals(case, expected.layoutInput.text.text, actual.layoutInput.text.text)
+                            assertEquals(case, fontSize.sp, actual.layoutInput.style.fontSize)
+                            assertEquals(
+                                case, expected.lastBaseline - expected.firstBaseline,
+                                actual.lastBaseline - actual.firstBaseline, 1.5f
+                            )
                         }
-                        val actual = layout("First\nSecond")
-                        val expected = checkNotNull(reference)
-                        val case = "scale=$fontScale size=$fontSize prefix=$blockPrefix lineHeight=$height"
-                        assertEquals(case, fontSize.sp, actual.layoutInput.style.fontSize)
-                        assertEquals(
-                            case, expected.lastBaseline - expected.firstBaseline,
-                            actual.lastBaseline - actual.firstBaseline, 1.5f
-                        )
                     }
                 }
             }
@@ -348,7 +364,7 @@ class MessageTypographyTest {
 
     private fun layout(text: String): TextLayoutResult {
         val results = mutableListOf<TextLayoutResult>()
-        val node = rule.onNodeWithText(text).fetchSemanticsNode()
+        val node = rule.onNode(hasText(text) and hasTestTag("typography-reference").not()).fetchSemanticsNode()
         assertTrue(node.config[SemanticsActions.GetTextLayoutResult].action!!.invoke(results))
         return results.single()
     }
