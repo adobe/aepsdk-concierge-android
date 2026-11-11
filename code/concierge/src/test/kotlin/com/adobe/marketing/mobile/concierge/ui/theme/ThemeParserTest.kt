@@ -609,6 +609,46 @@ class ThemeParserTest {
     }
 
     @Test
+    fun `invalid message weights leave overrides unset without losing valid settings`() {
+        for (key in listOf("--message-font-weight", "--message-concierge-link-font-weight")) {
+            for (value in listOf("0", "-1", "1001", "heavy", "NaN", "Infinity", "500.5", "")) {
+                val tokens = ThemeParser.parseThemeTokens(
+                    """{"theme":{"$key":"$value","--message-font-size":"18px"}}"""
+                )
+                assertNotNull("$key=$value must not reject the entire theme", tokens)
+                assertEquals(18.0, tokens?.typography?.fontSize)
+                assertNull("$key=$value", tokens?.typography?.fontWeight)
+                assertNull("$key=$value", tokens?.typography?.linkFontWeight)
+            }
+        }
+    }
+
+    @Test
+    fun `valid message weights include Compose boundaries and named values`() {
+        for ((value, expected) in mapOf("1" to 1, "1000" to 1000, "600" to 600, "normal" to 400, "bold" to 700)) {
+            val tokens = ThemeParser.parseThemeTokens(
+                """{"theme":{"--message-font-weight":"$value","--message-concierge-link-font-weight":"$value"}}"""
+            )
+            assertEquals(expected, tokens?.typography?.fontWeight)
+            assertEquals(expected, tokens?.typography?.linkFontWeight)
+        }
+    }
+
+    @Test
+    fun `invalid message sizes leave size unset without losing valid settings`() {
+        for (value in listOf("0", "0px", "-12px", "NaN", "Infinity", "-Infinity", "1e309", "1e100", "1e-100", "large", "")) {
+            val tokens = ThemeParser.parseThemeTokens(
+                """{"theme":{"--message-font-size":"$value","--message-font-weight":"600"}}"""
+            )
+            assertNotNull(value, tokens)
+            assertNull(value, tokens?.typography?.fontSize)
+            assertEquals(600, tokens?.typography?.fontWeight)
+        }
+        val tokens = ThemeParser.parseThemeTokens("""{"theme":{"--message-font-size":"17.5px"}}""")
+        assertEquals(17.5, tokens?.typography?.fontSize)
+    }
+
+    @Test
     fun `parseThemeJson should handle complex theme with multiple sections`() {
         val json = """
             {
@@ -2392,4 +2432,3 @@ class ThemeParserTest {
         assertNull(colors.thinkingDotColor)
     }
 }
-

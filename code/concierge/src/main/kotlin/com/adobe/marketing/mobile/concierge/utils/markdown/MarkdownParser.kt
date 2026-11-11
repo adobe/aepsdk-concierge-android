@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.utils.markdown
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
@@ -61,13 +62,16 @@ internal object MarkdownParser {
         // itself is NOT used as a key — ConciergeTheme.colorScheme builds a fresh ColorScheme on every
         // read and ColorScheme has only reference equality, so keying on it would invalidate the cache
         // every recomposition and defeat the memoization entirely.
-        return remember(markdown, linkHints, messageTextStyle, linkColor, linkFontWeight, linkUnderline, darkTheme) {
+        val bodyLineHeight = if (typography?.lineHeight != null || typography?.lineHeightPx != null) {
+            messageTextStyle.lineHeight
+        } else TextUnit.Unspecified
+        return remember(markdown, linkHints, messageTextStyle, linkColor, linkFontWeight, linkUnderline, bodyLineHeight, darkTheme) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
                 "Parsed ${tokens.size} tokens, starting rendering."
             )
-            MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints, linkColor, linkFontWeight, linkUnderline)
+            MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints, linkColor, linkFontWeight, linkUnderline, bodyLineHeight)
         }
     }
 }

@@ -35,14 +35,16 @@ data class ConciergeThemeTokens(
 data class ConciergeTypography(
     val fontFamily: String? = null,
     val lineHeight: Double? = null,
-    /** Message body font size in sp. When null, the Material default for the text style is used. */
+    /** Positive finite message body size in sp. Invalid values are ignored by [ConciergeTheme]. */
     val fontSize: Double? = null,
-    /** Message body font weight (100-900). When null, the text style default is used. */
+    /** Message body font weight (1-1000). Null or invalid values use the text style default. */
     val fontWeight: Int? = null,
-    /** Font weight applied to inline hyperlinks in message text. When null, links inherit [fontWeight]. */
+    /** Inline link weight (1-1000). Null or invalid values inherit body weight; Markdown bold stays at least 700. */
     val linkFontWeight: Int? = null,
     /** Whether inline hyperlinks in message text are underlined. Defaults to true (WCAG 1.4.1). */
-    val linkUnderline: Boolean = true
+    val linkUnderline: Boolean = true,
+    /** Absolute body line height in sp; takes precedence over the unitless [lineHeight] multiplier. */
+    val lineHeightPx: Double? = null
 )
 
 /**

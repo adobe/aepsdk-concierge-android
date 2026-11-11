@@ -85,7 +85,7 @@ internal object ConciergeStyles {
     }
 
     /**
-     * Helper function to apply theme typography (font family and line height) to a TextStyle
+     * Applies message size, weight, and line height while retaining the resolved font family.
      */
     @Composable
     private fun TextStyle.withThemeTypography(): TextStyle {
@@ -96,12 +96,17 @@ internal object ConciergeStyles {
             return this
         }
         
+        val resolvedSize = typography.fontSize?.toFloat() ?: fontSize.value
+        val resolvedLineHeight = typography.lineHeightPx
+            ?: typography.lineHeight?.times(resolvedSize.toDouble())
+        val safeLineHeight = resolvedLineHeight?.takeIf(MessageTypographyValidator::isValidFontSize)
+        if (resolvedLineHeight != null && safeLineHeight == null) {
+            android.util.Log.w("ConciergeTheme", "Ignoring message line height that exceeds the Compose size range.")
+        }
         return this.copy(
-            // Note: Font family would require loading custom fonts, which is not implemented yet
-            // fontFamily = typography.fontFamily?.let { FontFamily(...) },
             fontSize = typography.fontSize?.sp ?: this.fontSize,
             fontWeight = typography.fontWeight?.let { FontWeight(it) } ?: this.fontWeight,
-            lineHeight = typography.lineHeight?.let { ((typography.fontSize?.toFloat() ?: this.fontSize.value) * it).sp } ?: this.lineHeight
+            lineHeight = safeLineHeight?.sp ?: this.lineHeight
         )
     }
 
