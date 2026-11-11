@@ -22,6 +22,7 @@ import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.ServiceProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -122,6 +123,9 @@ internal class DefaultImageProvider(
                 connection.close()
 
                 bitmap ?: throw IOException("Failed to decode image from URL: $url")
+            } catch (e: CancellationException) {
+                // Normal coroutine cancellation; rethrow so it is not misreported as a load error.
+                throw e
             } catch (e: IOException) {
                 Log.error(
                     ConciergeConstants.EXTENSION_NAME,
