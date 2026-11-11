@@ -31,7 +31,8 @@
       "thumbsPlacement": "inline"
     },
     "citations": {
-      "showLinkIcon": false
+      "showLinkIcon": false,
+      "showCitationNumbers": true
     },
     "welcomeCard": {
       "contentAlignment": "center"

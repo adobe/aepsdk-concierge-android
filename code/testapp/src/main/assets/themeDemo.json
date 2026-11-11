@@ -39,7 +39,8 @@
       "thumbsPlacement": "below"
     },
     "citations": {
-      "showLinkIcon": true
+      "showLinkIcon": true,
+      "showCitationNumbers": true
     },
     "welcomeCard": {
       "closeButtonAlignment": "start",

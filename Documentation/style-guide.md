@@ -431,6 +431,8 @@ Taps are tracked as link clicks with origin `privacyNotice`.
 | `behavior.citations.linkIconStyle.color` | string | `--message-concierge-link-color`, else `--color-text` | Inline link icon tint color (hex). |
 | `behavior.citations.showCitationNumbers` | boolean | `true` | When `false`, hides the inline citation number badges in AI message text. The "Sources" footer below the message still appears. |
 
+**SDK upgrade compatibility:** Adding `showCitationNumbers` to the public `ConciergeCitationsBehavior` data class changes its constructor and generated `copy` signatures. Kotlin source callers can continue using the default parameter, but consumers compiled against the previous SDK must be recompiled against the updated version.
+
 `phoneIcon`/`storeIcon`/`defaultLinkIcon`/`linkIconStyle` only affect links rendered inline within AI message text. The citation list icon (in the expanded sources accordion) is a fixed 14dp size tinted with the citation URL color, and always uses the built-in pop-out icon — only `showLinkIcon` applies to it.
 
 ### Example
