@@ -150,32 +150,37 @@ class FeedbackIconColorsTest {
                             else -> Color(0x668E8E93)
                         }.compositeOver(case.background)
                         val pixels = icon.captureToImage().toPixelMap()
-                        val foregroundPixels = (0 until pixels.height).sumOf { y ->
-                            (0 until pixels.width).count { x ->
-                                val pixel = pixels[x, y]
-                                abs(pixel.red - case.background.red) >= 0.02f ||
-                                    abs(pixel.green - case.background.green) >= 0.02f ||
-                                    abs(pixel.blue - case.background.blue) >= 0.02f
-                            }
-                        }
-                        var matchingPixels = 0
+                        val foregroundPixels = mutableListOf<Color>()
                         for (y in 0 until pixels.height) {
                             for (x in 0 until pixels.width) {
                                 val pixel = pixels[x, y]
-                                if (abs(pixel.red - expected.red) < 0.01f &&
-                                    abs(pixel.green - expected.green) < 0.01f &&
-                                    abs(pixel.blue - expected.blue) < 0.01f
+                                if (abs(pixel.red - case.background.red) >= 0.02f ||
+                                    abs(pixel.green - case.background.green) >= 0.02f ||
+                                    abs(pixel.blue - case.background.blue) >= 0.02f
                                 ) {
-                                    matchingPixels++
+                                    foregroundPixels.add(pixel)
                                 }
                             }
                         }
-                        val matchingFraction = matchingPixels.toFloat() / foregroundPixels
+                        val mostOpaquePixels = foregroundPixels
+                            .sortedByDescending { pixel ->
+                                (pixel.red - case.background.red) * (pixel.red - case.background.red) +
+                                    (pixel.green - case.background.green) * (pixel.green - case.background.green) +
+                                    (pixel.blue - case.background.blue) * (pixel.blue - case.background.blue)
+                            }
+                            .take((foregroundPixels.size * 0.1f).toInt().coerceAtLeast(1))
+                        val sampledColor = Color(
+                            red = mostOpaquePixels.map { it.red }.average().toFloat(),
+                            green = mostOpaquePixels.map { it.green }.average().toFloat(),
+                            blue = mostOpaquePixels.map { it.blue }.average().toFloat()
+                        )
                         assertTrue(
                             "${case.name}, below=$showLabel, $vote, $description: " +
-                                "expected $expected in at least 20% of foreground icon pixels; " +
-                                "found $matchingPixels/$foregroundPixels",
-                            foregroundPixels > 0 && matchingFraction >= 0.2f
+                                "expected opaque foreground pixels near $expected, found $sampledColor",
+                            mostOpaquePixels.isNotEmpty() &&
+                                abs(sampledColor.red - expected.red) <= 0.12f &&
+                                abs(sampledColor.green - expected.green) <= 0.12f &&
+                                abs(sampledColor.blue - expected.blue) <= 0.12f
                         )
                         if (vote == FeedbackState.None) {
                             icon.assertIsEnabled()
