@@ -291,13 +291,30 @@ The test app's [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe
 
 #### 1. Add LiveKit to your app
 
+> [!IMPORTANT]
+> LiveKit depends on an artifact published only to JitPack (`com.github.davidliu:audioswitch`). Add the JitPack repository first, or Gradle fails with `Could not find com.github.davidliu:audioswitch`.
+
+In `settings.gradle.kts`, add JitPack to the dependency repositories:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+Then add LiveKit to your app module's `build.gradle.kts`:
+
 ```kotlin
 dependencies {
     implementation("io.livekit:livekit-android:2.29.1")
 }
 ```
 
-LiveKit is your app's dependency: you choose and update its version, and Brand Concierge does not constrain it. The test app pins 2.29.1. LiveKit depends on artifacts published to JitPack, so add `maven { url = uri("https://jitpack.io") }` to the repositories in your `settings.gradle.kts`.
+LiveKit is your app's dependency: you choose and update its version, and Brand Concierge does not constrain it. The test app pins 2.29.1.
 
 #### 2. Set up the manifest permissions
 
