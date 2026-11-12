@@ -1000,8 +1000,8 @@ internal object ConciergeStyles {
                 spacing = 4.dp,
                 iconColor = textColor,
                 selectedIconColor = themeColors.primary,
-                // Match SwiftUI Color.gray.opacity(0.4); Compose Color.Gray uses a lighter RGB value.
-                dimmedIconColor = Color(red = 0.5f, green = 0.5f, blue = 0.5f, alpha = 0.4f),
+                // Match SwiftUI Color.gray.opacity(0.4), which resolves to system gray #8E8E93.
+                dimmedIconColor = Color(0x668E8E93),
                 backgroundColor = themeColors.feedbackIconButtonBackground ?: Color.Transparent,
                 hoverBackgroundColor = themeColors.feedbackIconButtonHoverBackground,
                 helpfulLabelText = ConciergeTheme.text?.feedbackHelpfulLabel ?: "Was this helpful?",

@@ -26,7 +26,7 @@ class FeedbackIconTintTest {
         spacing = 4.dp,
         iconColor = Color.Green.copy(alpha = 0.2f),
         selectedIconColor = Color.Magenta.copy(alpha = 0.7f),
-        dimmedIconColor = Color(0x66808080),
+        dimmedIconColor = Color(0x668E8E93),
         helpfulLabelText = "",
         helpfulLabelStyle = TextStyle.Default,
         helpfulLabelColor = Color.Black

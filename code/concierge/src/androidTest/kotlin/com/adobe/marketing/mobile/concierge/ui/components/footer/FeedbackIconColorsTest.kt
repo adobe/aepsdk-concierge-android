@@ -109,7 +109,7 @@ class FeedbackIconColorsTest {
             composeTestRule.runOnIdle {
                 assertEquals(case.name, case.text, style.iconColor)
                 assertEquals(case.name, case.primary, style.selectedIconColor)
-                assertEquals(case.name, Color(0x66808080), style.dimmedIconColor)
+                assertEquals(case.name, Color(0x668E8E93), style.dimmedIconColor)
             }
         }
     }
@@ -147,9 +147,17 @@ class FeedbackIconColorsTest {
                         val expected = when {
                             vote == FeedbackState.None -> case.text
                             (vote == FeedbackState.Positive) == isThumbUp -> case.primary
-                            else -> Color(0x66808080)
+                            else -> Color(0x668E8E93)
                         }.compositeOver(case.background)
                         val pixels = icon.captureToImage().toPixelMap()
+                        val foregroundPixels = (0 until pixels.height).sumOf { y ->
+                            (0 until pixels.width).count { x ->
+                                val pixel = pixels[x, y]
+                                abs(pixel.red - case.background.red) >= 0.02f ||
+                                    abs(pixel.green - case.background.green) >= 0.02f ||
+                                    abs(pixel.blue - case.background.blue) >= 0.02f
+                            }
+                        }
                         var matchingPixels = 0
                         for (y in 0 until pixels.height) {
                             for (x in 0 until pixels.width) {
@@ -162,9 +170,12 @@ class FeedbackIconColorsTest {
                                 }
                             }
                         }
+                        val matchingFraction = matchingPixels.toFloat() / foregroundPixels
                         assertTrue(
-                            "${case.name}, below=$showLabel, $vote, $description: expected $expected",
-                            matchingPixels >= 5
+                            "${case.name}, below=$showLabel, $vote, $description: " +
+                                "expected $expected in at least 20% of foreground icon pixels; " +
+                                "found $matchingPixels/$foregroundPixels",
+                            foregroundPixels > 0 && matchingFraction >= 0.2f
                         )
                         if (vote == FeedbackState.None) {
                             icon.assertIsEnabled()
