@@ -34,6 +34,9 @@ Speech to text uses Android Speech Recognition API + microphone API's for voice 
 
 The SDK handles permission requests internally when users interact with the microphone button.
 
+### Voice (optional)
+Spoken conversations with the agent need a Brand Concierge version that includes `VoiceTransport` (3.10.2 and earlier don't), a LiveKit dependency in your app, and voice enabled for your Brand Concierge by Adobe. See [Voice conversations](#voice-conversations-optional) for the setup steps and limitations.
+
 ---
 
 ## Installation
@@ -127,8 +130,8 @@ After reset, if a conversation was in progress, Concierge dispatches a **Brand C
 ## XDM context
 
 Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data. The SDK sends it with every
-later chat message (typed, spoken, or a tapped prompt suggestion) and every data handoff. Feedback
-requests don't include it.
+later chat message (typed, dictated, or a tapped prompt suggestion) and every data handoff. Feedback
+requests don't include it, and neither do voice conversations.
 
 ```kotlin
 Concierge.updateXDMContext(
@@ -166,7 +169,7 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 
 ## Authentication
 
-If your backend requires proof of the user's identity, register a `ConciergeAuthTokenProvider` to supply an app-minted authentication token. Brand Concierge attaches it to every chat and feedback request until the provider is cleared.
+If your backend requires proof of the user's identity, register a `ConciergeAuthTokenProvider` to supply an app-minted authentication token. Brand Concierge attaches it to every chat and feedback request until the provider is cleared. Voice conversations don't send it.
 
 ```kotlin
 import com.adobe.marketing.mobile.concierge.Concierge
@@ -280,6 +283,12 @@ Brand Concierge can hold a spoken conversation with the agent. The SDK runs the 
 
 The test app's [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing/mobile/conciergetestapp/LiveKitTransport.kt) is a complete transport built on the [LiveKit Android SDK](https://github.com/livekit/client-sdk-android). To add voice to your app:
 
+#### Before you start
+
+- **Brand Concierge version.** Voice needs a Brand Concierge version that includes `VoiceTransport`; 3.10.2 and earlier don't.
+- **Voice enabled for your Brand Concierge.** Ask your Adobe contact to confirm it. The agent's voice and language are set there, not in the app.
+- **A physical Android device** for the checks in [Audio quality](#audio-quality).
+
 #### 1. Add LiveKit to your app
 
 ```kotlin
@@ -379,6 +388,14 @@ The transport, and therefore LiveKit, owns audio focus, audio routing and audio 
 - **Speaker output.** LiveKit prefers a Bluetooth headset, then wired headphones, then the speaker over the earpiece. Headphones and Bluetooth devices take over when connected.
 - **Interruptions.** The reference transport reports a transient loss of audio focus (another app playing audio for a while) as an audio interruption, and Brand Concierge mutes the microphone until focus returns, including for a loss that began while connecting. A permanent loss (`AUDIOFOCUS_LOSS`, for example when another app starts playing music) ends the conversation with an error message, because the chat has no unmute control. A phone call doesn't end the conversation: while it rings, the conversation continues, and once it is answered, the call takes the audio and the microphone stays muted until the call ends. A call longer than the voice agent's inactivity timeout (60 seconds) ends the conversation.
 - **Test on a device.** The emulator proves the wiring and the connection, but not echo, audio routes or interruptions. Check a conversation on the speaker, connecting and disconnecting wired and Bluetooth headphones mid-session, a call during a session (ringing, then answering, short and longer than 60 seconds), locking the screen and switching to another app mid-session, ending the conversation from the notification, removing the app from the recent apps, a session with the app's notifications turned off, and turning Wi-Fi off mid-session. With the reference transport, the spinner appears only when LiveKit starts a full reconnect, because LiveKit doesn't report its first attempt (a quick resume); after a network loss that can take about 30 seconds, and a resume that succeeds shows no spinner. Repeat these checks when you update LiveKit or change its audio settings elsewhere in your app.
+
+#### Limitations
+
+- **No authentication token or XDM context.** Brand Concierge doesn't send the token from `Concierge.setAuthTokenProvider` or the context from `Concierge.updateXDMContext(...)` when it starts a voice conversation, so the voice agent works without them. Typed and dictated messages in the same chat still include them.
+- **Language.** The app doesn't send a locale with voice; the agent speaks the language set for your Brand Concierge.
+- **Voice UI text is English** and not configurable: the voice button's accessibility labels ("Start voice conversation", "Stop voice conversation") and the microphone permission rationale.
+- **Network.** Voice uses WebRTC (UDP, with TCP and TLS fallback) in addition to the HTTPS chat requests. Networks that block it, such as some corporate or venue Wi-Fi, can prevent voice from connecting while text chat works. Test on the networks your users use.
+- **Google Play Data safety.** During a conversation, the microphone audio is streamed to Adobe's voice service, which transcribes it. Reflect this in your Data safety form and privacy policy.
 
 ### Background conversations
 

@@ -345,7 +345,7 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.input.enableVoiceInput` | boolean | `false` | Enable voice input button |
+| `behavior.input.enableVoiceInput` | boolean | `false` | Show the speech-to-text (dictation) mic button. It doesn't affect the voice conversation button, which appears whenever the app passes a `voiceTransport` (see [Colors - Input](#colors---input)) |
 | `behavior.input.sendButtonStyle` | string | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | boolean | `true` | Disable multiline text input |
 | `behavior.input.showAiChatIcon` | object | `null` | Leading icon shown before the text field in the input bar. Object with an `icon` property: a local asset basename under `assets/icons/` or an absolute `http(s)` URL — same resolution rules as `citations.phoneIcon`/`storeIcon`. `null` or an empty `icon` hides it. Tooltip/content description is set via `text["input.aiChatIcon.tooltip"]`. |
@@ -826,6 +826,12 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-mic-waveform-gradient-start-color` | `colors.input.micWaveformGradient` | `String?` | `null` | Start color of the listening waveform bars' gradient (hex). Requires the end color to also be set; otherwise falls back to `micRecordingIconColor` |
 | `--input-mic-waveform-gradient-end-color` | `colors.input.micWaveformGradient` | `String?` | `null` | End color of the listening waveform bars' gradient (hex). Requires the start color to also be set; otherwise falls back to `micRecordingIconColor` |
 | `--input-mic-waveform-gradient-angle` | `colors.input.micWaveformGradient` | `String` | `"180deg"` | Waveform bar gradient direction. Defaults to top-to-bottom |
+
+The voice conversation button appears when the app passes a `voiceTransport` (see [Voice conversations](implementation-guide.md#voice-conversations-optional)). While the input field is empty it sits where the send button appears once there is text, next to the mic button if `enableVoiceInput` is on. It has no tokens of its own:
+
+- **Idle:** icon in `--input-mic-icon-color`, falling back to `--color-primary`. The mic icon gradient doesn't apply.
+- **Running:** a `--color-primary` circle with the icon in `--color-text`, or white if the theme doesn't set it. A theme that sets a dark `--color-text` with a dark `--color-primary` makes the icon hard to see.
+- **Connecting or reconnecting:** a `--color-primary` spinner.
 
 ### Colors - Welcome Prompts
 
@@ -1470,7 +1476,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.carouselStyle` | ✅ | Switches between paged (prev/next/dots) and continuous scroll | `ProductCarousel` |
 | `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
 | `behavior.productCard.cardsAlignment` | ✅ | Controls horizontal alignment of product cards (`"start"`, `"center"`, `"end"`) | `RecommendationCards` |
-| `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
+| `behavior.input.enableVoiceInput` | ✅ | Controls dictation mic button visibility (not the voice conversation button) | `InputActionButtons` |
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
 | `behavior.input.showAiChatIcon` | ✅ | Rendered as a leading icon before the text field | `ChatInputPanel` |
