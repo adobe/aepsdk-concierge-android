@@ -16,6 +16,17 @@ import android.app.Application
 import com.adobe.marketing.mobile.LoggingMode
 import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.concierge.Concierge
+import com.adobe.marketing.mobile.concierge.VoiceTransport
+
+/** The app's one voice transport, shared by every chat entry point. */
+object Voice {
+    lateinit var transport: VoiceTransport
+        private set
+
+    fun initialize(application: Application) {
+        transport = LiveKitTransport(application)
+    }
+}
 
 class ChatApp : Application() {
     companion object {
@@ -26,6 +37,7 @@ class ChatApp : Application() {
     override fun onCreate() {
         super.onCreate()
         MobileCore.setApplication(this)
+        Voice.initialize(this)
         MobileCore.setLogLevel(LoggingMode.VERBOSE)
         MobileCore.initialize(this, APP_ID) {
             Concierge.setEdgeTrackingEnabled(true)

@@ -7,6 +7,9 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -16,6 +19,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStoreOwner
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 
@@ -79,6 +83,12 @@ class ConciergeChatView @JvmOverloads constructor(
 
     private val composeView = ComposeView(context)
     private var viewModel: ConciergeChatViewModel? = null
+
+    /**
+     * Optional transport that carries voice conversations. When set, the chat offers a voice
+     * control; when null, voice is hidden. Can be set before or after [bind].
+     */
+    var voiceTransport: VoiceTransport? by mutableStateOf(null)
     private lateinit var onCloseCallback: () -> Unit
 
     init {
@@ -126,7 +136,8 @@ class ConciergeChatView @JvmOverloads constructor(
                     ConciergeChat(
                         viewModel = vm,
                         onClose = onCloseCallback,
-                        handleLink = handleLink
+                        handleLink = handleLink,
+                        voiceTransport = voiceTransport
                     )
                 }
             }
@@ -168,7 +179,8 @@ class ConciergeChatView @JvmOverloads constructor(
                     ConciergeChat(
                         viewModel = vm,
                         surfaces = surfaces,
-                        handleLink = handleLink
+                        handleLink = handleLink,
+                        voiceTransport = voiceTransport
                     ) { showChat ->
                         // Wrap trigger view in a Box to center it
                         Box(
