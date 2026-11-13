@@ -96,17 +96,29 @@ internal object ConciergeStyles {
             return this
         }
         
-        val resolvedSize = typography.fontSize?.toFloat() ?: fontSize.value
-        val resolvedLineHeight = typography.lineHeightPx
-            ?: typography.lineHeight?.times(resolvedSize.toDouble())
-        val safeLineHeight = resolvedLineHeight?.takeIf(MessageTypographyValidator::isValidFontSize)
-        if (resolvedLineHeight != null && safeLineHeight == null) {
+        val themedFontSize = typography.fontSize?.toFloat()
+        val resolvedSize = themedFontSize ?: fontSize.value
+        val inheritedScaledLineHeight = themedFontSize?.let { size ->
+            if (fontSize != TextUnit.Unspecified && lineHeight != TextUnit.Unspecified && fontSize.value > 0) {
+                lineHeight * (size / fontSize.value)
+            } else {
+                null
+            }
+        }
+        val resolvedLineHeight = typography.lineHeightPx?.sp
+            ?: typography.lineHeight?.times(resolvedSize.toDouble())?.sp
+            ?: inheritedScaledLineHeight
+            ?: this.lineHeight
+        val safeLineHeight = resolvedLineHeight.takeIf {
+            it == TextUnit.Unspecified || MessageTypographyValidator.isValidFontSize(it.value.toDouble())
+        }
+        if (safeLineHeight == null) {
             android.util.Log.w("ConciergeTheme", "Ignoring message line height that exceeds the Compose size range.")
         }
         return this.copy(
             fontSize = typography.fontSize?.sp ?: this.fontSize,
             fontWeight = typography.fontWeight?.let { FontWeight(it) } ?: this.fontWeight,
-            lineHeight = safeLineHeight?.sp ?: this.lineHeight
+            lineHeight = safeLineHeight ?: TextUnit.Unspecified
         )
     }
 

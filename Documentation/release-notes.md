@@ -10,8 +10,11 @@ are ignored with a warning, including programmatic typography supplied to
 `ConciergeTheme`. Link overrides also apply in lists and blockquotes;
 Markdown-bold links retain at least bold weight. Explicit body line height is
 preserved through response paragraph rendering; omitted line height retains
-existing response spacing. Pixel line heights (for example `"24px"`) are absolute
-scaled sizes rather than multipliers. Body paragraph line height no longer
+existing response spacing. When `--message-font-size` is set without an explicit
+line height, message bubble line height scales proportionally from the inherited
+text style. Pixel line heights (for example `"24px"` or `"24PX"`) are absolute
+scaled sizes rather than multipliers, and the `px` suffix is case-insensitive.
+Body paragraph line height no longer
 overrides headings or fenced code, including nested blocks.
 Response paragraphs and list items also supply their resolved body font size to
 Compose so explicit line heights scale consistently at accessibility font sizes.

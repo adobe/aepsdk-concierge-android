@@ -30,6 +30,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
@@ -299,6 +300,32 @@ class MessageTypographyTest {
         }
         rule.runOnIdle { json.value = """{"theme":{"--message-font-size":"32px"}}""" }
         assertTrue(layout("First\nSecond").layoutInput.text.paragraphStyles.isEmpty())
+    }
+
+    @Test
+    fun messageFontSizeOnly_scalesInheritedLineHeight() {
+        var bodyStyle: TextStyle? = null
+        var result: TextLayoutResult? = null
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                ConciergeTheme(theme = theme(ThemeParser.parseThemeTokens(
+                    """{"theme":{"--message-font-size":"32px"}}"""
+                ))) {
+                    bodyStyle = ConciergeStyles.messageBubbleStyle.textStyle
+                    Text(
+                        text = "First\nSecond",
+                        style = checkNotNull(bodyStyle),
+                        onTextLayout = { result = it }
+                    )
+                }
+            }
+        }
+
+        rule.runOnIdle {
+            assertEquals(32.sp, bodyStyle?.fontSize)
+            assertEquals(48.sp, bodyStyle?.lineHeight)
+            assertEquals(48f, checkNotNull(result).lastBaseline - result!!.firstBaseline, 1.5f)
+        }
     }
 
     @Test

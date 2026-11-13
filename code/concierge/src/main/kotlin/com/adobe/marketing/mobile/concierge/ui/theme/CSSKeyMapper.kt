@@ -352,7 +352,7 @@ internal object CSSKeyMapper {
                 Log.w(LOG_TAG, "Ignoring invalid --line-height-body; expected a finite positive multiplier or pixel value.")
                 theme
             } else {
-                val absolute = cssValue.trim().endsWith("px")
+                val absolute = cssValue.trim().endsWith("px", ignoreCase = true)
                 val typography = theme.typography ?: ConciergeTypography()
                 theme.copy(typography = typography.copy(
                     lineHeight = lineHeight.takeUnless { absolute },

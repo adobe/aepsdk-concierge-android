@@ -102,8 +102,8 @@ internal object CSSValueConverter {
      */
     fun parsePxValue(cssValue: String): Double? {
         val trimmed = cssValue.trim()
-        return if (trimmed.endsWith("px")) {
-            trimmed.substringBefore("px").trim().toDoubleOrNull()
+        return if (trimmed.endsWith("px", ignoreCase = true)) {
+            trimmed.dropLast(2).trim().toDoubleOrNull()
         } else {
             trimmed.toDoubleOrNull()
         }

@@ -748,7 +748,7 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--font-family` | `typography.fontFamily` | `String` | `null` (system font) | Font family name |
-| `--line-height-body` | `typography.lineHeight` / `typography.lineHeightPx` | `Double` | `null` (existing layout defaults) | Unitless multiplier (`"1.5"`) or absolute Android scaled size (`"24px"` maps to 24sp) |
+| `--line-height-body` | `typography.lineHeight` / `typography.lineHeightPx` | `Double` | `null` (existing layout defaults) | Unitless multiplier (`"1.5"`) or absolute Android scaled size (`"24px"` maps to 24sp); the `px` suffix is case-insensitive |
 | `--message-font-size` | `typography.fontSize` | `Double` | `null` (Material default) | Message body text size (px); positive and finite when converted to Compose's float size |
 | `--message-font-weight` | `typography.fontWeight` | `Int` | `null` (Material default) | Message body text weight (`1`–`1000`, `normal`, `bold`, `lighter`, `bolder`) |
 | `--message-concierge-link-font-weight` | `typography.linkFontWeight` | `Int?` | `null` (inherits body weight) | Inline hyperlink text weight in concierge messages; same valid range/names as body weight |
@@ -767,9 +767,11 @@ Programmatic `ConciergeTypography` values receive the same size/weight validatio
 when supplied to `ConciergeTheme`; invalid values fall back to the text style
 defaults. An explicit `--line-height-body` is retained as paragraph styling in
 concierge responses, including list items. Omitting it preserves existing response
-line spacing. For example, `"24px"` remains 24sp when the body font size changes,
-whereas `"1.5"` scales with that font size. Headings and fenced code blocks retain
-their existing paragraph spacing, including when nested in a list or blockquote.
+line spacing. For message bubble styles, setting only `--message-font-size` scales
+the inherited line height proportionally to avoid cramped lines. For example,
+`"24px"` remains 24sp when the body font size changes, whereas `"1.5"` scales with
+that font size. Headings and fenced code blocks retain their existing paragraph
+spacing, including when nested in a list or blockquote.
 Inline code remains part of its surrounding body paragraph.
 Response text and list items use the resolved body font size as their base font
 size so Compose's accessibility font scaling resolves paragraph line height
