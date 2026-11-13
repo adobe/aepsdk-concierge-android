@@ -42,6 +42,11 @@ import org.junit.Rule
 import org.junit.Test
 
 class FeedbackIconColorsTest {
+    private companion object {
+        const val MIN_OPAQUE_SAMPLES = 8
+        const val TINT_CHANNEL_TOLERANCE = 0.05f
+    }
+
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -168,7 +173,13 @@ class FeedbackIconColorsTest {
                                     (pixel.green - case.background.green) * (pixel.green - case.background.green) +
                                     (pixel.blue - case.background.blue) * (pixel.blue - case.background.blue)
                             }
-                            .take((foregroundPixels.size * 0.1f).toInt().coerceAtLeast(1))
+                            .take(maxOf((foregroundPixels.size * 0.1f).toInt(), MIN_OPAQUE_SAMPLES))
+                        assertTrue(
+                            "${case.name}, below=$showLabel, $vote, $description: " +
+                                "expected at least $MIN_OPAQUE_SAMPLES foreground samples, " +
+                                "found ${mostOpaquePixels.size}",
+                            mostOpaquePixels.size >= MIN_OPAQUE_SAMPLES
+                        )
                         val sampledColor = Color(
                             red = mostOpaquePixels.map { it.red }.average().toFloat(),
                             green = mostOpaquePixels.map { it.green }.average().toFloat(),
@@ -177,10 +188,9 @@ class FeedbackIconColorsTest {
                         assertTrue(
                             "${case.name}, below=$showLabel, $vote, $description: " +
                                 "expected opaque foreground pixels near $expected, found $sampledColor",
-                            mostOpaquePixels.isNotEmpty() &&
-                                abs(sampledColor.red - expected.red) <= 0.12f &&
-                                abs(sampledColor.green - expected.green) <= 0.12f &&
-                                abs(sampledColor.blue - expected.blue) <= 0.12f
+                            abs(sampledColor.red - expected.red) <= TINT_CHANNEL_TOLERANCE &&
+                                abs(sampledColor.green - expected.green) <= TINT_CHANNEL_TOLERANCE &&
+                                abs(sampledColor.blue - expected.blue) <= TINT_CHANNEL_TOLERANCE
                         )
                         if (vote == FeedbackState.None) {
                             icon.assertIsEnabled()
