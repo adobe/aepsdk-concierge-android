@@ -13,22 +13,33 @@
 package com.adobe.marketing.mobile.concierge.ui.components.footer
 
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PixelMap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import com.adobe.marketing.mobile.concierge.R
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
@@ -37,13 +48,15 @@ import com.adobe.marketing.mobile.concierge.ui.theme.LightConciergeColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 class FeedbackIconColorsTest {
     private companion object {
-        const val MIN_OPAQUE_SAMPLES = 8
+        const val MIN_FOREGROUND_SAMPLES = 8
+        const val MIN_REFERENCE_COVERAGE = 0.5f
         const val TINT_CHANNEL_TOLERANCE = 0.05f
     }
 
@@ -127,13 +140,34 @@ class FeedbackIconColorsTest {
         var callbacks = 0
         composeTestRule.setContent {
             TestTheme(current.value) {
-                Box(Modifier.background(current.value.background)) {
-                    FeedbackButtons(
-                        interactionId = "color-test",
-                        onFeedback = { callbacks++ },
-                        feedbackState = state.value,
-                        showHelpfulLabel = below.value
-                    )
+                Column {
+                    Box(Modifier.background(current.value.background)) {
+                        FeedbackButtons(
+                            interactionId = "color-test",
+                            onFeedback = { callbacks++ },
+                            feedbackState = state.value,
+                            showHelpfulLabel = below.value
+                        )
+                    }
+                    for (isThumbUp in listOf(true, false)) {
+                        val resource = when {
+                            isThumbUp && state.value == FeedbackState.Positive ->
+                                R.drawable.concierge_ic_thumbs_up_filled
+                            isThumbUp -> R.drawable.concierge_ic_thumbs_up
+                            state.value == FeedbackState.Negative ->
+                                R.drawable.concierge_ic_thumbs_down_filled
+                            else -> R.drawable.concierge_ic_thumbs_down
+                        }
+                        Icon(
+                            painter = painterResource(resource),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(ConciergeStyles.feedbackButtonsStyle.iconSize)
+                                .background(Color.White)
+                                .testTag("coverage-$isThumbUp"),
+                            tint = Color.Black
+                        )
+                    }
                 }
             }
         }
@@ -148,59 +182,97 @@ class FeedbackIconColorsTest {
                     }
                     for (isThumbUp in listOf(true, false)) {
                         val description = if (isThumbUp) "Thumbs up" else "Thumbs down"
-                        val icon = composeTestRule.onNodeWithContentDescription(description)
+                        val icon = composeTestRule.onNodeWithContentDescription(description, useUnmergedTree = true)
                         val expected = when {
                             vote == FeedbackState.None -> case.text
                             (vote == FeedbackState.Positive) == isThumbUp -> case.primary
                             else -> Color(0x668E8E93)
-                        }.compositeOver(case.background)
-                        val pixels = icon.captureToImage().toPixelMap()
-                        val foregroundPixels = mutableListOf<Color>()
-                        for (y in 0 until pixels.height) {
-                            for (x in 0 until pixels.width) {
-                                val pixel = pixels[x, y]
-                                if (abs(pixel.red - case.background.red) >= 0.02f ||
-                                    abs(pixel.green - case.background.green) >= 0.02f ||
-                                    abs(pixel.blue - case.background.blue) >= 0.02f
-                                ) {
-                                    foregroundPixels.add(pixel)
-                                }
-                            }
                         }
-                        val mostOpaquePixels = foregroundPixels
-                            .sortedByDescending { pixel ->
-                                (pixel.red - case.background.red) * (pixel.red - case.background.red) +
-                                    (pixel.green - case.background.green) * (pixel.green - case.background.green) +
-                                    (pixel.blue - case.background.blue) * (pixel.blue - case.background.blue)
-                            }
-                            .take(maxOf((foregroundPixels.size * 0.1f).toInt(), MIN_OPAQUE_SAMPLES))
-                        assertTrue(
-                            "${case.name}, below=$showLabel, $vote, $description: " +
-                                "expected at least $MIN_OPAQUE_SAMPLES foreground samples, " +
-                                "found ${mostOpaquePixels.size}",
-                            mostOpaquePixels.size >= MIN_OPAQUE_SAMPLES
+                        val pixels = icon.captureToImage().toPixelMap()
+                        val reference = composeTestRule.onNodeWithTag("coverage-$isThumbUp")
+                            .captureToImage().toPixelMap()
+                        assertRenderedTint(
+                            pixels, reference, expected, case.background,
+                            "${case.name}, below=$showLabel, $vote, $description"
                         )
-                        val sampledColor = Color(
-                            red = mostOpaquePixels.map { it.red }.average().toFloat(),
-                            green = mostOpaquePixels.map { it.green }.average().toFloat(),
-                            blue = mostOpaquePixels.map { it.blue }.average().toFloat()
-                        )
-                        assertTrue(
-                            "${case.name}, below=$showLabel, $vote, $description: " +
-                                "expected opaque foreground pixels near $expected, found $sampledColor",
-                            abs(sampledColor.red - expected.red) <= TINT_CHANNEL_TOLERANCE &&
-                                abs(sampledColor.green - expected.green) <= TINT_CHANNEL_TOLERANCE &&
-                                abs(sampledColor.blue - expected.blue) <= TINT_CHANNEL_TOLERANCE
-                        )
+                        val button = composeTestRule.onNodeWithContentDescription(description)
                         if (vote == FeedbackState.None) {
-                            icon.assertIsEnabled()
+                            button.assertIsEnabled()
                         } else {
-                            icon.assertIsNotEnabled().performClick()
+                            button.assertIsNotEnabled().performClick()
                         }
                     }
                 }
             }
         }
         composeTestRule.runOnIdle { assertEquals(0, callbacks) }
+    }
+
+    private fun assertRenderedTint(
+        pixels: PixelMap,
+        reference: PixelMap,
+        tint: Color,
+        background: Color,
+        context: String
+    ) {
+        assertEquals("$context: reference width", reference.width, pixels.width)
+        assertEquals("$context: reference height", reference.height, pixels.height)
+        val samples = mutableListOf<Triple<Int, Int, Float>>()
+        for (y in 0 until reference.height) {
+            for (x in 0 until reference.width) {
+                // A separate black-on-white rendering measures coverage, not the tint under test.
+                val coverage = 1f - reference[x, y].red
+                if (coverage >= MIN_REFERENCE_COVERAGE) samples.add(Triple(x, y, coverage))
+            }
+        }
+        assertTrue(
+            "$context: expected at least $MIN_FOREGROUND_SAMPLES reference samples, found ${samples.size}",
+            samples.size >= MIN_FOREGROUND_SAMPLES
+        )
+        for ((x, y, coverage) in samples) {
+            val expected = tint.copy(alpha = tint.alpha * coverage).compositeOver(background)
+            val actual = pixels[x, y]
+            assertTrue(
+                "$context: pixel ($x, $y), coverage=$coverage: expected $expected, found $actual",
+                abs(actual.red - expected.red) <= TINT_CHANNEL_TOLERANCE &&
+                    abs(actual.green - expected.green) <= TINT_CHANNEL_TOLERANCE &&
+                    abs(actual.blue - expected.blue) <= TINT_CHANNEL_TOLERANCE
+            )
+        }
+    }
+
+    @Test
+    fun pixelCheck_acceptsCorrectAntialiasedTintAndRejectsDimmedGray() {
+        val tint = Color(0x3300FF00)
+        for (coverage in listOf(0.5f, 0.75f, 1f)) {
+            val reference = solidPixels(Color.Black.copy(alpha = coverage).compositeOver(Color.White))
+            val correct = solidPixels(tint.copy(alpha = tint.alpha * coverage).compositeOver(Color.White))
+            assertRenderedTint(correct, reference, tint, Color.White, "correct transparent green")
+
+            val wrong = solidPixels(Color(0x668E8E93).copy(alpha = 0.4f * coverage).compositeOver(Color.White))
+            assertThrows(AssertionError::class.java) {
+                assertRenderedTint(wrong, reference, tint, Color.White, "wrong dimmed gray")
+            }
+        }
+    }
+
+    @Test
+    fun pixelCheck_rejectsMissingOrInsufficientReferencePixelsWithContext() {
+        for (count in listOf(0, 1, MIN_FOREGROUND_SAMPLES - 1)) {
+            val bitmap = Bitmap.createBitmap(MIN_FOREGROUND_SAMPLES, 1, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(Color.White.toArgb())
+            for (x in 0 until count) bitmap.setPixel(x, 0, Color.Black.toArgb())
+            val reference = bitmap.asImageBitmap().toPixelMap()
+            val error = assertThrows(AssertionError::class.java) {
+                assertRenderedTint(solidPixels(Color.Black), reference, Color.Black, Color.White, "missing samples")
+            }
+            assertTrue(error.message.orEmpty().contains("missing samples: expected at least"))
+        }
+    }
+
+    private fun solidPixels(color: Color): PixelMap {
+        val bitmap = Bitmap.createBitmap(MIN_FOREGROUND_SAMPLES, 1, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(color.toArgb())
+        return bitmap.asImageBitmap().toPixelMap()
     }
 }
