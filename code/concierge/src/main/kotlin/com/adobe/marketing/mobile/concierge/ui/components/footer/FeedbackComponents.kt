@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.R
@@ -91,6 +92,9 @@ private fun ThumbsRow(
     feedbackState: FeedbackState,
     style: ConciergeStyles.FeedbackButtonsStyle
 ) {
+    val thumbUpTint = style.iconTintFor(feedbackState, isThumbUp = true)
+    val thumbDownTint = style.iconTintFor(feedbackState, isThumbUp = false)
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(style.spacing),
@@ -116,7 +120,7 @@ private fun ThumbsRow(
                 ),
                 contentDescription = "Thumbs up",
                 modifier = Modifier.size(style.iconSize),
-                tint = style.iconColor
+                tint = thumbUpTint
             )
         }
 
@@ -140,10 +144,19 @@ private fun ThumbsRow(
                 ),
                 contentDescription = "Thumbs down",
                 modifier = Modifier.size(style.iconSize),
-                tint = style.iconColor
+                tint = thumbDownTint
             )
         }
     }
+}
+
+internal fun ConciergeStyles.FeedbackButtonsStyle.iconTintFor(
+    feedbackState: FeedbackState,
+    isThumbUp: Boolean
+): Color = when (feedbackState) {
+    FeedbackState.None -> iconColor
+    FeedbackState.Positive -> if (isThumbUp) selectedIconColor else dimmedIconColor
+    FeedbackState.Negative -> if (isThumbUp) dimmedIconColor else selectedIconColor
 }
 
 /**

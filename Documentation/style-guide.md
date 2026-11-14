@@ -418,6 +418,8 @@ Taps are tracked as link clicks with origin `privacyNotice`.
 | `behavior.feedback.showCancelButton` | boolean \| null | `null` | Cancel button visibility. `null` = shown for `"modal"`, hidden for `"action"`. Both set to `false` is honored: Submit and (in action mode) drag-down still dismiss. |
 | `behavior.feedback.alwaysDisplay` | boolean | `false` | When `true`, shows the feedback thumbs as soon as the response finishes streaming, bypassing the server's `feedbackEligible` flag. Does not bypass the streaming-complete requirement. |
 
+Before a vote, both thumbs use the concierge message text color. After a vote, the selected thumb uses the primary brand color and the other thumb uses SwiftUI system gray (`#8E8E93`) at 40% opacity. The gray tint is independent of the theme's text color and opacity. This applies to both inline and below-message placement.
+
 ### Citations
 
 | JSON Key | Type | Default | Description |
