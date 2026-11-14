@@ -163,12 +163,21 @@ class MessageTypographyTest {
     @Test
     fun programmaticAbsoluteLineHeight_takesPrecedence_andOverflowFallsBack() {
         val typography = mutableStateOf(ConciergeTypography(fontSize = 16.0, lineHeight = 1.5))
+        var reference: TextLayoutResult? = null
         rule.setContent {
             ConciergeTheme(theme = theme(ConciergeThemeTokens(typography = typography.value))) {
-                ConciergeResponse(text = "First\nSecond")
+                Column {
+                    ConciergeResponse(text = "First\nSecond")
+                    Text(
+                        text = "First\nSecond",
+                        modifier = Modifier.testTag("typography-reference"),
+                        style = ConciergeStyles.messageBubbleStyle.textStyle.copy(lineHeight = TextUnit.Unspecified),
+                        onTextLayout = { reference = it }
+                    )
+                }
             }
         }
-        val defaultLineHeight = layout("First\nSecond").layoutInput.text.paragraphStyles.single().item.lineHeight
+        assertEquals(24.sp, layout("First\nSecond").layoutInput.text.paragraphStyles.single().item.lineHeight)
         rule.runOnIdle {
             typography.value = ConciergeTypography(fontSize = 16.0, lineHeight = 2.0, lineHeightPx = 24.0)
         }
@@ -176,7 +185,15 @@ class MessageTypographyTest {
         rule.runOnIdle {
             typography.value = ConciergeTypography(fontSize = 16.0, lineHeight = 1e38)
         }
-        assertEquals(defaultLineHeight, layout("First\nSecond").layoutInput.text.paragraphStyles.single().item.lineHeight)
+        val fallback = layout("First\nSecond")
+        val expected = checkNotNull(reference)
+        assertTrue(fallback.layoutInput.text.paragraphStyles.isEmpty())
+        assertEquals(TextUnit.Unspecified, fallback.layoutInput.style.lineHeight)
+        assertEquals(16.sp, fallback.layoutInput.style.fontSize)
+        assertEquals(2, fallback.lineCount)
+        assertEquals(expected.size, fallback.size)
+        assertEquals(expected.firstBaseline, fallback.firstBaseline, 0.01f)
+        assertEquals(expected.lastBaseline, fallback.lastBaseline, 0.01f)
     }
 
     @Test
