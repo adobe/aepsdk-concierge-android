@@ -61,6 +61,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
+import com.adobe.marketing.mobile.concierge.ui.components.messages.LocalNativeCardController
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import kotlinx.coroutines.flow.StateFlow
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
@@ -275,7 +276,10 @@ fun ConciergeChat(
         { event -> viewModel.processEvent(event, handleLink) }
     }
 
-    CompositionLocalProvider(LocalImageProvider provides viewModel.imageProvider) {
+    CompositionLocalProvider(
+        LocalImageProvider provides viewModel.imageProvider,
+        LocalNativeCardController provides viewModel.nativeCards
+    ) {
         ConciergeChat(
             messages = messages,
             chatState = state,

@@ -100,6 +100,42 @@ internal fun ChatMessageItem(
                 onCtaButtonClick = onCtaButtonClick
             )
         }
+
+        is MessageContent.NativeCard -> {
+            NativeCardItem(
+                message = message,
+                content = message.content,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick
+            )
+        }
+    }
+}
+
+/**
+ * A native renderer row, followed by any prompt suggestions the response attached to it.
+ */
+@Composable
+private fun NativeCardItem(
+    message: ChatMessage,
+    content: MessageContent.NativeCard,
+    onSuggestionClick: (String) -> Unit,
+    onCtaButtonClick: (CtaButton) -> Unit
+) {
+    val style = ConciergeStyles.messageBubbleStyle
+    val rawIconName = ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() }
+    val hasCompanyIcon = rememberIsIconConfigured(rawIconName)
+    val suffixStartPadding = if (hasCompanyIcon) style.agentIconSize + style.agentIconSpacing else 0.dp
+    Column(modifier = Modifier.fillMaxWidth()) {
+        NativeCardMessage(cardId = content.cardId)
+        Column(modifier = Modifier.padding(start = suffixStartPadding)) {
+            BotMessageSuffix(
+                message = message,
+                onSuggestionClick = onSuggestionClick,
+                onCtaButtonClick = onCtaButtonClick,
+                ctaStartPadding = if (hasCompanyIcon) 0.dp else style.padding + style.innerPadding
+            )
+        }
     }
 }
 
@@ -525,7 +561,7 @@ private fun AgentResponseContent(
  *
  * @param ctaStartPadding Start inset for the CTA button: the legacy text inset without an icon, or
  * the bubble's leading edge beside an icon. It ignores `--message-padding`. Callers that already
- * offset this composable past the agent icon (via a leading Spacer) should pass 0.dp.
+ * offset this composable past the agent icon should pass 0.dp.
  */
 @Composable
 private fun BotMessageSuffix(

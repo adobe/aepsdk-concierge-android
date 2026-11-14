@@ -351,5 +351,43 @@ class CSSThemeParsingTest {
         assertEquals(8.0, layout?.productCardCarouselHorizontalPadding)
         assertEquals(16.0, layout?.productCardCarouselSpacing)
     }
-}
 
+    @Test
+    fun `test parseThemeTokens retains custom theme keys in cssVariables`() {
+        val themeJson = """
+            {
+              "theme": {
+                "--color-primary": "#EB1000",
+                "--my-card-tile-background-color": "#FAFAFA",
+                "--my-card-tile-corner-radius": "12px"
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(themeJson)
+        assertNotNull(theme)
+        assertEquals("#EB1000", theme?.colors?.primaryColors?.primary)
+        assertEquals(
+            mapOf("--my-card-tile-background-color" to "#FAFAFA", "--my-card-tile-corner-radius" to "12px"),
+            theme?.cssVariables
+        )
+    }
+
+    @Test
+    fun `test parseThemeTokens converts number values to strings instead of dropping them`() {
+        val themeJson = """
+            {
+              "theme": {
+                "--my-card-tile-width": 140,
+                "--my-card-disabled-opacity": 0.5,
+                "--my-card-flag": true
+              }
+            }
+        """.trimIndent()
+
+        val theme = ThemeParser.parseThemeTokens(themeJson)
+        assertEquals("140", theme?.cssVariables?.get("--my-card-tile-width"))
+        assertEquals("0.5", theme?.cssVariables?.get("--my-card-disabled-opacity"))
+        assertNull(theme?.cssVariables?.get("--my-card-flag"))
+    }
+}

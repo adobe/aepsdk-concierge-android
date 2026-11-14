@@ -19,6 +19,7 @@ import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
+import java.util.UUID
 
 /**
  * Enum representing feedback sentiment type
@@ -164,6 +165,9 @@ internal sealed class MessageContent {
         val multimodalElements: List<MultimodalElement>? = null
     ) : MessageContent()
     data class CtaButton(val button: NetworkCtaButton) : MessageContent()
+
+    /** A native response element occurrence, rendered by its registered app renderer. */
+    data class NativeCard(val cardId: String) : MessageContent()
 }
 
 /**
@@ -187,13 +191,16 @@ internal data class ChatMessage(
     val feedbackState: FeedbackState = FeedbackState.None,
     val ctaButton: NetworkCtaButton? = null,
     val feedbackEligible: Boolean = false,
-    val linkHints: List<LinkHint> = emptyList()
+    val linkHints: List<LinkHint> = emptyList(),
+    /** Stable local identity used as the transcript list key. */
+    val localId: String = UUID.randomUUID().toString(),
 ) {
     val text: String
         get() = when (content) {
             is MessageContent.Text -> content.text
             is MessageContent.Mixed -> content.text
             is MessageContent.CtaButton -> content.button.label
+            is MessageContent.NativeCard -> ""
         }
 
     /**

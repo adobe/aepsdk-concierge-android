@@ -11,6 +11,7 @@
   governing permissions and limitations under the License.
 -->
 <resources>
+    <string name="concierge_native_card_unavailable">This content isn\'t available right now.</string>
     <!-- Default heading when behavior.privacyNotice.title is omitted. -->
     <string name="concierge_privacy_notice_title">Privacy Notice</string>
     <!-- Accessibility action for a privacy notice link; %1$s is the link label. -->
