@@ -96,6 +96,8 @@ internal fun ConciergeResponseText(
     ) { animatedText ->
         ClickableText(
             text = animatedText,
+            // Compose resolves scaled paragraph line height against this base font size.
+            textStyle = TextStyle(fontSize = ConciergeStyles.messageBubbleStyle.textStyle.fontSize),
             inlineContent = finalInlineContentMap,
             handleLink = { url ->
                 handleLink?.invoke(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE)

@@ -752,7 +752,43 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | CSS Variable | Kotlin Property | Type | Default | Description |
 |--------------|-----------------|------|---------|-------------|
 | `--font-family` | `typography.fontFamily` | `String` | `null` (system font) | Font family name |
-| `--line-height-body` | `typography.lineHeight` | `Double` | `1.0` | Line height multiplier |
+| `--line-height-body` | `typography.lineHeight` / `typography.lineHeightPx` | `Double` | `null` (existing layout defaults) | Unitless multiplier (`"1.5"`) or absolute Android scaled size (`"24px"` maps to 24sp); the `px` suffix is case-insensitive |
+| `--message-font-size` | `typography.fontSize` | `Double` | `null` (Material default) | Message body text size (px); positive and finite when converted to Compose's float size |
+| `--message-font-weight` | `typography.fontWeight` | `Int` | `null` (Material default) | Message body text weight (`1`–`1000`, `normal`, `bold`, `lighter`, `bolder`) |
+| `--message-concierge-link-font-weight` | `typography.linkFontWeight` | `Int?` | `null` (inherits body weight) | Inline hyperlink text weight in concierge messages; same valid range/names as body weight |
+| `--message-concierge-link-underline` | `typography.linkUnderline` | `Boolean` | `true` | Whether inline hyperlinks are underlined (WCAG 1.4.1) |
+
+Body size and weight apply to user and concierge message bodies, and to the privacy
+notice that shares the body style. Link overrides apply to inline concierge response
+links, including links inside lists and blockquotes, not Sources rows or other UI
+links. Markdown headings and code retain their existing specialized styling.
+CSS theme values must be
+strings (for example `"--message-concierge-link-underline": "false"`).
+Malformed or out-of-range sizes and weights are ignored with a warning; existing
+values/defaults are preserved. Markdown-bold links remain at least weight `700`,
+even when the configured link weight is lower. Italic links retain italics.
+Programmatic `ConciergeTypography` values receive the same size/weight validation
+when supplied to `ConciergeTheme`; invalid values fall back to the text style
+defaults. An explicit `--line-height-body` is retained as paragraph styling in
+concierge responses, including list items. Omitting it preserves existing response
+line spacing. For message bubble styles, setting only `--message-font-size` scales
+the inherited line height proportionally to avoid cramped lines. For example,
+`"24px"` remains 24sp when the body font size changes, whereas `"1.5"` scales with
+that font size. Headings and fenced code blocks retain their existing paragraph
+spacing, including when nested in a list or blockquote.
+Inline code remains part of its surrounding body paragraph.
+Response text and list items use the resolved body font size as their base font
+size so Compose's accessibility font scaling resolves paragraph line height
+consistently with Material text. Body line height remains paragraph-scoped and is
+not reapplied globally to headings or fenced code.
+Programmatic themes can set `lineHeightPx` for an absolute size or `lineHeight`
+for a multiplier; if both are set, `lineHeightPx` takes precedence. Invalid line
+heights are ignored with a warning.
+
+Underlining helps distinguish links but does not replace text/background contrast.
+Check the actual message background: WCAG AA requires at least 4.5:1 for normal
+text, or 3:1 for large text. Heavier weight alone does not improve the contrast
+ratio; the lower threshold applies only when text meets WCAG's large-text criteria.
 
 ### Colors - Primary
 
@@ -1556,7 +1592,11 @@ This section documents which properties are fully implemented, partially impleme
 | CSS Variable | Status | Notes | Used In |
 |--------------|--------|-------|---------|
 | `--font-family` | ⚠️ | Parsed but not implemented | - |
-| `--line-height-body` | ✅ | Body text line height | All text components via `ConciergeStyles.withThemeTypography` |
+| `--line-height-body` | ✅ | Explicit message body line height | `ConciergeStyles.withThemeTypography`; response paragraph styling via `MarkdownParser` |
+| `--message-font-size` | ✅ | Message body text size | `ConciergeStyles.withThemeTypography` |
+| `--message-font-weight` | ✅ | Message body text weight | `ConciergeStyles.withThemeTypography` |
+| `--message-concierge-link-font-weight` | ✅ | Inline link text weight | `MarkdownRenderer` link renderers |
+| `--message-concierge-link-underline` | ✅ | Inline link underline | `MarkdownRenderer` link renderers |
 | `--input-font-size` | ✅ | Input field text size | `ChatTextField` |
 | `--citations-desktop-button-font-size` | ✅ | Citation pill text size | `CircularCitation` |
 | `--disclaimer-font-size` | ✅ | Disclaimer text size | `ConciergeDisclaimer` (DisclaimerStyle) |

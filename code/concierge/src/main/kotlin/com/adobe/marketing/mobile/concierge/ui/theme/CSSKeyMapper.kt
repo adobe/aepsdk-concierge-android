@@ -346,10 +346,55 @@ internal object CSSKeyMapper {
             )
         },
         "line-height-body" to { cssValue, theme ->
-            val lineHeight = CSSValueConverter.parseLineHeight(cssValue)
+            val lineHeight = CSSValueConverter.parsePxValue(cssValue)
+                ?.takeIf(MessageTypographyValidator::isValidFontSize)
+            if (lineHeight == null) {
+                Log.w(LOG_TAG, "Ignoring invalid --line-height-body; expected a finite positive multiplier or pixel value.")
+                theme
+            } else {
+                val absolute = cssValue.trim().endsWith("px", ignoreCase = true)
+                val typography = theme.typography ?: ConciergeTypography()
+                theme.copy(typography = typography.copy(
+                    lineHeight = lineHeight.takeUnless { absolute },
+                    lineHeightPx = lineHeight.takeIf { absolute }
+                ))
+            }
+        },
+        "message-font-size" to { cssValue, theme ->
+            val fontSize = CSSValueConverter.parsePxValue(cssValue)?.takeIf(MessageTypographyValidator::isValidFontSize)
+            if (fontSize == null) {
+                Log.w(LOG_TAG, "Ignoring invalid --message-font-size; expected a finite positive pixel value.")
+                theme
+            } else theme.copy(
+                typography = theme.typography?.copy(fontSize = fontSize)
+                    ?: ConciergeTypography(fontSize = fontSize)
+            )
+        },
+        "message-font-weight" to { cssValue, theme ->
+            val fontWeight = CSSValueConverter.parseFontWeightOrNull(cssValue)?.takeIf(MessageTypographyValidator::isValidFontWeight)
+            if (fontWeight == null) {
+                Log.w(LOG_TAG, "Ignoring invalid --message-font-weight; expected a weight from 1 to 1000.")
+                theme
+            } else theme.copy(
+                typography = theme.typography?.copy(fontWeight = fontWeight)
+                    ?: ConciergeTypography(fontWeight = fontWeight)
+            )
+        },
+        "message-concierge-link-font-weight" to { cssValue, theme ->
+            val linkFontWeight = CSSValueConverter.parseFontWeightOrNull(cssValue)?.takeIf(MessageTypographyValidator::isValidFontWeight)
+            if (linkFontWeight == null) {
+                Log.w(LOG_TAG, "Ignoring invalid --message-concierge-link-font-weight; expected a weight from 1 to 1000.")
+                theme
+            } else theme.copy(
+                typography = theme.typography?.copy(linkFontWeight = linkFontWeight)
+                    ?: ConciergeTypography(linkFontWeight = linkFontWeight)
+            )
+        },
+        "message-concierge-link-underline" to { cssValue, theme ->
+            val linkUnderline = cssValue.trim().equals("false", ignoreCase = true).not()
             theme.copy(
-                typography = theme.typography?.copy(lineHeight = lineHeight)
-                    ?: ConciergeTypography(lineHeight = lineHeight)
+                typography = theme.typography?.copy(linkUnderline = linkUnderline)
+                    ?: ConciergeTypography(linkUnderline = linkUnderline)
             )
         },
         
