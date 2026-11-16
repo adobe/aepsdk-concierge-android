@@ -290,25 +290,38 @@ class ConciergeChatViewModelNativeCardTest {
         assertTrue(vm.nativeCardIds().isEmpty())
     }
 
+    private fun ctaElement(id: String) = mapOf(
+        "type" to "ctaButton", "id" to id,
+        "entity_info" to mapOf("primary" to mapOf("text" to "Continue $id", "url" to "https://example.com/$id"))
+    )
+
     @Test
-    fun `CTA-only responses still do not attach suggestions to text`() = runTest {
+    fun `text with only CTAs attaches suggestions to the last CTA`() = runTest {
         val suggestions = listOf("Try another option")
-        val vm = viewModel(
-            frame(
-                "Choose an option",
-                mapOf("type" to "ctaButton", "id" to "cta-1", "entity_info" to mapOf(
-                    "primary" to mapOf("text" to "Continue", "url" to "https://example.com")
-                )),
-                promptSuggestions = suggestions
-            )
-        )
+        val vm = viewModel(frame("Choose an option", ctaElement("cta-1"), ctaElement("cta-2"), promptSuggestions = suggestions))
 
         vm.processEvent(ChatEvent.SendMessage("continue"))
         advanceUntilIdle()
 
         val replies = vm.messages.value.filterNot { it.isFromUser }
-        assertEquals(2, replies.size)
-        assertTrue(replies.all { it.promptSuggestions.isEmpty() })
+        assertEquals(3, replies.size)
+        assertTrue(replies.last().content is MessageContent.CtaButton)
+        assertEquals(suggestions, replies.last().promptSuggestions)
+        assertTrue(replies.dropLast(1).all { it.promptSuggestions.isEmpty() })
+    }
+
+    @Test
+    fun `blank text with an omitted custom element and a CTA attaches suggestions to the CTA`() = runTest {
+        val suggestions = listOf("Try another option")
+        val unknown = mapOf("type" to "custom", "rendererId" to "acme.unknown", "id" to "u1")
+        val vm = viewModel(frame("", unknown, ctaElement("cta-1"), promptSuggestions = suggestions))
+
+        vm.processEvent(ChatEvent.SendMessage("continue"))
+        advanceUntilIdle()
+
+        val reply = vm.messages.value.filterNot { it.isFromUser }.single()
+        assertTrue(reply.content is MessageContent.CtaButton)
+        assertEquals(suggestions, reply.promptSuggestions)
     }
 
     @Test
@@ -543,8 +556,9 @@ class ConciergeChatViewModelNativeCardTest {
 
                 val replies = vm.messages.value.filterNot { it.isFromUser }
                 assertEquals(2, replies.size)
-                assertEquals(suggestions, replies.first().promptSuggestions)
-                assertTrue(replies.any { it.content is MessageContent.CtaButton })
+                assertTrue(replies.first().promptSuggestions.isEmpty())
+                assertTrue(replies.last().content is MessageContent.CtaButton)
+                assertEquals(suggestions, replies.last().promptSuggestions)
                 assertTrue(replies.none { it.content is MessageContent.Mixed || it.content is MessageContent.NativeCard })
             }
             verify(exactly = 2) {
@@ -561,7 +575,7 @@ class ConciergeChatViewModelNativeCardTest {
             "type" to "custom", "rendererId" to "acme.unknown", "id" to "u1",
             "entity_info" to mapOf("productName" to "Not a product card")
         )
-        val vm = viewModel(frame("", unknown))
+        val vm = viewModel(frame("", unknown, promptSuggestions = listOf("Try again")))
         var result: DataHandoffDeliveryResult? = null
 
         vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
@@ -661,7 +675,7 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
-    fun `an identity reset makes live cards stale and busy, then drops them and their late saves`() = runTest {
+    fun `an identity reset makes live cards stale and busy, then drops them with their state and late saves`() = runTest {
         registerMenu()
         val repository = readyRepository()
         val vm = viewModel(frame("Here you go", menu), repository)
@@ -686,7 +700,7 @@ class ConciergeChatViewModelNativeCardTest {
 
         card.saveState(mapOf("status" to "late"))
         advanceUntilIdle()
-        assertEquals(mapOf("status" to "draft"), card.state.value)
+        assertNull(card.state.value)
         assertTrue(card.isStale.value)
     }
 
@@ -812,5 +826,77 @@ class ConciergeChatViewModelNativeCardTest {
         assertEquals(mapOf("status" to "submitted", "rev" to 3), after.state.value)
         assertFalse(after.isStale.value)
         assertEquals(menu, after.element)
+    }
+
+    private fun assertTypedTurnEndedWithErrorCopy(vm: ConciergeChatViewModel, suggestions: List<String> = emptyList()) {
+        val reply = vm.messages.value.filterNot { it.isFromUser }.single()
+        assertEquals(MessageContent.Text("Sorry, I encountered an error. Please try again."), reply.content)
+        assertEquals(suggestions, reply.promptSuggestions)
+        assertTrue(reply.sseComplete)
+        assertFalse(reply.isThinking)
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        assertTrue(vm.nativeCardIds().isEmpty())
+    }
+
+    @Test
+    fun `typed chat with only unregistered custom elements ends with the error message and its suggestions`() = runTest {
+        registerMenu()
+        val unknown = mapOf("type" to "custom", "rendererId" to "acme.unknown", "id" to "u1")
+        val vm = viewModel(frame("", unknown, promptSuggestions = listOf("Try again")))
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        assertTypedTurnEndedWithErrorCopy(vm, listOf("Try again"))
+    }
+
+    @Test
+    fun `typed chat whose custom elements are all rejected ends with the error message`() = runTest {
+        registerMenu()
+        val missingRendererId = mapOf("type" to "custom", "id" to "c1")
+        val blankRendererId = mapOf("type" to "custom", "rendererId" to " ", "id" to "c2")
+        val vm = viewModel(frame("", rejectedMenu(), missingRendererId, blankRendererId))
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        assertTypedTurnEndedWithErrorCopy(vm)
+    }
+
+    @Test
+    fun `typed chat with a completed response that has no text or elements ends with the error message`() = runTest {
+        val vm = viewModel(frame(""))
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        assertTypedTurnEndedWithErrorCopy(vm)
+    }
+
+    @Test
+    fun `typed chat stream that ends in the foreground without any content ends with the error message`() = runTest {
+        val vm = viewModel(frame("", state = "in-progress"))
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        assertTypedTurnEndedWithErrorCopy(vm)
+    }
+
+    @Test
+    fun `typed chat keeps streamed text when the final response's only custom element is rejected`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("Menu unavailable", state = "in-progress")) {
+            ConversationResponseParser.parseConversationData(frame("", rejectedMenu())).forEach { emit(it) }
+        }
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        val reply = vm.messages.value.filterNot { it.isFromUser }.single()
+        assertEquals("Menu unavailable", reply.text)
+        assertTrue(reply.sseComplete)
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        assertTrue(vm.nativeCardIds().isEmpty())
     }
 }

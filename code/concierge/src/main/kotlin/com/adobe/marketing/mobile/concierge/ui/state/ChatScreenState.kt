@@ -205,11 +205,13 @@ internal data class ChatMessage(
 
     /**
      * True when this message is an agent thinking indicator: a non-user text message whose
-     * text is empty. The thinking animation composable is shown in place of message content
-     * and the footer (citations/feedback) is suppressed until a real response arrives.
+     * stream is still open ([sseComplete] is false) and has produced no text yet. The thinking
+     * animation composable is shown in place of message content and the footer
+     * (citations/feedback) is suppressed until a real response arrives. A completed message is
+     * never a thinking indicator, even if it is empty.
      */
     val isThinking: Boolean
-        get() = !isFromUser && content is MessageContent.Text && text.isEmpty()
+        get() = !isFromUser && !sseComplete && content is MessageContent.Text && text.isEmpty()
 
     val hasFooterContent: Boolean
         get() = !isFromUser && (citations != null || interactionId != null || feedbackEligible)

@@ -22,6 +22,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.CtaButton as NetworkCtaButton
@@ -581,6 +582,27 @@ class ChatMessageItemTest {
 
         composeTestRule.onNodeWithTag("CtaButton")
             .assertLeftPositionInRootIsEqualTo(expectedStart)
+    }
+
+    @Test
+    fun chatMessageItem_standaloneCtaMessage_showsAttachedSuggestions() {
+        var selected: String? = null
+        val message = ChatMessage(
+            content = MessageContent.CtaButton(NetworkCtaButton(label = "Chat now", url = "https://example.com/chat")),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            promptSuggestions = listOf("Try another option")
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme {
+                ChatMessageItem(message = message, onSuggestionClick = { selected = it })
+            }
+        }
+
+        composeTestRule.onNodeWithTag("CtaButton").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Try another option").assertIsDisplayed().performClick()
+        assertEquals("Try another option", selected)
     }
 
     @Test

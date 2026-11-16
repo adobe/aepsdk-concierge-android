@@ -147,6 +147,8 @@ class NativeCardControllerTest {
         val harness = Harness(this)
         val card = harness.card(harness.activate())
         card.saveState(mapOf("status" to "submitted"))
+        runCurrent()
+        assertEquals(mapOf("status" to "submitted"), card.state.value)
 
         harness.controller.disposeAll()
         runCurrent()
@@ -262,9 +264,11 @@ class NativeCardControllerTest {
         val harness = Harness(this)
         val kept = harness.card(harness.activate())
         val dropped = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1"), position = 1))
+        dropped.saveState(mapOf("status" to "draft"))
+        runCurrent()
 
         harness.controller.disposeAllExcept(setOf(kept.cardId))
-        dropped.saveState(mapOf("status" to "draft"))
+        dropped.saveState(mapOf("status" to "late"))
         runCurrent()
 
         assertSame(kept, harness.controller.renderableCard(kept.cardId))

@@ -294,7 +294,10 @@ card inline in the transcript, after its assistant turn completes.
 Only `custom` elements are matched; other element types always keep their built-in rendering, even
 if their `type` equals a registered id. Custom `entity_info` is opaque to the SDK and is never
 parsed as a built-in card. A custom element is omitted with a warning if its `rendererId` is
-missing, blank, or unregistered, or if native activation rejects it. `ctaButton` elements use CTA
+missing, blank, or unregistered, or if native activation rejects it. If that leaves a typed chat
+response with no text and nothing else to show, the chat shows its standard error message with the
+response's prompt suggestions; a data handoff reports `EMPTY_RESPONSE` instead and adds nothing to
+the transcript. `ctaButton` elements use CTA
 parsing; other non-custom types use the existing card parser.
 `rendererId` matching is exact and case-sensitive.
 Within one response, the same element ID may be used by different renderers, but repeated IDs for
@@ -302,6 +305,8 @@ the same renderer are rejected for native rendering.
 Replacing a registration affects subsequently activated cards; existing cards retain their renderer.
 Native cards and CTAs have separate transcript rows; built-in cards are grouped into a carousel
 at the first built-in card's position, so mixed responses do not preserve every element's interleaving.
+Prompt suggestions are shown under the built-in card carousel, else the last native card, else the
+last CTA, else the response text.
 Native cards do not emit the SDK's `CardsRendered` analytics event; tracking native-card impressions
 and other app-specific interactions is the host app's responsibility. The SDK does not send native
 card payloads through product-oriented card analytics.
@@ -330,7 +335,8 @@ Concierge.registerCardRenderer("catalogRenderer") { element, context, saveState 
   within the same depth/node limits; invalid saves are logged and ignored.
 
 Cards are disposed when their rows are rolled back, on transcript clear/identity reset, and on
-ViewModel teardown. Identity reset marks cards stale before disposal. Saves after disposal are ignored.
+ViewModel teardown. Identity reset marks cards stale before disposal. Disposal discards the card's
+saved state, and saves after disposal are ignored.
 
 Cards talk back with the existing APIs: `Concierge.sendDataHandoff` to start a turn with data, and
 `Concierge.updateXDMContext` for committed facts later turns need.

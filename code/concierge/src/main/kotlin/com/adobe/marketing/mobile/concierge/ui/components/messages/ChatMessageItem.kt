@@ -96,7 +96,9 @@ internal fun ChatMessageItem(
 
         is MessageContent.CtaButton -> {
             RenderCtaButton(
+                message = message,
                 content = message.content,
+                onSuggestionClick = onSuggestionClick,
                 onCtaButtonClick = onCtaButtonClick
             )
         }
@@ -144,26 +146,36 @@ private fun NativeCardItem(
  * sent as its own message, rather than attached via [ChatMessage.ctaButton] to a text response).
  * It has no text bubble of its own to inherit alignment from, so it must independently match the
  * CTA inset used under agent text messages: the icon column when a company icon is configured,
- * otherwise the message bubble's own padding. `--message-padding` does not move it.
+ * otherwise the message bubble's own padding. `--message-padding` does not move it. Any prompt
+ * suggestions the response attached to it follow, aligned like those under native card rows.
  */
 @Composable
 private fun RenderCtaButton(
+    message: ChatMessage,
     content: MessageContent.CtaButton,
+    onSuggestionClick: (String) -> Unit,
     onCtaButtonClick: (CtaButton) -> Unit
 ) {
     val style = ConciergeStyles.messageBubbleStyle
     val rawIconName = ConciergeTheme.tokens?.assets?.icons?.company?.takeIf { it.isNotEmpty() }
     val hasCompanyIcon = rememberIsIconConfigured(rawIconName)
+    val iconInset = style.agentIconSize + style.agentIconSpacing
 
-    CtaButton(
-        cta = content.button,
-        onClick = onCtaButtonClick,
-        containerStartPadding = if (hasCompanyIcon) {
-            style.agentIconSize + style.agentIconSpacing
-        } else {
-            style.padding + style.innerPadding
+    Column(modifier = Modifier.fillMaxWidth()) {
+        CtaButton(
+            cta = content.button,
+            onClick = onCtaButtonClick,
+            containerStartPadding = if (hasCompanyIcon) iconInset else style.padding + style.innerPadding
+        )
+        if (message.promptSuggestions.isNotEmpty()) {
+            Column(modifier = Modifier.padding(start = if (hasCompanyIcon) iconInset else 0.dp)) {
+                PromptSuggestions(
+                    suggestions = message.promptSuggestions,
+                    onSuggestionClick = onSuggestionClick
+                )
+            }
         }
-    )
+    }
 }
 
 @Composable

@@ -218,6 +218,28 @@ class NativeCardSuggestionAlignmentTest(
         assertEquals(nativeCta, selectedCta)
     }
 
+    @Test
+    fun missingCardDrawsNothingButKeepsItsSuggestions() {
+        var selectedSuggestion: String? = null
+        setMessages(
+            ChatMessage(content = MessageContent.Text("Agent reply"), isFromUser = false, timestamp = 0),
+            ChatMessage(
+                content = MessageContent.NativeCard("disposed-card"),
+                isFromUser = false,
+                timestamp = 0,
+                promptSuggestions = listOf("Native suggestion")
+            ),
+            onSuggestionClick = { selectedSuggestion = it }
+        )
+
+        composeTestRule.onNodeWithTag(NATIVE_CARD_TEST_TAG).assertDoesNotExist()
+        composeTestRule.onNodeWithTag("NativeTestRenderer").assertDoesNotExist()
+        val suggestion = composeTestRule.onNodeWithText("Native suggestion")
+        suggestion.assertIsDisplayed()
+        suggestion.performClick()
+        assertEquals("Native suggestion", selectedSuggestion)
+    }
+
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "icon={0}, direction={1}")

@@ -1266,6 +1266,17 @@ class ChatScreenStateTest {
         assertFalse(message.isThinking)
     }
 
+    @Test
+    fun `ChatMessage isThinking returns false for an empty bot message whose stream completed`() {
+        val message = ChatMessage(
+            content = MessageContent.Text(""),
+            isFromUser = false,
+            timestamp = System.currentTimeMillis(),
+            sseComplete = true
+        )
+        assertFalse(message.isThinking)
+    }
+
     // ========== ChatMessage.hasFooterContent Tests ==========
 
     @Test

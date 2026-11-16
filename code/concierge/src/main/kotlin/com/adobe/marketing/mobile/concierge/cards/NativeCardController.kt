@@ -261,9 +261,11 @@ internal class NativeCardController(
         newest.latest.value = true
     }
 
+    /** Ends the card's lifetime: it can't be looked up, its saved state is discarded, and later saves are ignored. */
     private fun dispose(entry: CardEntry) {
         entry.isDisposed = true
         entry.stale.value = true
         entry.latest.value = false
+        entry.state.value = null
     }
 }

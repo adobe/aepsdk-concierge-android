@@ -2788,8 +2788,9 @@ class ConciergeChatViewModelTest {
     fun `initial assistant message is created before any stream chunk`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        // Flow with no emissions; assistant message should still be created when coroutine starts
-        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow { }
+        // Flow that stays open with no emissions; the assistant message should already exist
+        val streamOpen = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow { streamOpen.await() }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher)
         vm.processEvent(ChatEvent.SendMessage("Hi"))
@@ -2802,6 +2803,10 @@ class ConciergeChatViewModelTest {
         assertEquals(2, messages.size)
         assertTrue(!messages[1].isFromUser)
         assertEquals("", messages[1].text)
+        assertTrue(messages[1].isThinking)
+
+        streamOpen.complete(Unit)
+        advanceUntilIdle()
     }
 
     @Test
