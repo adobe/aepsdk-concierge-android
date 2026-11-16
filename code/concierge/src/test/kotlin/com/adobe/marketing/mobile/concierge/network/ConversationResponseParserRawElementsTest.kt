@@ -90,7 +90,7 @@ class ConversationResponseParserRawElementsTest {
     }
 
     @Test
-    fun `untyped and custom types keep legacy built-in rendering`() {
+    fun `untyped and unknown non-custom types keep legacy built-in rendering`() {
         val message = parse(
             """
             [
@@ -127,7 +127,7 @@ class ConversationResponseParserRawElementsTest {
     }
 
     @Test
-    fun `rendererId is read only for custom elements and custom without one is dropped`() {
+    fun `custom elements retain raw data without a built-in representation`() {
         val message = parse(
             """
             [
@@ -135,16 +135,20 @@ class ConversationResponseParserRawElementsTest {
                "rendererContext": {"eventId": "event-12345"}, "entity_info": {"productName": "Veggie Nachos"}},
               {"type": "custom", "id": "no-renderer", "entity_info": {"productName": "Dropped"}},
               {"type": "custom", "id": "blank-renderer", "rendererId": " ", "entity_info": {"productName": "Dropped"}},
+              {"type": "custom", "id": "invalid-renderer", "rendererId": 123, "entity_info": {"productName": "Dropped"}},
               {"type": "horizontalCard", "id": "h1", "rendererId": "catalogRenderer", "entity_info": {"productName": "Card"}}
             ]
             """.trimIndent()
         )
 
-        assertEquals(listOf("catalogRenderer", null, null, null), message.rawElements.map { it.rendererId })
+        assertEquals(listOf("catalogRenderer", null, null, null, null), message.rawElements.map { it.rendererId })
         assertEquals(mapOf("eventId" to "event-12345"), message.rawElements[0].payload["rendererContext"])
+        assertEquals(mapOf("productName" to "Veggie Nachos"), message.rawElements[0].payload["entity_info"])
+        assertNull(message.rawElements[0].parsedBuiltIn)
         assertNull(message.rawElements[1].parsedBuiltIn)
         assertNull(message.rawElements[2].parsedBuiltIn)
-        assertEquals(listOf("1364190", "h1"), message.multimodalElements.map { it.id })
+        assertNull(message.rawElements[3].parsedBuiltIn)
+        assertEquals(listOf("h1"), message.multimodalElements.map { it.id })
     }
 
     @Test

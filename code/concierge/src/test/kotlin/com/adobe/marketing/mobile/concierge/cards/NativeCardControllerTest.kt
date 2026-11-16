@@ -38,8 +38,7 @@ class NativeCardControllerTest {
             scope = scope.backgroundScope,
             mainDispatcher = StandardTestDispatcher(scope.testScheduler),
             cardIdGenerator = { "card-${++ids}" },
-            rendererLookup = { rendererId -> menuRenderer.takeIf { rendererId == "acme.menu" || rendererId == "acme.cart" } },
-            anyRendererRegistered = { true }
+            rendererLookup = { rendererId -> menuRenderer.takeIf { rendererId == "acme.menu" || rendererId == "acme.cart" } }
         )
 
         fun activate(
@@ -247,7 +246,7 @@ class NativeCardControllerTest {
     }
 
     @Test
-    fun `unregistered renderer ids remain on built-in rendering`() = runTest {
+    fun `unregistered renderer ids cannot activate a card`() = runTest {
         val harness = Harness(this)
 
         assertEquals(

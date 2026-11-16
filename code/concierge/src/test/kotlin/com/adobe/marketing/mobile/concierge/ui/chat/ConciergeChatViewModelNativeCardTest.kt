@@ -41,11 +41,13 @@ import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
+import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -348,7 +350,7 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
-    fun `handoff delivers legacy fallback when a custom renderer payload is rejected`() = runTest {
+    fun `handoff omits rejected custom payload even if it resembles a built-in card`() = runTest {
         registerMenu()
         val vm = viewModel(frame("", rejectedMenu() + ("id" to "fallback-menu")))
         var result: DataHandoffDeliveryResult? = null
@@ -356,10 +358,9 @@ class ConciergeChatViewModelNativeCardTest {
         vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
         advanceUntilIdle()
 
-        assertEquals(DataHandoffDeliveryResult.Delivered, result)
+        assertEquals(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE), result)
         assertTrue(vm.nativeCardIds().isEmpty())
-        val content = vm.messages.value.single().content as MessageContent.Mixed
-        assertEquals(listOf("fallback-menu"), requireNotNull(content.multimodalElements).map { it.id })
+        assertTrue(vm.messages.value.isEmpty())
     }
 
     @Test
@@ -466,7 +467,7 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
-    fun `elements render natively, else as built-in cards, else not at all`() = runTest {
+    fun `custom elements render natively while other elements keep built-in rendering`() = runTest {
         registerMenu()
         val vm = viewModel(
             frame(
@@ -486,7 +487,7 @@ class ConciergeChatViewModelNativeCardTest {
 
         val replies = vm.messages.value.filterNot { it.isFromUser }
         val cards = replies.mapNotNull { (it.content as? MessageContent.Mixed)?.multimodalElements }.single()
-        assertEquals(listOf("p1", "parking", "other", "legacy", "menu-1"), cards.map { it.id })
+        assertEquals(listOf("p1", "parking", "other", "legacy"), cards.map { it.id })
         assertEquals(1, vm.nativeCardIds().size)
         assertEquals(1, replies.count { it.content is MessageContent.CtaButton })
         assertEquals(4, replies.size)
@@ -516,7 +517,58 @@ class ConciergeChatViewModelNativeCardTest {
         assertEquals(listOf(menu, cart), nativeCards.map { it.element })
         assertTrue(nativeCards.all { it.isLatest.value })
         val builtIn = vm.messages.value.mapNotNull { (it.content as? MessageContent.Mixed)?.multimodalElements }.flatten()
-        assertEquals(listOf("h1", "unregistered", "ootb"), builtIn.map { it.id })
+        assertEquals(listOf("h1", "ootb"), builtIn.map { it.id })
+    }
+
+    @Test
+    fun `unregistered custom elements are omitted and logged regardless of other registrations`() = runTest {
+        mockkStatic(Log::class)
+        try {
+            every { Log.warning(any(), any(), any()) } returns Unit
+            val unknown = mapOf(
+                "type" to "custom", "rendererId" to "acme.unknown", "id" to "u1",
+                "entity_info" to mapOf("productName" to "Not a product card")
+            )
+            val cta = mapOf(
+                "type" to "ctaButton",
+                "entity_info" to mapOf("primary" to mapOf("text" to "Go", "url" to "https://example.com"))
+            )
+            val suggestions = listOf("Try again")
+
+            repeat(2) { iteration ->
+                if (iteration == 1) registerMenu()
+                val vm = viewModel(frame("Choose", unknown, cta, promptSuggestions = suggestions))
+                vm.processEvent(ChatEvent.SendMessage("show"))
+                advanceUntilIdle()
+
+                val replies = vm.messages.value.filterNot { it.isFromUser }
+                assertEquals(2, replies.size)
+                assertEquals(suggestions, replies.first().promptSuggestions)
+                assertTrue(replies.any { it.content is MessageContent.CtaButton })
+                assertTrue(replies.none { it.content is MessageContent.Mixed || it.content is MessageContent.NativeCard })
+            }
+            verify(exactly = 2) {
+                Log.warning(any(), any(), match { it.contains("no renderer registered") && it.contains("acme.unknown") })
+            }
+        } finally {
+            unmockkStatic(Log::class)
+        }
+    }
+
+    @Test
+    fun `handoff with only an unregistered custom element is an empty response`() = runTest {
+        val unknown = mapOf(
+            "type" to "custom", "rendererId" to "acme.unknown", "id" to "u1",
+            "entity_info" to mapOf("productName" to "Not a product card")
+        )
+        val vm = viewModel(frame("", unknown))
+        var result: DataHandoffDeliveryResult? = null
+
+        vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"))) { result = it }
+        advanceUntilIdle()
+
+        assertEquals(DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.EMPTY_RESPONSE), result)
+        assertTrue(vm.messages.value.isEmpty())
     }
 
     @Test

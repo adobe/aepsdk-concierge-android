@@ -15,7 +15,6 @@ package com.adobe.marketing.mobile.concierge.cards
 import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.concierge.ConciergeCardRenderer
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -38,7 +37,6 @@ class ConciergeCardRenderersTest {
         assertSame(menu, ConciergeCardRenderers.rendererFor("acme.menu"))
         assertNull(ConciergeCardRenderers.rendererFor("acme.Menu"))
         assertNull(ConciergeCardRenderers.rendererFor(null))
-        assertTrue(ConciergeCardRenderers.hasAnyRenderer)
     }
 
     @Test
@@ -52,7 +50,7 @@ class ConciergeCardRenderersTest {
     @Test
     fun `blank renderer ids are rejected`() {
         expectThrows<IllegalArgumentException> { Concierge.registerCardRenderer(" ", menu) }
-        assertFalse(ConciergeCardRenderers.hasAnyRenderer)
+        assertNull(ConciergeCardRenderers.rendererFor(" "))
     }
 
     private inline fun <reified T : Throwable> expectThrows(block: () -> Unit) {

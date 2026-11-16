@@ -74,7 +74,6 @@ internal object ConversationResponseParser {
     private const val FIELD_PRODUCT_BADGE = "productBadge"
     private const val FIELD_RENDERER_ID = "rendererId"
     private const val ELEMENT_TYPE_CTA_BUTTON = "ctaButton"
-    private const val ELEMENT_TYPE_CUSTOM = "custom"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -176,9 +175,9 @@ internal object ConversationResponseParser {
     /**
      * Extracts every element from the response in array order, each with its complete dictionary
      * (for native card dispatch) and its built-in representation when it has one: a
-     * [ParsedMultimodalItem.Cta] for `ctaButton` elements, otherwise a [ParsedMultimodalItem.Card].
-     * Elements that fail built-in parsing (e.g. no `id`) keep `parsedBuiltIn = null`.
-     * A `custom` element carries its `rendererId`; one without a `rendererId` is kept but never rendered.
+     * [ParsedMultimodalItem.Cta] for `ctaButton` elements and a [ParsedMultimodalItem.Card] for
+     * other built-in elements. Custom elements and elements that fail parsing have no built-in
+     * representation. A custom element without a valid `rendererId` is kept but never rendered.
      */
     private fun extractElements(response: Map<String, Any?>): List<RawMultimodalElement> {
         val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
@@ -195,13 +194,15 @@ internal object ConversationResponseParser {
 
         return elementsList.mapIndexed { i, elementMap ->
             val elementType = elementMap[FIELD_TYPE] as? String
-            val rendererId = if (elementType == ELEMENT_TYPE_CUSTOM) {
+            val rendererId = if (elementType == CUSTOM_ELEMENT_TYPE) {
                 (elementMap[FIELD_RENDERER_ID] as? String)?.takeIf { it.isNotBlank() }
             } else {
                 null
             }
-            val parsedBuiltIn: ParsedMultimodalItem? = if (elementType == ELEMENT_TYPE_CUSTOM && rendererId == null) {
-                Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Dropping custom element ${i + 1}: missing rendererId.")
+            val parsedBuiltIn: ParsedMultimodalItem? = if (elementType == CUSTOM_ELEMENT_TYPE) {
+                if (rendererId == null) {
+                    Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Dropping custom element ${i + 1}: missing rendererId.")
+                }
                 null
             } else if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
                 parseCtaButton(elementMap)?.let { ctaButton ->

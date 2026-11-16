@@ -26,8 +26,5 @@ internal object ConciergeCardRenderers {
 
     fun rendererFor(rendererId: String?): ConciergeCardRenderer? = rendererId?.let(renderers::get)
 
-    val hasAnyRenderer: Boolean
-        get() = renderers.isNotEmpty()
-
     internal fun clear() = renderers.clear()
 }

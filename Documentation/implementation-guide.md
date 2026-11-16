@@ -292,12 +292,10 @@ card inline in the transcript, after its assistant turn completes.
 ```
 
 Only `custom` elements are matched; other element types always keep their built-in rendering, even
-if their `type` equals a registered id. A `custom` element without a `rendererId` is not rendered
-and a warning is logged. A `custom` element whose `rendererId` isn't registered keeps the existing
-built-in rendering when parsing succeeds. `ctaButton` elements use CTA parsing; all other types use
-the existing card parser.
-If native activation rejects an element, it uses its parsed built-in representation when available. Elements that
-cannot be parsed for built-in rendering and have no accepted native renderer are omitted.
+if their `type` equals a registered id. Custom `entity_info` is opaque to the SDK and is never
+parsed as a built-in card. A custom element is omitted with a warning if its `rendererId` is
+missing, blank, or unregistered, or if native activation rejects it. `ctaButton` elements use CTA
+parsing; other non-custom types use the existing card parser.
 `rendererId` matching is exact and case-sensitive.
 Within one response, the same element ID may be used by different renderers, but repeated IDs for
 the same renderer are rejected for native rendering.
@@ -339,7 +337,7 @@ Cards talk back with the existing APIs: `Concierge.sendDataHandoff` to start a t
 The `sendDataHandoff` completion runs on a background thread, and the SDK doesn't deduplicate calls.
 `Delivered` means the response supplied nonblank text or accepted render targets, not that a
 custom renderer's business payload is valid or its UI shows useful content. A renderer that
-shows its own unavailable placeholder does not trigger built-in fallback or change that result.
+shows its own unavailable placeholder does not change that result.
 
 Each card gates its own controls: disable handoff controls while `isBusy` or `isStale`, and on tap,
 since `isBusy` can lag it. Read both from the current `context` rather than copying them into

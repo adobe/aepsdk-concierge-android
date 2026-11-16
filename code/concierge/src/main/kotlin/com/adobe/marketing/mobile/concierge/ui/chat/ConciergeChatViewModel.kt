@@ -40,6 +40,7 @@ import com.adobe.marketing.mobile.concierge.network.ConciergeHttpStatusException
 import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.CtaButton
+import com.adobe.marketing.mobile.concierge.network.CUSTOM_ELEMENT_TYPE
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
@@ -1713,7 +1714,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                 updateAssistantMessageContent(
                     MessageContent.Text(parsedMessage.messageContent),
                     parsedMessage.promptSuggestions.takeIf {
-                        resolution.hasRejectedNativeCard &&
+                        resolution.hasOmittedCustomElement &&
                             renderTargets.none { target ->
                                 target is ElementRenderTarget.BuiltInCard || target is ElementRenderTarget.NativeCard
                             }
@@ -1781,41 +1782,51 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     private data class ElementResolution(
         val renderTargets: List<ElementRenderTarget>,
-        val hasRejectedNativeCard: Boolean
+        val hasOmittedCustomElement: Boolean
     )
 
     /** True when elements need resolution before their visibility can be determined. */
     private fun hasElementCandidates(parsedMessage: ParsedConversationMessage): Boolean =
         parsedMessage.orderedElements.isNotEmpty() ||
-            (nativeCards.hasAnyRenderer && parsedMessage.rawElements.any { nativeCards.hasRenderer(it.rendererId) })
+            parsedMessage.rawElements.any { it.type == CUSTOM_ELEMENT_TYPE }
 
     /**
-     * Decides how each element renders: a `custom` element with a registered `rendererId` goes to its
-     * app-owned renderer first; otherwise, or when it can't be activated (invalid JSON or a duplicate
-     * id), the element uses its built-in rendering if it has one, else nothing.
+     * Routes custom elements only to their registered renderer; other elements use their parsed
+     * built-in representation. Custom elements without an accepted renderer are omitted.
      */
     private fun resolveElementRenderTargets(parsedMessage: ParsedConversationMessage): ElementResolution {
         // Services that only fill orderedElements (no raw dictionaries) keep built-in rendering.
-        if (!nativeCards.hasAnyRenderer) {
-            return ElementResolution(parsedMessage.orderedElements.map(::toBuiltInRenderTarget), false)
-        }
         if (parsedMessage.rawElements.isEmpty()) {
             return ElementResolution(parsedMessage.orderedElements.map(::toBuiltInRenderTarget), false)
         }
-        var hasRejectedNativeCard = false
+        var hasOmittedCustomElement = false
         val renderTargets = parsedMessage.rawElements.mapNotNull { element ->
-            if (!nativeCards.hasRenderer(element.rendererId)) return@mapNotNull element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
+            if (element.type != CUSTOM_ELEMENT_TYPE) return@mapNotNull element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
+            val rendererId = element.rendererId
+            if (rendererId == null) {
+                hasOmittedCustomElement = true
+                return@mapNotNull null
+            }
+            if (!nativeCards.hasRenderer(rendererId)) {
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Dropping custom element ${element.position + 1}: no renderer registered for rendererId '$rendererId'."
+                )
+                hasOmittedCustomElement = true
+                return@mapNotNull null
+            }
             when (val activation = nativeCards.activate(toActivationRequest(element))) {
                 is NativeCardController.ActivationResult.Activated -> ElementRenderTarget.NativeCard(activation.cardId)
                 // Already in the transcript from an earlier pass over this same response.
                 is NativeCardController.ActivationResult.AlreadyActive -> null
                 NativeCardController.ActivationResult.Rejected -> {
-                    hasRejectedNativeCard = true
-                    element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
+                    hasOmittedCustomElement = true
+                    null
                 }
             }
         }
-        return ElementResolution(renderTargets, hasRejectedNativeCard)
+        return ElementResolution(renderTargets, hasOmittedCustomElement)
     }
 
     private fun toActivationRequest(element: RawMultimodalElement) = NativeCardController.ActivationRequest(

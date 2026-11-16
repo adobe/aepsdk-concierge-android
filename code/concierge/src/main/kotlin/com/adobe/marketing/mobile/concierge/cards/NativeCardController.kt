@@ -34,8 +34,7 @@ internal class NativeCardController(
     private val scope: CoroutineScope,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     private val cardIdGenerator: () -> String = { UUID.randomUUID().toString() },
-    private val rendererLookup: (String?) -> ConciergeCardRenderer? = { ConciergeCardRenderers.rendererFor(it) },
-    private val anyRendererRegistered: () -> Boolean = { ConciergeCardRenderers.hasAnyRenderer }
+    private val rendererLookup: (String?) -> ConciergeCardRenderer? = { ConciergeCardRenderers.rendererFor(it) }
 ) {
     private companion object {
         const val TAG = "NativeCardController"
@@ -139,9 +138,6 @@ internal class NativeCardController(
     val isBusy: StateFlow<Boolean> = busyState.asStateFlow()
 
     fun hasRenderer(rendererId: String?): Boolean = rendererLookup(rendererId) != null
-
-    val hasAnyRenderer: Boolean
-        get() = anyRendererRegistered()
 
     fun setBusy(busy: Boolean) {
         busyState.value = busy

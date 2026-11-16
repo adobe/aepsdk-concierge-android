@@ -59,9 +59,9 @@ object Concierge {
     /**
      * Renders `custom` response elements whose `rendererId` exactly matches [rendererId] with
      * [renderer], inline in the transcript. Registering a `rendererId` again replaces its renderer
-     * for cards activated afterwards. Other element types, and `custom` elements whose `rendererId`
-     * isn't registered, keep their built-in rendering; `custom` elements without a `rendererId` are
-     * not rendered.
+     * for cards activated afterwards. Other element types keep their built-in rendering. Custom
+     * elements without a valid registered `rendererId`, or rejected during activation, are omitted
+     * and logged.
      *
      * Register once at app start; renderers are held for the life of the process, so they must not
      * capture an `Activity` or a `View`. Cards talk back to Brand Concierge with [sendDataHandoff]
