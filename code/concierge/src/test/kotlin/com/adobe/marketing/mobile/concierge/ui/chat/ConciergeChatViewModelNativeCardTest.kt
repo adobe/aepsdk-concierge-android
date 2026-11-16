@@ -186,7 +186,8 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     private val menu = mapOf(
-        "type" to "acme.menu",
+        "type" to "custom",
+        "rendererId" to "acme.menu",
         "id" to "menu-1",
         "entity_info" to listOf(mapOf("product" to mapOf("id" to 1364015, "extra" to null))),
         "custom" to mapOf("nested" to listOf(true, null))
@@ -326,10 +327,11 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
-    fun `handoff delivers built-in fallback when native activation rejects its payload`() = runTest {
+    fun `handoff keeps built-in rendering for an OOTB type named like a registered renderer id`() = runTest {
         Concierge.registerCardRenderer("productCard") { _, _, _ -> Unit }
-        val element = rejectedMenu() + mapOf(
+        val element = mapOf(
             "type" to "productCard",
+            "rendererId" to "productCard",
             "id" to "menu-1",
             "entity_info" to mapOf("productName" to "A")
         )
@@ -455,7 +457,7 @@ class ConciergeChatViewModelNativeCardTest {
         advanceUntilIdle()
 
         val card = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
-        val context = card.rendererContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)
+        val context = card.cardContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)
         assertEquals("session-1", context[ContextKeys.SESSION_ID])
         assertEquals("conversation-1", context[ContextKeys.CONVERSATION_ID])
         assertEquals("interaction-1", context[ContextKeys.INTERACTION_ID])
@@ -488,6 +490,50 @@ class ConciergeChatViewModelNativeCardTest {
         assertEquals(1, vm.nativeCardIds().size)
         assertEquals(1, replies.count { it.content is MessageContent.CtaButton })
         assertEquals(4, replies.size)
+    }
+
+    @Test
+    fun `custom elements route by rendererId in a mixed response`() = runTest {
+        registerMenu()
+        Concierge.registerCardRenderer("acme.cart") { _, _, _ -> Unit }
+        val cart = mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1", "entity_info" to mapOf("items" to emptyList<Any>()))
+        val vm = viewModel(
+            frame(
+                "Here you go",
+                mapOf("type" to "horizontalCard", "id" to "h1", "entity_info" to mapOf("productName" to "Garage")),
+                menu,
+                cart,
+                mapOf("type" to "custom", "rendererId" to "acme.unknown", "id" to "unregistered", "entity_info" to mapOf("productName" to "U")),
+                mapOf("type" to "custom", "id" to "no-renderer", "entity_info" to mapOf("productName" to "N")),
+                mapOf("type" to "acme.menu", "id" to "ootb", "entity_info" to mapOf("productName" to "O"))
+            )
+        )
+
+        vm.processEvent(ChatEvent.SendMessage("menu"))
+        advanceUntilIdle()
+
+        val nativeCards = vm.nativeCardIds().map { requireNotNull(vm.nativeCards.renderableCard(it)) }
+        assertEquals(listOf(menu, cart), nativeCards.map { it.element })
+        assertTrue(nativeCards.all { it.isLatest.value })
+        val builtIn = vm.messages.value.mapNotNull { (it.content as? MessageContent.Mixed)?.multimodalElements }.flatten()
+        assertEquals(listOf("h1", "unregistered", "ootb"), builtIn.map { it.id })
+    }
+
+    @Test
+    fun `custom elements with the same id and different renderer ids both render natively`() = runTest {
+        registerMenu()
+        Concierge.registerCardRenderer("acme.cart") { _, _, _ -> Unit }
+        val menuElement = menu + ("id" to "shared")
+        val cartElement = mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "shared")
+        val vm = viewModel(frame("", menuElement, cartElement))
+
+        vm.processEvent(ChatEvent.SendMessage("show both"))
+        advanceUntilIdle()
+
+        val cards = vm.nativeCardIds().map { requireNotNull(vm.nativeCards.renderableCard(it)) }
+        assertEquals(listOf(menuElement, cartElement), cards.map { it.element })
+        assertTrue(cards.all { it.isLatest.value })
+        assertTrue(vm.messages.value.none { it.content is MessageContent.Mixed })
     }
 
     @Test
@@ -578,7 +624,7 @@ class ConciergeChatViewModelNativeCardTest {
         runCurrent()
         assertTrue(card.isStale.value)
         assertTrue(vm.nativeCards.isBusy.value)
-        assertEquals(true, card.rendererContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)[ContextKeys.IS_STALE])
+        assertEquals(true, card.cardContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)[ContextKeys.IS_STALE])
 
         completeReset(repository)
         advanceUntilIdle()

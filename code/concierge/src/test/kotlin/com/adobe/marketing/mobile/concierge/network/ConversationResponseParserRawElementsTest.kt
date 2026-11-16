@@ -125,4 +125,48 @@ class ConversationResponseParserRawElementsTest {
         assertNull(message.rawElements[2].type)
         assertEquals(695685, (message.rawElements[0].payload["entity_info"] as Map<*, *>)["id"])
     }
+
+    @Test
+    fun `rendererId is read only for custom elements and custom without one is dropped`() {
+        val message = parse(
+            """
+            [
+              {"type": "custom", "id": "1364190", "rendererId": "catalogRenderer",
+               "rendererContext": {"eventId": "event-12345"}, "entity_info": {"productName": "Veggie Nachos"}},
+              {"type": "custom", "id": "no-renderer", "entity_info": {"productName": "Dropped"}},
+              {"type": "custom", "id": "blank-renderer", "rendererId": " ", "entity_info": {"productName": "Dropped"}},
+              {"type": "horizontalCard", "id": "h1", "rendererId": "catalogRenderer", "entity_info": {"productName": "Card"}}
+            ]
+            """.trimIndent()
+        )
+
+        assertEquals(listOf("catalogRenderer", null, null, null), message.rawElements.map { it.rendererId })
+        assertEquals(mapOf("eventId" to "event-12345"), message.rawElements[0].payload["rendererContext"])
+        assertNull(message.rawElements[1].parsedBuiltIn)
+        assertNull(message.rawElements[2].parsedBuiltIn)
+        assertEquals(listOf("1364190", "h1"), message.multimodalElements.map { it.id })
+    }
+
+    @Test
+    fun `custom payloads retain top-level nulls and scalar entity data`() {
+        val message = parse(
+            """
+            [
+              {"type": "custom", "rendererId": "catalogRenderer", "id": "one",
+               "rendererContext": null, "entity_info": null, "other": null},
+              {"type": "custom", "rendererId": "catalogRenderer", "id": "two", "entity_info": "opaque"}
+            ]
+            """.trimIndent()
+        )
+
+        assertEquals(2, message.rawElements.size)
+        val first = message.rawElements.first().payload
+        assertTrue(first.containsKey("rendererContext"))
+        assertTrue(first.containsKey("entity_info"))
+        assertTrue(first.containsKey("other"))
+        assertNull(first["rendererContext"])
+        assertNull(first["entity_info"])
+        assertNull(first["other"])
+        assertEquals("opaque", message.rawElements.last().payload["entity_info"])
+    }
 }

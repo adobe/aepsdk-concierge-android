@@ -15,17 +15,20 @@ package com.adobe.marketing.mobile.concierge
 import androidx.compose.runtime.Composable
 
 /**
- * Renders one transcript card for a response element whose `type` was registered with
- * [Concierge.registerCardRenderer].
+ * Renders one transcript card for a `custom` response element whose `rendererId` was registered
+ * with [Concierge.registerCardRenderer].
  *
- * - `element`: the complete, read-only element dictionary from `multimodalElements.elements`.
- * - `context`: read-only card context, rebuilt on every recomposition: `cardId`, `sessionId`,
+ * - `element`: the complete, read-only element dictionary from `multimodalElements.elements`,
+ *   including its renderer-owned `entity_info` and optional `rendererContext`, passed through
+ *   unchanged.
+ * - `context`: read-only card context supplied by the SDK (not the element's `rendererContext`),
+ *   rebuilt on every recomposition: `cardId`, `sessionId`,
  *   `conversationId`, `interactionId` (each may be absent), `sequence`, `isBusy`, `isStale`,
  *   `isLatest`, and `state` (this card's last saved state, if any).
  *   - `sequence` (Int): this card's activation order in the chat. It strictly increases in
  *     transcript order and is never reused; compare it only between cards of the same chat.
- *   - `isLatest` (Boolean): true while this is the most recently activated card of its `type`
- *     in the chat. It reports order, not availability: gate actions on
+ *   - `isLatest` (Boolean): true while this is the most recently activated card of its
+ *     `rendererId` in the chat. It reports order, not availability: gate actions on
  *     `isLatest && !isStale && !isBusy`.
  * - `saveState`: replaces this card's private state. Callable from any thread; applied on the main
  *   thread. Never sent to Brand Concierge.

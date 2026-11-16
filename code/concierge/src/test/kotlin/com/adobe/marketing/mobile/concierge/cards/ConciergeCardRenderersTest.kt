@@ -32,7 +32,7 @@ class ConciergeCardRenderersTest {
     fun tearDown() = ConciergeCardRenderers.clear()
 
     @Test
-    fun `registered types match exactly`() {
+    fun `registered renderer ids match exactly`() {
         Concierge.registerCardRenderer("acme.menu", menu)
 
         assertSame(menu, ConciergeCardRenderers.rendererFor("acme.menu"))
@@ -42,7 +42,7 @@ class ConciergeCardRenderersTest {
     }
 
     @Test
-    fun `the last registration for a type wins`() {
+    fun `the last registration for a renderer id wins`() {
         Concierge.registerCardRenderer("acme.menu", menu)
         Concierge.registerCardRenderer("acme.menu", replacement)
 
@@ -50,7 +50,7 @@ class ConciergeCardRenderersTest {
     }
 
     @Test
-    fun `blank types are rejected`() {
+    fun `blank renderer ids are rejected`() {
         expectThrows<IllegalArgumentException> { Concierge.registerCardRenderer(" ", menu) }
         assertFalse(ConciergeCardRenderers.hasAnyRenderer)
     }

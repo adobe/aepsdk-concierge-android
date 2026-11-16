@@ -101,13 +101,13 @@ class NativeCardSuggestionAlignmentTest(
         val controller = NativeCardController(
             scope = scope,
             cardIdGenerator = { "native-card" },
-            rendererLookup = { type -> renderer.takeIf { type == "example.card" } }
+            rendererLookup = { rendererId -> renderer.takeIf { rendererId == "example.card" } }
         )
         composeTestRule.runOnUiThread {
             val result = controller.activate(
                 NativeCardController.ActivationRequest(
-                    element = mapOf("type" to "example.card", "id" to "one"),
-                    type = "example.card",
+                    element = mapOf("type" to "custom", "rendererId" to "example.card", "id" to "one"),
+                    rendererId = "example.card",
                     turnId = "turn-1",
                     position = 0
                 )

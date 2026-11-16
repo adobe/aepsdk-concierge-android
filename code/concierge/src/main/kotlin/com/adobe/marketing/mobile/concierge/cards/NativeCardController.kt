@@ -55,7 +55,7 @@ internal class NativeCardController(
 
     class ActivationRequest(
         val element: Map<String, Any?>,
-        val type: String,
+        val rendererId: String,
         val turnId: String,
         val position: Int,
         val sessionId: String? = null,
@@ -77,14 +77,17 @@ internal class NativeCardController(
         /** Activation order within this chat; strictly increasing, never reused. */
         val sequence: Int,
         val isStale: StateFlow<Boolean>,
-        /** True while this is the most recently activated card of its `type` in this chat. */
+        /** True while this is the most recently activated card of its `rendererId` in this chat. */
         val isLatest: StateFlow<Boolean>,
         val state: StateFlow<Map<String, Any?>?>,
         val saveState: (Map<String, Any?>) -> Unit,
         private val identifiers: Map<String, String>
     ) {
-        /** The renderer's `context`; absent identifiers and an unsaved state are omitted. */
-        fun rendererContext(
+        /**
+         * The renderer's `context` argument; absent identifiers and an unsaved state are omitted.
+         * Distinct from the element's own `rendererContext`, which stays inside [element].
+         */
+        fun cardContext(
             isBusy: Boolean,
             isStale: Boolean,
             isLatest: Boolean,
@@ -102,11 +105,18 @@ internal class NativeCardController(
         }
     }
 
+    private data class ElementKey(
+        val turnId: String,
+        val rendererId: String,
+        val elementId: String?,
+        val position: Int?
+    )
+
     private class CardEntry(
         val card: RenderableCard,
-        val elementKey: String?,
+        val elementKey: ElementKey,
         val position: Int,
-        val type: String,
+        val rendererId: String,
         val sequence: Int,
         val stale: MutableStateFlow<Boolean>,
         val latest: MutableStateFlow<Boolean>,
@@ -119,8 +129,8 @@ internal class NativeCardController(
     private val busyState = MutableStateFlow(false)
     private var allCardsStale = false
     private val entries = LinkedHashMap<String, CardEntry>()
-    private val cardIdsByElementKey = HashMap<String, String>()
-    private val latestCardIdByType = HashMap<String, String>()
+    private val cardIdsByElementKey = HashMap<ElementKey, String>()
+    private val latestCardIdByRendererId = HashMap<String, String>()
 
     /** Next activation's [RenderableCard.sequence]; never reset, so values aren't reused. */
     private var nextSequence = 0
@@ -128,7 +138,7 @@ internal class NativeCardController(
     /** True while a chat or handoff turn is queued or running. */
     val isBusy: StateFlow<Boolean> = busyState.asStateFlow()
 
-    fun hasRenderer(type: String?): Boolean = rendererLookup(type) != null
+    fun hasRenderer(rendererId: String?): Boolean = rendererLookup(rendererId) != null
 
     val hasAnyRenderer: Boolean
         get() = anyRendererRegistered()
@@ -138,9 +148,9 @@ internal class NativeCardController(
     }
 
     fun activate(request: ActivationRequest): ActivationResult {
-        val renderer = rendererLookup(request.type) ?: return ActivationResult.Rejected
+        val renderer = rendererLookup(request.rendererId) ?: return ActivationResult.Rejected
         val elementId = request.element["id"]?.toString()?.takeIf { it.isNotEmpty() }
-        val key = "${request.turnId}/${elementId ?: "#${request.position}"}"
+        val key = ElementKey(request.turnId, request.rendererId, elementId, request.position.takeIf { elementId == null })
 
         cardIdsByElementKey[key]?.let { existingId ->
             if (entries[existingId]?.position == request.position) return ActivationResult.AlreadyActive(existingId)
@@ -158,7 +168,7 @@ internal class NativeCardController(
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
-                "Element ${request.position} (type=${request.type}) isn't valid JSON data: ${e.message}"
+                "Element ${request.position} (rendererId=${request.rendererId}) isn't valid JSON data: ${e.message}"
             )
             return ActivationResult.Rejected
         }
@@ -185,12 +195,12 @@ internal class NativeCardController(
             saveState = { saveState(entry, cardId, it) },
             identifiers = identifiers
         )
-        entry = CardEntry(card, key, request.position, request.type, sequence, stale, latest, state)
-        // Cards activate in transcript order, so the newest card of a type is always the latest.
-        latestCardIdByType.put(request.type, cardId)?.let { previousId -> entries[previousId]?.latest?.value = false }
+        entry = CardEntry(card, key, request.position, request.rendererId, sequence, stale, latest, state)
+        // Cards activate in transcript order, so the newest card of a renderer is always the latest.
+        latestCardIdByRendererId.put(request.rendererId, cardId)?.let { previousId -> entries[previousId]?.latest?.value = false }
         entries[cardId] = entry
         cardIdsByElementKey[key] = cardId
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Activated card $cardId (type=${request.type}, sequence=$sequence).")
+        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Activated card $cardId (rendererId=${request.rendererId}, sequence=$sequence).")
         return ActivationResult.Activated(cardId)
     }
 
@@ -226,32 +236,32 @@ internal class NativeCardController(
         entries.values.forEach(::dispose)
         entries.clear()
         cardIdsByElementKey.clear()
-        latestCardIdByType.clear()
+        latestCardIdByRendererId.clear()
         allCardsStale = false
     }
 
     /** Drops cards whose transcript message was rolled back. */
     fun disposeAllExcept(cardIds: Set<String>) {
-        val typesLosingLatest = HashSet<String>()
+        val rendererIdsLosingLatest = HashSet<String>()
         val iterator = entries.entries.iterator()
         while (iterator.hasNext()) {
             val (cardId, entry) = iterator.next()
             if (cardId in cardIds) continue
             dispose(entry)
             iterator.remove()
-            entry.elementKey?.let { key -> if (cardIdsByElementKey[key] == cardId) cardIdsByElementKey.remove(key) }
-            if (latestCardIdByType[entry.type] == cardId) {
-                latestCardIdByType.remove(entry.type)
-                typesLosingLatest += entry.type
+            if (cardIdsByElementKey[entry.elementKey] == cardId) cardIdsByElementKey.remove(entry.elementKey)
+            if (latestCardIdByRendererId[entry.rendererId] == cardId) {
+                latestCardIdByRendererId.remove(entry.rendererId)
+                rendererIdsLosingLatest += entry.rendererId
             }
         }
-        typesLosingLatest.forEach(::promoteLatest)
+        rendererIdsLosingLatest.forEach(::promoteLatest)
     }
 
-    /** Makes the remaining card of [type] with the highest sequence the latest, if any remains. */
-    private fun promoteLatest(type: String) {
-        val newest = entries.values.filter { it.type == type }.maxByOrNull { it.sequence } ?: return
-        latestCardIdByType[type] = newest.card.cardId
+    /** Makes the remaining card of [rendererId] with the highest sequence the latest, if any remains. */
+    private fun promoteLatest(rendererId: String) {
+        val newest = entries.values.filter { it.rendererId == rendererId }.maxByOrNull { it.sequence } ?: return
+        latestCardIdByRendererId[rendererId] = newest.card.cardId
         newest.latest.value = true
     }
 

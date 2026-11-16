@@ -72,7 +72,9 @@ internal object ConversationResponseParser {
     private const val FIELD_PRODUCT_PRICE = "productPrice"
     private const val FIELD_PRODUCT_WAS_PRICE = "productWasPrice"
     private const val FIELD_PRODUCT_BADGE = "productBadge"
+    private const val FIELD_RENDERER_ID = "rendererId"
     private const val ELEMENT_TYPE_CTA_BUTTON = "ctaButton"
+    private const val ELEMENT_TYPE_CUSTOM = "custom"
 
     /**
      * Parses a JSON string from an SSE data event and extracts conversation messages.
@@ -176,6 +178,7 @@ internal object ConversationResponseParser {
      * (for native card dispatch) and its built-in representation when it has one: a
      * [ParsedMultimodalItem.Cta] for `ctaButton` elements, otherwise a [ParsedMultimodalItem.Card].
      * Elements that fail built-in parsing (e.g. no `id`) keep `parsedBuiltIn = null`.
+     * A `custom` element carries its `rendererId`; one without a `rendererId` is kept but never rendered.
      */
     private fun extractElements(response: Map<String, Any?>): List<RawMultimodalElement> {
         val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
@@ -192,7 +195,15 @@ internal object ConversationResponseParser {
 
         return elementsList.mapIndexed { i, elementMap ->
             val elementType = elementMap[FIELD_TYPE] as? String
-            val parsedBuiltIn: ParsedMultimodalItem? = if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
+            val rendererId = if (elementType == ELEMENT_TYPE_CUSTOM) {
+                (elementMap[FIELD_RENDERER_ID] as? String)?.takeIf { it.isNotBlank() }
+            } else {
+                null
+            }
+            val parsedBuiltIn: ParsedMultimodalItem? = if (elementType == ELEMENT_TYPE_CUSTOM && rendererId == null) {
+                Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Dropping custom element ${i + 1}: missing rendererId.")
+                null
+            } else if (elementType == ELEMENT_TYPE_CTA_BUTTON) {
                 parseCtaButton(elementMap)?.let { ctaButton ->
                     Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Parsed CTA button ${i + 1}: label=${ctaButton.label}")
                     ParsedMultimodalItem.Cta(ctaButton)
@@ -209,7 +220,13 @@ internal object ConversationResponseParser {
                     null
                 }
             }
-            RawMultimodalElement(position = i, type = elementType, payload = elementMap, parsedBuiltIn = parsedBuiltIn)
+            RawMultimodalElement(
+                position = i,
+                type = elementType,
+                rendererId = rendererId,
+                payload = elementMap,
+                parsedBuiltIn = parsedBuiltIn
+            )
         }
     }
 

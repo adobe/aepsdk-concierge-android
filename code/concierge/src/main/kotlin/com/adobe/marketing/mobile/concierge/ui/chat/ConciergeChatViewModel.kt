@@ -1787,12 +1787,12 @@ class ConciergeChatViewModel : AndroidViewModel {
     /** True when elements need resolution before their visibility can be determined. */
     private fun hasElementCandidates(parsedMessage: ParsedConversationMessage): Boolean =
         parsedMessage.orderedElements.isNotEmpty() ||
-            (nativeCards.hasAnyRenderer && parsedMessage.rawElements.any { nativeCards.hasRenderer(it.type) })
+            (nativeCards.hasAnyRenderer && parsedMessage.rawElements.any { nativeCards.hasRenderer(it.rendererId) })
 
     /**
-     * Decides how each element renders: a registered `type` goes to its app-owned renderer first;
-     * otherwise, or when it can't be activated (invalid JSON or a duplicate id), the element uses its
-     * built-in rendering if it has one, else nothing.
+     * Decides how each element renders: a `custom` element with a registered `rendererId` goes to its
+     * app-owned renderer first; otherwise, or when it can't be activated (invalid JSON or a duplicate
+     * id), the element uses its built-in rendering if it has one, else nothing.
      */
     private fun resolveElementRenderTargets(parsedMessage: ParsedConversationMessage): ElementResolution {
         // Services that only fill orderedElements (no raw dictionaries) keep built-in rendering.
@@ -1804,7 +1804,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
         var hasRejectedNativeCard = false
         val renderTargets = parsedMessage.rawElements.mapNotNull { element ->
-            if (!nativeCards.hasRenderer(element.type)) return@mapNotNull element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
+            if (!nativeCards.hasRenderer(element.rendererId)) return@mapNotNull element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
             when (val activation = nativeCards.activate(toActivationRequest(element))) {
                 is NativeCardController.ActivationResult.Activated -> ElementRenderTarget.NativeCard(activation.cardId)
                 // Already in the transcript from an earlier pass over this same response.
@@ -1820,7 +1820,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     private fun toActivationRequest(element: RawMultimodalElement) = NativeCardController.ActivationRequest(
         element = element.payload,
-        type = element.type.orEmpty(),
+        rendererId = element.rendererId.orEmpty(),
         turnId = currentTurnId,
         sessionId = sessionManager.currentSessionIdOrNull(),
         conversationId = currentConversationId,

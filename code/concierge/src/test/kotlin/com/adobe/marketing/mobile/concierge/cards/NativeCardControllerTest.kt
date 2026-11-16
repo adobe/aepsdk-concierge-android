@@ -38,12 +38,12 @@ class NativeCardControllerTest {
             scope = scope.backgroundScope,
             mainDispatcher = StandardTestDispatcher(scope.testScheduler),
             cardIdGenerator = { "card-${++ids}" },
-            rendererLookup = { type -> menuRenderer.takeIf { type == "acme.menu" || type == "acme.cart" } },
+            rendererLookup = { rendererId -> menuRenderer.takeIf { rendererId == "acme.menu" || rendererId == "acme.cart" } },
             anyRendererRegistered = { true }
         )
 
         fun activate(
-            element: Map<String, Any?> = mapOf("type" to "acme.menu", "id" to "menu-1", "entity_info" to listOf(1, 2)),
+            element: Map<String, Any?> = mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "menu-1", "entity_info" to listOf(1, 2)),
             turnId: String = "turn-1",
             position: Int = 0,
             sessionId: String? = "session-1",
@@ -52,7 +52,7 @@ class NativeCardControllerTest {
         ) = controller.activate(
             NativeCardController.ActivationRequest(
                 element = element,
-                type = element["type"] as String,
+                rendererId = element["rendererId"] as? String ?: "",
                 turnId = turnId,
                 position = position,
                 sessionId = sessionId,
@@ -69,7 +69,7 @@ class NativeCardControllerTest {
     fun `registered element keeps its full immutable JSON and its renderer`() = runTest {
         val harness = Harness(this)
         val element = mapOf(
-            "type" to "acme.menu",
+            "type" to "custom", "rendererId" to "acme.menu",
             "id" to "menu-1",
             "entity_info" to listOf(mapOf("product" to mapOf("id" to 1364015, "extra" to null))),
             "custom" to mapOf("deep" to listOf(true, null))
@@ -99,7 +99,7 @@ class NativeCardControllerTest {
                 ContextKeys.IS_LATEST to true,
                 ContextKeys.STATE to mapOf("status" to "draft")
             ),
-            card.rendererContext(isBusy = true, isStale = false, isLatest = true, state = mapOf("status" to "draft"))
+            card.cardContext(isBusy = true, isStale = false, isLatest = true, state = mapOf("status" to "draft"))
         )
     }
 
@@ -110,7 +110,7 @@ class NativeCardControllerTest {
 
         assertEquals(
             setOf(ContextKeys.CARD_ID, ContextKeys.SEQUENCE, ContextKeys.IS_BUSY, ContextKeys.IS_STALE, ContextKeys.IS_LATEST),
-            card.rendererContext(isBusy = false, isStale = false, isLatest = true, state = null).keys
+            card.cardContext(isBusy = false, isStale = false, isLatest = true, state = null).keys
         )
     }
 
@@ -118,7 +118,7 @@ class NativeCardControllerTest {
     fun `saveState replaces the card's own state on the main dispatcher`() = runTest {
         val harness = Harness(this)
         val first = harness.card(harness.activate())
-        val second = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "cart-1"), position = 1))
+        val second = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1"), position = 1))
 
         first.saveState(mapOf("quantities" to mapOf("1" to 2), "status" to "draft"))
         assertNull(first.state.value)
@@ -165,7 +165,7 @@ class NativeCardControllerTest {
         val existing = harness.card(harness.activate())
 
         harness.controller.markAllStale()
-        val later = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "cart-1"), turnId = "turn-2"))
+        val later = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1"), turnId = "turn-2"))
 
         assertTrue(existing.isStale.value)
         assertTrue(later.isStale.value)
@@ -208,9 +208,38 @@ class NativeCardControllerTest {
     }
 
     @Test
+    fun `different renderers can activate elements with the same id in one turn`() = runTest {
+        val harness = Harness(this)
+        val menu = mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "shared")
+        val cart = mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "shared")
+
+        val first = harness.card(harness.activate(menu))
+        val second = harness.card(harness.activate(cart, position = 1))
+
+        assertTrue(first.isLatest.value)
+        assertTrue(second.isLatest.value)
+        assertEquals(ActivationResult.AlreadyActive(first.cardId), harness.activate(menu))
+        assertEquals(ActivationResult.AlreadyActive(second.cardId), harness.activate(cart, position = 1))
+
+        harness.controller.disposeAllExcept(setOf(first.cardId))
+        assertEquals(ActivationResult.AlreadyActive(first.cardId), harness.activate(menu))
+        assertTrue(harness.activate(cart, position = 1) is ActivationResult.Activated)
+    }
+
+    @Test
+    fun `an id cannot collide with the position key of an idless element`() = runTest {
+        val harness = Harness(this)
+        val withId = mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "#1")
+        val withoutId = mapOf("type" to "custom", "rendererId" to "acme.menu")
+
+        assertTrue(harness.activate(withId) is ActivationResult.Activated)
+        assertTrue(harness.activate(withoutId, position = 1) is ActivationResult.Activated)
+    }
+
+    @Test
     fun `invalid element JSON is rejected without recording a card`() = runTest {
         val harness = Harness(this)
-        val bad = mapOf("type" to "acme.menu", "id" to "menu-1", "bad" to Any())
+        val bad = mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "menu-1", "bad" to Any())
 
         assertEquals(ActivationResult.Rejected, harness.activate(bad))
         assertEquals(ActivationResult.Rejected, harness.activate(bad))
@@ -218,7 +247,7 @@ class NativeCardControllerTest {
     }
 
     @Test
-    fun `unregistered types remain on built-in rendering`() = runTest {
+    fun `unregistered renderer ids remain on built-in rendering`() = runTest {
         val harness = Harness(this)
 
         assertEquals(
@@ -233,7 +262,7 @@ class NativeCardControllerTest {
     fun `rolled-back cards are dropped and their state is discarded`() = runTest {
         val harness = Harness(this)
         val kept = harness.card(harness.activate())
-        val dropped = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "cart-1"), position = 1))
+        val dropped = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1"), position = 1))
 
         harness.controller.disposeAllExcept(setOf(kept.cardId))
         dropped.saveState(mapOf("status" to "draft"))
@@ -248,43 +277,43 @@ class NativeCardControllerTest {
     fun `sequence follows activation order and rejected elements don't use a number`() = runTest {
         val harness = Harness(this)
         val first = harness.card(harness.activate())
-        assertEquals(ActivationResult.Rejected, harness.activate(mapOf("type" to "acme.menu", "id" to "menu-1"), position = 1))
+        assertEquals(ActivationResult.Rejected, harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "menu-1"), position = 1))
         assertEquals(
             ActivationResult.Rejected,
-            harness.activate(mapOf("type" to "acme.menu", "id" to "bad", "x" to Any()), turnId = "turn-2")
+            harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "bad", "x" to Any()), turnId = "turn-2")
         )
         assertTrue(harness.activate() is ActivationResult.AlreadyActive)
-        val second = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "cart-1"), position = 1))
+        val second = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1"), position = 1))
         val third = harness.card(harness.activate(turnId = "turn-2"))
 
         assertEquals(listOf(0, 1, 2), listOf(first.sequence, second.sequence, third.sequence))
-        assertEquals(2, third.rendererContext(isBusy = false, isStale = false, isLatest = true, state = null)[ContextKeys.SEQUENCE])
+        assertEquals(2, third.cardContext(isBusy = false, isStale = false, isLatest = true, state = null)[ContextKeys.SEQUENCE])
     }
 
     @Test
-    fun `only the newest card of each type is latest`() = runTest {
+    fun `only the newest card of each renderer id is latest`() = runTest {
         val harness = Harness(this)
-        val firstMenu = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "a")))
-        val secondMenu = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "b"), position = 1))
-        val cart = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "c"), position = 2))
+        val firstMenu = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "a")))
+        val secondMenu = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "b"), position = 1))
+        val cart = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "c"), position = 2))
 
         assertFalse(firstMenu.isLatest.value)
         assertTrue(secondMenu.isLatest.value)
         assertTrue(cart.isLatest.value)
 
-        val laterMenu = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "a"), turnId = "turn-2"))
+        val laterMenu = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "a"), turnId = "turn-2"))
         assertFalse(secondMenu.isLatest.value)
         assertTrue(laterMenu.isLatest.value)
         assertTrue(cart.isLatest.value)
     }
 
     @Test
-    fun `rolling back the latest card promotes the newest remaining card of its type`() = runTest {
+    fun `rolling back the latest card promotes the newest remaining card of its renderer id`() = runTest {
         val harness = Harness(this)
-        val older = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "a")))
-        val middle = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "b"), position = 1))
-        val cart = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "c"), turnId = "turn-2"))
-        val newest = harness.card(harness.activate(mapOf("type" to "acme.menu", "id" to "d"), turnId = "turn-2", position = 1))
+        val older = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "a")))
+        val middle = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "b"), position = 1))
+        val cart = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "c"), turnId = "turn-2"))
+        val newest = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.menu", "id" to "d"), turnId = "turn-2", position = 1))
 
         harness.controller.disposeAllExcept(setOf(older.cardId, middle.cardId))
 
@@ -293,7 +322,7 @@ class NativeCardControllerTest {
         assertFalse(newest.isLatest.value)
         assertFalse(cart.isLatest.value)
 
-        val nextCart = harness.card(harness.activate(mapOf("type" to "acme.cart", "id" to "c"), turnId = "turn-3"))
+        val nextCart = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "c"), turnId = "turn-3"))
         assertTrue(nextCart.isLatest.value)
         assertEquals(4, nextCart.sequence)
     }

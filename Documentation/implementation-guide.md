@@ -276,14 +276,31 @@ app owns any failure UI based on the completion result.
 
 ## Native card renderers (preview)
 
-Register a Compose renderer for a response element `type`. When an element in
-`multimodalElements.elements` has that type, the chat renders your card inline in the transcript,
-after its assistant turn completes. Without a matching renderer, elements keep their existing
-built-in rendering when parsing succeeds, including unknown types and untyped elements.
-`ctaButton` elements use CTA parsing; all other types use the existing card parser.
+Register a Compose renderer for a `rendererId`. Brand Concierge marks custom UX elements with
+`"type": "custom"` and names the client renderer in `rendererId`. When an element in
+`multimodalElements.elements` is `custom` and its `rendererId` is registered, the chat renders your
+card inline in the transcript, after its assistant turn completes.
+
+```json
+{
+  "id": "1364190",
+  "type": "custom",
+  "rendererId": "catalogRenderer",
+  "rendererContext": { "eventId": "event-12345" },
+  "entity_info": { "productName": "Veggie Nachos" }
+}
+```
+
+Only `custom` elements are matched; other element types always keep their built-in rendering, even
+if their `type` equals a registered id. A `custom` element without a `rendererId` is not rendered
+and a warning is logged. A `custom` element whose `rendererId` isn't registered keeps the existing
+built-in rendering when parsing succeeds. `ctaButton` elements use CTA parsing; all other types use
+the existing card parser.
 If native activation rejects an element, it uses its parsed built-in representation when available. Elements that
 cannot be parsed for built-in rendering and have no accepted native renderer are omitted.
-Type matching is exact and case-sensitive. Registering a built-in type overrides its rendering.
+`rendererId` matching is exact and case-sensitive.
+Within one response, the same element ID may be used by different renderers, but repeated IDs for
+the same renderer are rejected for native rendering.
 Replacing a registration affects subsequently activated cards; existing cards retain their renderer.
 Native cards and CTAs have separate transcript rows; built-in cards are grouped into a carousel
 at the first built-in card's position, so mixed responses do not preserve every element's interleaving.
@@ -292,20 +309,21 @@ and other app-specific interactions is the host app's responsibility. The SDK do
 card payloads through product-oriented card analytics.
 
 ```kotlin
-// Once at app start, after MobileCore setup. The last registration for a type wins.
-Concierge.registerCardRenderer("customCard") { element, context, saveState ->
-    CustomCard(element, context, saveState)
+// Once at app start, after MobileCore setup. The last registration for a rendererId wins.
+Concierge.registerCardRenderer("catalogRenderer") { element, context, saveState ->
+    CatalogCard(element, context, saveState)
 }
 ```
 
 - **`element`**: the complete, deeply read-only element dictionary, including null values.
-  Custom payload schemas are not validated: `entity_info` may be null or absent, and the
-  renderer must handle it safely. Elements are copied with depth-64 and 100,000-node limits;
+  `entity_info` (the renderer-owned entity data) and `rendererContext` (optional metadata such as
+  an `eventId` for later interactions) are passed through unchanged. Their schemas are not
+  validated: either may be null or absent, and the renderer must handle that safely. Elements are copied with depth-64 and 100,000-node limits;
   invalid or over-limit elements are rejected and logged before rendering.
-- **`context`**: updated when card state or busy/stale/latest flags change. `cardId`; `sessionId`, `conversationId`,
+- **`context`**: the SDK's card context, not the element's `rendererContext`. Updated when card state or busy/stale/latest flags change. `cardId`; `sessionId`, `conversationId`,
   `interactionId` (each may be absent); `sequence` (Int, this card's activation order in the chat);
   `isBusy` (a chat or handoff turn is in progress); `isStale` (the identity was reset); `isLatest`
-  (this is the most recently activated card of its `type` in the chat); `state` (this card's last
+  (this is the most recently activated card of its `rendererId` in the chat); `state` (this card's last
   saved state, if any).
 - **`saveState(map)`**: replaces this card's private, in-memory state while its chat ViewModel
   survives (including scrolling, hiding the chat, and configuration changes that retain that
@@ -330,10 +348,10 @@ since `isBusy` can lag it. Read both from the current `context` rather than copy
 
 Card order comes from the SDK, never from composition: Compose doesn't compose transcript rows in
 transcript order (lazy rows, recomposition), so "the last card my effect saw" is not the newest card.
-- `isLatest` covers the common rule "only the newest card of a type is actionable": gate controls on
+- `isLatest` covers the common rule "only the newest card of a renderer is actionable": gate controls on
   `isLatest && !isStale && !isBusy`. It reports order, not availability, so a stale card can still be
-  latest. Activating a newer card of the same type flips the older one to `false`. If the newest card
-  is rolled back, the newest remaining card of that type becomes latest again.
+  latest. Activating a newer card with the same `rendererId` flips the older one to `false`. If the newest card
+  is rolled back, the newest remaining card of that `rendererId` becomes latest again.
 - `sequence` supports other cross-card rules (for example, newest per location): it strictly increases in
   transcript order (including element order within one response), is fixed for the card's lifetime,
   and is never reused in the chat. Rejected elements don't use a number. Compare it only between cards of

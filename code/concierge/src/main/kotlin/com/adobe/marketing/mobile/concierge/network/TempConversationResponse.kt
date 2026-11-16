@@ -99,6 +99,7 @@ internal sealed class ParsedMultimodalItem {
  *
  * @property position index in the elements array.
  * @property type the element `type`, when it is a string.
+ * @property rendererId the non-blank `rendererId` of a `custom` element; null for every other element.
  * @property payload the complete element dictionary as parsed (every field, nulls included).
  * @property parsedBuiltIn the built-in representation ([ParsedMultimodalItem.Card] or
  * [ParsedMultimodalItem.Cta]) or null when the element has none (e.g. no `id`).
@@ -106,6 +107,7 @@ internal sealed class ParsedMultimodalItem {
 internal class RawMultimodalElement(
     val position: Int,
     val type: String?,
+    val rendererId: String? = null,
     val payload: Map<String, Any?>,
     val parsedBuiltIn: ParsedMultimodalItem?
 )

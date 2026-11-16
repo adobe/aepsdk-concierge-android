@@ -15,16 +15,16 @@ package com.adobe.marketing.mobile.concierge.cards
 import com.adobe.marketing.mobile.concierge.ConciergeCardRenderer
 import java.util.concurrent.ConcurrentHashMap
 
-/** Process-wide card renderers by exact element `type`; the last registration wins. */
+/** Process-wide card renderers by exact `rendererId` of `custom` elements; the last registration wins. */
 internal object ConciergeCardRenderers {
     private val renderers = ConcurrentHashMap<String, ConciergeCardRenderer>()
 
-    fun register(type: String, renderer: ConciergeCardRenderer) {
-        require(type.isNotBlank()) { "Card renderer type must not be blank." }
-        renderers[type] = renderer
+    fun register(rendererId: String, renderer: ConciergeCardRenderer) {
+        require(rendererId.isNotBlank()) { "Card renderer id must not be blank." }
+        renderers[rendererId] = renderer
     }
 
-    fun rendererFor(type: String?): ConciergeCardRenderer? = type?.let(renderers::get)
+    fun rendererFor(rendererId: String?): ConciergeCardRenderer? = rendererId?.let(renderers::get)
 
     val hasAnyRenderer: Boolean
         get() = renderers.isNotEmpty()

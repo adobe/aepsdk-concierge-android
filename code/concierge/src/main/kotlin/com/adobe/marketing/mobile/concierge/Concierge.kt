@@ -57,19 +57,21 @@ object Concierge {
     }
 
     /**
-     * Renders response elements whose `type` exactly matches [type] with [renderer], inline in the
-     * transcript. Registering a type again replaces its renderer for cards activated afterwards.
-     * Unregistered types keep their built-in rendering.
+     * Renders `custom` response elements whose `rendererId` exactly matches [rendererId] with
+     * [renderer], inline in the transcript. Registering a `rendererId` again replaces its renderer
+     * for cards activated afterwards. Other element types, and `custom` elements whose `rendererId`
+     * isn't registered, keep their built-in rendering; `custom` elements without a `rendererId` are
+     * not rendered.
      *
      * Register once at app start; renderers are held for the life of the process, so they must not
      * capture an `Activity` or a `View`. Cards talk back to Brand Concierge with [sendDataHandoff]
      * and [updateXDMContext].
      *
-     * @throws IllegalArgumentException if [type] is blank.
+     * @throws IllegalArgumentException if [rendererId] is blank.
      */
     @JvmStatic
-    fun registerCardRenderer(type: String, renderer: ConciergeCardRenderer) {
-        ConciergeCardRenderers.register(type, renderer)
+    fun registerCardRenderer(rendererId: String, renderer: ConciergeCardRenderer) {
+        ConciergeCardRenderers.register(rendererId, renderer)
     }
 
     /**

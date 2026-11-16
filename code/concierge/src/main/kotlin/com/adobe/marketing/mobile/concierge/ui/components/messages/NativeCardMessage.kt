@@ -72,7 +72,7 @@ private fun RegisteredRendererCard(controller: NativeCardController, card: Nativ
     val isLatest by card.isLatest.collectAsState()
     val state by card.state.collectAsState()
     val context = remember(card, isBusy, isStale, isLatest, state) {
-        card.rendererContext(isBusy, isStale, isLatest, state)
+        card.cardContext(isBusy, isStale, isLatest, state)
     }
     Box(
         modifier = Modifier
