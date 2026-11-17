@@ -147,10 +147,24 @@ data class DisclaimerConfig(
 data class PrivacyNoticeConfig(
     val title: String? = null,
     val text: String = "",
-    val links: List<DisclaimerLink> = emptyList()
+    val links: List<DisclaimerLink> = emptyList(),
+    val presentation: PrivacyNoticePresentation = PrivacyNoticePresentation.INLINE,
+    val summary: String = "",
+    val collapsedMaxLines: Int = 3,
+    val readMoreLabel: String? = null,
+    val showLessLabel: String? = null
 ) {
+    init {
+        require(collapsedMaxLines > 0) { "collapsedMaxLines must be positive" }
+    }
+
     val hasContent: Boolean
         get() = text.isNotBlank()
+}
+
+enum class PrivacyNoticePresentation {
+    INLINE,
+    COLLAPSIBLE
 }
 
 data class DisclaimerLink(

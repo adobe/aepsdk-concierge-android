@@ -12,6 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -25,6 +27,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.text.TextLayoutResult
@@ -36,6 +39,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.DisclaimerLink
 import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticePresentation
 import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -46,6 +50,95 @@ class PrivacyNoticeViewTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @Test
+    fun notice_summaryExpandsAndCollapsesWithoutMovingFollowingContentAboveIt() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                Column {
+                    PrivacyNoticeView(
+                        config = PrivacyNoticeConfig(
+                            text = "Full notice.\nAdditional details.\nRead {Privacy}.",
+                            summary = "Short summary.",
+                            presentation = PrivacyNoticePresentation.COLLAPSIBLE,
+                            links = listOf(DisclaimerLink("Privacy", "https://example.com/privacy"))
+                        ),
+                        handleLink = noOpLink
+                    )
+                    Text("Following message")
+                }
+            }
+        }
+
+        composeTestRule.onNodeWithText("Short summary.").assertIsDisplayed()
+        val collapsedTop = composeTestRule.onNodeWithText("Following message").getUnclippedBoundsInRoot().top
+        composeTestRule.onNodeWithText("Read more").performClick()
+        composeTestRule.onNodeWithText("Short summary.").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Full notice.\nAdditional details.\nRead Privacy.").assertIsDisplayed()
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsActions.CustomActions))
+        assertTrue(composeTestRule.onNodeWithText("Following message").getUnclippedBoundsInRoot().top > collapsedTop)
+        composeTestRule.onNodeWithText("Show less").performClick()
+        composeTestRule.onNodeWithText("Short summary.").assertIsDisplayed()
+        assertEquals(
+            collapsedTop.value,
+            composeTestRule.onNodeWithText("Following message").getUnclippedBoundsInRoot().top.value,
+            1f
+        )
+    }
+
+    @Test
+    fun notice_withoutSummaryOnlyOffersExpansionWhenPreviewOverflows() {
+        val longText = "First line.\nSecond line.\nThird line.\nFourth line."
+        composeTestRule.setContent {
+            ConciergeTheme {
+                Column {
+                    PrivacyNoticeView(
+                        config = PrivacyNoticeConfig(
+                            title = "Short",
+                            text = "Fits.",
+                            presentation = PrivacyNoticePresentation.COLLAPSIBLE
+                        ),
+                        handleLink = noOpLink
+                    )
+                    PrivacyNoticeView(
+                        config = PrivacyNoticeConfig(
+                            title = "Long",
+                            text = longText,
+                            collapsedMaxLines = 2,
+                            presentation = PrivacyNoticePresentation.COLLAPSIBLE
+                        ),
+                        handleLink = noOpLink
+                    )
+                }
+            }
+        }
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeTestRule.onNodeWithText(longText)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(2, layouts.single().lineCount)
+        composeTestRule.onNodeWithText("Read more").performClick()
+        layouts.clear()
+        composeTestRule.onNodeWithText(longText)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(4, layouts.single().lineCount)
+        composeTestRule.onNodeWithText("Show less").performClick()
+        composeTestRule.onNodeWithText("Read more").assertIsDisplayed()
+    }
+
+    @Test
+    fun notice_inlineRemainsFullyVisibleEvenWithSummary() {
+        composeTestRule.setContent {
+            ConciergeTheme {
+                PrivacyNoticeView(
+                    config = PrivacyNoticeConfig(text = "Full notice.", summary = "Summary."),
+                    handleLink = noOpLink
+                )
+            }
+        }
+        composeTestRule.onNodeWithText("Full notice.").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Summary.").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Read more").assertDoesNotExist()
+    }
 
     @Test
     fun notice_displaysHeadingAndBodyWithOuterTopSpacing() {

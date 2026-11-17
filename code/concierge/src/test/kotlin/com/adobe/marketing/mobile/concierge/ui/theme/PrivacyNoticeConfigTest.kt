@@ -127,6 +127,30 @@ class PrivacyNoticeConfigTest {
     }
 
     @Test
+    fun `collapsible settings decode and null settings retain inline defaults`() {
+        val configured = ThemeParser.parseThemeTokens(
+            """{"behavior":{"privacyNotice":{"text":"Full notice","presentation":"collapsible",
+                "summary":"Short summary","collapsedMaxLines":2,"readMoreLabel":"Details","showLessLabel":"Less"}}}"""
+        )!!.behavior.privacyNotice
+        assertEquals(
+            PrivacyNoticeConfig(
+                text = "Full notice",
+                presentation = PrivacyNoticePresentation.COLLAPSIBLE,
+                summary = "Short summary",
+                collapsedMaxLines = 2,
+                readMoreLabel = "Details",
+                showLessLabel = "Less"
+            ),
+            configured
+        )
+        val defaults = ThemeParser.parseThemeTokens(
+            """{"behavior":{"privacyNotice":{"presentation":null,"summary":null,"collapsedMaxLines":null,
+                "readMoreLabel":null,"showLessLabel":null}}}"""
+        )!!.behavior.privacyNotice
+        assertEquals(PrivacyNoticeConfig(), defaults)
+    }
+
+    @Test
     fun `malformed privacy field types fail theme decoding`() {
         listOf(
             """{"privacyNotice":"invalid"}""",
@@ -136,7 +160,15 @@ class PrivacyNoticeConfigTest {
             """{"privacyNotice":{"links":[null]}}""",
             """{"privacyNotice":{"links":["invalid"]}}""",
             """{"privacyNotice":{"links":[{"text":42,"url":"https://example.com"}]}}""",
-            """{"privacyNotice":{"links":[{"text":"Privacy","url":42}]}}"""
+            """{"privacyNotice":{"links":[{"text":"Privacy","url":42}]}}""",
+            """{"privacyNotice":{"presentation":"sheet"}}""",
+            """{"privacyNotice":{"summary":false}}""",
+            """{"privacyNotice":{"collapsedMaxLines":0}}""",
+            """{"privacyNotice":{"collapsedMaxLines":-1}}""",
+            """{"privacyNotice":{"collapsedMaxLines":1.5}}""",
+            """{"privacyNotice":{"collapsedMaxLines":"3"}}""",
+            """{"privacyNotice":{"readMoreLabel":42}}""",
+            """{"privacyNotice":{"showLessLabel":false}}"""
         ).forEach { privacyNotice ->
             assertNull(
                 ThemeParser.parseThemeTokens(

@@ -16,15 +16,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -32,9 +43,11 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.R
@@ -42,6 +55,7 @@ import com.adobe.marketing.mobile.concierge.ui.components.links.LinkedTextFormat
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
+import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticePresentation
 
 /**
  * Informational privacy notice shown before the first user query.
@@ -82,6 +96,23 @@ internal fun PrivacyNoticeView(
             linkColor = linkColor
         )
     }
+    val collapsible = config.presentation == PrivacyNoticePresentation.COLLAPSIBLE
+    val hasSummary = config.summary.isNotBlank() && config.summary.trim() != config.text.trim()
+    var expanded by rememberSaveable(config.text, config.summary, config.presentation) { mutableStateOf(false) }
+    var truncated by remember(config.text, config.collapsedMaxLines) { mutableStateOf(false) }
+    val summaryText = remember(config, linkColor) {
+        LinkedTextFormatter.format(
+            text = config.summary,
+            links = config.links,
+            baseStyle = SpanStyle(),
+            linkColor = linkColor
+        ).text
+    }
+    val readMore = config.readMoreLabel ?: stringResource(R.string.concierge_privacy_notice_read_more)
+    val showLess = config.showLessLabel ?: stringResource(R.string.concierge_privacy_notice_show_less)
+    val expandedState = stringResource(
+        if (expanded) R.string.concierge_privacy_notice_expanded else R.string.concierge_privacy_notice_collapsed
+    )
     val linkActions = remember(annotatedText, openLinkFormat) {
         annotatedText.getStringAnnotations("URL", 0, annotatedText.length)
             .map { range ->
@@ -115,15 +146,44 @@ internal fun PrivacyNoticeView(
                         modifier = Modifier.semantics { heading() }
                     )
                 }
-                ClickableText(
-                    text = annotatedText,
-                    textStyle = bodyStyle,
-                    textAlign = TextAlign.Start,
-                    handleLink = openLink,
-                    modifier = Modifier.semantics {
-                        if (linkActions.isNotEmpty()) customActions = linkActions
-                    }
-                )
+                if (collapsible && !expanded) {
+                    Text(
+                        text = if (hasSummary) summaryText else annotatedText.text,
+                        style = bodyStyle,
+                        color = bodyColor,
+                        maxLines = if (hasSummary) Int.MAX_VALUE else config.collapsedMaxLines,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { if (!hasSummary) truncated = it.hasVisualOverflow }
+                    )
+                } else {
+                    ClickableText(
+                        text = annotatedText,
+                        textStyle = bodyStyle,
+                        textAlign = TextAlign.Start,
+                        handleLink = openLink,
+                        modifier = Modifier.semantics {
+                            if (linkActions.isNotEmpty()) customActions = linkActions
+                        }
+                    )
+                }
+            }
+        }
+        if (collapsible && (hasSummary || truncated)) {
+            TextButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.heightIn(min = 48.dp).semantics { stateDescription = expandedState }
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = if (expanded) showLess else readMore, style = bodyStyle, color = linkColor)
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = linkColor
+                    )
+                }
             }
         }
     }

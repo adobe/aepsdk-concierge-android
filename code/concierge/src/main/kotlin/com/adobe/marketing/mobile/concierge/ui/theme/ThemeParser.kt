@@ -582,7 +582,31 @@ internal object ThemeParser {
             }
             else -> throw IllegalArgumentException("behavior.privacyNotice.links must be an array or null")
         }
-        return PrivacyNoticeConfig(title = title, text = text, links = links)
+        val presentation = when (privacyNoticeString(noticeMap, "presentation")) {
+            null, "inline" -> PrivacyNoticePresentation.INLINE
+            "collapsible" -> PrivacyNoticePresentation.COLLAPSIBLE
+            else -> throw IllegalArgumentException("behavior.privacyNotice.presentation must be inline or collapsible")
+        }
+        val collapsedMaxLines = when (val lines = noticeMap["collapsedMaxLines"]) {
+            null -> 3
+            is Number -> {
+                require(lines.toDouble() == lines.toInt().toDouble() && lines.toInt() > 0) {
+                    "behavior.privacyNotice.collapsedMaxLines must be a positive integer"
+                }
+                lines.toInt()
+            }
+            else -> throw IllegalArgumentException("behavior.privacyNotice.collapsedMaxLines must be a positive integer")
+        }
+        return PrivacyNoticeConfig(
+            title = title,
+            text = text,
+            links = links,
+            presentation = presentation,
+            summary = privacyNoticeString(noticeMap, "summary") ?: "",
+            collapsedMaxLines = collapsedMaxLines,
+            readMoreLabel = privacyNoticeString(noticeMap, "readMoreLabel"),
+            showLessLabel = privacyNoticeString(noticeMap, "showLessLabel")
+        )
     }
 
     private fun privacyNoticeString(map: Map<*, *>, key: String): String? =

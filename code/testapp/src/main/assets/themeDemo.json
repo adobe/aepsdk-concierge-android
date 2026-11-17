@@ -32,7 +32,13 @@
     },
     "privacyNotice": {
       "title": "Privacy Notice",
-      "text": "Privacy notice text."
+      "presentation": "collapsible",
+      "summary": "Demo notice: messages are processed to answer your questions. Please do not share sensitive information.",
+      "collapsedMaxLines": 3,
+      "text": "Demo only - replace this sample with approved privacy copy before release.\n\nInformation you share in this conversation is processed to understand your request and generate a response. Avoid sharing passwords, payment details, health information, or other sensitive personal information.\n\nAI-generated answers may be incomplete or inaccurate. Verify important information before making a decision. Read our {Privacy Policy} for details about data handling and your choices.\n\nYou can expand or collapse this notice at any time during this conversation.",
+      "links": [
+        {"text": "Privacy Policy", "url": "https://www.example.com/privacy"}
+      ]
     },
     "feedback": {
       "displayMode": "action",
