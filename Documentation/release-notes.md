@@ -11,8 +11,9 @@ are ignored with a warning, including programmatic typography supplied to
 Markdown-bold links retain at least bold weight. Explicit body line height is
 preserved through response paragraph rendering; omitted line height retains
 existing response spacing. When `--message-font-size` is set without an explicit
-line height, message bubble line height scales proportionally from the inherited
-text style. Pixel line heights (for example `"24px"` or `"24PX"`) are absolute
+line height, inherited `sp` message bubble line heights scale proportionally;
+inherited `em` line heights remain unchanged because they already scale with font
+size. Pixel line heights (for example `"24px"` or `"24PX"`) are absolute
 scaled sizes rather than multipliers, and the `px` suffix is case-insensitive.
 Body paragraph line height no longer
 overrides headings or fenced code, including nested blocks.

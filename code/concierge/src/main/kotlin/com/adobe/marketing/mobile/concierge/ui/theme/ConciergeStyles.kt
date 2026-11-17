@@ -99,7 +99,7 @@ internal object ConciergeStyles {
         val themedFontSize = typography.fontSize?.toFloat()
         val resolvedSize = themedFontSize ?: fontSize.value
         val inheritedScaledLineHeight = themedFontSize?.let { size ->
-            if (fontSize != TextUnit.Unspecified && lineHeight != TextUnit.Unspecified && fontSize.value > 0) {
+            if (fontSize != TextUnit.Unspecified && lineHeight.isSp && fontSize.value > 0) {
                 lineHeight * (size / fontSize.value)
             } else {
                 null

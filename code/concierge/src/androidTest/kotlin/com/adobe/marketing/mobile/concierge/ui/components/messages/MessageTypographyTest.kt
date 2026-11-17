@@ -14,7 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.components.messages
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
@@ -342,6 +345,43 @@ class MessageTypographyTest {
             assertEquals(32.sp, bodyStyle?.fontSize)
             assertEquals(48.sp, bodyStyle?.lineHeight)
             assertEquals(48f, checkNotNull(result).lastBaseline - result!!.firstBaseline, 1.5f)
+        }
+    }
+
+    @Test
+    fun messageFontSizeOnly_preservesInheritedEmLineHeight() {
+        val typography = mutableStateOf(ConciergeTypography(fontSize = 32.0))
+        var bodyStyle: TextStyle? = null
+        var result: TextLayoutResult? = null
+        rule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 1f)) {
+                MaterialTheme(typography = Typography(
+                    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 1.5.em)
+                )) {
+                    ConciergeTheme(theme = theme(ConciergeThemeTokens(typography = typography.value))) {
+                        bodyStyle = ConciergeStyles.messageBubbleStyle.textStyle
+                        Text(
+                            text = "First\nSecond",
+                            style = checkNotNull(bodyStyle),
+                            onTextLayout = { result = it }
+                        )
+                    }
+                }
+            }
+        }
+
+        rule.runOnIdle {
+            assertEquals(32.sp, bodyStyle?.fontSize)
+            assertEquals(1.5.em, bodyStyle?.lineHeight)
+            assertEquals(48f, checkNotNull(result).lastBaseline - result!!.firstBaseline, 1.5f)
+            typography.value = ConciergeTypography(fontSize = 32.0, lineHeight = 2.0)
+        }
+        rule.runOnIdle {
+            assertEquals(64.sp, bodyStyle?.lineHeight)
+            typography.value = ConciergeTypography(fontSize = 32.0, lineHeight = 2.0, lineHeightPx = 40.0)
+        }
+        rule.runOnIdle {
+            assertEquals(40.sp, bodyStyle?.lineHeight)
         }
     }
 

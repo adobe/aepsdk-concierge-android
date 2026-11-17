@@ -768,7 +768,8 @@ when supplied to `ConciergeTheme`; invalid values fall back to the text style
 defaults. An explicit `--line-height-body` is retained as paragraph styling in
 concierge responses, including list items. Omitting it preserves existing response
 line spacing. For message bubble styles, setting only `--message-font-size` scales
-the inherited line height proportionally to avoid cramped lines. For example,
+the inherited `sp` line height proportionally to avoid cramped lines. Inherited
+`em` line heights stay unchanged because they already scale with font size. For example,
 `"24px"` remains 24sp when the body font size changes, whereas `"1.5"` scales with
 that font size. Headings and fenced code blocks retain their existing paragraph
 spacing, including when nested in a list or blockquote.
