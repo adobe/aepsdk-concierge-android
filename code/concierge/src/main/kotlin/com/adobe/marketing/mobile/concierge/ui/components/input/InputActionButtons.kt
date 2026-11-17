@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -199,6 +200,7 @@ private fun ClearButton(
         Icon(
             painter = painterResource(R.drawable.concierge_ic_close),
             contentDescription = "Clear input",
+            tint = ConciergeTheme.colors.clearIconColor ?: LocalContentColor.current,
             modifier = Modifier
                 .size(size)
                 .testTag("ClearIconGlyph")

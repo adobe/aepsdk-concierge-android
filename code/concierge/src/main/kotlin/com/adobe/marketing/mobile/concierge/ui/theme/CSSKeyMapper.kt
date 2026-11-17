@@ -256,6 +256,7 @@ internal object CSSKeyMapper {
         ColorToken("input-text-color") { existing, color -> existing?.copy(text = color) ?: ConciergeInputColors(text = color) },
         ColorToken("input-focus-outline-color") { existing, color -> existing?.copy(outlineFocus = color) ?: ConciergeInputColors(outlineFocus = color) },
         ColorToken("input-send-icon-color") { existing, color -> existing?.copy(sendIconColor = color) ?: ConciergeInputColors(sendIconColor = color) },
+        ColorToken("input-clear-icon-color") { existing, color -> existing?.copy(clearIconColor = color) ?: ConciergeInputColors(clearIconColor = color) },
         ColorToken("input-send-arrow-icon-color") { existing, color -> existing?.copy(sendArrowIconColor = color) ?: ConciergeInputColors(sendArrowIconColor = color) },
         ColorToken("input-send-arrow-background-color") { existing, color ->
             existing?.copy(sendArrowBackgroundColor = color) ?: ConciergeInputColors(sendArrowBackgroundColor = color)

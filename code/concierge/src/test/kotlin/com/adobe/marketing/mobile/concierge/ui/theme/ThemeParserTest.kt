@@ -1975,6 +1975,40 @@ class ThemeParserTest {
     // -----------------------------------------------------------------------
 
     @Test
+    fun `clear icon color should flow from theme JSON to runtime independently of send and mic`() {
+        val json = """
+            {
+                "theme": {
+                    "--input-clear-icon-color": "#FFFFFF",
+                    "--input-send-icon-color": "#FF0000",
+                    "--input-mic-icon-color": "#0000FF"
+                }
+            }
+        """.trimIndent()
+
+        val tokens = ThemeParser.parseThemeTokens(json)
+        assertEquals("#FFFFFF", tokens?.colors?.input?.clearIconColor)
+        val colors = ThemeParser.createColorsFromJson(tokens!!.colors!!, LightConciergeColors)
+        assertEquals(Color.White, colors.clearIconColor)
+        assertEquals(Color.Red, colors.sendIconColor)
+        assertEquals(Color.Blue, colors.micIconColor)
+    }
+
+    @Test
+    fun `omitted or null clear icon color should leave runtime tint unset`() {
+        listOf(
+            """{"theme":{"--input-send-icon-color":"#FF0000"}}""",
+            """{"theme":{"--input-clear-icon-color":null,"--input-send-icon-color":"#FF0000"}}"""
+        ).forEach { json ->
+            val tokens = ThemeParser.parseThemeTokens(json)
+            assertNotNull(tokens?.colors)
+            val colors = ThemeParser.createColorsFromJson(tokens!!.colors!!, LightConciergeColors)
+            assertNull(colors.clearIconColor)
+            assertEquals(Color.Red, colors.sendIconColor)
+        }
+    }
+
+    @Test
     fun `parseThemeJson should parse input icon colors`() {
         val json = """
             {
