@@ -1394,7 +1394,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * response. When [resendAvailable], the turn is rolled back without rendering an error and
      * [ConversationStreamResult.Interrupted] is returned so the caller can resend it; otherwise the
      * normal error is shown rather than presenting a partial answer as final. A transport failure
-     * after the COMPLETED response arrived always keeps the delivered answer.
+     * after the COMPLETED response arrived ends a typed chat turn as if the stream had closed
+     * cleanly: the delivered answer is kept, and an empty response gets the empty-response handling.
      */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
@@ -1426,6 +1427,40 @@ class ConciergeChatViewModel : AndroidViewModel {
             citations = emptyList()
         )
         _messages.update { currentMessages -> currentMessages + assistantMessage }
+
+        // Ends a turn that wasn't failed or interrupted: with what it rendered, or as an empty
+        // response. Shared by a cleanly closed stream and one whose teardown failed after COMPLETED.
+        fun finishTurn(): ConversationStreamResult {
+            if (hasVisibleContent) {
+                finishConversation()
+                return ConversationStreamResult.Delivered
+            }
+            // Nothing renderable: no text, and no element was accepted (e.g. only custom
+            // elements without a registered renderer). Never leave the placeholder behind.
+            if (isDataHandoff) {
+                // The caller receives EMPTY_RESPONSE; the transcript stays unchanged and
+                // the host app owns failure UX.
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Conversation completed with no renderable content"
+                )
+                truncateMessagesTo(turnStartIndex)
+                resetProcessingStateToIdle()
+            } else {
+                // A typed chat turn shows the standard error copy, like an ERROR frame, plus
+                // any follow-up suggestions the response supplied.
+                _messages.update { currentMessages ->
+                    currentMessages.take(turnStartIndex) + assistantMessage
+                }
+                disposeRemovedNativeCards()
+                handleConversationError(
+                    "Conversation completed with no renderable content",
+                    promptSuggestions = completedPromptSuggestions
+                )
+            }
+            return ConversationStreamResult.Empty
+        }
 
         return try {
             conversation.takeWhile { parsedMessage ->
@@ -1490,37 +1525,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                         ConversationStreamResult.Failed("Stream ended before completion")
                     }
                 }
-                hasVisibleContent -> {
-                    finishConversation()
-                    ConversationStreamResult.Delivered
-                }
-                else -> {
-                    // Nothing renderable: no text, and no element was accepted (e.g. only custom
-                    // elements without a registered renderer). Never leave the placeholder behind.
-                    if (isDataHandoff) {
-                        // The caller receives EMPTY_RESPONSE; the transcript stays unchanged and
-                        // the host app owns failure UX.
-                        Log.warning(
-                            ConciergeConstants.EXTENSION_NAME,
-                            TAG,
-                            "Conversation completed with no renderable content"
-                        )
-                        truncateMessagesTo(turnStartIndex)
-                        resetProcessingStateToIdle()
-                    } else {
-                        // A typed chat turn shows the standard error copy, like an ERROR frame, plus
-                        // any follow-up suggestions the response supplied.
-                        _messages.update { currentMessages ->
-                            currentMessages.take(turnStartIndex) + assistantMessage
-                        }
-                        disposeRemovedNativeCards()
-                        handleConversationError(
-                            "Conversation completed with no renderable content",
-                            promptSuggestions = completedPromptSuggestions
-                        )
-                    }
-                    ConversationStreamResult.Empty
-                }
+                else -> finishTurn()
             }
         } catch (e: CancellationException) {
             // This turn's content is streamConversation's responsibility, so roll it back here for
@@ -1533,16 +1538,15 @@ class ConciergeChatViewModel : AndroidViewModel {
         } catch (e: Exception) {
             val isTransportFailure = e is IOException && e !is ConciergeHttpStatusException
             if (!isDataHandoff && isTransportFailure && hasCompleted) {
-                // The answer was already delivered in full (and ResponseCompleted reported); only
-                // the trailing connection teardown failed, so keep it rather than replacing it
-                // with an error or resending it.
+                // The response arrived in full (and ResponseCompleted was reported); only the
+                // trailing connection teardown failed, so end the turn exactly as if the stream had
+                // closed cleanly rather than replacing it with a transport error or resending it.
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
                     "Conversation stream dropped after the response completed: ${e.message}"
                 )
-                finishConversation()
-                return ConversationStreamResult.Delivered
+                return finishTurn()
             }
             if (!isDataHandoff && isTransportFailure && resendAvailable && attemptBackgrounded()) {
                 Log.warning(

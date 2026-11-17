@@ -2554,6 +2554,34 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `empty completed response whose stream drops while backgrounded shows generic copy without resending`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
+            emit(ParsedConversationMessage("", ConversationState.COMPLETED, promptSuggestions = listOf("Try again")))
+            throw IOException("Connection reset")
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        assertEquals(listOf("Try again"), vm.messages.value.last().promptSuggestions)
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
     fun `HTTP status failure while backgrounded shows generic copy without resending`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()

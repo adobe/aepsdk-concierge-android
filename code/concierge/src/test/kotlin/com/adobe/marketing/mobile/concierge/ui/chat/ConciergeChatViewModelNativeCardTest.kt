@@ -53,6 +53,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import java.io.IOException
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -64,6 +65,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -881,6 +883,37 @@ class ConciergeChatViewModelNativeCardTest {
         advanceUntilIdle()
 
         assertTypedTurnEndedWithErrorCopy(vm)
+    }
+
+    @Test
+    fun `typed chat whose empty completed response is followed by a teardown failure ends with the error message`() = runTest {
+        registerMenu()
+        val unknown = mapOf("type" to "custom", "rendererId" to "acme.unknown", "id" to "u1")
+        val vm = viewModel(frame("", unknown, promptSuggestions = listOf("Try again"))) {
+            throw IOException("Connection reset")
+        }
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        assertTypedTurnEndedWithErrorCopy(vm, listOf("Try again"))
+    }
+
+    @Test
+    fun `typed chat keeps an accepted card when the stream fails after completion`() = runTest {
+        registerMenu()
+        val vm = viewModel(frame("", menu, promptSuggestions = listOf("Try again"))) {
+            throw IOException("Connection reset")
+        }
+
+        vm.processEvent(ChatEvent.SendMessage("show"))
+        advanceUntilIdle()
+
+        val reply = vm.messages.value.filterNot { it.isFromUser }.single()
+        assertTrue(reply.content is MessageContent.NativeCard)
+        assertEquals(listOf("Try again"), reply.promptSuggestions)
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        assertNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
     }
 
     @Test
