@@ -25,6 +25,40 @@ class CSSKeyMapperTest {
 
     private val emptyTheme = ConciergeThemeTokens()
 
+    @Test
+    fun `line height preserves units and replacing units clears the previous value`() {
+        val absolute = CSSKeyMapper.apply("--line-height-body", "24px", emptyTheme)
+        assertNull(absolute.typography?.lineHeight)
+        assertEquals(24.0, absolute.typography?.lineHeightPx)
+        val uppercaseAbsolute = CSSKeyMapper.apply("--line-height-body", "24PX", emptyTheme)
+        assertNull(uppercaseAbsolute.typography?.lineHeight)
+        assertEquals(24.0, uppercaseAbsolute.typography?.lineHeightPx)
+        val relative = CSSKeyMapper.apply("--line-height-body", "1.5", absolute)
+        assertEquals(1.5, relative.typography?.lineHeight)
+        assertNull(relative.typography?.lineHeightPx)
+        assertEquals(absolute, CSSKeyMapper.apply("--line-height-body", "24px", relative))
+        for (invalid in listOf("0", "-1px", "NaN", "Infinity", "1e100", "1e-100", "invalid")) {
+            assertEquals(invalid, relative, CSSKeyMapper.apply("--line-height-body", invalid, relative))
+        }
+    }
+
+    @Test
+    fun `invalid message overrides preserve existing typography`() {
+        val theme = ConciergeThemeTokens(
+            typography = ConciergeTypography(
+                fontSize = 18.0,
+                fontWeight = 600,
+                linkFontWeight = 800,
+                linkUnderline = false
+            )
+        )
+        for (key in listOf("--message-font-size", "--message-font-weight", "--message-concierge-link-font-weight")) {
+            for (value in listOf("0", "-1", "invalid", "1e309")) {
+                assertEquals("$key=$value", theme, CSSKeyMapper.apply(key, value, theme))
+            }
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Key normalization and unknown keys
     // -----------------------------------------------------------------------

@@ -15,6 +15,7 @@ package com.adobe.marketing.mobile.concierge.utils.markdown
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.foundation.text.appendInlineContent
 import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.network.LinkHint
@@ -74,7 +76,10 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkHints: List<LinkHint> = emptyList(),
-        linkColor: Color = Color.Unspecified
+        linkColor: Color = Color.Unspecified,
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true,
+        bodyLineHeight: TextUnit = TextUnit.Unspecified
     ): AnnotatedString {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
@@ -85,13 +90,14 @@ internal object MarkdownRenderer {
         val linkHintByHref: Map<String, String> = linkHints.associate { it.href to it.kind }
         val resolvedLinkColor = linkColor.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
         val builder = AnnotatedString.Builder()
+        val specializedBlocks = mutableListOf<IntRange>()
         var currentIndex = 0
 
         tokens.forEach { token ->
             if (token.start < currentIndex) return@forEach
 
             appendGapText(markdown, currentIndex, token.start, builder, colorScheme, baseTextStyle)
-            renderToken(token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref)
+            renderToken(token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
             currentIndex = token.end
         }
 
@@ -102,7 +108,24 @@ internal object MarkdownRenderer {
             TAG,
             "Rendering completed, final text length: ${builder.length}"
         )
-        return builder.toAnnotatedString()
+        val rendered = builder.toAnnotatedString()
+        if (bodyLineHeight == TextUnit.Unspecified || rendered.isEmpty()) return rendered
+
+        // Paragraph styles must cover whole paragraphs, not inline spans. Leave headings
+        // and fenced code (including nested blocks) at their existing line spacing.
+        val excludedParagraphs = specializedBlocks.map { range ->
+            val start = rendered.text.lastIndexOf('\n', range.first - 1) + 1
+            val newline = rendered.text.indexOf('\n', range.last)
+            start until if (newline == -1) rendered.length else newline + 1
+        }.sortedBy { it.first }
+        return AnnotatedString.Builder(rendered).apply {
+            var start = 0
+            for (excluded in excludedParagraphs) {
+                if (start < excluded.first) addStyle(ParagraphStyle(lineHeight = bodyLineHeight), start, excluded.first)
+                start = maxOf(start, excluded.last + 1)
+            }
+            if (start < length) addStyle(ParagraphStyle(lineHeight = bodyLineHeight), start, length)
+        }.toAnnotatedString()
     }
 
     private fun appendGapText(
@@ -134,20 +157,27 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true,
+        specializedBlocks: MutableList<IntRange>
     ) {
+        val start = builder.length
         when (token.type) {
             TokenType.CODE_BLOCK -> renderCodeBlock(token, builder, colorScheme, baseTextStyle)
             TokenType.INLINE_CODE -> renderInlineCode(token, builder, colorScheme, baseTextStyle)
-            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
-            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
-            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            TokenType.BOLD_LINK -> renderBoldLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline)
+            TokenType.ITALIC_LINK -> renderItalicLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline)
+            TokenType.LINK -> renderLink(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline)
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
             TokenType.HEADING -> renderHeading(token, builder, colorScheme, baseTextStyle)
-            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
-            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
+            TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
+        }
+        if ((token.type == TokenType.HEADING || token.type == TokenType.CODE_BLOCK) && builder.length > start) {
+            specializedBlocks.add(start until builder.length)
         }
     }
 
@@ -203,7 +233,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -212,7 +244,8 @@ internal object MarkdownRenderer {
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = linkColor,
-                textDecoration = TextDecoration.Underline
+                textDecoration = if (linkUnderline) TextDecoration.Underline else TextDecoration.None,
+                fontWeight = linkFontWeight ?: baseTextStyle.fontWeight
             ),
             styleStart,
             builder.length
@@ -234,7 +267,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -243,8 +278,8 @@ internal object MarkdownRenderer {
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = linkColor,
-                textDecoration = TextDecoration.Underline,
-                fontWeight = FontWeight.Bold
+                textDecoration = if (linkUnderline) TextDecoration.Underline else TextDecoration.None,
+                fontWeight = maxOf(linkFontWeight ?: FontWeight.Bold, FontWeight.Bold)
             ),
             styleStart,
             builder.length
@@ -266,7 +301,9 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true
     ) {
         val (linkText, linkUrl) = token.groups
         val styleStart = builder.length
@@ -275,7 +312,8 @@ internal object MarkdownRenderer {
         builder.addStyle(
             baseTextStyle.toSpanStyle().copy(
                 color = linkColor,
-                textDecoration = TextDecoration.Underline,
+                textDecoration = if (linkUnderline) TextDecoration.Underline else TextDecoration.None,
+                fontWeight = linkFontWeight ?: baseTextStyle.fontWeight,
                 fontStyle = FontStyle.Italic
             ),
             styleStart,
@@ -422,7 +460,10 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true,
+        specializedBlocks: MutableList<IntRange>
     ) {
         val listItem = token.groups[0]
         val listMarker = token.groups.getOrNull(1) ?: "•"
@@ -435,7 +476,7 @@ internal object MarkdownRenderer {
             builder.append("• ")
         }
 
-        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+        renderNestedMarkdown(listItem, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
     }
 
     private fun renderBlockquote(
@@ -444,12 +485,15 @@ internal object MarkdownRenderer {
         colorScheme: ColorScheme,
         baseTextStyle: TextStyle,
         linkColor: Color,
-        linkHintByHref: Map<String, String> = emptyMap()
+        linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true,
+        specializedBlocks: MutableList<IntRange>
     ) {
         val quoteText = token.groups[0]
 
         val contentColor = baseTextStyle.color.takeIf { it != Color.Unspecified } ?: colorScheme.onSurface
-        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref) { text, _, _ ->
+        renderNestedMarkdown(quoteText, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks) { text, _, _ ->
             val styleStart = builder.length
             builder.append(text)
             builder.addStyle(
@@ -480,6 +524,9 @@ internal object MarkdownRenderer {
         baseTextStyle: TextStyle,
         linkColor: Color,
         linkHintByHref: Map<String, String> = emptyMap(),
+        linkFontWeight: FontWeight? = null,
+        linkUnderline: Boolean = true,
+        specializedBlocks: MutableList<IntRange>,
         textRenderer: ((String, Int, Int) -> Unit)? = null
     ) {
         val nestedTokens = MarkdownTokenizer.tokenize(content)
@@ -506,7 +553,7 @@ internal object MarkdownRenderer {
             }
 
             // Render the nested token
-            renderToken(nestedToken, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref)
+            renderToken(nestedToken, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
             currentIndex = nestedToken.end
         }
 

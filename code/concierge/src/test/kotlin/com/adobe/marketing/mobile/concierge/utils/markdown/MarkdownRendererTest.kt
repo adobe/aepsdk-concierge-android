@@ -23,6 +23,164 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class MarkdownRendererTest {
+    @Test
+    fun `streaming line height preserves text spans annotations and paragraph boundaries`() {
+        val documents = listOf(
+            "", "\n\n",
+            "# Heading\nBody [Store](https://example.com)\n",
+            "Body\n# Heading\nBody",
+            "```\ncode\n```\nBody",
+            "Body\n```\ncode\n```",
+            "# A\n# B\nBody\n# C",
+            "> > # Nested\n\nBody",
+            "- > # Nested\n\nBody",
+            "1. **[Store](https://example.com)**\n2. *[Other](https://example.com)*",
+            "Body\r\n\r\n# Heading\r\n\r\nTail",
+            "Body `inline` [^1]\n\n```\ncode\nmore\n```\n\nTail"
+        )
+        for (scheme in listOf(lightColorScheme(), darkColorScheme())) {
+            for (document in documents) {
+                for (length in 0..document.length) {
+                    val markdown = document.take(length)
+                    val tokens = MarkdownTokenizer.tokenize(markdown)
+                    val baseline = MarkdownRenderer.render(markdown, tokens, scheme, testTextStyle)
+                    val styled = MarkdownRenderer.render(
+                        markdown, tokens, scheme, testTextStyle, bodyLineHeight = 24.sp
+                    )
+                    assertEquals(markdown, baseline.text, styled.text)
+                    assertEquals(markdown, baseline.spanStyles, styled.spanStyles)
+                    assertEquals(
+                        markdown, baseline.getStringAnnotations(0, baseline.length),
+                        styled.getStringAnnotations(0, styled.length)
+                    )
+                    var end = 0
+                    for (range in styled.paragraphStyles) {
+                        assertTrue(markdown, range.start >= end)
+                        assertTrue(markdown, range.end > range.start && range.end <= styled.length)
+                        assertTrue(markdown, range.start == 0 || styled.text[range.start - 1] == '\n')
+                        assertTrue(markdown, range.end == styled.length || styled.text[range.end - 1] == '\n')
+                        assertEquals(24.sp, range.item.lineHeight)
+                        end = range.end
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `body line height excludes specialized block paragraphs including nested blocks`() {
+        for (markdown in listOf(
+            "# Heading",
+            "```\nCode\nMore code\n```",
+            "> # Heading",
+            "- # Heading",
+            "Before\n\n# Heading\n\nAfter",
+            "Before\n\n```\nCode\n```\n\nAfter",
+            "# Heading\n\n```\nCode\n```"
+        )) {
+            val result = MarkdownRenderer.render(
+                markdown, MarkdownTokenizer.tokenize(markdown), lightColorScheme(), testTextStyle,
+                bodyLineHeight = 12.sp
+            )
+            for (special in listOf("Heading", "Code", "More code")) {
+                val offset = result.text.indexOf(special)
+                if (offset >= 0) {
+                    assertTrue(markdown, result.paragraphStyles.none { offset >= it.start && offset < it.end })
+                }
+            }
+            for (body in listOf("Before", "After")) {
+                val offset = result.text.indexOf(body)
+                if (offset >= 0) {
+                    assertEquals(12.sp, result.paragraphStyles.single { offset >= it.start && offset < it.end }.item.lineHeight)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `body line height includes inline formatting and is absent by default`() {
+        val markdown = "Body **bold** *italic* `code` [Link](https://example.com)\nNext"
+        val tokens = MarkdownTokenizer.tokenize(markdown)
+        val default = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle)
+        assertTrue(default.paragraphStyles.isEmpty())
+        val styled = MarkdownRenderer.render(markdown, tokens, lightColorScheme(), testTextStyle, bodyLineHeight = 24.sp)
+        assertEquals(default.spanStyles, styled.spanStyles)
+        assertEquals(default.text, styled.text)
+        assertEquals(0, styled.paragraphStyles.single().start)
+        assertEquals(styled.length, styled.paragraphStyles.single().end)
+        assertEquals(24.sp, styled.paragraphStyles.single().item.lineHeight)
+    }
+
+    @Test
+    fun `link overrides reach paragraphs lists blockquotes and nested blocks`() {
+        val contents = listOf(
+            "[Store](https://store.example.com)",
+            "- [Store](https://store.example.com)",
+            "1. [Store](https://store.example.com)",
+            "> [Store](https://store.example.com)",
+            "> - [Store](https://store.example.com)"
+        )
+        for (markdown in contents) {
+            for (underline in listOf(true, false)) {
+                val result = MarkdownRenderer.render(
+                    markdown, MarkdownTokenizer.tokenize(markdown), lightColorScheme(),
+                    testTextStyle.copy(fontWeight = FontWeight.Normal),
+                    linkColor = Color.Magenta,
+                    linkFontWeight = FontWeight.SemiBold,
+                    linkUnderline = underline
+                )
+                val annotation = result.getStringAnnotations("URL", 0, result.length).single()
+                assertEquals(markdown, "https://store.example.com", annotation.item)
+                val span = result.spanStyles.single {
+                    it.start == annotation.start && it.end == annotation.end
+                }.item
+                assertEquals(markdown, FontWeight.SemiBold, span.fontWeight)
+                assertEquals(markdown, Color.Magenta, span.color)
+                assertEquals(markdown, if (underline) TextDecoration.Underline else TextDecoration.None, span.textDecoration)
+            }
+        }
+    }
+
+    @Test
+    fun `bold links remain at least bold and italic links keep italics`() {
+        for (prefix in listOf("", "- ", "> ")) {
+            for (weight in listOf(null, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Black)) {
+                for (italic in listOf(false, true)) {
+                    val link = if (italic) "*[Store](https://example.com)*" else "**[Store](https://example.com)**"
+                    val markdown = prefix + link
+                    val result = MarkdownRenderer.render(
+                        markdown, MarkdownTokenizer.tokenize(markdown), lightColorScheme(),
+                        testTextStyle.copy(fontWeight = FontWeight.Normal),
+                        linkFontWeight = weight,
+                        linkUnderline = false
+                    )
+                    val annotation = result.getStringAnnotations("URL", 0, result.length).single()
+                    val span = result.spanStyles.single {
+                        it.start == annotation.start && it.end == annotation.end
+                    }.item
+                    assertEquals(
+                        markdown,
+                        if (italic) weight ?: FontWeight.Normal else maxOf(weight ?: FontWeight.Bold, FontWeight.Bold),
+                        span.fontWeight
+                    )
+                    if (italic) assertEquals(androidx.compose.ui.text.font.FontStyle.Italic, span.fontStyle)
+                    assertEquals(TextDecoration.None, span.textDecoration)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `omitted link overrides preserve inherited weight underline and URL`() {
+        val markdown = "[Store](https://example.com)"
+        val result = MarkdownRenderer.render(
+            markdown, MarkdownTokenizer.tokenize(markdown), lightColorScheme(),
+            testTextStyle.copy(fontWeight = FontWeight.Medium)
+        )
+        assertEquals(FontWeight.Medium, result.spanStyles.single().item.fontWeight)
+        assertEquals(TextDecoration.Underline, result.spanStyles.single().item.textDecoration)
+        assertEquals("https://example.com", result.getStringAnnotations("URL", 0, result.length).single().item)
+    }
     
     // Default text style for tests (matches bodyLarge)
     private val testTextStyle = TextStyle(

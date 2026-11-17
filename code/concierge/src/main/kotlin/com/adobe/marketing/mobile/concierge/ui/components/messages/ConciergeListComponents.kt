@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.utils.markdown.MarkdownParser
@@ -119,6 +120,7 @@ private fun ListItem(
 
         ClickableText(
             text = annotatedString,
+            textStyle = TextStyle(fontSize = ConciergeStyles.messageBubbleStyle.textStyle.fontSize),
             inlineContent = finalInlineContentMap,
             handleLink = { url ->
                 handleLink(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE)

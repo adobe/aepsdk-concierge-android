@@ -102,8 +102,8 @@ internal object CSSValueConverter {
      */
     fun parsePxValue(cssValue: String): Double? {
         val trimmed = cssValue.trim()
-        return if (trimmed.endsWith("px")) {
-            trimmed.substringBefore("px").trim().toDoubleOrNull()
+        return if (trimmed.endsWith("px", ignoreCase = true)) {
+            trimmed.dropLast(2).trim().toDoubleOrNull()
         } else {
             trimmed.toDoubleOrNull()
         }
@@ -146,20 +146,7 @@ internal object CSSValueConverter {
     fun parseFontFamily(cssValue: String): String {
         return cssValue.trim().removeSurrounding("\"").removeSurrounding("'")
     }
-    
-    /**
-     * Parses a CSS line-height value.
-     * Can be unitless (multiplier) or px value.
-     */
-    fun parseLineHeight(cssValue: String): Double {
-        val trimmed = cssValue.trim()
-        return if (trimmed.endsWith("px")) {
-            parsePxValue(trimmed) ?: 1.5
-        } else {
-            trimmed.toDoubleOrNull() ?: 1.5
-        }
-    }
-    
+
     /**
      * Parses a CSS padding value into a list of doubles.
      * Supports: "10px", "10px 20px", "10px 20px 30px", "10px 20px 30px 40px"

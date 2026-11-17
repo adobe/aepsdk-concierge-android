@@ -217,6 +217,12 @@ class CSSValueConverterTest {
     }
 
     @Test
+    fun `parsePxValue accepts case insensitive px suffix`() {
+        assertEquals(24.0, CSSValueConverter.parsePxValue("24PX")!!, 0.001)
+        assertEquals(24.0, CSSValueConverter.parsePxValue("24pX")!!, 0.001)
+    }
+
+    @Test
     fun `parsePxValue handles decimal pixel value`() {
         // Given
         val cssValue = "16.5px"
@@ -407,56 +413,6 @@ class CSSValueConverterTest {
 
         // Then
         assertEquals("Times New Roman", result)
-    }
-
-    // ========== parseLineHeight() Tests ==========
-
-    @Test
-    fun `parseLineHeight handles px value`() {
-        // Given
-        val cssValue = "24px"
-
-        // When
-        val result = CSSValueConverter.parseLineHeight(cssValue)
-
-        // Then
-        assertEquals(24.0, result, 0.001)
-    }
-
-    @Test
-    fun `parseLineHeight handles unitless multiplier`() {
-        // Given
-        val cssValue = "1.5"
-
-        // When
-        val result = CSSValueConverter.parseLineHeight(cssValue)
-
-        // Then
-        assertEquals(1.5, result, 0.001)
-    }
-
-    @Test
-    fun `parseLineHeight returns default for invalid value`() {
-        // Given
-        val cssValue = "invalid"
-
-        // When
-        val result = CSSValueConverter.parseLineHeight(cssValue)
-
-        // Then
-        assertEquals(1.5, result, 0.001)
-    }
-
-    @Test
-    fun `parseLineHeight handles decimal multiplier`() {
-        // Given
-        val cssValue = "2.5"
-
-        // When
-        val result = CSSValueConverter.parseLineHeight(cssValue)
-
-        // Then
-        assertEquals(2.5, result, 0.001)
     }
 
     // ========== parsePadding() Tests ==========

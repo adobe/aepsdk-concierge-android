@@ -102,11 +102,16 @@ fun ConciergeTheme(
         } ?: defaultColors
     }
     
-    val activeTheme = remember(colors, theme) {
+    val validatedTokens = remember(theme?.tokens) {
+        theme?.tokens?.let { tokens ->
+            tokens.typography?.let { tokens.copy(typography = MessageTypographyValidator.validate(it)) } ?: tokens
+        }
+    }
+    val activeTheme = remember(colors, theme, validatedTokens) {
         ActiveConciergeTheme(
             colors = colors,
             config = theme?.config,
-            themeTokens = theme?.tokens,
+            themeTokens = validatedTokens,
             useDefaultPalette = theme == null
         )
     }

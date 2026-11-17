@@ -23,6 +23,7 @@ import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotSame
@@ -45,6 +46,31 @@ class MarkdownParserComposeTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @Test
+    fun parse_reusesParagraphStyles_whenThemeAndTextAreUnchanged() {
+        val results = mutableListOf<AnnotatedString>()
+        val trigger = mutableStateOf(0)
+        val json = """{"theme":{"--message-font-size":"16px","--line-height-body":"24px"}}"""
+        composeTestRule.setContent {
+            ConciergeTheme(
+                theme = ConciergeThemeData(ConciergeThemeConfig(), ThemeParser.parseThemeTokens(json))
+            ) {
+                val tick = trigger.value
+                val rendered = MarkdownParser.parse("First\nSecond")
+                SideEffect {
+                    @Suppress("UNUSED_EXPRESSION") tick
+                    results.add(rendered)
+                }
+            }
+        }
+        for (value in 1..3) composeTestRule.runOnIdle { trigger.value = value }
+        composeTestRule.runOnIdle {
+            assertTrue(results.size > 1)
+            assertTrue(results.first().paragraphStyles.isNotEmpty())
+            results.forEach { assertSame(results.first(), it) }
+        }
+    }
 
     @Test
     fun parse_reusesRenderedResult_acrossRecompositions_whenTextUnchanged() {
