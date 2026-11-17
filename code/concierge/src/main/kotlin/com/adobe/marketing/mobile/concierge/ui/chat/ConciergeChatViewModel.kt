@@ -580,7 +580,6 @@ class ConciergeChatViewModel : AndroidViewModel {
             stateRepository.state.collect { state ->
                 _identityResetInProgress.value = state.resetInProgress
                 if (state.resetGeneration != observedResetGeneration) {
-                    nativeCards.markAllStale()
                     observedResetGeneration = state.resetGeneration
                     endConversationForIdentityReset(state.resetGeneration)
                 }

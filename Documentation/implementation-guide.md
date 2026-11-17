@@ -323,9 +323,10 @@ Concierge.registerCardRenderer("catalogRenderer") { element, context, saveState 
   an `eventId` for later interactions) are passed through unchanged. Their schemas are not
   validated: either may be null or absent, and the renderer must handle that safely. Elements are copied with depth-64 and 100,000-node limits;
   invalid or over-limit elements are rejected and logged before rendering.
-- **`context`**: the SDK's card context, not the element's `rendererContext`. Updated when card state or busy/stale/latest flags change. `cardId`; `sessionId`, `conversationId`,
+- **`context`**: the SDK's card context, not the element's `rendererContext`. Updated when card state or the busy/latest flags change. `cardId`; `sessionId`, `conversationId`,
   `interactionId` (each may be absent); `sequence` (Int, this card's activation order in the chat);
-  `isBusy` (a chat or handoff turn is in progress); `isStale` (the identity was reset); `isLatest`
+  `isBusy` (a chat or handoff turn is queued or in progress, or identity reset is in progress);
+  `isStale` (currently always `false`; reserved for possible future session-expiry handling); `isLatest`
   (this is the most recently activated card of its `rendererId` in the chat); `state` (this card's last
   saved state, if any).
 - **`saveState(map)`**: replaces this card's private, in-memory state while its chat ViewModel
@@ -334,9 +335,9 @@ Concierge.registerCardRenderer("catalogRenderer") { element, context, saveState 
   thread; applied on the main thread and never sent to Brand Concierge. Values must be JSON data
   within the same depth/node limits; invalid saves are logged and ignored.
 
-Cards are disposed when their rows are rolled back, on transcript clear/identity reset, and on
-ViewModel teardown. Identity reset marks cards stale before disposal. Disposal discards the card's
-saved state, and saves after disposal are ignored.
+Cards are disposed when their rows are rolled back, on identity reset, and on
+ViewModel teardown. Identity reset removes cards from the transcript. Disposal discards the card's
+saved state, and saves after disposal are ignored. Session expiry or replacement does not mark cards stale.
 
 Cards talk back with the existing APIs: `Concierge.sendDataHandoff` to start a turn with data, and
 `Concierge.updateXDMContext` for committed facts later turns need.
@@ -346,15 +347,17 @@ custom renderer's business payload is valid or its UI shows useful content. A re
 shows its own unavailable placeholder does not change that result.
 
 Each card gates its own controls: disable handoff controls while `isBusy` or `isStale`, and on tap,
-since `isBusy` can lag it. Read both from the current `context` rather than copying them into
-`remember`. The SDK keeps older cards active when newer ones arrive; keep workflow flags such as
-`submitted` in `saveState`. Put only business facts Brand Concierge needs in `updateXDMContext`.
+since `isBusy` can lag it. `isStale` is always `false` today; checking it prepares for possible
+future staleness support but does not currently cancel asynchronous actions. Manage cancellation in
+the app when needed. Read both from the current `context` rather than copying them into `remember`.
+The SDK keeps older cards active when newer ones arrive; keep workflow flags such as `submitted` in
+`saveState`. Put only business facts Brand Concierge needs in `updateXDMContext`.
 
 Card order comes from the SDK, never from composition: Compose doesn't compose transcript rows in
 transcript order (lazy rows, recomposition), so "the last card my effect saw" is not the newest card.
 - `isLatest` covers the common rule "only the newest card of a renderer is actionable": gate controls on
-  `isLatest && !isStale && !isBusy`. It reports order, not availability, so a stale card can still be
-  latest. Activating a newer card with the same `rendererId` flips the older one to `false`. If the newest card
+  `isLatest && !isStale && !isBusy`. It reports order, not availability, so a future stale card could
+  still be latest. Activating a newer card with the same `rendererId` flips the older one to `false`. If the newest card
   is rolled back, the newest remaining card of that `rendererId` becomes latest again.
 - `sequence` supports other cross-card rules (for example, newest per location): it strictly increases in
   transcript order (including element order within one response), is fixed for the card's lifetime,

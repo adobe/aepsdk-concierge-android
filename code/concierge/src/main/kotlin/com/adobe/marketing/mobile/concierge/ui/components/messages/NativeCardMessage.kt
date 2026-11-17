@@ -75,6 +75,10 @@ private fun RegisteredRendererCard(controller: NativeCardController, card: Nativ
     val isStale by card.isStale.collectAsState()
     val isLatest by card.isLatest.collectAsState()
     val state by card.state.collectAsState()
+    val isDisposed by card.isDisposed.collectAsState()
+    // Collectors resume in any order, so read the flag directly too: a recomposition triggered by
+    // disposal's own latest/state writes must not pass the disposed card to the renderer.
+    if (isDisposed || card.isDisposed.value) return
     val context = remember(card, isBusy, isStale, isLatest, state) {
         card.cardContext(isBusy, isStale, isLatest, state)
     }

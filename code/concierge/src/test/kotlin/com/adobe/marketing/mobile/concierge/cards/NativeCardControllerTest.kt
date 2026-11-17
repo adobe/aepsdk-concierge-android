@@ -156,24 +156,23 @@ class NativeCardControllerTest {
         runCurrent()
 
         assertNull(card.state.value)
-        assertTrue(card.isStale.value)
+        assertFalse(card.isStale.value)
+        assertTrue(card.isDisposed.value)
         assertNull(harness.controller.renderableCard(card.cardId))
     }
 
     @Test
-    fun `an identity reset marks current and later cards stale until the transcript clears`() = runTest {
+    fun `clearing the transcript drops every card, and new cards start live and not stale`() = runTest {
         val harness = Harness(this)
         val existing = harness.card(harness.activate())
 
-        harness.controller.markAllStale()
-        val later = harness.card(harness.activate(mapOf("type" to "custom", "rendererId" to "acme.cart", "id" to "cart-1"), turnId = "turn-2"))
-
-        assertTrue(existing.isStale.value)
-        assertTrue(later.isStale.value)
-
         harness.controller.disposeAll()
-        val fresh = harness.card(harness.activate(turnId = "turn-3"))
+        val fresh = harness.card(harness.activate(turnId = "turn-2"))
+
+        assertNull(harness.controller.renderableCard(existing.cardId))
+        assertSame(fresh, harness.controller.renderableCard(fresh.cardId))
         assertFalse(fresh.isStale.value)
+        assertEquals(false, fresh.cardContext(isBusy = false, isStale = fresh.isStale.value, isLatest = true, state = null)[ContextKeys.IS_STALE])
     }
 
     @Test

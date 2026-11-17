@@ -677,7 +677,7 @@ class ConciergeChatViewModelNativeCardTest {
     }
 
     @Test
-    fun `an identity reset makes live cards stale and busy, then drops them with their state and late saves`() = runTest {
+    fun `an identity reset drops live cards with their state and ignores late saves`() = runTest {
         registerMenu()
         val repository = readyRepository()
         val vm = viewModel(frame("Here you go", menu), repository)
@@ -690,20 +690,19 @@ class ConciergeChatViewModelNativeCardTest {
 
         repository.beginIdentityReset(resetRequest) { }
         runCurrent()
-        assertTrue(card.isStale.value)
+        assertTrue(vm.nativeCardIds().isEmpty())
+        assertNull(vm.nativeCards.renderableCard(cardId))
+        assertNull(card.state.value)
         assertTrue(vm.nativeCards.isBusy.value)
-        assertEquals(true, card.cardContext(vm.nativeCards.isBusy.value, card.isStale.value, card.isLatest.value, card.state.value)[ContextKeys.IS_STALE])
 
         completeReset(repository)
         advanceUntilIdle()
-        assertTrue(vm.nativeCardIds().isEmpty())
-        assertNull(vm.nativeCards.renderableCard(cardId))
         assertFalse(vm.nativeCards.isBusy.value)
 
         card.saveState(mapOf("status" to "late"))
         advanceUntilIdle()
         assertNull(card.state.value)
-        assertTrue(card.isStale.value)
+        assertFalse(card.isStale.value)
     }
 
     @Test
@@ -737,7 +736,7 @@ class ConciergeChatViewModelNativeCardTest {
 
         repository.beginIdentityReset(resetRequest) { }
         runCurrent()
-        assertTrue(oldCard.isStale.value)
+        assertNull(vm.nativeCards.renderableCard(oldCard.cardId))
         assertTrue(vm.nativeCards.isBusy.value)
         repository.setSurfaces(listOf("surface-during-reset"))
         runCurrent()
@@ -791,7 +790,7 @@ class ConciergeChatViewModelNativeCardTest {
         repository.beginIdentityReset(resetRequest) { }
         repository.beginIdentityReset(newerRequest) { }
         runCurrent()
-        assertTrue(oldCard.isStale.value)
+        assertNull(vm.nativeCards.renderableCard(oldCard.cardId))
         assertTrue(vm.nativeCards.isBusy.value)
         assertTrue(vm.nativeCardIds().isEmpty())
         completeReset(repository, resetRequest)

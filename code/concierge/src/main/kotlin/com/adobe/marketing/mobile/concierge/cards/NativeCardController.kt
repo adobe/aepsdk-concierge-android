@@ -27,8 +27,8 @@ import java.util.UUID
 
 /**
  * Owns the native cards of one chat: their element, saved state, transcript order, and the
- * busy/stale/latest flags their `context` reports. Main-thread confined, except
- * [RenderableCard.saveState].
+ * busy/stale/latest flags their `context` reports (stale is reserved and always false).
+ * Main-thread confined, except [RenderableCard.saveState].
  */
 internal class NativeCardController(
     private val scope: CoroutineScope,
@@ -75,10 +75,13 @@ internal class NativeCardController(
         val element: Map<String, Any?>,
         /** Activation order within this chat; strictly increasing, never reused. */
         val sequence: Int,
+        /** Reserved for possible future session-expiry staleness; currently always false. */
         val isStale: StateFlow<Boolean>,
         /** True while this is the most recently activated card of its `rendererId` in this chat. */
         val isLatest: StateFlow<Boolean>,
         val state: StateFlow<Map<String, Any?>?>,
+        /** True once the card is disposed; it must not be rendered again, even while its row is still composed. */
+        val isDisposed: StateFlow<Boolean>,
         val saveState: (Map<String, Any?>) -> Unit,
         private val identifiers: Map<String, String>
     ) {
@@ -117,16 +120,15 @@ internal class NativeCardController(
         val position: Int,
         val rendererId: String,
         val sequence: Int,
-        val stale: MutableStateFlow<Boolean>,
         val latest: MutableStateFlow<Boolean>,
-        val state: MutableStateFlow<Map<String, Any?>?>
+        val state: MutableStateFlow<Map<String, Any?>?>,
+        val disposed: MutableStateFlow<Boolean>
     ) {
-        @Volatile
-        var isDisposed = false
+        val isDisposed: Boolean get() = disposed.value
     }
 
     private val busyState = MutableStateFlow(false)
-    private var allCardsStale = false
+    private val notStale: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
     private val entries = LinkedHashMap<String, CardEntry>()
     private val cardIdsByElementKey = HashMap<ElementKey, String>()
     private val latestCardIdByRendererId = HashMap<String, String>()
@@ -171,9 +173,9 @@ internal class NativeCardController(
 
         val cardId = cardIdGenerator()
         val sequence = nextSequence++
-        val stale = MutableStateFlow(allCardsStale)
         val latest = MutableStateFlow(true)
         val state = MutableStateFlow<Map<String, Any?>?>(null)
+        val disposed = MutableStateFlow(false)
         val identifiers = LinkedHashMap<String, String>(3).apply {
             request.sessionId?.let { put(ContextKeys.SESSION_ID, it) }
             request.conversationId?.let { put(ContextKeys.CONVERSATION_ID, it) }
@@ -185,13 +187,14 @@ internal class NativeCardController(
             renderer = renderer,
             element = element,
             sequence = sequence,
-            isStale = stale.asStateFlow(),
+            isStale = notStale,
             isLatest = latest.asStateFlow(),
             state = state.asStateFlow(),
+            isDisposed = disposed.asStateFlow(),
             saveState = { saveState(entry, cardId, it) },
             identifiers = identifiers
         )
-        entry = CardEntry(card, key, request.position, request.rendererId, sequence, stale, latest, state)
+        entry = CardEntry(card, key, request.position, request.rendererId, sequence, latest, state, disposed)
         // Cards activate in transcript order, so the newest card of a renderer is always the latest.
         latestCardIdByRendererId.put(request.rendererId, cardId)?.let { previousId -> entries[previousId]?.latest?.value = false }
         entries[cardId] = entry
@@ -219,21 +222,12 @@ internal class NativeCardController(
         }
     }
 
-    /** Marks every current and future card of this chat stale, e.g. when the identity resets. */
-    fun markAllStale() {
-        if (allCardsStale) return
-        allCardsStale = true
-        entries.values.forEach { it.stale.value = true }
-        Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Marked ${entries.size} card(s) stale.")
-    }
-
     /** Drops every card, e.g. when the transcript is cleared; later saveState calls are ignored. */
     fun disposeAll() {
         entries.values.forEach(::dispose)
         entries.clear()
         cardIdsByElementKey.clear()
         latestCardIdByRendererId.clear()
-        allCardsStale = false
     }
 
     /** Drops cards whose transcript message was rolled back. */
@@ -263,8 +257,8 @@ internal class NativeCardController(
 
     /** Ends the card's lifetime: it can't be looked up, its saved state is discarded, and later saves are ignored. */
     private fun dispose(entry: CardEntry) {
-        entry.isDisposed = true
-        entry.stale.value = true
+        // Set first, so any recomposition the writes below trigger already sees the card disposed.
+        entry.disposed.value = true
         entry.latest.value = false
         entry.state.value = null
     }

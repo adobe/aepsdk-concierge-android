@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
  *   `isLatest`, and `state` (this card's last saved state, if any).
  *   - `sequence` (Int): this card's activation order in the chat. It strictly increases in
  *     transcript order and is never reused; compare it only between cards of the same chat.
+ *   - `isStale` (Boolean): currently always false; reserved for possible future session-expiry
+ *     handling. Identity reset removes cards, and session expiry does not mark them stale.
  *   - `isLatest` (Boolean): true while this is the most recently activated card of its
  *     `rendererId` in the chat. It reports order, not availability: gate actions on
  *     `isLatest && !isStale && !isBusy`.
