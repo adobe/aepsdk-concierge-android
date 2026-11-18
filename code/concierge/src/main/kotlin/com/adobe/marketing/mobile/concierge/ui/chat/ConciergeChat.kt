@@ -42,10 +42,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -332,6 +335,9 @@ internal fun ConciergeChat(
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
     val interactionSource = remember { MutableInteractionSource() }
+    val modalFeedback = chatState.feedback.takeUnless {
+        ConciergeTheme.behavior?.feedback?.displayMode == FeedbackDisplayMode.ACTION
+    }
     
     // Derive UI state from ChatScreenState
     val isProcessing = identityResetInProgress || chatState is ChatScreenState.Processing
@@ -352,6 +358,15 @@ internal fun ConciergeChat(
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
+                .then(
+                    if (modalFeedback != null) {
+                        Modifier
+                            .blur(16.dp)
+                            .clearAndSetSemantics {}
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             ChatHeader(
                 onClose = onClose
@@ -438,21 +453,35 @@ internal fun ConciergeChat(
         }
 
         // Feedback dialog overlay (modal mode; bottom sheet is rendered at outer composable level)
-        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION) {
-            chatState.feedback?.let { feedback ->
-                FeedbackDialog(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center),
-                    feedback = feedback,
-                    onDismiss = {
-                        onEvent(FeedbackEvent.DismissFeedbackDialog)
-                    },
-                    onSubmit = { submittedFeedback ->
-                        onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
-                    }
-                )
-            }
+        modalFeedback?.let { feedback ->
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            style.backgroundColor.copy(alpha = 0.35f)
+                        } else {
+                            Color.Black.copy(alpha = 0.32f)
+                        }
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { focusManager.clearFocus() }
+                    .clearAndSetSemantics {}
+            )
+            FeedbackDialog(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center),
+                feedback = feedback,
+                onDismiss = {
+                    onEvent(FeedbackEvent.DismissFeedbackDialog)
+                },
+                onSubmit = { submittedFeedback ->
+                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+                }
+            )
         }
     }
 }

@@ -12,17 +12,27 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.feedback
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 
 /**
  * UI tests for the FeedbackDialog composable.
@@ -327,5 +337,62 @@ class FeedbackDialogTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun feedbackDialog_compactHeight_keepsActionsVisibleWhileEditingNotes() {
+        var submittedFeedback: Feedback? = null
+        composeTestRule.setContent {
+            ConciergeTheme {
+                Box(Modifier.height(300.dp)) {
+                    FeedbackDialog(
+                        feedback = Feedback("test-id", FeedbackType.POSITIVE),
+                        onDismiss = {},
+                        onSubmit = { submittedFeedback = it }
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNode(hasSetTextAction())
+            .performScrollTo()
+            .performClick()
+            .performTextInput("Still reachable")
+
+        composeTestRule.onNodeWithText("Cancel").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Submit").assertIsDisplayed().performClick()
+
+        composeTestRule.runOnIdle {
+            assertEquals("Still reachable", submittedFeedback?.notes)
+        }
+    }
+
+    @Test
+    fun feedbackDialog_compactHeight_doneDismissesFocusAndCancelWorks() {
+        var dismissed = false
+        composeTestRule.setContent {
+            ConciergeTheme {
+                Box(Modifier.height(300.dp)) {
+                    FeedbackDialog(
+                        feedback = Feedback("test-id", FeedbackType.NEGATIVE),
+                        onDismiss = { dismissed = true },
+                        onSubmit = {}
+                    )
+                }
+            }
+        }
+
+        composeTestRule.onNode(hasSetTextAction())
+            .performScrollTo()
+            .performClick()
+            .performTextInput("Keep my notes")
+        composeTestRule.onNode(hasSetTextAction()).performImeAction()
+        composeTestRule.onNode(hasSetTextAction()).assertIsNotFocused()
+        composeTestRule.onNodeWithText("Keep my notes").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cancel").assertIsDisplayed().performClick()
+
+        composeTestRule.runOnIdle {
+            assertTrue(dismissed)
+        }
     }
 }

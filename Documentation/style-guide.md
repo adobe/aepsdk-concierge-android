@@ -1080,6 +1080,10 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
 
 > **Note:** The notes field is only available in `"modal"` display mode, gated by `components.feedback.positiveNotesEnabled` / `negativeNotesEnabled`.
 
+In modal mode, the form content scrolls while Submit and Cancel (when enabled) remain outside the scrolling area above the keyboard. Use the keyboard's Done action to dismiss it. Hosts using `ConciergeChatView` must configure `android:windowSoftInputMode="adjustResize"`.
+
+The modal blurs the chat behind it on Android 12 (API 31) and later, with a translucent themed backdrop. Older Android versions use a dimmed backdrop instead. Background chat controls are blocked while the modal is open. Tapping the backdrop dismisses the keyboard without closing the feedback form. Action mode is unchanged.
+
 ### Layout - Citations
 
 | CSS Variable | Kotlin Property | Type | Default | Description |

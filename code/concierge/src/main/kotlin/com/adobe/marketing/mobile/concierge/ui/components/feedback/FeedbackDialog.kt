@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -378,6 +379,7 @@ private fun FeedbackDialogCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .imePadding()
             .padding(style.padding),
         colors = CardDefaults.cardColors(containerColor = style.backgroundColor),
         elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
@@ -386,8 +388,7 @@ private fun FeedbackDialogCard(
         FeedbackCardContent(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(style.contentPadding)
-                .verticalScroll(rememberScrollState()),
+                .padding(style.contentPadding),
             feedback = feedback,
             onDismiss = onDismiss,
             onSubmit = onSubmit
@@ -420,75 +421,84 @@ private fun FeedbackCardContent(
     var notesText by remember { mutableStateOf("") }
 
     Column(modifier = modifier) {
-        FeedbackTitleRow(
-            titleText = titleText,
-            showCloseButton = showCloseButton,
-            onDismiss = onDismiss,
-            style = style
-        )
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+        ) {
+            FeedbackTitleRow(
+                titleText = titleText,
+                showCloseButton = showCloseButton,
+                onDismiss = {
+                    focusManager.clearFocus()
+                    onDismiss()
+                },
+                style = style
+            )
 
-        Spacer(modifier = Modifier.height(style.titleSpacing))
-
-        Text(
-            text = questionText,
-            style = style.questionStyle,
-            color = style.questionColor,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(style.questionSpacing))
-
-        CategoryCheckboxList(
-            categories = categories,
-            selectedCategories = selectedCategories,
-            onToggle = { category ->
-                selectedCategories = if (category in selectedCategories) {
-                    selectedCategories - category
-                } else {
-                    selectedCategories + category
-                }
-            },
-            style = style
-        )
-
-        if (showNotes) {
-            Spacer(modifier = Modifier.height(style.categoriesNotesSpacing))
+            Spacer(modifier = Modifier.height(style.titleSpacing))
 
             Text(
-                text = themeText?.feedbackDialogNotes ?: "Notes",
-                style = style.notesLabelStyle,
-                color = style.notesLabelColor,
+                text = questionText,
+                style = style.questionStyle,
+                color = style.questionColor,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(style.notesLabelSpacing))
+            Spacer(modifier = Modifier.height(style.questionSpacing))
 
-            OutlinedTextField(
-                value = notesText,
-                onValueChange = { notesText = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
-                        style = style.notesPlaceholderStyle,
-                        color = style.notesPlaceholderColor
-                    )
+            CategoryCheckboxList(
+                categories = categories,
+                selectedCategories = selectedCategories,
+                onToggle = { category ->
+                    selectedCategories = if (category in selectedCategories) {
+                        selectedCategories - category
+                    } else {
+                        selectedCategories + category
+                    }
                 },
-                shape = style.checkboxShape,
-                colors = OutlinedTextFieldDefaults.colors(
-                    // Notes fill matches the sheet/card surface.
-                    focusedContainerColor = style.backgroundColor,
-                    unfocusedContainerColor = style.backgroundColor,
-                    // Notes outline matches the checkbox outline when themed.
-                    focusedBorderColor = style.textFieldBorderColor,
-                    unfocusedBorderColor = style.textFieldBorderColor,
-                    focusedTextColor = style.textFieldTextColor,
-                    unfocusedTextColor = style.textFieldTextColor
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                maxLines = 3
+                style = style
             )
+
+            if (showNotes) {
+                Spacer(modifier = Modifier.height(style.categoriesNotesSpacing))
+
+                Text(
+                    text = themeText?.feedbackDialogNotes ?: "Notes",
+                    style = style.notesLabelStyle,
+                    color = style.notesLabelColor,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(style.notesLabelSpacing))
+
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = { notesText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
+                            style = style.notesPlaceholderStyle,
+                            color = style.notesPlaceholderColor
+                        )
+                    },
+                    shape = style.checkboxShape,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        // Notes fill matches the sheet/card surface.
+                        focusedContainerColor = style.backgroundColor,
+                        unfocusedContainerColor = style.backgroundColor,
+                        // Notes outline matches the checkbox outline when themed.
+                        focusedBorderColor = style.textFieldBorderColor,
+                        unfocusedBorderColor = style.textFieldBorderColor,
+                        focusedTextColor = style.textFieldTextColor,
+                        unfocusedTextColor = style.textFieldTextColor
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    maxLines = 3
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
@@ -496,8 +506,12 @@ private fun FeedbackCardContent(
         FeedbackActionButtons(
             showCancelButton = showCancelButton,
             submitEnabled = selectedCategories.isNotEmpty() || (showNotes && notesText.isNotBlank()),
-            onCancel = onDismiss,
+            onCancel = {
+                focusManager.clearFocus()
+                onDismiss()
+            },
             onSubmit = {
+                focusManager.clearFocus()
                 onSubmit(
                     feedback.copy(
                         selectedCategories = selectedCategories.toList(),
