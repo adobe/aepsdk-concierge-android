@@ -11,11 +11,20 @@
 
 package com.adobe.marketing.mobile.concierge.network
 
+import com.adobe.marketing.mobile.services.Log
+import io.mockk.every
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+// Robolectric for Android's org.json, whose syntax errors quote the whole input.
+@RunWith(RobolectricTestRunner::class)
 class ConversationResponseParserVoiceTest {
 
     @Test
@@ -93,6 +102,26 @@ class ConversationResponseParserVoiceTest {
         assertEquals(1, parsed.size)
         assertEquals("Hi", parsed[0].messageContent)
         assertTrue(parsed[0].promptSuggestions.isEmpty())
+    }
+
+    @Test
+    fun `parseVoiceBootstrap does not log the token of a malformed frame`() {
+        val logged = mutableListOf<String>()
+        mockkStatic(Log::class)
+        try {
+            every { Log.warning(any(), any(), any(), *anyVararg()) } answers {
+                logged += args.drop(2).flatMap { (it as? Array<*>)?.toList() ?: listOf(it) }.joinToString()
+            }
+            val truncated = voiceEvent("""{"type": "livekit_session", "livekitUrl": "wss://x", "token": "secret-token"}""")
+                .dropLast(3)
+
+            assertNull(ConversationResponseParser.parseVoiceBootstrap(truncated))
+
+            assertEquals(1, logged.size)
+            assertFalse(logged.single(), logged.single().contains("secret-token"))
+        } finally {
+            unmockkStatic(Log::class)
+        }
     }
 
     private fun voiceEvent(voice: String): String = """
