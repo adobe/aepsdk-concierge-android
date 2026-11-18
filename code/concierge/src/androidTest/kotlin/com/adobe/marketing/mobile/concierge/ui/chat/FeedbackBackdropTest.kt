@@ -16,6 +16,7 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.ComponentActivity
@@ -137,7 +138,7 @@ class FeedbackBackdropTest {
             val event = MotionEvent.obtain(
                 eventTime, SystemClock.uptimeMillis(), action,
                 backdropX, backdropY, 0
-            )
+            ).apply { source = InputDevice.SOURCE_TOUCHSCREEN }
             try {
                 assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true))
             } finally {
@@ -245,6 +246,22 @@ class FeedbackBackdropTest {
             if (condition()) return
             SystemClock.sleep(50)
         } while (SystemClock.elapsedRealtime() < deadline)
-        fail("Timed out waiting for $description")
+        val visibleBounds = Rect()
+        var imeInsets: WindowInsetsCompat? = null
+        scenario.onActivity {
+            it.window.decorView.getWindowVisibleDisplayFrame(visibleBounds)
+            imeInsets = ViewCompat.getRootWindowInsets(it.window.decorView)
+        }
+        val inputMethod = instrumentation.uiAutomation.executeShellCommand("dumpsys input_method")
+        val keyboardState = android.os.ParcelFileDescriptor.AutoCloseInputStream(inputMethod)
+            .bufferedReader().useLines { lines ->
+                lines.filter { it.contains("mInputShown") || it.contains("mIsInputViewShown") }.joinToString()
+            }
+        fail(
+            "Timed out waiting for $description; visibleBounds=$visibleBounds, " +
+                "imeVisible=${imeInsets?.isVisible(WindowInsetsCompat.Type.ime())}, " +
+                "imeInsets=${imeInsets?.getInsets(WindowInsetsCompat.Type.ime())}, " +
+                "editorFocused=${findNode { it.isEditable }?.isFocused}, $keyboardState"
+        )
     }
 }
