@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.conciergetestapp
 
+import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.widget.Toast
@@ -40,6 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,18 +58,21 @@ import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeLoader
+import com.adobe.marketing.mobile.conciergetestapp.parking.ParkWhizBookingSheet
+import com.adobe.marketing.mobile.conciergetestapp.parking.isParkWhizUrl
 
 // FQN of the debug-only ProductCardDemoActivity. It lives in the `debug` source set, so it can't be
 // referenced by class literal from `main`; keep this string in sync if the activity is renamed/moved.
 private const val PRODUCT_CARD_DEMO_ACTIVITY_CLASS =
     "com.adobe.marketing.mobile.conciergetestapp.ProductCardDemoActivity"
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun MainScreen() {
     val context = LocalContext.current
 
     // Surfaces passed via ConciergeChat parameter
-    val surfaces = listOf( "web://brand-concierge-demo-stage.corp.ethos270-stage-va7.ethos.adobe.net/customer-pages/745F37C35E4B776E0A49421B@AdobeOrg/acom_m15/index.html")
+    val surfaces = listOf( "mobileapp://conciergetestapp/home")
     var selectedTheme by rememberSaveable { mutableStateOf("default") }
     
     // Theme options
@@ -88,13 +96,17 @@ fun MainScreen() {
     }
     
     // Apply theme at the root level
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F5F5))
         ) {
+            // Centered when it fits, scrollable when the debug buttons push it past the screen.
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -128,12 +140,19 @@ fun MainScreen() {
 
                 // Compose wrapper implementation button
                 val viewModel = viewModel<ConciergeChatViewModel>()
+                var parkWhizUrl by remember { mutableStateOf<String?>(null) }
 
                 ConciergeTheme(theme = theme) {
                     ConciergeChat(
                         modifier = Modifier.fillMaxSize(),
                         viewModel = viewModel,
-                        surfaces = surfaces
+                        surfaces = surfaces,
+                        handleLink = { url ->
+                            if (isParkWhizUrl(url)) {
+                                parkWhizUrl = url
+                                true
+                            } else false
+                        }
                     ) { showChat ->
                         Button(
                             onClick = { showChat() },
@@ -146,6 +165,9 @@ fun MainScreen() {
                             Text("🗨️ Compose Chat", fontSize = 16.sp, color = Color.White)
                         }
                     }
+                }
+                parkWhizUrl?.let { url ->
+                    ParkWhizBookingSheet(url = url, onDismiss = { parkWhizUrl = null })
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

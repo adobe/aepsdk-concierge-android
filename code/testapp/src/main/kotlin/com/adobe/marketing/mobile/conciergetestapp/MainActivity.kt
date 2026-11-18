@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.adobe.marketing.mobile.conciergetestapp.fnb.FnbIdentityLifecycle
 import com.adobe.marketing.mobile.conciergetestapp.theme.ConciergeAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -27,6 +28,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        registerTestAppCardRenderers(this)
+        FnbIdentityLifecycle.register()
 
         setContent {
             ConciergeAppTheme {
