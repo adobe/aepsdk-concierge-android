@@ -20,8 +20,12 @@ import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
@@ -93,13 +97,21 @@ class FeedbackBackdropTest {
 
     @Test
     fun modal_notesKeyboard_backdropDismissesAndSubmissionPreservesNotes() {
-        showChat("modal")
-        val backdropBounds = Rect()
-        requireNotNull(nodeWithText("Concierge")).getBoundsInScreen(backdropBounds)
+        verifyNotesKeyboardDismissal()
+    }
+
+    @Test
+    fun modal_compactHeight_backdropDismissesKeyboardAndPreservesNotes() {
+        verifyNotesKeyboardDismissal(500.dp)
+    }
+
+    private fun verifyNotesKeyboardDismissal(height: Dp? = null) {
+        showChat("modal", height)
         scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
         await("notes editor") { findNode { it.isEditable } != null }
         assertTrue(requireNotNull(findNode { it.isEditable }).performAction(AccessibilityNodeInfo.ACTION_CLICK))
         await("notes keyboard") { isKeyboardVisible() }
+        await("notes editor after keyboard resize") { findNode { it.isEditable } != null }
 
         val arguments = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Review this feedback")
@@ -114,11 +126,17 @@ class FeedbackBackdropTest {
             assertTrue("$label must remain above the keyboard", visibleBounds.contains(bounds))
         }
 
+        val cancelBounds = Rect()
+        requireNotNull(nodeWithText("Cancel")).getBoundsInScreen(cancelBounds)
+        val backdropInset = instrumentation.targetContext.resources.displayMetrics.density * 4
+        // Tap beside the card after keyboard resize, not at a stale background-control position.
+        val backdropX = visibleBounds.left + backdropInset
+        val backdropY = cancelBounds.exactCenterY()
         val eventTime = SystemClock.uptimeMillis()
         for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
             val event = MotionEvent.obtain(
                 eventTime, SystemClock.uptimeMillis(), action,
-                backdropBounds.exactCenterX(), backdropBounds.exactCenterY(), 0
+                backdropX, backdropY, 0
             )
             try {
                 assertTrue(instrumentation.uiAutomation.injectInputEvent(event, true))
@@ -146,7 +164,7 @@ class FeedbackBackdropTest {
         return visible
     }
 
-    private fun showChat(displayMode: String) {
+    private fun showChat(displayMode: String, height: Dp? = null) {
         val json = """{"behavior":{"feedback":{"displayMode":"$displayMode"}}}"""
         val theme = ConciergeThemeData(
             config = requireNotNull(ThemeParser.parseThemeJson(json)),
@@ -159,6 +177,7 @@ class FeedbackBackdropTest {
                 ConciergeTheme(theme = theme) {
                     CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
                         ConciergeChat(
+                            modifier = if (height != null) Modifier.height(height) else Modifier,
                             messages = emptyList(),
                             chatState = ChatScreenState.Idle(feedback.value),
                             isInputEmpty = true,
