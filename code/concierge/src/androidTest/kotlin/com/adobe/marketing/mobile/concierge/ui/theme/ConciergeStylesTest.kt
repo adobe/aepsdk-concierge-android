@@ -1126,7 +1126,7 @@ class ConciergeStylesTest {
     }
 
     @Test
-    fun extendedProductCardStyle_withBoxShadowToken_shadowElevationAndColorReflectBlurAndColor() {
+    fun extendedProductCardStyle_withBoxShadowToken_boxShadowReflectsAllValues() {
         var style: ConciergeStyles.ExtendedProductCardStyle? = null
         val themeData = ConciergeThemeData(
             config = ConciergeThemeConfig(),
@@ -1151,12 +1151,20 @@ class ConciergeStylesTest {
 
         composeTestRule.waitForIdle()
         assertNotNull(style)
-        assertEquals(3.dp, style!!.shadowElevation)
-        assertEquals(Color(0x14000000), style!!.shadowColor)
+        assertEquals(
+            ConciergeBoxShadow(
+                offsetX = 0.dp,
+                offsetY = 1.dp,
+                blurRadius = 3.dp,
+                spreadRadius = 0.dp,
+                color = Color(0x14000000)
+            ),
+            style!!.boxShadow
+        )
     }
 
     @Test
-    fun extendedProductCardStyle_noBoxShadowToken_shadowElevationIsZeroAndColorIsTransparent() {
+    fun extendedProductCardStyle_noBoxShadowToken_boxShadowIsNull() {
         var style: ConciergeStyles.ExtendedProductCardStyle? = null
 
         composeTestRule.setContent {
@@ -1169,8 +1177,7 @@ class ConciergeStylesTest {
         assertNotNull(style)
         // Covers both an unset theme and an explicit "none" box-shadow, since parseBoxShadow
         // collapses "none" to the same null the token has when it's never set.
-        assertEquals(0.dp, style!!.shadowElevation)
-        assertEquals(Color.Transparent, style!!.shadowColor)
+        assertNull(style!!.boxShadow)
     }
 
     // -----------------------------------------------------------------------

@@ -274,6 +274,103 @@ app owns any failure UI based on the completion result.
 
 ---
 
+## Native card renderers (preview)
+
+Register a Compose renderer for a `rendererId`. Brand Concierge marks custom UX elements with
+`"type": "custom"` and names the client renderer in `rendererId`. When an element in
+`multimodalElements.elements` is `custom` and its `rendererId` is registered, the chat renders your
+card inline in the transcript, after its assistant turn completes.
+
+```json
+{
+  "id": "1364190",
+  "type": "custom",
+  "rendererId": "catalogRenderer",
+  "rendererContext": { "eventId": "event-12345" },
+  "entity_info": { "productName": "Veggie Nachos" }
+}
+```
+
+Only `custom` elements are matched; other element types always keep their built-in rendering, even
+if their `type` equals a registered id. Custom `entity_info` is opaque to the SDK and is never
+parsed as a built-in card. A custom element is omitted with a warning if its `rendererId` is
+missing, blank, or unregistered, or if native activation rejects it. If that leaves a typed chat
+response with no text and nothing else to show, the chat shows its standard error message with the
+response's prompt suggestions; a data handoff reports `EMPTY_RESPONSE` instead and adds nothing to
+the transcript. `ctaButton` elements use CTA
+parsing; other non-custom types use the existing card parser.
+`rendererId` matching is exact and case-sensitive.
+Within one response, the same element ID may be used by different renderers, but repeated IDs for
+the same renderer are rejected for native rendering.
+Replacing a registration affects subsequently activated cards; existing cards retain their renderer.
+Native cards and CTAs have separate transcript rows; built-in cards are grouped into a carousel
+at the first built-in card's position, so mixed responses do not preserve every element's interleaving.
+Prompt suggestions are shown under the built-in card carousel, else the last native card, else the
+last CTA, else the response text.
+Native cards do not emit the SDK's `CardsRendered` analytics event; tracking native-card impressions
+and other app-specific interactions is the host app's responsibility. The SDK does not send native
+card payloads through product-oriented card analytics.
+
+```kotlin
+// Once at app start, after MobileCore setup. The last registration for a rendererId wins.
+Concierge.registerCardRenderer("catalogRenderer") { element, context, saveState ->
+    CatalogCard(element, context, saveState)
+}
+```
+
+- **`element`**: the complete, deeply read-only element dictionary, including null values.
+  `entity_info` (the renderer-owned entity data) and `rendererContext` (optional metadata such as
+  an `eventId` for later interactions) are passed through unchanged. Their schemas are not
+  validated: either may be null or absent, and the renderer must handle that safely. Elements are copied with depth-64 and 100,000-node limits;
+  invalid or over-limit elements are rejected and logged before rendering.
+- **`context`**: the SDK's card context, not the element's `rendererContext`. Updated when card state or the busy/latest flags change. `cardId`; `sessionId`, `conversationId`,
+  `interactionId` (each may be absent); `sequence` (Int, this card's activation order in the chat);
+  `isBusy` (a chat or handoff turn is queued or in progress, or identity reset is in progress);
+  `isStale` (currently always `false`; reserved for possible future session-expiry handling); `isLatest`
+  (this is the most recently activated card of its `rendererId` in the chat); `state` (this card's last
+  saved state, if any).
+- **`saveState(map)`**: replaces this card's private, in-memory state while its chat ViewModel
+  survives (including scrolling, hiding the chat, and configuration changes that retain that
+  ViewModel). It is not persisted across process death or a new ViewModel. Callable from any
+  thread; applied on the main thread and never sent to Brand Concierge. Values must be JSON data
+  within the same depth/node limits; invalid saves are logged and ignored.
+
+Cards are disposed when their rows are rolled back, on identity reset, and on
+ViewModel teardown. Identity reset removes cards from the transcript. Disposal discards the card's
+saved state, and saves after disposal are ignored. Session expiry or replacement does not mark cards stale.
+
+Cards talk back with the existing APIs: `Concierge.sendDataHandoff` to start a turn with data, and
+`Concierge.updateXDMContext` for committed facts later turns need.
+The `sendDataHandoff` completion runs on a background thread, and the SDK doesn't deduplicate calls.
+`Delivered` means the response supplied nonblank text or accepted render targets, not that a
+custom renderer's business payload is valid or its UI shows useful content. A renderer that
+shows its own unavailable placeholder does not change that result.
+
+Each card gates its own controls: disable handoff controls while `isBusy` or `isStale`, and on tap,
+since `isBusy` can lag it. `isStale` is always `false` today; checking it prepares for possible
+future staleness support but does not currently cancel asynchronous actions. Manage cancellation in
+the app when needed. Read both from the current `context` rather than copying them into `remember`.
+The SDK keeps older cards active when newer ones arrive; keep workflow flags such as `submitted` in
+`saveState`. Put only business facts Brand Concierge needs in `updateXDMContext`.
+
+Card order comes from the SDK, never from composition: Compose doesn't compose transcript rows in
+transcript order (lazy rows, recomposition), so "the last card my effect saw" is not the newest card.
+- `isLatest` covers the common rule "only the newest card of a renderer is actionable": gate controls on
+  `isLatest && !isStale && !isBusy`. It reports order, not availability, so a future stale card could
+  still be latest. Activating a newer card with the same `rendererId` flips the older one to `false`. If the newest card
+  is rolled back, the newest remaining card of that `rendererId` becomes latest again.
+- `sequence` supports other cross-card rules (for example, newest per location): it strictly increases in
+  transcript order (including element order within one response), is fixed for the card's lifetime,
+  and is never reused in the chat. Rejected elements don't use a number. Compare it only between cards of
+  the same chat; it is not meaningful across chats or app launches.
+
+The SDK draws no card surface: cards
+render at their natural height, full width.
+Renderers must not throw, must not start work during composition, and, since they are held for
+the life of the process, must not capture an `Activity` or a `View`.
+
+---
+
 ## Integration
 
 ### Managed Integration

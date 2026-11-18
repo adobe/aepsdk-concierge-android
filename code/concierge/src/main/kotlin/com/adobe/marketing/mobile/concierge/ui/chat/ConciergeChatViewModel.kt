@@ -33,16 +33,19 @@ import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
+import com.adobe.marketing.mobile.concierge.cards.NativeCardController
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
 import com.adobe.marketing.mobile.concierge.network.ConciergeHttpStatusException
 import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.network.ConversationState
 import com.adobe.marketing.mobile.concierge.network.CtaButton
+import com.adobe.marketing.mobile.concierge.network.CUSTOM_ELEMENT_TYPE
 import com.adobe.marketing.mobile.concierge.network.LinkHint
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
+import com.adobe.marketing.mobile.concierge.network.RawMultimodalElement
 import com.adobe.marketing.mobile.concierge.network.RequestStartedFlow
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
 import com.adobe.marketing.mobile.concierge.ui.components.footer.FeedbackState
@@ -88,6 +91,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -96,13 +100,13 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 
 class ConciergeChatViewModel : AndroidViewModel {
     companion object {
@@ -327,6 +331,19 @@ class ConciergeChatViewModel : AndroidViewModel {
      */
     private var responseStartedDispatched = false
 
+    /**
+     * Native JSON renderers of this chat and their element occurrences.
+     * Main-thread confined.
+     */
+    internal val nativeCards: NativeCardController
+
+    /** Identifies the turn being streamed; native card occurrences are keyed by it. */
+    private var turnSequence = 0L
+    private var currentTurnId = "turn-0"
+
+    /** The latest backend interaction id seen in the turn being streamed. */
+    private var currentTurnInteractionId: String? = null
+
     private sealed class ConversationRequest {
         data class Chat(
             val message: String,
@@ -484,7 +501,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     // Chat messages increment/decrement this unconditionally as a queue-depth count; a data
     // handoff instead requires it to be exactly 0 to be admitted at all (reserveDataHandoffSlot),
     // making this field double as both a FIFO depth counter and a single-occupant exclusivity gate.
-    private val pendingConversationRequests = AtomicInteger(0)
+    private val pendingConversationRequests = PendingRequestCounter()
 
     @Volatile
     private var isDataHandoffSessionActive = false
@@ -551,8 +568,14 @@ class ConciergeChatViewModel : AndroidViewModel {
         observedResetGeneration = stateRepository.state.value.resetGeneration
         captureListener = createCaptureListener(observedResetGeneration)
         stateRepository.registerResetParticipant(resetParticipant)
+        this.nativeCards = NativeCardController(scope = viewModelScope)
         speechCapturing.setListener(captureListener)
         startConversationProcessor()
+        viewModelScope.launch {
+            combine(pendingConversationRequests.count, stateRepository.state) { pending, state ->
+                pending > 0 || state.resetInProgress
+            }.collect(nativeCards::setBusy)
+        }
         viewModelScope.launch {
             stateRepository.state.collect { state ->
                 _identityResetInProgress.value = state.resetInProgress
@@ -929,7 +952,8 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         val contextSnapshot = stateRepository.captureXDMContext()
         pendingConversationRequests.incrementAndGet()
-        if (conversationRequests.trySend(ConversationRequest.Chat(messageText, contextSnapshot)).isFailure) {
+        val request = ConversationRequest.Chat(messageText, contextSnapshot)
+        if (conversationRequests.trySend(request).isFailure) {
             pendingConversationRequests.decrementAndGet()
             Log.warning(
                 ConciergeConstants.EXTENSION_NAME,
@@ -1358,8 +1382,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * @param isDataHandoff when true, failures, empty responses, and cancellations roll back
      * everything the streamed response added and leave no failure bubble. Any `localMessage`
      * remains because it was already shown before this turn began. Chat instead renders its
-     * failures and leaves an empty COMPLETED response as whatever had already streamed, since
-     * that's a normal (if content-less) outcome for typed chat.
+     * failures, and treats a response with nothing renderable (no visible text and no accepted
+     * element) as one, so its placeholder is never left behind.
      * @param resendAvailable whether the caller can still resend a typed chat turn that was
      * interrupted while the app was in the background.
      * @param attemptBackgrounded whether the app was in the background at any point during this
@@ -1369,7 +1393,8 @@ class ConciergeChatViewModel : AndroidViewModel {
      * response. When [resendAvailable], the turn is rolled back without rendering an error and
      * [ConversationStreamResult.Interrupted] is returned so the caller can resend it; otherwise the
      * normal error is shown rather than presenting a partial answer as final. A transport failure
-     * after the COMPLETED response arrived always keeps the delivered answer.
+     * after the COMPLETED response arrived ends a typed chat turn as if the stream had closed
+     * cleanly: the delivered answer is kept, and an empty response gets the empty-response handling.
      */
     private suspend fun streamConversation(
         conversation: Flow<ParsedConversationMessage>,
@@ -1377,9 +1402,12 @@ class ConciergeChatViewModel : AndroidViewModel {
         resendAvailable: Boolean = false,
         attemptBackgrounded: () -> Boolean = { false }
     ): ConversationStreamResult {
+        currentTurnId = "turn-${++turnSequence}"
+        currentTurnInteractionId = null
         val contentBuilder = StringBuilder()
         var hasVisibleContent = false
         var hasCompleted = false
+        var completedPromptSuggestions = emptyList<String>()
         var hasError = false
         var failureDetail: String? = null
 
@@ -1398,6 +1426,40 @@ class ConciergeChatViewModel : AndroidViewModel {
             citations = emptyList()
         )
         _messages.update { currentMessages -> currentMessages + assistantMessage }
+
+        // Ends a turn that wasn't failed or interrupted: with what it rendered, or as an empty
+        // response. Shared by a cleanly closed stream and one whose teardown failed after COMPLETED.
+        fun finishTurn(): ConversationStreamResult {
+            if (hasVisibleContent) {
+                finishConversation()
+                return ConversationStreamResult.Delivered
+            }
+            // Nothing renderable: no text, and no element was accepted (e.g. only custom
+            // elements without a registered renderer). Never leave the placeholder behind.
+            if (isDataHandoff) {
+                // The caller receives EMPTY_RESPONSE; the transcript stays unchanged and
+                // the host app owns failure UX.
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Conversation completed with no renderable content"
+                )
+                truncateMessagesTo(turnStartIndex)
+                resetProcessingStateToIdle()
+            } else {
+                // A typed chat turn shows the standard error copy, like an ERROR frame, plus
+                // any follow-up suggestions the response supplied.
+                _messages.update { currentMessages ->
+                    currentMessages.take(turnStartIndex) + assistantMessage
+                }
+                disposeRemovedNativeCards()
+                handleConversationError(
+                    "Conversation completed with no renderable content",
+                    promptSuggestions = completedPromptSuggestions
+                )
+            }
+            return ConversationStreamResult.Empty
+        }
 
         return try {
             conversation.takeWhile { parsedMessage ->
@@ -1423,6 +1485,7 @@ class ConciergeChatViewModel : AndroidViewModel {
                         _messages.update { currentMessages ->
                             currentMessages.take(turnStartIndex) + assistantMessage
                         }
+                        disposeRemovedNativeCards()
                         onParsedMessage(parsedMessage, contentBuilder)
                     }
                     false
@@ -1430,10 +1493,12 @@ class ConciergeChatViewModel : AndroidViewModel {
                     true
                 }
             }.collect { parsedMessage ->
-                hasVisibleContent = hasVisibleContent ||
-                    parsedMessage.messageContent.isNotBlank() || parsedMessage.orderedElements.isNotEmpty()
+                val renderedContent = onParsedMessage(parsedMessage, contentBuilder)
+                hasVisibleContent = hasVisibleContent || renderedContent
                 hasCompleted = hasCompleted || parsedMessage.state == ConversationState.COMPLETED
-                onParsedMessage(parsedMessage, contentBuilder)
+                if (parsedMessage.state == ConversationState.COMPLETED) {
+                    completedPromptSuggestions = parsedMessage.promptSuggestions
+                }
             }
             when {
                 hasError -> ConversationStreamResult.Failed(failureDetail)
@@ -1454,30 +1519,12 @@ class ConciergeChatViewModel : AndroidViewModel {
                         _messages.update { currentMessages ->
                             currentMessages.take(turnStartIndex) + assistantMessage
                         }
+                        disposeRemovedNativeCards()
                         handleConversationError("Stream ended before completion")
                         ConversationStreamResult.Failed("Stream ended before completion")
                     }
                 }
-                hasVisibleContent -> {
-                    finishConversation()
-                    ConversationStreamResult.Delivered
-                }
-                else -> {
-                    if (isDataHandoff) {
-                        // The caller receives EMPTY_RESPONSE; the transcript stays unchanged and
-                        // the host app owns failure UX.
-                        Log.warning(
-                            ConciergeConstants.EXTENSION_NAME,
-                            TAG,
-                            "Conversation completed with no renderable content"
-                        )
-                        truncateMessagesTo(turnStartIndex)
-                        resetProcessingStateToIdle()
-                    } else {
-                        finishConversation()
-                    }
-                    ConversationStreamResult.Empty
-                }
+                else -> finishTurn()
             }
         } catch (e: CancellationException) {
             // This turn's content is streamConversation's responsibility, so roll it back here for
@@ -1490,16 +1537,15 @@ class ConciergeChatViewModel : AndroidViewModel {
         } catch (e: Exception) {
             val isTransportFailure = e is IOException && e !is ConciergeHttpStatusException
             if (!isDataHandoff && isTransportFailure && hasCompleted) {
-                // The answer was already delivered in full (and ResponseCompleted reported); only
-                // the trailing connection teardown failed, so keep it rather than replacing it
-                // with an error or resending it.
+                // The response arrived in full (and ResponseCompleted was reported); only the
+                // trailing connection teardown failed, so end the turn exactly as if the stream had
+                // closed cleanly rather than replacing it with a transport error or resending it.
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
                     "Conversation stream dropped after the response completed: ${e.message}"
                 )
-                finishConversation()
-                return ConversationStreamResult.Delivered
+                return finishTurn()
             }
             if (!isDataHandoff && isTransportFailure && resendAvailable && attemptBackgrounded()) {
                 Log.warning(
@@ -1523,13 +1569,21 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Truncates the transcript back to [index], dropping everything a turn added. Used to roll
-     * back an empty or cancelled data handoff turn in one step, rather than removing a fixed
+     * back an empty or canceled data handoff turn in one step, rather than removing a fixed
      * number of trailing messages.
      */
     private fun truncateMessagesTo(index: Int) {
         _messages.update { currentMessages ->
             if (index in 0..currentMessages.size) currentMessages.take(index) else currentMessages
         }
+        disposeRemovedNativeCards()
+    }
+
+    /** Disposes native cards whose transcript message was rolled back. */
+    private fun disposeRemovedNativeCards() {
+        nativeCards.disposeAllExcept(
+            _messages.value.mapNotNullTo(HashSet()) { (it.content as? MessageContent.NativeCard)?.cardId }
+        )
     }
 
     private fun finishConversation() {
@@ -1546,11 +1600,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      *
      * @param parsedMessage The parsed conversation message
      * @param contentBuilder StringBuilder tracking the full content
+     * @return whether this update added renderable content to the transcript.
      */
     private fun onParsedMessage(
         parsedMessage: ParsedConversationMessage,
         contentBuilder: StringBuilder
-    ) {
+    ): Boolean {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
@@ -1567,11 +1622,11 @@ class ConciergeChatViewModel : AndroidViewModel {
                 Log.debug(TAG, "onParsedMessage", "Captured conversationId: $conversationId")
             }
         }
+        parsedMessage.interactionId?.let { currentTurnInteractionId = it }
 
-        when (parsedMessage.state) {
+        return when (parsedMessage.state) {
             ConversationState.IN_PROGRESS -> {
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    parsedMessage.orderedElements.isNotEmpty()
+                val hasVisibleContent = parsedMessage.messageContent.isNotBlank()
                 if (!responseStartedDispatched && hasVisibleContent) {
                     responseStartedDispatched = true
                     dispatchTrackingEvent(ConciergeTrackingEvent.ResponseStarted(
@@ -1580,18 +1635,13 @@ class ConciergeChatViewModel : AndroidViewModel {
                     ))
                 }
                 appendToAssistantMessage(parsedMessage, contentBuilder)
+                hasVisibleContent
             }
 
             ConversationState.COMPLETED -> {
                 // For COMPLETED state, replace content if there is text or ordered elements.
                 // If both are absent, keep existing streamed content and just transition to Idle.
-                val hasVisibleContent = parsedMessage.messageContent.isNotBlank() ||
-                    parsedMessage.orderedElements.isNotEmpty()
-                if (hasVisibleContent) {
-                    replaceAssistantMessageContent(parsedMessage)
-                } else {
-                    setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
-                }
+                val hasVisibleContent = replaceAssistantMessageContent(parsedMessage)
                 // Ensure ResponseStarted precedes ResponseCompleted even if the server jumped
                 // straight to COMPLETED without an IN_PROGRESS chunk.
                 if (!responseStartedDispatched && hasVisibleContent) {
@@ -1613,13 +1663,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                         else -> currentState
                     }
                 }
+                hasVisibleContent
             }
 
             ConversationState.ERROR -> {
                 handleConversationError("Conversation error: ${parsedMessage.messageContent}")
+                false
             }
 
-            else -> appendToAssistantMessage(parsedMessage, contentBuilder)
+            else -> {
+                appendToAssistantMessage(parsedMessage, contentBuilder)
+                parsedMessage.messageContent.isNotBlank()
+            }
         }
     }
 
@@ -1653,9 +1708,16 @@ class ConciergeChatViewModel : AndroidViewModel {
      * Replaces the assistant message content with the final complete message
      *
      * @param parsedMessage The parsed message containing the final complete content
+     * @return whether the final content contains text or accepted render targets.
      */
-    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage) {
-        if (parsedMessage.orderedElements.isNotEmpty()) {
+    private fun replaceAssistantMessageContent(parsedMessage: ParsedConversationMessage): Boolean {
+        if (hasElementCandidates(parsedMessage)) {
+            // Native cards are activated here, once the turn has completed.
+            val renderTargets = resolveElementRenderTargets(parsedMessage)
+            if (renderTargets.isEmpty() && parsedMessage.messageContent.isBlank()) {
+                setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
+                return false
+            }
             if (parsedMessage.messageContent.isNotEmpty()) {
                 // Text + ordered elements: keep the text message, then append elements.
                 // Suppress interactionId (and thus feedback controls) when CTAs are present —
@@ -1668,7 +1730,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 )
                 updateAssistantMessageContent(
                     MessageContent.Text(parsedMessage.messageContent),
-                    emptyList(),
+                    // Suggestions go on an element row when there is one (see appendOrderedElementMessages).
+                    parsedMessage.promptSuggestions.takeIf { renderTargets.isEmpty() }.orEmpty(),
                     parsedMessage.sources,
                     interactionId = if (hasCtas) null else parsedMessage.interactionId,
                     sseComplete = true,
@@ -1681,12 +1744,17 @@ class ConciergeChatViewModel : AndroidViewModel {
                 Log.debug(
                     ConciergeConstants.EXTENSION_NAME,
                     TAG,
-                    "No text content, removing placeholder and appending ${parsedMessage.orderedElements.size} ordered elements."
+                    "No text content, removing placeholder and appending ${renderTargets.size} ordered elements."
                 )
                 removeLastAssistantPlaceholder()
             }
-            appendOrderedElementMessages(parsedMessage.orderedElements, parsedMessage.promptSuggestions)
+            appendOrderedElementMessages(renderTargets, parsedMessage.promptSuggestions)
+            return parsedMessage.messageContent.isNotBlank() || renderTargets.isNotEmpty()
         } else {
+            if (parsedMessage.messageContent.isBlank() && parsedMessage.multimodalElements.isEmpty()) {
+                setLastAssistantMessageSseComplete(parsedMessage.feedbackEligible)
+                return false
+            }
             // Legacy path: text-only or mixed message
             val messageContent = if (parsedMessage.multimodalElements.isEmpty()) {
                 MessageContent.Text(parsedMessage.messageContent)
@@ -1714,54 +1782,130 @@ class ConciergeChatViewModel : AndroidViewModel {
                 feedbackEligible = parsedMessage.feedbackEligible,
                 linkHints = parsedMessage.linkHints
             )
+            return true
         }
     }
 
+    /** How one response element is placed in the transcript. */
+    private sealed class ElementRenderTarget {
+        data class BuiltInCard(val element: MultimodalElement) : ElementRenderTarget()
+        data class Cta(val button: CtaButton) : ElementRenderTarget()
+        data class NativeCard(val cardId: String) : ElementRenderTarget()
+    }
+
+    /** True when elements need resolution before their visibility can be determined. */
+    private fun hasElementCandidates(parsedMessage: ParsedConversationMessage): Boolean =
+        parsedMessage.orderedElements.isNotEmpty() ||
+            parsedMessage.rawElements.any { it.type == CUSTOM_ELEMENT_TYPE }
+
     /**
-     * Appends standalone messages for each ordered element.
-     * All cards are batched into one Mixed message at the position of the first Card element.
-     * Each CTA becomes its own CtaButton message.
+     * Routes custom elements only to their registered renderer; other elements use their parsed
+     * built-in representation. Custom elements without an accepted renderer are omitted.
+     */
+    private fun resolveElementRenderTargets(parsedMessage: ParsedConversationMessage): List<ElementRenderTarget> {
+        // Services that only fill orderedElements (no raw dictionaries) keep built-in rendering.
+        if (parsedMessage.rawElements.isEmpty()) {
+            return parsedMessage.orderedElements.map(::toBuiltInRenderTarget)
+        }
+        return parsedMessage.rawElements.mapNotNull { element ->
+            if (element.type != CUSTOM_ELEMENT_TYPE) return@mapNotNull element.parsedBuiltIn?.let(::toBuiltInRenderTarget)
+            val rendererId = element.rendererId ?: return@mapNotNull null
+            if (!nativeCards.hasRenderer(rendererId)) {
+                Log.warning(
+                    ConciergeConstants.EXTENSION_NAME,
+                    TAG,
+                    "Dropping custom element ${element.position + 1}: no renderer registered for rendererId '$rendererId'."
+                )
+                return@mapNotNull null
+            }
+            when (val activation = nativeCards.activate(toActivationRequest(element))) {
+                is NativeCardController.ActivationResult.Activated -> ElementRenderTarget.NativeCard(activation.cardId)
+                // Already in the transcript from an earlier pass over this same response.
+                is NativeCardController.ActivationResult.AlreadyActive -> null
+                NativeCardController.ActivationResult.Rejected -> null
+            }
+        }
+    }
+
+    private fun toActivationRequest(element: RawMultimodalElement) = NativeCardController.ActivationRequest(
+        element = element.payload,
+        rendererId = element.rendererId.orEmpty(),
+        turnId = currentTurnId,
+        sessionId = sessionManager.currentSessionIdOrNull(),
+        conversationId = currentConversationId,
+        interactionId = currentTurnInteractionId,
+        position = element.position
+    )
+
+    private fun toBuiltInRenderTarget(item: ParsedMultimodalItem): ElementRenderTarget = when (item) {
+        is ParsedMultimodalItem.Card -> ElementRenderTarget.BuiltInCard(item.element)
+        is ParsedMultimodalItem.Cta -> ElementRenderTarget.Cta(item.button)
+    }
+
+    /**
+     * Appends one message per render target, in response order.
+     * - Built-in product cards are batched into one Mixed message at the first one's position.
+     * - Each CTA becomes its own CtaButton message.
+     * - Each native card becomes its own NativeCard message; it is never merged into a carousel.
+     *
+     * Prompt suggestions are never dropped: they go on the product-card message, else on the last
+     * native card, else on the last CTA. With no element rows, the turn's text message carries them.
      */
     private fun appendOrderedElementMessages(
-        orderedElements: List<ParsedMultimodalItem>,
+        renderTargets: List<ElementRenderTarget>,
         promptSuggestions: List<String> = emptyList()
     ) {
-        val cardElements = orderedElements
-            .filterIsInstance<ParsedMultimodalItem.Card>()
+        val builtInCardElements = renderTargets
+            .filterIsInstance<ElementRenderTarget.BuiltInCard>()
             .map { it.element }
         var cardMessageAppended = false
 
-        if (cardElements.isNotEmpty()) {
-            val displayMode = if (cardElements.size == 1) "single" else "carousel"
-            val elementDicts = cardElements.map { element -> buildCardElementDict(element.content) }
+        if (builtInCardElements.isNotEmpty()) {
+            val displayMode = if (builtInCardElements.size == 1) "single" else "carousel"
+            val elementDicts = builtInCardElements.map { element -> buildCardElementDict(element.content) }
             dispatchTrackingEvent(ConciergeTrackingEvent.CardsRendered(displayMode, elementDicts))
         }
 
-        for (element in orderedElements) {
-            when (element) {
-                is ParsedMultimodalItem.Cta -> {
-                    val ctaMessage = ChatMessage(
-                        content = MessageContent.CtaButton(element.button),
+        val suggestionsIndex = when {
+            builtInCardElements.isNotEmpty() -> renderTargets.indexOfFirst { it is ElementRenderTarget.BuiltInCard }
+            renderTargets.any { it is ElementRenderTarget.NativeCard } -> renderTargets.indexOfLast { it is ElementRenderTarget.NativeCard }
+            else -> renderTargets.indexOfLast { it is ElementRenderTarget.Cta }
+        }
+        val newMessages = mutableListOf<ChatMessage>()
+        renderTargets.forEachIndexed { index, element ->
+            val suggestions = if (index == suggestionsIndex) promptSuggestions else emptyList()
+            val message = when (element) {
+                is ElementRenderTarget.Cta -> ChatMessage(
+                    content = MessageContent.CtaButton(element.button),
+                    isFromUser = false,
+                    timestamp = System.currentTimeMillis(),
+                    sseComplete = true,
+                    promptSuggestions = suggestions
+                )
+                is ElementRenderTarget.BuiltInCard -> if (cardMessageAppended) {
+                    null
+                } else {
+                    cardMessageAppended = true
+                    ChatMessage(
+                        content = MessageContent.Mixed(text = "", multimodalElements = builtInCardElements),
                         isFromUser = false,
                         timestamp = System.currentTimeMillis(),
-                        sseComplete = true
+                        sseComplete = true,
+                        promptSuggestions = suggestions
                     )
-                    _messages.update { it + ctaMessage }
                 }
-                is ParsedMultimodalItem.Card -> {
-                    if (!cardMessageAppended) {
-                        cardMessageAppended = true
-                        val cardMessage = ChatMessage(
-                            content = MessageContent.Mixed(text = "", multimodalElements = cardElements),
-                            isFromUser = false,
-                            timestamp = System.currentTimeMillis(),
-                            sseComplete = true,
-                            promptSuggestions = promptSuggestions
-                        )
-                        _messages.update { it + cardMessage }
-                    }
-                }
-            }
+                is ElementRenderTarget.NativeCard -> ChatMessage(
+                    content = MessageContent.NativeCard(element.cardId),
+                    isFromUser = false,
+                    timestamp = System.currentTimeMillis(),
+                    sseComplete = true,
+                    promptSuggestions = suggestions
+                )
+            } ?: return@forEachIndexed
+            newMessages += message
+        }
+        if (newMessages.isNotEmpty()) {
+            _messages.update { it + newMessages }
         }
     }
 
@@ -1811,6 +1955,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
     }
 
+    /** Removes the trailing assistant placeholder after an ordered-elements-only response. */
     private fun removeLastAssistantPlaceholder() {
         _messages.update { existingMessages ->
             val lastIndex = existingMessages.lastIndex
@@ -1836,17 +1981,19 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Handles errors during conversation
      * @param errorMessage The error message to display
+     * @param promptSuggestions suggestions the response supplied, shown under the error copy.
      */
     private fun handleConversationError(
         errorMessage: String,
-        renderInTranscript: Boolean = true
+        renderInTranscript: Boolean = true,
+        promptSuggestions: List<String> = emptyList()
     ) {
         // Keep the raw technical detail for diagnostics (logs + telemetry only)...
         Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Conversation error: $errorMessage")
         dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(errorMessage))
         if (renderInTranscript) {
             // Never surface the raw exception to the user. Show generic copy instead.
-            renderTurnMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
+            renderTurnMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE, promptSuggestions)
         } else {
             resetProcessingStateToIdle()
         }
@@ -1857,11 +2004,12 @@ class ConciergeChatViewModel : AndroidViewModel {
      *
      * Split out from [handleConversationError] so rendering and state reset stay atomic.
      */
-    private fun renderTurnMessage(message: String) {
+    private fun renderTurnMessage(message: String, promptSuggestions: List<String> = emptyList()) {
         replaceAssistantMessageContent(
             ParsedConversationMessage(
                 messageContent = message,
                 state = ConversationState.COMPLETED,
+                promptSuggestions = promptSuggestions,
             )
         )
         resetProcessingStateToIdle()
@@ -2088,6 +2236,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         speechCapturing.setListener(captureListener)
         _inputState.value = UserInputState.Empty
         _messages.value = emptyList()
+        nativeCards.disposeAll()
         imageProvider.clear()
         currentConversationId = null
         responseStartedDispatched = false
@@ -2131,6 +2280,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         val conversationId = currentConversationId
         appLifecycle?.removeObserver(appLifecycleObserver)
         deactivateDataHandoffSession()
+        nativeCards.disposeAll()
         conversationRequests.close()
         currentChatJob?.cancel()
         feedbackJobs.toList().forEach { it.cancel() }
@@ -2145,4 +2295,20 @@ class ConciergeChatViewModel : AndroidViewModel {
         stateRepository.unregisterResetParticipant(resetParticipant)
         super.onCleared()
     }
+}
+
+/**
+ * Count of conversation requests queued or processing. Updates are atomic:
+ * [compareAndSet] is the single-occupant gate used by data handoffs and programmatic messages.
+ */
+internal class PendingRequestCounter {
+    private val value = MutableStateFlow(0)
+
+    val count: StateFlow<Int> = value.asStateFlow()
+
+    fun incrementAndGet(): Int = value.updateAndGet { it + 1 }
+
+    fun decrementAndGet(): Int = value.updateAndGet { it - 1 }
+
+    fun compareAndSet(expect: Int, update: Int): Boolean = value.compareAndSet(expect, update)
 }

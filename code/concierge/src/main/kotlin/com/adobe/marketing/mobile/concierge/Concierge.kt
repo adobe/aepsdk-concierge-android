@@ -12,6 +12,7 @@
 package com.adobe.marketing.mobile.concierge
 
 import com.adobe.marketing.mobile.Extension
+import com.adobe.marketing.mobile.concierge.cards.ConciergeCardRenderers
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChat
 import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatView
 
@@ -53,6 +54,24 @@ object Concierge {
         timeoutMillis: Long = ConciergeAuthTokenHolder.DEFAULT_PROVIDE_TOKEN_TIMEOUT_MS
     ) {
         ConciergeAuthTokenHolder.setProvider(provider, timeoutMillis)
+    }
+
+    /**
+     * Renders `custom` response elements whose `rendererId` exactly matches [rendererId] with
+     * [renderer], inline in the transcript. Registering a `rendererId` again replaces its renderer
+     * for cards activated afterwards. Other element types keep their built-in rendering. Custom
+     * elements without a valid registered `rendererId`, or rejected during activation, are omitted
+     * and logged.
+     *
+     * Register once at app start; renderers are held for the life of the process, so they must not
+     * capture an `Activity` or a `View`. Cards talk back to Brand Concierge with [sendDataHandoff]
+     * and [updateXDMContext].
+     *
+     * @throws IllegalArgumentException if [rendererId] is blank.
+     */
+    @JvmStatic
+    fun registerCardRenderer(rendererId: String, renderer: ConciergeCardRenderer) {
+        ConciergeCardRenderers.register(rendererId, renderer)
     }
 
     /**

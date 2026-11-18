@@ -94,6 +94,26 @@ internal sealed class ParsedMultimodalItem {
     data class Cta(val button: CtaButton) : ParsedMultimodalItem()
 }
 
+internal const val CUSTOM_ELEMENT_TYPE = "custom"
+
+/**
+ * One element of `response.multimodalElements.elements`, kept whole for native card dispatch.
+ *
+ * @property position index in the elements array.
+ * @property type the element `type`, when it is a string.
+ * @property rendererId the non-blank `rendererId` of a `custom` element; null for every other element.
+ * @property payload the complete element dictionary as parsed (every field, nulls included).
+ * @property parsedBuiltIn the built-in representation ([ParsedMultimodalItem.Card] or
+ * [ParsedMultimodalItem.Cta]) or null for custom elements or elements without a representation.
+ */
+internal class RawMultimodalElement(
+    val position: Int,
+    val type: String?,
+    val rendererId: String? = null,
+    val payload: Map<String, Any?>,
+    val parsedBuiltIn: ParsedMultimodalItem?
+)
+
 /**
  * Multimodal elements for rich content
  */
@@ -155,6 +175,7 @@ internal data class ParsedConversationMessage(
     val promptSuggestions: List<String> = emptyList(),
     val multimodalElements: List<MultimodalElement> = emptyList(),
     val orderedElements: List<ParsedMultimodalItem> = emptyList(),
+    val rawElements: List<RawMultimodalElement> = emptyList(),
     val sources: List<Citation> = emptyList(),
     val feedbackEligible: Boolean = false,
     val linkHints: List<LinkHint> = emptyList()

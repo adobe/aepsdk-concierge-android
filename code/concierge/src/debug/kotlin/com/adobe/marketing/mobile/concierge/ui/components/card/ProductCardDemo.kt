@@ -31,6 +31,7 @@ import com.adobe.marketing.mobile.concierge.ui.chat.ConciergeChatViewModel
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.stt.AndroidSpeechCapturing
+import com.adobe.marketing.mobile.concierge.ui.theme.CSSValueConverter
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardBehavior
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeProductCardCtaButtonColors
@@ -172,7 +173,8 @@ private val demoProductCards = listOf(
 /**
  * Matches the "Vertical Card - With description" design spec (222x468, 190x190 image, 8dp radius,
  * #E3E3E3 outline, subtle drop shadow) and selects the [ProductCardStyle.PRODUCT_DETAIL] extended
- * card so the CTA button is exercised.
+ * card so the CTA button is exercised. The input bar also gets a drop shadow so both box-shadow
+ * tokens can be inspected on one screen.
  */
 private val demoProductCardTheme = ConciergeThemeData(
     config = ConciergeThemeConfig(),
@@ -189,7 +191,9 @@ private val demoProductCardTheme = ConciergeThemeData(
             productImageHeight = 190.0,
             productCardBorderRadius = 8.0,
             productCardOutlineColor = "#E3E3E3",
-            productCardBackgroundColor = "#FFFFFF"
+            productCardBackgroundColor = "#FFFFFF",
+            multimodalCardBoxShadow = CSSValueConverter.parseBoxShadow("0 1px 4px 0 #00000026"),
+            inputBoxShadow = CSSValueConverter.parseBoxShadow("0 2px 8px 0 #00000026")
         ),
         colors = ConciergeThemeColors(
             // Give the chat surfaces real colors so the auto-sent user message bubble renders

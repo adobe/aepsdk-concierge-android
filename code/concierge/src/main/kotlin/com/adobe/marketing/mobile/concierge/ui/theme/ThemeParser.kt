@@ -216,7 +216,12 @@ internal object ThemeParser {
         // Apply each CSS variable to the theme
         themeBlock.forEach { (key, value) ->
             val cssKey = key as? String ?: return@forEach
-            val cssValue = value as? String ?: return@forEach
+            // Numbers are accepted too, so `"--my-card-width": 140` isn't silently dropped.
+            val cssValue = when (value) {
+                is String -> value
+                is Number -> value.toString()
+                else -> return@forEach
+            }
             
             theme = CSSKeyMapper.apply(cssKey, cssValue, theme)
         }

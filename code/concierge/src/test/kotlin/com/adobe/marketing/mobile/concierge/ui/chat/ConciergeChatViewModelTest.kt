@@ -2554,6 +2554,34 @@ class ConciergeChatViewModelTest {
     }
 
     @Test
+    fun `empty completed response whose stream drops while backgrounded shows generic copy without resending`() = runTest {
+        val fakeSpeech = FakeSpeechCapturing()
+        val chatClient = mockk<ConciergeConversationServiceClient>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow {
+            emit(ParsedConversationMessage("", ConversationState.COMPLETED, promptSuggestions = listOf("Try again")))
+            throw IOException("Connection reset")
+        }
+
+        val appLifecycle = TestAppLifecycleOwner()
+        val vm = ConciergeChatViewModel(
+            app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher, appLifecycle = appLifecycle.lifecycle
+        )
+        appLifecycle.moveToBackground()
+        vm.processEvent(ChatEvent.SendMessage("Hi"))
+        advanceUntilIdle()
+        appLifecycle.moveToForeground()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("Hi", "Sorry, I encountered an error. Please try again."),
+            vm.messages.value.map { it.text }
+        )
+        assertEquals(listOf("Try again"), vm.messages.value.last().promptSuggestions)
+        assertTrue(vm.state.value is ChatScreenState.Idle)
+        verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
+    }
+
+    @Test
     fun `HTTP status failure while backgrounded shows generic copy without resending`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
@@ -2788,8 +2816,9 @@ class ConciergeChatViewModelTest {
     fun `initial assistant message is created before any stream chunk`() = runTest {
         val fakeSpeech = FakeSpeechCapturing()
         val chatClient = mockk<ConciergeConversationServiceClient>()
-        // Flow with no emissions; assistant message should still be created when coroutine starts
-        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow { }
+        // Flow that stays open with no emissions; the assistant message should already exist
+        val streamOpen = CompletableDeferred<Unit>()
+        every { chatClient.chat("Hi", emptyMap(), any()) } returns flow { streamOpen.await() }
 
         val vm = ConciergeChatViewModel(app, fakeSpeech, chatClient, sessionDispatcher = testDispatcher)
         vm.processEvent(ChatEvent.SendMessage("Hi"))
@@ -2802,6 +2831,10 @@ class ConciergeChatViewModelTest {
         assertEquals(2, messages.size)
         assertTrue(!messages[1].isFromUser)
         assertEquals("", messages[1].text)
+        assertTrue(messages[1].isThinking)
+
+        streamOpen.complete(Unit)
+        advanceUntilIdle()
     }
 
     @Test
