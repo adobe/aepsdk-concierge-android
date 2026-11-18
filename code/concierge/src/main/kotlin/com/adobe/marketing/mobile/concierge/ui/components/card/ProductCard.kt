@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
+import com.adobe.marketing.mobile.concierge.ui.theme.conciergeBoxShadow
 
 /**
  * Composable that displays a single product recommendation in a card element containing
@@ -49,8 +50,11 @@ internal fun ProductCard(
         modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
+            .conciergeBoxShadow(style.boxShadow, style.shape)
             .clickable { onImageClick(element) },
-        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (style.boxShadow != null) 0.dp else style.elevation
+        ),
         colors = CardDefaults.cardColors(
             containerColor = style.backgroundColor
         )

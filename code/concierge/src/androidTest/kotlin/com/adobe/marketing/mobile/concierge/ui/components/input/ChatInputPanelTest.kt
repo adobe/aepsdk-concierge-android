@@ -12,10 +12,13 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.input
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsEqualTo
@@ -27,9 +30,12 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.theme.CSSValueConverter
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeGradientColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeInputColors
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeLayout
@@ -570,5 +576,82 @@ class ChatInputPanelTest {
 
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("ChatInputLeadingIcon").assertDoesNotExist()
+    }
+
+    // -----------------------------------------------------------------------
+    // Drop shadow rendering (--input-box-shadow)
+    // -----------------------------------------------------------------------
+
+    private val shadowOuterPadding = 40.dp
+
+    private fun renderPanelOnWhiteBackground(inputBoxShadow: String?) {
+        val themeData = ConciergeThemeData(
+            config = ConciergeThemeConfig(),
+            tokens = ConciergeThemeTokens(
+                cssLayout = ConciergeLayout(
+                    inputBoxShadow = inputBoxShadow?.let { CSSValueConverter.parseBoxShadow(it) }
+                )
+            )
+        )
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeData) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.White)
+                        .padding(shadowOuterPadding)
+                ) {
+                    ChatInputPanel(
+                        modifier = Modifier.width(240.dp).testTag("ShadowPanel"),
+                        text = "",
+                        onTextChange = {},
+                        inputState = UserInputState.Empty,
+                        onMicPressed = {},
+                        onSend = {}
+                    )
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    /** Red channels of the root pixels [distance] above and below the panel, horizontally centered. */
+    private fun sampleAboveAndBelowPanel(distance: Dp = 4.dp): Pair<Int, Int> {
+        val bounds = composeTestRule.onNodeWithTag("ShadowPanel").getUnclippedBoundsInRoot()
+        val pixels = composeTestRule.onRoot().captureToImage().toPixelMap()
+        val density = composeTestRule.density.density
+        val x = (((bounds.left + bounds.right) / 2).value * density).toInt()
+        val above = ((bounds.top - distance).value * density).toInt()
+        val below = ((bounds.bottom + distance).value * density).toInt()
+        return (pixels[x, above].red * 255).toInt() to (pixels[x, below].red * 255).toInt()
+    }
+
+    @Test
+    fun chatInputPanel_rendersShadowBeyondBounds_whenThemeConfiguresInputBoxShadow() {
+        renderPanelOnWhiteBackground("0 0 16px 0 #000000")
+        val (above, below) = sampleAboveAndBelowPanel()
+
+        assertTrue("expected a visible shadow above the panel, found red=$above", above < 250)
+        assertTrue("expected a visible shadow below the panel, found red=$below", below < 250)
+    }
+
+    @Test
+    fun chatInputPanel_shadowHonorsVerticalOffset() {
+        renderPanelOnWhiteBackground("0 12px 8px 0 #000000")
+        val (above, below) = sampleAboveAndBelowPanel()
+
+        assertTrue(
+            "expected the offset shadow to be darker below ($below) than above ($above) the panel",
+            below < above
+        )
+    }
+
+    @Test
+    fun chatInputPanel_noShadowBeyondBounds_whenInputBoxShadowIsNone() {
+        renderPanelOnWhiteBackground("none")
+        val (above, below) = sampleAboveAndBelowPanel()
+
+        assertTrue("expected no shadow above the panel, found red=$above", above >= 250)
+        assertTrue("expected no shadow below the panel, found red=$below", below >= 250)
     }
 }

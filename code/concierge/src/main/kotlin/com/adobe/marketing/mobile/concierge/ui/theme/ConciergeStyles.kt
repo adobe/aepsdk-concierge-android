@@ -178,7 +178,9 @@ internal object ConciergeStyles {
         /** Gap between the text field and the action-button group (clear/mic/send). */
         val buttonSpacing: Dp,
         val placeholderText: String,
-        val listeningPlaceholderText: String
+        val listeningPlaceholderText: String,
+        /** Drop shadow from `--input-box-shadow`; null when unset or `"none"`. */
+        val boxShadow: ConciergeBoxShadow? = null
     )
 
     val inputPanelStyle: InputPanelStyle
@@ -214,7 +216,8 @@ internal object ConciergeStyles {
                 recordingBorderAnimationDuration = 1500,
                 buttonSpacing = 8.dp,
                 placeholderText = themeText?.inputPlaceholder ?: "How can I help",
-                listeningPlaceholderText = "Listening..."
+                listeningPlaceholderText = "Listening...",
+                boxShadow = ConciergeBoxShadow.fromTokens(tokens?.cssLayout?.inputBoxShadow)
             )
         }
 
@@ -355,6 +358,7 @@ internal object ConciergeStyles {
     data class ProductCardStyle(
         val shape: Shape,
         val elevation: Dp,
+        val boxShadow: ConciergeBoxShadow?,
         val backgroundColor: Color,
         val imageHeight: Dp,
         val titleStyle: TextStyle,
@@ -372,9 +376,13 @@ internal object ConciergeStyles {
     val productCardStyle: ProductCardStyle
         @Composable get() {
             val themeColors = ConciergeTheme.colors
+            val layout = ConciergeTheme.tokens?.cssLayout
             return ProductCardStyle(
                 shape = RoundedCornerShape(0.dp),
                 elevation = 1.dp,
+                // multimodalCardBoxShadow is null for both an unset theme and an explicit CSS
+                // "none"; in those cases the card falls back to its default elevation.
+                boxShadow = ConciergeBoxShadow.fromTokens(layout?.multimodalCardBoxShadow),
                 backgroundColor = themeColors.container,
                 imageHeight = 250.dp,
                 titleStyle = MaterialTheme.typography.bodyLarge,
@@ -491,8 +499,7 @@ internal object ConciergeStyles {
         val cardWidth: Dp,
         val cardMinHeight: Dp,
         val cardMaxHeight: Dp,
-        val shadowElevation: Dp,
-        val shadowColor: Color,
+        val boxShadow: ConciergeBoxShadow?,
         val imageWidth: Dp,
         val imageHeight: Dp,
         val imageContentScale: ContentScale,
@@ -581,11 +588,6 @@ internal object ConciergeStyles {
             // caption) so cards reproduce the design's line spacing instead of an arbitrary multiplier.
             val headlineLineHeightFactor = 17f / 14f
             val smallTextLineHeightFactor = 14f / 12f
-            // multimodalCardBoxShadow is null for both an unset theme and an explicit CSS
-            // "none", so both cases naturally fall through to no shadow.
-            val boxShadow = layout?.multimodalCardBoxShadow
-            val shadowElevationDp = ((boxShadow?.get("blurRadius") as? Double) ?: 0.0).toFloat().dp
-            val shadowColor = (boxShadow?.get("color") as? Color) ?: Color.Transparent
             return ExtendedProductCardStyle(
                 cardShape = RoundedCornerShape(cardBorderRadius),
                 cardBackgroundColor = cardBg,
@@ -593,8 +595,9 @@ internal object ConciergeStyles {
                 cardWidth = cardWidthDp,
                 cardMinHeight = cardMinHeightDp,
                 cardMaxHeight = cardMaxHeightDp,
-                shadowElevation = shadowElevationDp,
-                shadowColor = shadowColor,
+                // multimodalCardBoxShadow is null for both an unset theme and an explicit CSS
+                // "none", so both cases naturally fall through to no shadow.
+                boxShadow = ConciergeBoxShadow.fromTokens(layout?.multimodalCardBoxShadow),
                 imageWidth = imageWidthDp,
                 imageHeight = imageHeightDp,
                 imageContentScale = imageContentScale,
