@@ -864,6 +864,7 @@ ratio; the lower threshold applies only when text meets WCAG's large-text criter
 | `--input-outline-gradient-angle` | `colors.input.outlineGradient` | `String` | `"180deg"` | Input border gradient direction |
 | `--input-focus-outline-color` | `colors.input.outlineFocus` | `String` | `"#1976D2"` | Focused input border color (hex) |
 | `--input-send-icon-color` | `colors.input.sendIconColor` | `String?` | `null` | Send button icon color (hex). Falls back to `onSurface` |
+| `--input-clear-icon-color` | `colors.input.clearIconColor` | `String?` | `null` | Clear (X) icon color beside send when text is entered. Falls back to the existing Material content tint. Set to `"#FFFFFF"` for a white icon on dark input backgrounds |
 | `--input-send-arrow-icon-color` | `colors.input.sendArrowIconColor` | `String?` | `null` | Arrow send button icon (arrow) color (hex). Falls back to `onPrimary`. Only used when `sendButtonStyle` is `"arrow"` |
 | `--input-send-arrow-background-color` | `colors.input.sendArrowBackgroundColor` | `String?` | `null` | Arrow send button circle background color (hex). Falls back to `sendIconColor` then `primary`. Only used when `sendButtonStyle` is `"arrow"` |
 | `--input-send-arrow-background-gradient-start-color` | `colors.input.sendArrowBackgroundGradient` | `String?` | `null` | Arrow send button circle gradient start color (hex). See [Gradients](#gradients). Only used when `sendButtonStyle` is `"arrow"` |
@@ -1363,6 +1364,7 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "--input-text-color": "#000000",
     "--input-focus-outline-color": "#1976D2",
     "--input-send-icon-color": "#000000",
+    "--input-clear-icon-color": null,
     "--input-send-arrow-icon-color": "#FFFFFF",
     "--input-send-arrow-background-color": "#1976D2",
     "--input-send-arrow-background-gradient-start-color": "#1976D2",
@@ -1661,6 +1663,7 @@ These colors are used internally by composables but cannot be customized in them
 | `--input-outline-gradient-angle` | ✅ | Input border gradient direction | `ChatInputPanel` |
 | `--input-focus-outline-color` | ✅ | Input field focused border color | `ChatInputPanel` |
 | `--input-send-icon-color` | ✅ | Send button icon color (default style tint) | `SendButton` |
+| `--input-clear-icon-color` | ✅ | Clear (X) icon tint, with or without voice input enabled | `InputActionButtons` |
 | `--input-send-arrow-icon-color` | ✅ | Arrow send button icon color (arrow style only) | `SendButton` |
 | `--input-send-arrow-background-color` | ✅ | Arrow send button circle background (arrow style only) | `SendButton` |
 | `--input-send-arrow-background-gradient-start-color` | ✅ | Arrow send button circle gradient start color | `SendButton` |

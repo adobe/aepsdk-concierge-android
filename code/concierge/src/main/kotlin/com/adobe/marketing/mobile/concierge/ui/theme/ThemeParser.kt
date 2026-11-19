@@ -360,6 +360,7 @@ internal object ThemeParser {
             inputOutlineFocus = themeColors.input?.outlineFocus?.toComposeColor(),
             micButtonColor = themeColors.primaryColors?.text?.toComposeColor() ?: defaultColors.micButtonColor,
             sendIconColor = themeColors.input?.sendIconColor?.toComposeColor(),
+            clearIconColor = themeColors.input?.clearIconColor?.toComposeColor(),
             sendArrowIconColor = themeColors.input?.sendArrowIconColor?.toComposeColor(),
             sendArrowBackgroundColor = themeColors.input?.sendArrowBackgroundColor?.toComposeColor(),
             sendArrowBackgroundGradient = themeColors.input?.sendArrowBackgroundGradient.toConciergeGradient(),

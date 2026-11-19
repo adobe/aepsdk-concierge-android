@@ -66,6 +66,7 @@ data class ConciergeColors(
     val inputOutlineFocus: Color? = null,
     val micButtonColor: Color? = null,
     val sendIconColor: Color? = null,
+    val clearIconColor: Color? = null,
     val sendArrowIconColor: Color? = null,
     val sendArrowBackgroundColor: Color? = null,
     val sendArrowBackgroundGradient: ConciergeGradient? = null,

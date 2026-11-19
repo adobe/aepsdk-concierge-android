@@ -243,7 +243,8 @@ data class ConciergeInputColors(
     val micIconColor: String? = null,
     val micIconGradient: ConciergeGradientColors? = null,
     val micRecordingIconColor: String? = null,
-    val micWaveformGradient: ConciergeGradientColors? = null
+    val micWaveformGradient: ConciergeGradientColors? = null,
+    val clearIconColor: String? = null
 )
 
 /**

@@ -144,6 +144,7 @@
     "--input-button-height": "32px",
     "--input-button-width": "32px",
     "--input-send-icon-color": "#EB1000",
+    "--input-clear-icon-color": null,
     "--input-mic-icon-color": "#EB1000",
     "--input-mic-recording-icon-color" : "#FFFFFF",
     "--submit-button-fill-color": "#FFFFFF",
