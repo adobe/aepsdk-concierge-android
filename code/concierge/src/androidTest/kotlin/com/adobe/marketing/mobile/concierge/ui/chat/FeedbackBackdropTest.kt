@@ -19,6 +19,7 @@ import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -182,8 +183,13 @@ class FeedbackBackdropTest {
         scenario.onActivity { it.window.decorView.getWindowVisibleDisplayFrame(visibleBounds) }
         for (label in listOf("Submit", "Cancel")) {
             val bounds = Rect()
-            requireNotNull(nodeWithText(label)).getBoundsInScreen(bounds)
-            assertTrue("$label must remain above the keyboard", visibleBounds.contains(bounds))
+            var button = requireNotNull(nodeWithText(label))
+            while (!button.isClickable) button = requireNotNull(button.parent)
+            button.getBoundsInScreen(bounds)
+            assertTrue(
+                "$label must remain above the keyboard: button=$bounds, visible=$visibleBounds",
+                visibleBounds.contains(bounds)
+            )
         }
 
         val cancelBounds = Rect()
@@ -236,6 +242,9 @@ class FeedbackBackdropTest {
         )
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario.onActivity { activity ->
+            // Match the production ConciergeChat dialog's keyboard-resize policy.
+            @Suppress("DEPRECATION")
+            activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             activity.setContent {
                 ConciergeTheme(theme = theme) {
                     CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
