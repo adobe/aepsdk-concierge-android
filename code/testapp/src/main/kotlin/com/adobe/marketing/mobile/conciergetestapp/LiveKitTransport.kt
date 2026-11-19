@@ -67,7 +67,7 @@ import java.util.concurrent.TimeUnit
  * mutes the microphone until focus returns. A phone call does this too, so the conversation
  * survives a short call muted; the agent still ends it after 60 seconds without speech. When the
  * focus is lost for good (`AUDIOFOCUS_LOSS`), the transport leaves the room and reports
- * [VoiceTransportState.Failed].
+ * [VoiceTransportState.Failed]. It does the same if muting or unmuting the microphone fails.
  *
  * The transport reports [VoiceTransportState.Reconnecting] only for LiveKit's full reconnects,
  * because LiveKit sends no room event for its first attempt, a quick resume. A resume that
@@ -156,15 +156,24 @@ class LiveKitTransport(context: Context) : VoiceTransport {
     override fun setMicrophoneEnabled(enabled: Boolean) {
         val currentRoom = room ?: return
         scope?.launch {
-            microphoneLock.withLock {
+            val error = microphoneLock.withLock {
                 try {
-                    if (!currentRoom.localParticipant.setMicrophoneEnabled(enabled)) {
-                        Log.w(TAG, "Could not set the microphone enabled=$enabled.")
+                    if (currentRoom.localParticipant.setMicrophoneEnabled(enabled)) {
+                        null
+                    } else {
+                        IllegalStateException("Could not set the microphone enabled=$enabled.")
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.w(TAG, "Could not set the microphone enabled=$enabled: ${e.message}")
+                    e
+                }
+            }
+            // Brand Concierge can't tell whether the microphone is live, so the conversation ends.
+            if (error != null) {
+                onMain(ifCurrent = currentRoom) {
+                    Log.w(TAG, "Could not set the microphone enabled=$enabled: ${error.message}")
+                    fail(error)
                 }
             }
         }
