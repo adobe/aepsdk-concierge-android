@@ -77,6 +77,7 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.voice.VoiceSession
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController
+import com.adobe.marketing.mobile.concierge.voice.VoiceSessionFailure
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionListener
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
@@ -111,6 +112,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -2123,7 +2125,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         activeVoice = run
         val generation = conciergeState.resetGeneration
         run.bootstrapJob = viewModelScope.launch {
-            val failure = try {
+            // Debug log only: the error can carry the service URL or a server response.
+            val detail = try {
                 val sessionId = withContext(sessionDispatcher) {
                     stateRepository.withConversation(generation) { sessionManager.getSessionId() }
                 }
@@ -2132,17 +2135,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                         connectVoiceSession(run, bootstrap)
                     }
                 }
-                "Voice session bootstrap completed without credentials"
+                "no voice session in the response"
             } catch (e: CancellationException) {
                 if (!isActive) throw e
                 // The conversation was invalidated by an identity reset, which ends voice too.
                 finishVoiceSession(run)
                 return@launch
             } catch (e: Exception) {
-                "Voice session bootstrap failed: ${e.message}"
+                e.message
             }
             if (activeVoice === run && run.session == null) {
-                failVoiceSession(run, failure)
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Voice bootstrap ended without credentials: $detail")
+                failVoiceSession(run, VoiceSessionFailure.BootstrapFailed)
             }
         }
     }
@@ -2179,13 +2183,14 @@ class ConciergeChatViewModel : AndroidViewModel {
             is VoiceSessionState.Listening -> _isVoiceConnecting.value = false
             is VoiceSessionState.Reconnecting -> _isVoiceConnecting.value = true
             is VoiceSessionState.Ended -> finishVoiceSession(run)
-            is VoiceSessionState.Failed -> failVoiceSession(run, state.reason)
+            is VoiceSessionState.Failed -> failVoiceSession(run, state.failure)
         }
     }
 
     /**
      * Applies a transcript update. [text] is the whole turn so far, so the role's open bubble is
      * rewritten in place; with none open, non-empty text starts a new one. [isFinal] closes it.
+     * A final update with no text removes the open bubble: the recognizer withdrew what it showed.
      */
     private fun handleVoiceTranscript(
         session: VoiceSession,
@@ -2198,9 +2203,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         val openIndex = run.openMessageIndices[role]
         val openMessage = openIndex?.let { _messages.value.getOrNull(it) }
         if (openIndex != null && openMessage?.isFromUser == isFromUser) {
-            _messages.update { currentMessages ->
-                currentMessages.toMutableList().apply {
-                    set(openIndex, this[openIndex].copy(content = MessageContent.Text(text)))
+            if (isFinal && text.isEmpty()) {
+                removeVoiceBubble(run, openIndex)
+            } else {
+                _messages.update { currentMessages ->
+                    currentMessages.toMutableList().apply {
+                        set(openIndex, this[openIndex].copy(content = MessageContent.Text(text)))
+                    }
                 }
             }
         } else if (text.isNotEmpty()) {
@@ -2211,7 +2220,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                     content = MessageContent.Text(text),
                     isFromUser = isFromUser,
                     timestamp = System.currentTimeMillis(),
-                    sseComplete = !isFromUser
+                    sseComplete = !isFromUser,
+                    // Its text is rewritten on every update, so the list can't key it by content.
+                    localId = UUID.randomUUID().toString()
                 )
             }
             run.openMessageIndices[role] = newIndex
@@ -2221,6 +2232,24 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
         if (isFinal) {
             run.openMessageIndices.remove(role)
+        }
+    }
+
+    /**
+     * Removes the bubble at [index] and moves the indices that point past it. When it was the
+     * scroll anchor, the next bubble becomes the anchor.
+     */
+    private fun removeVoiceBubble(run: VoiceRun, index: Int) {
+        _messages.update { currentMessages -> currentMessages.filterIndexed { i, _ -> i != index } }
+        run.openMessageIndices.entries.forEach { entry ->
+            if (entry.value > index) entry.setValue(entry.value - 1)
+        }
+        _voiceScrollAnchorIndex.value = _voiceScrollAnchorIndex.value?.let { anchor ->
+            when {
+                anchor == index -> null
+                anchor > index -> anchor - 1
+                else -> anchor
+            }
         }
     }
 
@@ -2236,10 +2265,10 @@ class ConciergeChatViewModel : AndroidViewModel {
         run.claim.release()
     }
 
-    private fun failVoiceSession(run: VoiceRun, reason: String) {
+    private fun failVoiceSession(run: VoiceRun, failure: VoiceSessionFailure) {
         if (activeVoice !== run) return
-        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Voice session failed: $reason")
-        dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(reason))
+        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Voice session failed: ${failure.message}")
+        dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(failure.message))
         finishVoiceSession(run)
         appendAgentMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
     }

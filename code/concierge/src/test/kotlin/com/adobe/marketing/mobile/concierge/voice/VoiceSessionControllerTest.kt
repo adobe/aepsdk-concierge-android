@@ -14,7 +14,6 @@ package com.adobe.marketing.mobile.concierge.voice
 
 import android.os.Looper
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
-import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController.FailureReasons
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.ASSISTANT
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.USER
 import org.junit.Assert.assertEquals
@@ -116,7 +115,7 @@ class VoiceSessionControllerTest {
             val transport = FakeVoiceTransport()
             val listener = RecordingVoiceListener()
             val session = start(transport, listener, invalidUrl, invalidToken)
-            val failed = VoiceSessionState.Failed(FailureReasons.INVALID_CONNECTION)
+            val failed = VoiceSessionState.Failed(VoiceSessionFailure.InvalidCredentials)
             assertEquals("$invalidUrl / $invalidToken", listOf(VoiceSessionState.Connecting, failed), listener.states)
             assertEquals(failed, session.state)
             assertEquals(0, permissionChecks)
@@ -138,7 +137,7 @@ class VoiceSessionControllerTest {
         advanceMain(1)
 
         assertEquals(
-            VoiceSessionState.Failed("The voice connection was not established within 20 seconds."),
+            VoiceSessionState.Failed(VoiceSessionFailure.ConnectTimeout(20)),
             session.state
         )
         assertEquals(1, transport.disconnectCount)
@@ -168,7 +167,7 @@ class VoiceSessionControllerTest {
         val transport = FakeVoiceTransport()
         val listener = RecordingVoiceListener()
         val session = start(transport, listener)
-        val failed = VoiceSessionState.Failed(FailureReasons.MICROPHONE_PERMISSION)
+        val failed = VoiceSessionState.Failed(VoiceSessionFailure.MicrophonePermissionDenied)
         assertEquals(failed, session.state)
         assertEquals(listOf(VoiceSessionState.Connecting, failed), listener.states)
         assertTrue(transport.connections.isEmpty())
@@ -184,7 +183,7 @@ class VoiceSessionControllerTest {
         }
         session.start(url, token)
         drainMain()
-        assertEquals(VoiceSessionState.Failed(FailureReasons.MICROPHONE_PERMISSION), session.state)
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.MicrophonePermissionDenied), session.state)
         assertTrue(transport.connections.isEmpty())
     }
 
@@ -193,8 +192,9 @@ class VoiceSessionControllerTest {
         val transport = FakeVoiceTransport(connectError = IllegalStateException("connect boom"))
         val listener = RecordingVoiceListener()
         val session = start(transport, listener)
-        assertEquals(VoiceSessionState.Failed("connect boom"), session.state)
-        assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Failed("connect boom")), listener.states)
+        val failed = VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed)
+        assertEquals(failed, session.state)
+        assertEquals(listOf(VoiceSessionState.Connecting, failed), listener.states)
         assertEquals(1, transport.disconnectCount)
         assertNull(transport.listener)
     }
@@ -226,22 +226,14 @@ class VoiceSessionControllerTest {
     // Transport lifecycle
 
     @Test
-    fun transportFailure_reportsTheReasonAndReleasesTheTransport() {
+    fun transportFailure_reportsAFixedFailureAndReleasesTheTransport() {
         val transport = FakeVoiceTransport()
         val listener = RecordingVoiceListener()
         val session = start(transport, listener)
         transport.report(VoiceTransportState.Failed(IOException("network lost")))
-        assertEquals(VoiceSessionState.Failed("network lost"), session.state)
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
         assertEquals(1, transport.disconnectCount)
         assertNull(transport.listener)
-    }
-
-    @Test
-    fun transportFailureWithoutMessage_reportsTheDefaultReason() {
-        val transport = FakeVoiceTransport()
-        val session = start(transport)
-        transport.report(VoiceTransportState.Failed(RuntimeException()))
-        assertEquals(VoiceSessionState.Failed(FailureReasons.CONNECT_FAILED), session.state)
     }
 
     @Test
@@ -252,7 +244,7 @@ class VoiceSessionControllerTest {
             val session = start(transport, listener)
             val state = if (failed) VoiceTransportState.Failed(IOException("lost")) else VoiceTransportState.Disconnected
             runOnBackgroundThread { transport.report(state) }
-            val expected = if (failed) VoiceSessionState.Failed("lost") else VoiceSessionState.Ended
+            val expected = if (failed) VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed) else VoiceSessionState.Ended
             assertEquals(expected, session.state)
             assertEquals(listOf(VoiceSessionState.Connecting, VoiceSessionState.Listening, expected), listener.states)
             assertTrue(listener.callbackLoopers.all { it == Looper.getMainLooper() })
@@ -504,20 +496,20 @@ class VoiceSessionControllerTest {
     @Test
     fun sessionEnded_byAnErrorShutdownOrUnknownReason_fails() {
         listOf(
-            """"reason":"error",""" to "error",
-            """"reason":"worker_shutdown",""" to "worker_shutdown",
-            """"reason":"brand_new_reason",""" to "unknown reason",
-            "" to "unknown reason"
+            """"reason":"error",""" to EndReason.ERROR,
+            """"reason":"worker_shutdown",""" to EndReason.WORKER_SHUTDOWN,
+            """"reason":"brand_new_reason",""" to null,
+            "" to null
         ).forEach { (reasonField, expected) ->
             val transport = FakeVoiceTransport()
             val session = start(transport)
             transport.send("""{"type":"session_notice","data":{$reasonField"kind":"session_ended"}}""")
             assertEquals(
-                expected,
-                VoiceSessionState.Failed("The voice agent ended the session ($expected)."),
+                reasonField,
+                VoiceSessionState.Failed(VoiceSessionFailure.AgentEnded(expected)),
                 session.state
             )
-            assertEquals(expected, 1, transport.disconnectCount)
+            assertEquals(reasonField, 1, transport.disconnectCount)
         }
     }
 
@@ -633,6 +625,39 @@ class VoiceSessionControllerTest {
         transport.interruptionEnded()
         assertEquals(listOf(false, true), transport.microphoneChanges)
         assertEquals(VoiceSessionState.Listening, session.state)
+    }
+
+    @Test
+    fun audioInterruption_failedMute_failsTheSession() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+        transport.microphoneError = IllegalStateException("mute failed")
+        transport.interruptionBegan()
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
+        assertEquals("the microphone is released", 1, transport.disconnectCount)
+    }
+
+    @Test
+    fun audioInterruption_failedUnmute_failsTheSession() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+        transport.interruptionBegan()
+        transport.microphoneError = IllegalStateException("unmute failed")
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
+        assertEquals(1, transport.disconnectCount)
+    }
+
+    @Test
+    fun audioInterruption_failedMuteOnConnected_failsTheSession() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val session = start(transport)
+        transport.interruptionBegan()
+        transport.microphoneError = IllegalStateException("mute failed")
+        transport.report(VoiceTransportState.Connected)
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
+        assertEquals(1, transport.disconnectCount)
     }
 
     @Test

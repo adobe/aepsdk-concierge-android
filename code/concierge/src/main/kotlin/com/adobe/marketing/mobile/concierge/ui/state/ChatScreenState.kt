@@ -195,7 +195,12 @@ internal data class ChatMessage(
     val feedbackState: FeedbackState = FeedbackState.None,
     val ctaButton: NetworkCtaButton? = null,
     val feedbackEligible: Boolean = false,
-    val linkHints: List<LinkHint> = emptyList()
+    val linkHints: List<LinkHint> = emptyList(),
+    /**
+     * A fixed id for a message that has no [interactionId] but whose text changes, set when it is
+     * created: a voice transcript bubble. Only the message list uses it, as the item key.
+     */
+    val localId: String? = null
 ) {
     val text: String
         get() = when (content) {

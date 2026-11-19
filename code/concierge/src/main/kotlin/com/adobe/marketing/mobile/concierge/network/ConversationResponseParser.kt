@@ -103,7 +103,8 @@ internal object ConversationResponseParser {
                 }
                 .firstOrNull()
         } catch (e: JSONException) {
-            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse voice bootstrap JSON: ${e.message}")
+            // Not the exception's message: Android's org.json quotes the whole input, token included.
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Failed to parse voice bootstrap JSON.")
             null
         }
     }
