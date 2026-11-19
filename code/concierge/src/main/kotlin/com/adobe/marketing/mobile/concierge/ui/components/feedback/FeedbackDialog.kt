@@ -25,13 +25,13 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -376,23 +376,27 @@ private fun FeedbackDialogCard(
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .imePadding()
-            .padding(style.padding),
-        colors = CardDefaults.cardColors(containerColor = style.backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-        shape = style.shape
-    ) {
-        FeedbackCardContent(
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // Reserve the action row's minimum touch-target height before allocating vertical padding.
+        val paddingBudget = ((maxHeight - 48.dp) / 4).coerceAtLeast(0.dp)
+        val verticalPadding = minOf(style.contentPadding, paddingBudget)
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(style.contentPadding),
-            feedback = feedback,
-            onDismiss = onDismiss,
-            onSubmit = onSubmit
-        )
+                .padding(horizontal = style.padding, vertical = minOf(style.padding, paddingBudget)),
+            colors = CardDefaults.cardColors(containerColor = style.backgroundColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+            shape = style.shape
+        ) {
+            FeedbackCardContent(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = style.contentPadding, vertical = verticalPadding),
+                feedback = feedback,
+                onDismiss = onDismiss,
+                onSubmit = onSubmit
+            )
+        }
     }
 }
 
@@ -499,9 +503,8 @@ private fun FeedbackCardContent(
                     maxLines = 3
                 )
             }
+            Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
         }
-
-        Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
 
         FeedbackActionButtons(
             showCancelButton = showCancelButton,

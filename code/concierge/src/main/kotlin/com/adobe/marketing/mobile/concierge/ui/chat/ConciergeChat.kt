@@ -18,6 +18,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,10 +43,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -315,6 +319,7 @@ fun ConciergeChat(
 }
 
 @Composable
+@OptIn(ExperimentalComposeUiApi::class)
 internal fun ConciergeChat(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
@@ -334,9 +339,21 @@ internal fun ConciergeChat(
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val interactionSource = remember { MutableInteractionSource() }
     val modalFeedback = chatState.feedback.takeUnless {
         ConciergeTheme.behavior?.feedback?.displayMode == FeedbackDisplayMode.ACTION
+    }
+    DisposableEffect(modalFeedback != null) {
+        if (modalFeedback != null) {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+        onDispose {}
+    }
+    BackHandler(enabled = modalFeedback != null) {
+        focusManager.clearFocus(force = true)
+        onEvent(FeedbackEvent.DismissFeedbackDialog)
     }
     
     // Derive UI state from ChatScreenState
@@ -362,6 +379,7 @@ internal fun ConciergeChat(
                     if (modalFeedback != null) {
                         Modifier
                             .blur(16.dp)
+                            .focusProperties { canFocus = false }
                             .clearAndSetSemantics {}
                     } else {
                         Modifier
@@ -464,11 +482,14 @@ internal fun ConciergeChat(
                             Color.Black.copy(alpha = 0.32f)
                         }
                     )
+                    .clearAndSetSemantics {}
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) { focusManager.clearFocus() }
-                    .clearAndSetSemantics {}
+                    ) {
+                        focusManager.clearFocus(force = true)
+                        keyboardController?.hide()
+                    }
             )
             FeedbackDialog(
                 modifier = Modifier

@@ -1084,6 +1084,8 @@ In modal mode, the form content scrolls while Submit and Cancel (when enabled) r
 
 The modal blurs the chat behind it on Android 12 (API 31) and later, with a translucent themed backdrop. Older Android versions use a dimmed backdrop instead. Background chat controls are blocked while the modal is open. Tapping the backdrop dismisses the keyboard without closing the feedback form. Action mode is unchanged.
 
+Opening modal feedback clears focus from the chat composer and prevents keyboard navigation into background controls. Android Back dismisses feedback before closing the chat, including when both Cancel and Close are hidden. Vertical padding contracts on short layouts to keep the action buttons visible.
+
 ### Layout - Citations
 
 | CSS Variable | Kotlin Property | Type | Default | Description |

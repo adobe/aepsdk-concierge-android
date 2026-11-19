@@ -13,6 +13,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inspector.WindowInspector
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.lifecycle.ViewModelStore
@@ -24,11 +25,14 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
@@ -53,6 +57,7 @@ class ConciergeChatIdentityResetTest {
     private lateinit var vm: ConciergeChatViewModel
     private lateinit var request: Event
     private var originalAccessibilityFlags = 0
+    private val feedbackTheme = mutableStateOf<ConciergeThemeData?>(null)
 
     @Before
     fun setup() {
@@ -76,7 +81,7 @@ class ConciergeChatIdentityResetTest {
             )
             store.put("chat", vm)
             activity.setContent {
-                ConciergeTheme {
+                ConciergeTheme(theme = feedbackTheme.value) {
                     ConciergeChat(viewModel = vm, surfaces = listOf("web://example.com")) { show ->
                         Button(onClick = show) { Text("Open test chat") }
                     }
@@ -84,6 +89,46 @@ class ConciergeChatIdentityResetTest {
             }
         }
         await("rendered production host trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+    }
+
+    @Test
+    fun actionFeedback_rendersRealSheetAndDismissesWithoutClosingChat() {
+        setFeedbackTheme("action")
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+        await("real action sheet") {
+            dialogRoots().size == 2 && nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null
+        }
+        assertTrue(composer() == null)
+        clickNative { it.contentDescription?.toString() == "Close" }
+        await("dismissed sheet with chat retained") { dialogRoots().size == 1 && vm.state.value.feedback == null }
+        assertTrue(vm.isConciergeActive.value)
+    }
+
+    @Test
+    fun modalFeedback_backDismissesFeedbackWhenCancelAndCloseAreHidden() {
+        setFeedbackTheme("modal", hideDismissButtons = true)
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+        await("feedback modal") { nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null }
+        assertTrue(nativeNode { it.text?.toString() == "Cancel" } == null)
+        instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        await("feedback dismissed without closing chat") { vm.state.value.feedback == null }
+        assertTrue(vm.isConciergeActive.value)
+        assertEquals(1, dialogRoots().size)
+    }
+
+    private fun setFeedbackTheme(mode: String, hideDismissButtons: Boolean = false) {
+        val json = """{"behavior":{"feedback":{"displayMode":"$mode","showCancelButton":${!hideDismissButtons},"showCloseButton":${!hideDismissButtons}}}}"""
+        scenario.onActivity {
+            feedbackTheme.value = ConciergeThemeData(
+                config = requireNotNull(ThemeParser.parseThemeJson(json)),
+                tokens = requireNotNull(ThemeParser.parseThemeTokens(json))
+            )
+        }
+        instrumentation.waitForIdleSync()
     }
 
     @After
