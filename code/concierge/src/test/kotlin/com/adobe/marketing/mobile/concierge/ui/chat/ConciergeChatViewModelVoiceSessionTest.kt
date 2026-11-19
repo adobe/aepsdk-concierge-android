@@ -444,6 +444,27 @@ class ConciergeChatViewModelVoiceSessionTest {
     }
 
     @Test
+    fun `an empty final transcript removes the open bubble and the next bubble becomes the anchor`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+
+        session.transcript("Hi there", VoiceTranscriptRole.ASSISTANT, isFinal = true)
+        session.transcript("Show me", VoiceTranscriptRole.USER)
+        session.transcript("Let me", VoiceTranscriptRole.ASSISTANT)
+        assertEquals(1, vm.voiceScrollAnchorIndex.value)
+
+        session.transcript("", VoiceTranscriptRole.USER, isFinal = true)
+
+        assertEquals(listOf(false to "Hi there", false to "Let me"), vm.texts())
+        assertNull(vm.voiceScrollAnchorIndex.value)
+        session.transcript("Let me check.", VoiceTranscriptRole.ASSISTANT, isFinal = true)
+        assertEquals(listOf(false to "Hi there", false to "Let me check."), vm.texts())
+
+        session.transcript("Here", VoiceTranscriptRole.ASSISTANT)
+        assertEquals(2, vm.voiceScrollAnchorIndex.value)
+    }
+
+    @Test
     fun `the scroll anchor is the latest user bubble and clears when the conversation ends`() = runTest(testDispatcher) {
         val vm = makeViewModel()
         val session = startConnectedSession(vm)

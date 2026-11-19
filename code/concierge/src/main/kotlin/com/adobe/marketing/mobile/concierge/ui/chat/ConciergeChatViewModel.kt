@@ -2189,6 +2189,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     /**
      * Applies a transcript update. [text] is the whole turn so far, so the role's open bubble is
      * rewritten in place; with none open, non-empty text starts a new one. [isFinal] closes it.
+     * A final update with no text removes the open bubble: the recognizer withdrew what it showed.
      */
     private fun handleVoiceTranscript(
         session: VoiceSession,
@@ -2201,9 +2202,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         val openIndex = run.openMessageIndices[role]
         val openMessage = openIndex?.let { _messages.value.getOrNull(it) }
         if (openIndex != null && openMessage?.isFromUser == isFromUser) {
-            _messages.update { currentMessages ->
-                currentMessages.toMutableList().apply {
-                    set(openIndex, this[openIndex].copy(content = MessageContent.Text(text)))
+            if (isFinal && text.isEmpty()) {
+                removeVoiceBubble(run, openIndex)
+            } else {
+                _messages.update { currentMessages ->
+                    currentMessages.toMutableList().apply {
+                        set(openIndex, this[openIndex].copy(content = MessageContent.Text(text)))
+                    }
                 }
             }
         } else if (text.isNotEmpty()) {
@@ -2224,6 +2229,24 @@ class ConciergeChatViewModel : AndroidViewModel {
         }
         if (isFinal) {
             run.openMessageIndices.remove(role)
+        }
+    }
+
+    /**
+     * Removes the bubble at [index] and moves the indices that point past it. When it was the
+     * scroll anchor, the next bubble becomes the anchor.
+     */
+    private fun removeVoiceBubble(run: VoiceRun, index: Int) {
+        _messages.update { currentMessages -> currentMessages.filterIndexed { i, _ -> i != index } }
+        run.openMessageIndices.entries.forEach { entry ->
+            if (entry.value > index) entry.setValue(entry.value - 1)
+        }
+        _voiceScrollAnchorIndex.value = _voiceScrollAnchorIndex.value?.let { anchor ->
+            when {
+                anchor == index -> null
+                anchor > index -> anchor - 1
+                else -> anchor
+            }
         }
     }
 
