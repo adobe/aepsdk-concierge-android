@@ -86,6 +86,10 @@ interface VoiceTransport {
      * another app holds the audio (see [VoiceTransportListener.onAudioInterruptionBegan]),
      * including an interruption that began while connecting, and unmutes it afterwards. Called
      * only while connected.
+     *
+     * If the microphone cannot be changed, report [VoiceTransportState.Failed], including when the
+     * change fails after this method has returned: Brand Concierge can't tell whether the
+     * microphone is live, so it ends the conversation. It does the same if this method throws.
      */
     fun setMicrophoneEnabled(enabled: Boolean)
 

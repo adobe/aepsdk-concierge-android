@@ -628,6 +628,39 @@ class VoiceSessionControllerTest {
     }
 
     @Test
+    fun audioInterruption_failedMute_failsTheSession() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+        transport.microphoneError = IllegalStateException("mute failed")
+        transport.interruptionBegan()
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
+        assertEquals("the microphone is released", 1, transport.disconnectCount)
+    }
+
+    @Test
+    fun audioInterruption_failedUnmute_failsTheSession() {
+        val transport = FakeVoiceTransport()
+        val session = start(transport)
+        transport.interruptionBegan()
+        transport.microphoneError = IllegalStateException("unmute failed")
+        transport.interruptionEnded()
+        assertEquals(listOf(false, true), transport.microphoneChanges)
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
+        assertEquals(1, transport.disconnectCount)
+    }
+
+    @Test
+    fun audioInterruption_failedMuteOnConnected_failsTheSession() {
+        val transport = FakeVoiceTransport(connectsImmediately = false)
+        val session = start(transport)
+        transport.interruptionBegan()
+        transport.microphoneError = IllegalStateException("mute failed")
+        transport.report(VoiceTransportState.Connected)
+        assertEquals(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed), session.state)
+        assertEquals(1, transport.disconnectCount)
+    }
+
+    @Test
     fun audioInterruptionEnded_withoutBegan_isIgnored() {
         val transport = FakeVoiceTransport()
         start(transport)

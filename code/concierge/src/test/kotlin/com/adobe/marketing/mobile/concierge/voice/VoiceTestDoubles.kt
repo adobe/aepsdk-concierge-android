@@ -26,6 +26,8 @@ internal class FakeVoiceTransport(
     /** When true, [connect] reports [VoiceTransportState.Connected] before it returns. */
     private val connectsImmediately: Boolean = true,
     var connectError: Exception? = null,
+    /** Thrown by [setMicrophoneEnabled] after it records the change. */
+    var microphoneError: Exception? = null,
     override var continuesInBackground: Boolean = false
 ) : VoiceTransport {
 
@@ -47,6 +49,7 @@ internal class FakeVoiceTransport(
 
     override fun setMicrophoneEnabled(enabled: Boolean) {
         microphoneChanges += enabled
+        microphoneError?.let { throw it }
     }
 
     override fun disconnect() {

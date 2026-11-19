@@ -242,15 +242,16 @@ internal class VoiceSessionController(
 
     /**
      * Changes the microphone once connected. Before that it is left alone: the transport turns it
-     * on when it connects, and `Connected` applies any interruption.
+     * on when it connects, and `Connected` applies any interruption. If the transport throws, the
+     * microphone may be live during an interruption or muted while the chat shows Listening, so the
+     * conversation fails.
      */
     private fun setMicrophoneEnabled(enabled: Boolean) {
         if (!holdsTransport || !isConnected) return
         try {
             transport.setMicrophoneEnabled(enabled)
         } catch (e: Exception) {
-            Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Failed to set microphone enabled=%s.", enabled)
-            logTransportError("setMicrophoneEnabled", e)
+            failForTransportError("setMicrophoneEnabled($enabled)", e)
         }
     }
 
