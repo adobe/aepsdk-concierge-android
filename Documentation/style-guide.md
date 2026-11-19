@@ -375,6 +375,11 @@ Feature toggles and interaction configuration.
 | `behavior.privacyNotice.title` | string | `"Privacy Notice"` | Heading shown above the notice body. Blank hides only the heading. When omitted, the SDK uses its `concierge_privacy_notice_title` string resource, which apps can localize. |
 | `behavior.privacyNotice.text` | string | `""` | Notice copy with optional `{Label}` placeholders; absent, empty, or whitespace-only text hides the notice. |
 | `behavior.privacyNotice.links` | array | `[]` | Link objects use the same `{ "text": "...", "url": "..." }` shape as disclaimer links. The first exact label match is used. A link whose URL is blank or malformed renders as plain, unlinked text. |
+| `behavior.privacyNotice.presentation` | string | `"inline"` | `"inline"` shows the full notice; `"collapsible"` starts collapsed and expands in place. |
+| `behavior.privacyNotice.summary` | string | `""` | Optional approved summary for the collapsed notice; blank uses a line-limited preview. |
+| `behavior.privacyNotice.collapsedMaxLines` | positive integer | `3` | Maximum preview lines when no summary is provided; short notices have no toggle. |
+| `behavior.privacyNotice.readMoreLabel` | string | `"Read more"` | Expansion label; omitted uses the localizable `concierge_privacy_notice_read_more` resource. |
+| `behavior.privacyNotice.showLessLabel` | string | `"Show less"` | Collapse label; omitted uses the localizable `concierge_privacy_notice_show_less` resource. |
 
 The notice is informational and does not block submission or require acknowledgment.
 It appears immediately before the first user-authored text message in a conversation,
@@ -387,6 +392,15 @@ Links open through the same handling as other chat links: the host app's link ca
 runs first, then App Links, an in-app web view for `http`/`https`, or the system handler
 for other schemes. `javascript`, `file`, `content`, `intent`, and `data` URLs are ignored.
 Taps are tracked as link clicks with origin `privacyNotice`.
+
+Use `"presentation": "collapsible"` to opt in without changing existing themes. Supply an
+approved `summary` to keep essential information visible; summaries are not truncated.
+Without a summary, the full text is previewed with an ellipsis only when it exceeds
+`collapsedMaxLines`. Expansion pushes subsequent messages down; collapse restores the compact
+card. There is no automatic animation or modal. Links become interactive in the full notice,
+using the same routing and tracking as inline notices. Invalid presentation values and
+nonpositive line limits fail decoding. Select **Demo Theme** in the test app to try sample copy;
+replace it with approved legal copy before release.
 
 > **Strict decoding:** unlike other `behavior` keys, a wrong type anywhere under
 > `privacyNotice` (for example `"title": 42` or `"links": {}`) fails theme decoding, so the
@@ -474,6 +488,11 @@ Before a vote, both thumbs use the concierge message text color. After a vote, t
     "privacyNotice": {
       "title": "Privacy Notice",
       "text": "Your messages are processed by {Company}.",
+      "presentation": "inline",
+      "summary": "",
+      "collapsedMaxLines": 3,
+      "readMoreLabel": "Read more",
+      "showLessLabel": "Show less",
       "links": [
         {"text": "Company", "url": "https://example.com/privacy"}
       ]
@@ -1540,6 +1559,11 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.privacyNotice.title` | ✅ | Optional heading; blank hides only the heading | `PrivacyNoticeView` |
 | `behavior.privacyNotice.text` | ✅ | First user-message transcript notice; blank body hides the card | `MessageList` → `PrivacyNoticeView` |
 | `behavior.privacyNotice.links` | ✅ | Brace placeholders share the disclaimer formatter; links use the shared chat link handling with origin `privacyNotice` | `PrivacyNoticeView` |
+| `behavior.privacyNotice.presentation` | ✅ | Opt-in inline expansion | `PrivacyNoticeView` |
+| `behavior.privacyNotice.summary` | ✅ | Authored collapsed summary | `PrivacyNoticeView` |
+| `behavior.privacyNotice.collapsedMaxLines` | ✅ | Overflow-aware preview | `PrivacyNoticeView` |
+| `behavior.privacyNotice.readMoreLabel` | ✅ | Localizable expansion label | `PrivacyNoticeView` |
+| `behavior.privacyNotice.showLessLabel` | ✅ | Localizable collapse label | `PrivacyNoticeView` |
 
 ### Disclaimer
 

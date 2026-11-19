@@ -15,4 +15,8 @@
     <string name="concierge_privacy_notice_title">Privacy Notice</string>
     <!-- Accessibility action for a privacy notice link; %1$s is the link label. -->
     <string name="concierge_privacy_notice_open_link">Open %1$s</string>
+    <string name="concierge_privacy_notice_read_more">Read more</string>
+    <string name="concierge_privacy_notice_show_less">Show less</string>
+    <string name="concierge_privacy_notice_expanded">Expanded</string>
+    <string name="concierge_privacy_notice_collapsed">Collapsed</string>
 </resources>
