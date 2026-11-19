@@ -94,7 +94,9 @@ internal object ThemeParser {
                     feedbackHelpfulLabel = DataReader.optString(it, "feedbackHelpfulLabel", null),
                     sourcesLabel = DataReader.optString(it, "sourcesLabel", null),
                     suggestionsHeader = DataReader.optString(it, "suggestions.header", null),
-                    errorNetwork = DataReader.optString(it, "error.network", null)
+                    errorNetwork = DataReader.optString(it, "error.network", null),
+                    voiceTurnFailed = DataReader.optString(it, "voice.turn.failed", null),
+                    voiceTurnMessageSendFailed = DataReader.optString(it, "voice.turn.messageSendFailed", null)
                 )
             }
             

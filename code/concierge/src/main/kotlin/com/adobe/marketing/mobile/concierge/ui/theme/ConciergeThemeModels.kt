@@ -127,7 +127,11 @@ data class ConciergeTextStrings(
     val suggestionsHeader: String? = null,
 
     // Error
-    val errorNetwork: String? = null
+    val errorNetwork: String? = null,
+
+    // Voice
+    val voiceTurnFailed: String? = null,
+    val voiceTurnMessageSendFailed: String? = null
 )
 
 /**

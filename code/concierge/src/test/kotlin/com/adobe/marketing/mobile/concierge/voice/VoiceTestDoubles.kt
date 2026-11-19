@@ -79,6 +79,9 @@ internal data class TranscriptEvent(val text: String, val role: VoiceTranscriptR
 internal class RecordingVoiceListener : VoiceSessionListener {
     val states = mutableListOf<VoiceSessionState>()
     val transcripts = mutableListOf<TranscriptEvent>()
+    val results = mutableListOf<VoiceTurnResult>()
+    val outcomes: List<VoiceTurnResult.Outcome>
+        get() = results.map { it.outcome }
     val callbackLoopers = mutableListOf<Looper?>()
 
     /** Runs after each recorded state, to model a host that reacts inside the callback. */
@@ -93,5 +96,10 @@ internal class RecordingVoiceListener : VoiceSessionListener {
     override fun onTranscriptUpdated(session: VoiceSession, text: String, role: VoiceTranscriptRole, isFinal: Boolean) {
         callbackLoopers += Looper.myLooper()
         transcripts += TranscriptEvent(text, role, isFinal)
+    }
+
+    override fun onTurnFinished(session: VoiceSession, result: VoiceTurnResult) {
+        callbackLoopers += Looper.myLooper()
+        results += result
     }
 }

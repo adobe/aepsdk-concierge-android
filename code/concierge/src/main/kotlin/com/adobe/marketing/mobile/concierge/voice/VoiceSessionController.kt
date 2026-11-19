@@ -25,7 +25,7 @@ import com.adobe.marketing.mobile.services.Log
 /**
  * One voice conversation over the app's [VoiceTransport]: the microphone permission check, the
  * connection lifecycle, audio interruptions, and turning the voice agent's data messages into
- * transcript updates.
+ * transcript updates and turn results.
  *
  * The transport is shared by every conversation in the app. Only one conversation runs at a time
  * (see [VoiceSessionOwnership]), and a session claims the transport (becomes its listener) only for
@@ -52,7 +52,24 @@ internal class VoiceSessionController(
 
     // The fields below are confined to the main thread.
     private var listener: VoiceSessionListener? = listener
+
+    /**
+     * The turn in flight, from the user's first words (or the agent's, when it speaks first) until
+     * its `turn_completed` or the next user turn.
+     */
+    private var turn: Turn? = null
+
+    /**
+     * Turns that ended. Their late messages, such as the worker's second `turn_completed` after a
+     * playback error, are dropped.
+     */
+    private val closedTurnIds = HashSet<String>()
+
+    /** The in-flight turn's assistant text so far. */
     private val pendingAssistantText = StringBuilder()
+
+    /** The in-flight turn's latest UI payload. Each one is a snapshot of the whole turn. */
+    private var latestUiPayload: UiPayloadData? = null
 
     /** True from `connect` until this session disconnects the transport. */
     private var holdsTransport = false
@@ -295,7 +312,9 @@ internal class VoiceSessionController(
                 logTransportError("disconnect", e)
             }
         }
+        turn = null
         pendingAssistantText.setLength(0)
+        latestUiPayload = null
         setState(terminalState)
     }
 
@@ -310,31 +329,135 @@ internal class VoiceSessionController(
     private fun handle(message: DataChannelMessage) {
         when (message) {
             is DataChannelMessage.TranscriptDelta -> {
-                val delta = message.data
-                if (delta.role == TranscriptDeltaData.Role.USER) {
-                    // User STT chunks are cumulative snapshots of the current utterance.
-                    emit(VoiceTranscriptRole.USER, delta.delta, delta.final)
+                if (message.data.role == TranscriptDeltaData.Role.USER) {
+                    handleUserTranscript(message.data)
                 } else {
-                    pendingAssistantText.append(delta.delta)
-                    val text = pendingAssistantText.toString()
-                    if (delta.final) pendingAssistantText.setLength(0)
-                    emit(VoiceTranscriptRole.ASSISTANT, text, delta.final)
+                    handleAssistantTranscript(message.data)
                 }
             }
-            is DataChannelMessage.TurnDone -> {
-                val fullText = message.data.fullText.trim()
-                val text = if (fullText.isEmpty()) pendingAssistantText.toString() else fullText
-                pendingAssistantText.setLength(0)
-                emit(VoiceTranscriptRole.ASSISTANT, text, true)
+            is DataChannelMessage.UiPayload -> {
+                if (acceptsTurnMessage(message.data.turnId, startsTurn = false)) {
+                    latestUiPayload = message.data
+                }
             }
+            is DataChannelMessage.TurnDone -> handleTurnDone(message.data)
             is DataChannelMessage.SessionNotice -> {
                 val notice = message.data
                 if (notice is SessionNoticeData.SessionEnded) handleSessionEnded(notice.reason)
             }
-            is DataChannelMessage.UiPayload,
-            is DataChannelMessage.TextInputError,
-            is DataChannelMessage.StateUpdate -> Unit
+            is DataChannelMessage.TextInputError, is DataChannelMessage.StateUpdate -> Unit
         }
+    }
+
+    /**
+     * Mirrors web's turn handling (`LiveKitVoiceManager`): the user's transcript decides the
+     * current turn, and messages for any other turn are dropped.
+     */
+    private class Turn(
+        /** The worker's turn id, null until a message for the turn carries one. */
+        var id: String?
+    ) {
+        var userFinal = false
+        var replyStarted = false
+    }
+
+    private fun handleUserTranscript(delta: TranscriptDeltaData) {
+        if (delta.delta.isNotBlank()) {
+            val id = delta.turnId
+            if (id != null && id in closedTurnIds) {
+                Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a user transcript for a turn that already ended.")
+                return
+            }
+            val current = turn
+            if (startsNewTurn(id)) {
+                beginTurn(id)
+            } else if (current != null && current.id == null) {
+                current.id = id
+            }
+            if (delta.final) turn?.userFinal = true
+        }
+        // User STT chunks are cumulative snapshots of the current utterance.
+        emit(VoiceTranscriptRole.USER, delta.delta, delta.final)
+    }
+
+    private fun startsNewTurn(userTurnId: String?): Boolean {
+        val current = turn ?: return true
+        val currentId = current.id
+        if (userTurnId != null && currentId != null) return userTurnId != currentId
+        return current.userFinal || current.replyStarted
+    }
+
+    private fun handleAssistantTranscript(delta: TranscriptDeltaData) {
+        if (!acceptsTurnMessage(delta.turnId, startsTurn = true)) return
+        turn?.replyStarted = true
+        pendingAssistantText.append(delta.delta)
+        val text = pendingAssistantText.toString()
+        if (delta.final) pendingAssistantText.setLength(0)
+        emit(VoiceTranscriptRole.ASSISTANT, text, delta.final)
+    }
+
+    /**
+     * Mirrors web's `handleTurnDone`. An error or an empty reply fails the turn; `interrupted`
+     * counts as completed.
+     */
+    private fun handleTurnDone(done: TurnDoneData) {
+        if (turn == null || !acceptsTurnMessage(done.turnId, startsTurn = false)) {
+            Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a turn_completed for a turn that is not in flight.")
+            return
+        }
+        val fullText = done.fullText.trim()
+        if (done.state == TurnDoneData.TurnState.ERROR || fullText.isEmpty()) {
+            finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.TURN_FAILED))
+        } else {
+            finishTurn(VoiceTurnResult.Outcome.Completed(fullText))
+        }
+    }
+
+    /**
+     * Whether an assistant message belongs to the turn in flight. A turn without an id adopts the
+     * message's id. With no turn in flight, only a message that [startsTurn] is kept, as the start
+     * of a turn the agent opens.
+     */
+    private fun acceptsTurnMessage(turnId: String?, startsTurn: Boolean): Boolean {
+        if (turnId != null && turnId in closedTurnIds) return false
+        val current = turn
+        if (current == null) {
+            if (!startsTurn) return false
+            beginTurn(turnId)
+            return true
+        }
+        if (turnId == null) return true
+        val currentId = current.id
+        if (currentId == null) {
+            current.id = turnId
+            return true
+        }
+        return turnId == currentId
+    }
+
+    /** Closes the turn in flight, if any, and opens a new one. */
+    private fun beginTurn(id: String?) {
+        if (turn != null) {
+            // The previous turn got no turn_completed, for example because the user interrupted it.
+            // Close its reply bubble and drop its UI payload.
+            val text = pendingAssistantText.toString()
+            if (text.isNotBlank()) emit(VoiceTranscriptRole.ASSISTANT, text, true)
+            closeTurn()
+        }
+        turn = Turn(id)
+    }
+
+    private fun finishTurn(outcome: VoiceTurnResult.Outcome) {
+        val result = VoiceTurnResult(outcome, latestUiPayload)
+        closeTurn()
+        listener?.onTurnFinished(this, result)
+    }
+
+    private fun closeTurn() {
+        turn?.id?.let { closedTurnIds.add(it) }
+        turn = null
+        pendingAssistantText.setLength(0)
+        latestUiPayload = null
     }
 
     /**

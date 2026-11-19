@@ -153,6 +153,7 @@ fun ConciergeChat(
         val currentTheme = ConciergeTheme.config
         LaunchedEffect(ConciergeTheme.config) {
             viewModel.updateWelcomeConfigFromTheme(currentTheme)
+            viewModel.updateVoiceCopyFromTheme(currentTheme)
         }
 
         // Render the content composable with the callback
@@ -267,6 +268,7 @@ fun ConciergeChat(
     val currentTheme = ConciergeTheme.config
     LaunchedEffect(currentTheme) {
         viewModel.updateWelcomeConfigFromTheme(currentTheme)
+        viewModel.updateVoiceCopyFromTheme(currentTheme)
     }
 
     // Refresh permission status when app resumes (e.g., returning from settings)

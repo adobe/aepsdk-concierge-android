@@ -14,8 +14,11 @@ package com.adobe.marketing.mobile.concierge.voice
 
 import android.os.Looper
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.ASSISTANT
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole.USER
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnResult.Outcome.Completed
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnResult.Outcome.Failed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -60,6 +63,24 @@ class VoiceSessionControllerTest {
         session.start(url, token)
         drainMain()
         return session
+    }
+
+    private data class ListeningSession(
+        val transport: FakeVoiceTransport,
+        val listener: RecordingVoiceListener,
+        val session: VoiceSession
+    )
+
+    private fun listeningSession(): ListeningSession {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        return ListeningSession(transport, listener, start(transport, listener))
+    }
+
+    private fun userSays(transport: FakeVoiceTransport, text: String, turnId: String, final: Boolean = true) {
+        transport.send(
+            """{"type":"transcript_delta","data":{"role":"user","delta":"$text","final":$final,"turnId":"$turnId"}}"""
+        )
     }
 
     private fun runOnBackgroundThread(action: () -> Unit) {
@@ -428,7 +449,7 @@ class VoiceSessionControllerTest {
     }
 
     @Test
-    fun assistantTranscript_accumulatesAndUsesAuthoritativeFinalText() {
+    fun assistantTranscript_accumulatesAndTheTurnEndsWithTheAuthoritativeText() {
         val transport = FakeVoiceTransport()
         val listener = RecordingVoiceListener()
         start(transport, listener)
@@ -441,12 +462,107 @@ class VoiceSessionControllerTest {
             listOf(
                 TranscriptEvent("Hello", ASSISTANT, false),
                 TranscriptEvent("Hello world", ASSISTANT, false),
-                TranscriptEvent("Corrected reply", ASSISTANT, true),
-                TranscriptEvent("Next turn", ASSISTANT, false),
-                TranscriptEvent("Next turn", ASSISTANT, true)
+                TranscriptEvent("Next turn", ASSISTANT, false)
             ),
             listener.transcripts
         )
+        assertEquals(
+            "the turn ends with the authoritative text; an empty one fails the turn",
+            listOf(Completed("Corrected reply"), Failed(VoiceTurnFailure.TURN_FAILED)),
+            listener.outcomes
+        )
+    }
+
+    // Turns
+
+    @Test
+    fun turnCompleted_carriesTheTurnsLatestUiPayload() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Show me shoes", "t1")
+        transport.send("""{"event":"text_delta","delta":"Here you go","turnId":"t1"}""")
+        transport.send("""{"event":"ui_payload","turnId":"t1","promptSuggestions":["a"]}""")
+        transport.send(
+            """{"event":"ui_payload","turnId":"t1","promptSuggestions":["a","b"],"multimodalElements":{"elements":[{"id":"p1"}]}}"""
+        )
+        transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"Here you go","state":"completed"}""")
+
+        assertEquals(listOf(Completed("Here you go")), listener.outcomes)
+        val payload = listener.results.single().uiPayload!!
+        assertEquals("the latest snapshot wins", listOf("a", "b"), payload.promptSuggestions)
+        assertEquals("p1", (payload.orderedElements.single() as ParsedMultimodalItem.Card).element.id)
+    }
+
+    @Test
+    fun turnCompleted_withAnErrorOrNoText_failsTheTurnButKeepsThePayloadAndSession() {
+        listOf("error" to "Partial", "completed" to "  ").forEach { (state, fullText) ->
+            val (transport, listener, session) = listeningSession()
+            userSays(transport, "Hi", "t1")
+            transport.send("""{"event":"text_delta","delta":"Partial","turnId":"t1"}""")
+            transport.send("""{"event":"ui_payload","turnId":"t1","promptSuggestions":["a"]}""")
+            transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"$fullText","state":"$state"}""")
+
+            assertEquals(state, listOf(Failed(VoiceTurnFailure.TURN_FAILED)), listener.outcomes)
+            assertEquals(state, listOf("a"), listener.results.single().uiPayload?.promptSuggestions)
+            assertEquals(state, VoiceSessionState.Listening, session.state)
+        }
+    }
+
+    @Test
+    fun turnCompleted_interrupted_countsAsCompleted() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Hi", "t1")
+        transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"Hello","state":"interrupted"}""")
+        assertEquals(listOf(Completed("Hello")), listener.outcomes)
+    }
+
+    @Test
+    fun turnCompleted_forAnotherTurn_isDropped() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Hi", "t1")
+        transport.send("""{"event":"turn_completed","turnId":"t0","fullText":"Stale"}""")
+        transport.send("""{"event":"ui_payload","turnId":"t0","promptSuggestions":["stale"]}""")
+        assertTrue(listener.results.isEmpty())
+        transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"Hello"}""")
+        assertEquals(listOf(Completed("Hello")), listener.outcomes)
+        assertNull(listener.results.single().uiPayload)
+    }
+
+    @Test
+    fun errorAfterTheTurnCompleted_isDropped() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Hi", "t1")
+        transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"Hello"}""")
+        transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"","state":"error"}""")
+        transport.send("""{"event":"turn_completed","fullText":"","state":"error"}""")
+        assertEquals(listOf(Completed("Hello")), listener.outcomes)
+    }
+
+    @Test
+    fun newUserTurn_closesTheOpenReply_andDropsTheOldTurnsLateMessages() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Hi", "t1")
+        transport.send("""{"event":"text_delta","delta":"Partial","turnId":"t1"}""")
+        transport.send("""{"event":"ui_payload","turnId":"t1","promptSuggestions":["old"]}""")
+        userSays(transport, "Wait", "t2", final = false)
+        transport.send("""{"event":"text_delta","delta":" more","turnId":"t1"}""")
+        transport.send("""{"event":"turn_completed","turnId":"t1","fullText":"Partial more"}""")
+        userSays(transport, "Wait", "t2")
+        transport.send("""{"event":"text_delta","delta":"Sure","turnId":"t2"}""")
+        transport.send("""{"event":"turn_completed","turnId":"t2","fullText":"Sure"}""")
+
+        assertEquals(
+            listOf(
+                TranscriptEvent("Hi", USER, true),
+                TranscriptEvent("Partial", ASSISTANT, false),
+                TranscriptEvent("Partial", ASSISTANT, true),
+                TranscriptEvent("Wait", USER, false),
+                TranscriptEvent("Wait", USER, true),
+                TranscriptEvent("Sure", ASSISTANT, false)
+            ),
+            listener.transcripts
+        )
+        assertEquals(listOf(Completed("Sure")), listener.outcomes)
+        assertNull("the interrupted turn's payload is discarded", listener.results.single().uiPayload)
     }
 
     @Test
@@ -520,12 +636,14 @@ class VoiceSessionControllerTest {
         val session = start(transport, listener)
         listOf(
             """{"event":"ui_payload","promptSuggestions":["one"]}""",
+            """{"event":"turn_completed","fullText":"No turn in flight"}""",
             """{"event":"turn_started"}""",
             """{"type":"session_notice","data":{"kind":"user_silence_warning"}}""",
             """{"event":"unknown"}"""
         ).forEach(transport::send)
         transport.listener!!.onDataReceived(transport, byteArrayOf(0, 1, 2), null)
         assertTrue(listener.transcripts.isEmpty())
+        assertTrue(listener.results.isEmpty())
         assertEquals(VoiceSessionState.Listening, session.state)
     }
 

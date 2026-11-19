@@ -21,6 +21,7 @@ import com.adobe.marketing.mobile.concierge.voice.VoiceSession
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionListener
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -94,6 +95,10 @@ internal class FakeVoiceSession(
 
     fun transcript(text: String, role: VoiceTranscriptRole, isFinal: Boolean = false) {
         listener.onTranscriptUpdated(this, text, role, isFinal)
+    }
+
+    fun turnFinished(result: VoiceTurnResult) {
+        listener.onTurnFinished(this, result)
     }
 }
 
