@@ -12,7 +12,8 @@
 
 package com.adobe.marketing.mobile.concierge.voice
 
-import org.json.JSONArray
+import com.adobe.marketing.mobile.concierge.network.ConversationResponseParser
+import com.adobe.marketing.mobile.util.JSONUtils
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -67,6 +68,15 @@ internal object DataChannelMessageParser {
             "session_notice" -> parseSessionNotice(raw.opt("data"))?.let {
                 DataChannelMessage.SessionNotice(it)
             }
+            "text_input_error" -> {
+                val payload = raw.opt("data") as? JSONObject
+                DataChannelMessage.TextInputError(
+                    TextInputErrorData(
+                        turnId = asTurnId(payload?.opt("turnId")),
+                        reason = asString(payload?.opt("reason"))
+                    )
+                )
+            }
             // Other type-based messages (e.g. state carriers) surface as a coarse state update.
             else -> DataChannelMessage.StateUpdate(type)
         }
@@ -91,14 +101,30 @@ internal object DataChannelMessageParser {
                     turnId = asTurnId(raw.opt("turnId"))
                 )
             )
-            "ui_payload" -> DataChannelMessage.UiPayload(
-                UiPayloadData(asStringList(raw.opt("promptSuggestions")))
-            )
+            "ui_payload" -> DataChannelMessage.UiPayload(parseUiPayload(raw))
             "turn_started" -> DataChannelMessage.StateUpdate("turn_started")
             "state_update" -> DataChannelMessage.StateUpdate(asString(raw.opt("state"), "state_update"))
             "response_metadata", "tts_hint" -> DataChannelMessage.StateUpdate(event)
             else -> null
         }
+
+    /**
+     * Uses typed chat's response parsing, so a voice turn renders what the same response would
+     * render in typed chat. A malformed field, card or source is dropped on its own.
+     */
+    private fun parseUiPayload(raw: JSONObject): UiPayloadData {
+        val map = try {
+            JSONUtils.toMap(raw)
+        } catch (e: JSONException) {
+            null
+        } ?: emptyMap()
+        return UiPayloadData(
+            turnId = asTurnId(raw.opt("turnId")),
+            sources = ConversationResponseParser.extractSources(map),
+            promptSuggestions = ConversationResponseParser.extractPromptSuggestions(map),
+            orderedElements = ConversationResponseParser.extractOrderedElements(map)
+        )
+    }
 
     private fun parseSessionNotice(raw: Any?): SessionNoticeData? {
         val data = raw as? JSONObject ?: return null
@@ -120,15 +146,4 @@ internal object DataChannelMessageParser {
 
     private fun asDouble(value: Any?, fallback: Double = 0.0): Double =
         (value as? Number)?.toDouble() ?: fallback
-
-    /** The whole list is dropped when any element is not a string, matching the other clients. */
-    private fun asStringList(value: Any?): List<String> {
-        val array = value as? JSONArray ?: return emptyList()
-        val result = ArrayList<String>(array.length())
-        for (i in 0 until array.length()) {
-            val item = array.opt(i) as? String ?: return emptyList()
-            result.add(item)
-        }
-        return result
-    }
 }

@@ -331,7 +331,9 @@ internal class VoiceSessionController(
                 val notice = message.data
                 if (notice is SessionNoticeData.SessionEnded) handleSessionEnded(notice.reason)
             }
-            is DataChannelMessage.UiPayload, is DataChannelMessage.StateUpdate -> Unit
+            is DataChannelMessage.UiPayload,
+            is DataChannelMessage.TextInputError,
+            is DataChannelMessage.StateUpdate -> Unit
         }
     }
 

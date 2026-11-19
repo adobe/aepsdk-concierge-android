@@ -179,8 +179,7 @@ internal object ConversationResponseParser {
         val conversationId = DataReader.optString(payload, FIELD_CONVERSATION_ID, null)?.takeIf { it.isNotEmpty() }
         val interactionId = DataReader.optString(payload, FIELD_INTERACTION_ID, null)?.takeIf { it.isNotEmpty() }
 
-        val promptSuggestions = (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
-            ?: emptyList()).filter { it.isNotEmpty() }
+        val promptSuggestions = extractPromptSuggestions(response)
 
         val orderedElements = extractOrderedElements(response)
         val multimodalElements = orderedElements.filterIsInstance<ParsedMultimodalItem.Card>().map { it.element }
@@ -205,11 +204,20 @@ internal object ConversationResponseParser {
     }
 
     /**
+     * Extracts the non-empty prompt suggestions from the response map. The whole list is dropped
+     * when any element is not a string.
+     */
+    internal fun extractPromptSuggestions(response: Map<String, Any?>): List<String> =
+        (DataReader.optTypedList(String::class.java, response, FIELD_PROMPT_SUGGESTIONS, null)
+            ?: emptyList()).filter { it.isNotEmpty() }
+
+    /**
      * Extracts ordered elements from the response, preserving original array position.
      * Each element is parsed as either a [ParsedMultimodalItem.Cta] (for ctaButton elements)
      * or a [ParsedMultimodalItem.Card] (for all other element types).
+     * The voice agent's `ui_payload` uses the same shape.
      */
-    private fun extractOrderedElements(response: Map<String, Any?>): List<ParsedMultimodalItem> {
+    internal fun extractOrderedElements(response: Map<String, Any?>): List<ParsedMultimodalItem> {
         val multimodalRaw = response[FIELD_MULTIMODAL_ELEMENTS] ?: return emptyList()
         if (multimodalRaw is List<*>) return emptyList()
         val multimodalMap = multimodalRaw as? Map<*, *> ?: return emptyList()
@@ -360,9 +368,10 @@ internal object ConversationResponseParser {
     }
 
     /**
-     * Extracts citation sources from the response map.
+     * Extracts citation sources from the response map. The voice agent's `ui_payload` uses the
+     * same shape.
      */
-    private fun extractSources(response: Map<String, Any?>): List<Citation> {
+    internal fun extractSources(response: Map<String, Any?>): List<Citation> {
         val sourcesList = DataReader.optTypedListOfMap(Any::class.java, response, FIELD_SOURCES, null)
         if (sourcesList == null) {
             Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "No sources found in response.")
