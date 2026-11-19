@@ -21,6 +21,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
@@ -337,6 +338,37 @@ class FeedbackDialogTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun feedbackDialog_veryShortHeight_canScrollSelectCategoryAndSubmit() {
+        var submittedFeedback: Feedback? = null
+        composeTestRule.setContent {
+            ConciergeTheme {
+                Box(Modifier.height(104.dp)) {
+                    FeedbackDialog(
+                        feedback = Feedback("test-id", FeedbackType.NEGATIVE),
+                        onDismiss = {},
+                        onSubmit = { submittedFeedback = it }
+                    )
+                }
+            }
+        }
+
+        val category = composeTestRule.onNodeWithText("Other", useUnmergedTree = true)
+            .onParent().performScrollTo().assertIsDisplayed()
+        val bounds = category.fetchSemanticsNode().boundsInRoot
+        val formBounds = requireNotNull(category.fetchSemanticsNode().parent).boundsInRoot
+        assertTrue(
+            "The scrollable form must remain usable with an unclipped category: form=$formBounds, category=$bounds",
+            formBounds.height >= with(composeTestRule.density) { 48.dp.toPx() } &&
+                bounds.height >= with(composeTestRule.density) { 24.dp.toPx() }
+        )
+        category.performClick()
+        composeTestRule.onNodeWithText("Submit").assertIsDisplayed().performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(listOf("Other"), submittedFeedback?.selectedCategories)
+        }
     }
 
     @Test

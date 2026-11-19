@@ -19,9 +19,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -164,7 +168,9 @@ fun ConciergeChat(
                 onDismissRequest = { viewModel.closeConcierge() },
                 properties = DialogProperties(
                     dismissOnBackPress = true,
-                    dismissOnClickOutside = false
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false
                 )
             ) {
                 val parentView = LocalView.current.parent as View
@@ -340,6 +346,7 @@ internal fun ConciergeChat(
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val modalFocusRequester = remember { FocusRequester() }
     val interactionSource = remember { MutableInteractionSource() }
     val modalFeedback = chatState.feedback.takeUnless {
         ConciergeTheme.behavior?.feedback?.displayMode == FeedbackDisplayMode.ACTION
@@ -351,9 +358,11 @@ internal fun ConciergeChat(
         }
         onDispose {}
     }
-    BackHandler(enabled = modalFeedback != null) {
-        focusManager.clearFocus(force = true)
-        onEvent(FeedbackEvent.DismissFeedbackDialog)
+    if (LocalOnBackPressedDispatcherOwner.current != null) {
+        BackHandler(enabled = modalFeedback != null) {
+            focusManager.clearFocus(force = true)
+            onEvent(FeedbackEvent.DismissFeedbackDialog)
+        }
     }
     
     // Derive UI state from ChatScreenState
@@ -375,11 +384,17 @@ internal fun ConciergeChat(
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
+                // Keep the boundary stable and redirect nested lazy-list focus into the modal.
+                .focusProperties {
+                    enter = {
+                        if (modalFeedback != null) modalFocusRequester else FocusRequester.Default
+                    }
+                }
+                .focusGroup()
                 .then(
                     if (modalFeedback != null) {
                         Modifier
                             .blur(16.dp)
-                            .focusProperties { canFocus = false }
                             .clearAndSetSemantics {}
                     } else {
                         Modifier
@@ -494,7 +509,9 @@ internal fun ConciergeChat(
             FeedbackDialog(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.Center),
+                    .align(Alignment.Center)
+                    .focusRequester(modalFocusRequester)
+                    .focusGroup(),
                 feedback = feedback,
                 onDismiss = {
                     onEvent(FeedbackEvent.DismissFeedbackDialog)

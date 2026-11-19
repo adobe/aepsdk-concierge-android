@@ -377,8 +377,8 @@ private fun FeedbackDialogCard(
     val style = ConciergeStyles.feedbackDialogStyle
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        // Reserve the action row's minimum touch-target height before allocating vertical padding.
-        val paddingBudget = ((maxHeight - 48.dp) / 4).coerceAtLeast(0.dp)
+        // Reserve an editable row and the action row before allocating vertical padding.
+        val paddingBudget = ((maxHeight - 56.dp - 48.dp) / 4).coerceAtLeast(0.dp)
         val verticalPadding = minOf(style.contentPadding, paddingBudget)
         Card(
             modifier = Modifier

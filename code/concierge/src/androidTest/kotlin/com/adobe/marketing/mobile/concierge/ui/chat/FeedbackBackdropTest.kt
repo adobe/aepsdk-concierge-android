@@ -19,15 +19,23 @@ import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.widget.FrameLayout
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.unit.Dp
@@ -38,11 +46,16 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.adobe.marketing.mobile.concierge.ui.config.WelcomeConfig
+import com.adobe.marketing.mobile.concierge.network.CtaButton
+import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
+import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
 import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
@@ -63,6 +76,8 @@ class FeedbackBackdropTest {
     private var submittedFeedback: Feedback? = null
     private var closeCalls = 0
     private var hostBottom = 0f
+    private val backgroundEvents = mutableListOf<ChatEvent>()
+    private lateinit var inputModeManager: InputModeManager
     private val composerInput = MutableStateFlow<UserInputState>(UserInputState.Empty)
     private lateinit var scenario: ActivityScenario<ComponentActivity>
 
@@ -117,7 +132,7 @@ class FeedbackBackdropTest {
 
     @Test
     fun modal_clearsComposerFocusAndPreventsKeyboardTraversalIntoBackground() {
-        showChat("modal")
+        showChat("modal", messages = conversation())
         assertTrue(requireNotNull(findNode { it.isEditable }).performAction(AccessibilityNodeInfo.ACTION_CLICK))
         await("composer keyboard") { isKeyboardVisible() }
         val draft = Bundle().apply {
@@ -135,6 +150,97 @@ class FeedbackBackdropTest {
             instrumentation.waitForIdleSync()
             assertEquals(UserInputState.Editing("Original draft"), composerInput.value)
             assertNull(findNode { it.contentDescription?.toString() == "Close chat" })
+        }
+    }
+
+    @Test
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+    fun modal_populatedConversation_blocksTabAndDpadActivationOfBackgroundControls() {
+        // Leave no enabled modal actions so keyboard activation can only target the background.
+        showChat(
+            "modal",
+            messages = conversation(),
+            feedbackConfig = ""","showCancelButton":false,"showCloseButton":false""",
+            themeConfig = ""","arrays":{"feedback.positive.options":[]},"components":{"feedback":{"positiveNotesEnabled":false}}"""
+        )
+        await("background suggestion") { nodeWithText("Background suggestion") != null }
+        assertNotNull(nodeWithText("Background CTA"))
+        scenario.onActivity { assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard)) }
+        scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
+        await("modal feedback") { nodeWithText("Your feedback is appreciated") != null }
+        for (direction in listOf(
+            KeyEvent.KEYCODE_TAB, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_LEFT
+        )) {
+            repeat(12) { target ->
+                repeat(target + 1) { instrumentation.sendKeyDownUpSync(direction) }
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+                instrumentation.waitForIdleSync()
+                scenario.onActivity {
+                    assertTrue("Background callbacks must be blocked: $backgroundEvents", backgroundEvents.isEmpty())
+                    assertEquals(0, closeCalls)
+                    assertNotNull(feedback.value)
+                }
+            }
+        }
+        scenario.onActivity { feedback.value = null }
+        await("restored background CTA") { nodeWithText("Background CTA") != null }
+        repeat(20) { target ->
+            if (backgroundEvents.isEmpty()) {
+                repeat(target + 1) { instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_TAB) }
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+                instrumentation.waitForIdleSync()
+            }
+        }
+        assertTrue("Keyboard activation must reach restored background controls", backgroundEvents.isNotEmpty())
+        scenario.onActivity { backgroundEvents.clear() }
+        for (text in listOf("Background CTA", "Background suggestion")) {
+            var button = requireNotNull(nodeWithText(text))
+            while (!button.isClickable) button = requireNotNull(button.parent)
+            assertTrue(button.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+        }
+        await("restored background callbacks") { backgroundEvents.size == 2 }
+        assertTrue(backgroundEvents[0] is MessageInteractionEvent.CtaButtonClick)
+        assertTrue(backgroundEvents[1] is MessageInteractionEvent.PromptSuggestionClick)
+    }
+
+    private fun conversation() = listOf(
+        ChatMessage(MessageContent.Text("Earlier answer"), false, 1, sseComplete = true),
+        ChatMessage(
+            MessageContent.Text("Latest answer"), false, 2, interactionId = "test-id",
+            sseComplete = true, feedbackEligible = true,
+            ctaButton = CtaButton("Background CTA", "https://example.com"),
+            promptSuggestions = listOf("Background suggestion")
+        )
+    )
+
+    @Test
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+    fun modal_keyboardCanSelectCategoryAndSubmitAfterBackdropTap() {
+        showChat(
+            "modal",
+            messages = conversation(),
+            feedbackConfig = ""","showCancelButton":false,"showCloseButton":false""",
+            themeConfig = ""","arrays":{"feedback.positive.options":["Modal category"]},"components":{"feedback":{"positiveNotesEnabled":false}}"""
+        )
+        scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
+        await("modal category") { nodeWithText("Modal category") != null }
+        val categoryBounds = Rect()
+        requireNotNull(nodeWithText("Modal category")).getBoundsInScreen(categoryBounds)
+        tap(4 * instrumentation.targetContext.resources.displayMetrics.density, categoryBounds.exactCenterY())
+        scenario.onActivity { assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard)) }
+        for (target in 1..12) {
+            if (submittedFeedback != null) break
+            repeat(target) { instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_TAB) }
+            instrumentation.waitForIdleSync()
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+            instrumentation.waitForIdleSync()
+        }
+        await("keyboard feedback submission") { submittedFeedback != null }
+        assertEquals(listOf("Modal category"), submittedFeedback?.selectedCategories)
+        scenario.onActivity {
+            assertNull(feedback.value)
+            assertTrue(backgroundEvents.isEmpty())
         }
     }
 
@@ -159,28 +265,37 @@ class FeedbackBackdropTest {
     }
 
     @Test
-    fun modal_compactHeight_backdropDismissesKeyboardAndPreservesNotes() {
-        verifyNotesKeyboardDismissal(700.dp)
+    fun modal_withoutBackDispatcher_mountsAndCancelDismissesFeedback() {
+        showChat("modal", withoutBackDispatcher = true)
+        scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
+        await("modal without Back dispatcher") { nodeWithText("Cancel") != null }
+        var cancel = requireNotNull(nodeWithText("Cancel"))
+        while (!cancel.isClickable) cancel = requireNotNull(cancel.parent)
+        assertTrue(cancel.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+        await("dismissed modal without Back dispatcher") {
+            feedback.value == null && nodeWithText("Concierge") != null
+        }
     }
 
-    private fun verifyNotesKeyboardDismissal(height: Dp? = null) {
-        showChat("modal", height)
+    private fun verifyNotesKeyboardDismissal() {
+        showChat("modal")
         scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
         await("modal feedback") { nodeWithText("Your feedback is appreciated") != null }
-        await("notes editor") { findNode { it.isEditable } != null }
-        val editorBounds = Rect()
-        requireNotNull(findNode { it.isEditable }).getBoundsInScreen(editorBounds)
+        val editorBounds = revealNotesEditor()
         tap(editorBounds.exactCenterX(), editorBounds.exactCenterY())
-        await("notes keyboard") { isKeyboardVisible() }
-        await("notes editor after keyboard resize") { findNode { it.isEditable } != null }
+        await("notes keyboard (editor=$editorBounds)") { isKeyboardVisible() }
+        revealNotesEditor()
 
         val arguments = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Review this feedback")
         }
         assertTrue(requireNotNull(findNode { it.isEditable }).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments))
         await("entered notes") { findNode { it.isEditable }?.text?.toString() == "Review this feedback" }
+        val resizedEditorBounds = revealNotesEditor()
         val visibleBounds = Rect()
         scenario.onActivity { it.window.decorView.getWindowVisibleDisplayFrame(visibleBounds) }
+        assertTrue("Notes must remain usable above the keyboard: $resizedEditorBounds, $visibleBounds",
+            visibleBounds.contains(resizedEditorBounds))
         for (label in listOf("Submit", "Cancel")) {
             val bounds = Rect()
             var button = requireNotNull(nodeWithText(label))
@@ -210,6 +325,33 @@ class FeedbackBackdropTest {
         assertEquals("Review this feedback", submittedFeedback?.notes)
     }
 
+    private fun revealNotesEditor(): Rect {
+        val bounds = Rect()
+        var previousBounds: Rect? = null
+        await("visible notes editor") {
+            val editor = findNode { it.isEditable }
+            editor?.getBoundsInScreen(bounds)
+            val visibleBounds = Rect()
+            scenario.onActivity { it.window.decorView.getWindowVisibleDisplayFrame(visibleBounds) }
+            if (editor?.isVisibleToUser == true &&
+                visibleBounds.contains(bounds) &&
+                bounds.height() >= 48 * instrumentation.targetContext.resources.displayMetrics.density
+            ) {
+                val settled = bounds == previousBounds
+                previousBounds = Rect(bounds)
+                settled
+            } else {
+                previousBounds = null
+                if (editor?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id) != true) {
+                    findNode { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                }
+                instrumentation.uiAutomation.waitForIdle(100, 5_000)
+                false
+            }
+        }
+        return bounds
+    }
+
     private fun tap(x: Float, y: Float) {
         val eventTime = SystemClock.uptimeMillis()
         for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
@@ -234,24 +376,39 @@ class FeedbackBackdropTest {
         return visible
     }
 
-    private fun showChat(displayMode: String, height: Dp? = null) {
-        val json = """{"behavior":{"feedback":{"displayMode":"$displayMode"}}}"""
+    private fun showChat(
+        displayMode: String,
+        height: Dp? = null,
+        messages: List<ChatMessage> = emptyList(),
+        feedbackConfig: String = "",
+        themeConfig: String = "",
+        withoutBackDispatcher: Boolean = false
+    ) {
+        val json = """{"behavior":{"feedback":{"displayMode":"$displayMode"$feedbackConfig}}$themeConfig}"""
         val theme = ConciergeThemeData(
             config = requireNotNull(ThemeParser.parseThemeJson(json)),
             tokens = requireNotNull(ThemeParser.parseThemeTokens(json))
         )
         scenario = ActivityScenario.launch(ComponentActivity::class.java)
         scenario.onActivity { activity ->
+            val ownerlessView = FrameLayout(activity.applicationContext)
             // Match the production ConciergeChat dialog's keyboard-resize policy.
             @Suppress("DEPRECATION")
             activity.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             activity.setContent {
+                inputModeManager = LocalInputModeManager.current
                 ConciergeTheme(theme = theme) {
-                    CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                    CompositionLocalProvider(
+                        LocalImageProvider provides DefaultImageProvider(),
+                        LocalActivityResultRegistryOwner provides activity,
+                        LocalView provides if (withoutBackDispatcher) ownerlessView else LocalView.current,
+                        LocalContext provides if (withoutBackDispatcher) activity.applicationContext else LocalContext.current
+                    ) {
+                        if (withoutBackDispatcher) assertNull(LocalOnBackPressedDispatcherOwner.current)
                         Box(modifier = (if (height != null) Modifier.height(height) else Modifier)
                             .onGloballyPositioned { hostBottom = it.boundsInWindow().bottom }) {
                         ConciergeChat(
-                            messages = emptyList(),
+                            messages = messages,
                             chatState = ChatScreenState.Idle(feedback.value),
                             isInputEmpty = true,
                             inputStateFlow = composerInput,
@@ -261,6 +418,9 @@ class FeedbackBackdropTest {
                             isReturningUser = false,
                             onTextChanged = { composerInput.value = UserInputState.Editing(it) },
                             onEvent = { event ->
+                                if (event !is FeedbackEvent.SubmitFeedback && event != FeedbackEvent.DismissFeedbackDialog) {
+                                    backgroundEvents.add(event)
+                                }
                                 if (event == FeedbackEvent.DismissFeedbackDialog) feedback.value = null
                                 if (event is FeedbackEvent.SubmitFeedback) {
                                     submittedFeedback = event.feedback
@@ -283,6 +443,7 @@ class FeedbackBackdropTest {
     private fun findNode(predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
         val root = instrumentation.uiAutomation.rootInActiveWindow ?: return null
         fun find(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+            if (!node.refresh()) return null
             if (predicate(node)) return node
             for (index in 0 until node.childCount) {
                 val child = node.getChild(index) ?: continue
@@ -321,9 +482,11 @@ class FeedbackBackdropTest {
         } while (SystemClock.elapsedRealtime() < deadline)
         val visibleBounds = Rect()
         var imeInsets: WindowInsetsCompat? = null
+        var decorHeight = 0
         scenario.onActivity {
             it.window.decorView.getWindowVisibleDisplayFrame(visibleBounds)
             imeInsets = ViewCompat.getRootWindowInsets(it.window.decorView)
+            decorHeight = it.window.decorView.height
         }
         val inputMethod = instrumentation.uiAutomation.executeShellCommand("dumpsys input_method")
         val keyboardState = android.os.ParcelFileDescriptor.AutoCloseInputStream(inputMethod)
@@ -331,7 +494,7 @@ class FeedbackBackdropTest {
                 lines.filter { it.contains("mInputShown") || it.contains("mIsInputViewShown") }.joinToString()
             }
         fail(
-            "Timed out waiting for $description; visibleBounds=$visibleBounds, " +
+            "Timed out waiting for $description; visibleBounds=$visibleBounds, decorHeight=$decorHeight, hostBottom=$hostBottom, " +
                 "imeVisible=${imeInsets?.isVisible(WindowInsetsCompat.Type.ime())}, " +
                 "imeInsets=${imeInsets?.getInsets(WindowInsetsCompat.Type.ime())}, " +
                 "editorFocused=${findNode { it.isEditable }?.isFocused}, $keyboardState"

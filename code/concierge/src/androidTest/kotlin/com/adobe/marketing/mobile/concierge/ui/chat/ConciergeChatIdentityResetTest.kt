@@ -5,6 +5,9 @@
 package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.app.Application
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.graphics.Rect
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.Bundle
 import android.os.SystemClock
@@ -16,6 +19,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -80,15 +85,97 @@ class ConciergeChatIdentityResetTest {
                 dispatch = events::add
             )
             store.put("chat", vm)
-            activity.setContent {
-                ConciergeTheme(theme = feedbackTheme.value) {
-                    ConciergeChat(viewModel = vm, surfaces = listOf("web://example.com")) { show ->
-                        Button(onClick = show) { Text("Open test chat") }
-                    }
+            setChatContent(activity)
+        }
+        await("rendered production host trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+    }
+
+    private fun setChatContent(activity: ComponentActivity) {
+        activity.setContent {
+            ConciergeTheme(theme = feedbackTheme.value) {
+                ConciergeChat(viewModel = vm, surfaces = listOf("web://example.com")) { show ->
+                    Button(onClick = show) { Text("Open test chat") }
                 }
             }
         }
-        await("rendered production host trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+    }
+
+    @Test
+    fun modalFeedback_productionDialog_landscapeKeyboardKeepsEditorAndActionsVisible() {
+        scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+        await("landscape activity") {
+            var landscape = false
+            scenario.onActivity { landscape = it.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+            landscape
+        }
+        scenario.onActivity { setChatContent(it) }
+        await("remounted landscape trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+        setFeedbackTheme("modal", extraJson = ""","components":{"feedback":{"negativeNotesEnabled":true}}""")
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+        await("feedback modal") { nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null }
+        await("notes editor") {
+            if (nativeNode { it.isEditable } == null) {
+                nativeNode { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                false
+            } else true
+        }
+        clickNative { it.isEditable }
+        await("dialog keyboard") {
+            ViewCompat.getRootWindowInsets(dialogRoots().single())?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        }
+        await("notes editor after landscape resize") {
+            val editor = nativeNode { it.isEditable }
+            if (editor == null) {
+                nativeNode { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                false
+            } else true
+        }
+        val notes = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Landscape notes")
+        }
+        assertTrue(requireNotNull(nativeNode { it.isEditable }).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, notes))
+        await("landscape notes") { nativeNode { it.isEditable }?.text?.toString() == "Landscape notes" }
+        val visible = Rect()
+        val root = dialogRoots().single()
+        await("resized landscape form and actions above the keyboard") {
+            scenario.onActivity { root.getWindowVisibleDisplayFrame(visible) }
+            val actionsVisible = listOf("Submit", "Cancel").all { label ->
+                var button = nativeNode { it.text?.toString() == label } ?: return@all false
+                while (!button.isClickable) button = button.parent ?: return@all false
+                val bounds = Rect()
+                button.getBoundsInScreen(bounds)
+                visible.contains(bounds)
+            }
+            val editor = Rect()
+            val field = nativeNode { it.isEditable }
+            field?.getBoundsInScreen(editor)
+            actionsVisible && field != null && visible.contains(editor) &&
+                editor.height() >= 48 * instrumentation.targetContext.resources.displayMetrics.density
+        }
+        for (label in listOf("Submit", "Cancel")) {
+            val bounds = Rect()
+            var button = requireNotNull(nativeNode { it.text?.toString() == label })
+            while (!button.isClickable) button = requireNotNull(button.parent)
+            button.getBoundsInScreen(bounds)
+            assertTrue("$label must fit the production landscape dialog: $bounds, visible=$visible", visible.contains(bounds))
+        }
+        val editor = Rect()
+        requireNotNull(nativeNode { it.isEditable }).getBoundsInScreen(editor)
+        assertTrue("Notes must fit the production landscape dialog: $editor, visible=$visible", visible.contains(editor))
+        val density = instrumentation.targetContext.resources.displayMetrics.density
+        assertTrue("Landscape Notes must remain usable: $editor", editor.height() >= 48 * density)
+        val form = Rect()
+        requireNotNull(nativeNode { it.isScrollable }).getBoundsInScreen(form)
+        assertTrue("Landscape IME must exercise a compact usable form: $form",
+            form.height() >= 48 * density && form.height() <= 200 * density)
+        clickNative { it.text?.toString() == "Cancel" }
+        await("closed landscape feedback and keyboard") {
+            vm.state.value.feedback == null &&
+                ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == false
+        }
+        assertTrue(vm.isConciergeActive.value)
     }
 
     @Test
@@ -120,8 +207,8 @@ class ConciergeChatIdentityResetTest {
         assertEquals(1, dialogRoots().size)
     }
 
-    private fun setFeedbackTheme(mode: String, hideDismissButtons: Boolean = false) {
-        val json = """{"behavior":{"feedback":{"displayMode":"$mode","showCancelButton":${!hideDismissButtons},"showCloseButton":${!hideDismissButtons}}}}"""
+    private fun setFeedbackTheme(mode: String, hideDismissButtons: Boolean = false, extraJson: String = "") {
+        val json = """{"behavior":{"feedback":{"displayMode":"$mode","showCancelButton":${!hideDismissButtons},"showCloseButton":${!hideDismissButtons}}}$extraJson}"""
         scenario.onActivity {
             feedbackTheme.value = ConciergeThemeData(
                 config = requireNotNull(ThemeParser.parseThemeJson(json)),
@@ -222,6 +309,7 @@ class ConciergeChatIdentityResetTest {
     }
 
     private fun findNode(root: AccessibilityNodeInfo, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
+        if (!root.refresh()) return null
         if (predicate(root)) return root
         for (index in 0 until root.childCount) {
             val child = root.getChild(index) ?: continue
