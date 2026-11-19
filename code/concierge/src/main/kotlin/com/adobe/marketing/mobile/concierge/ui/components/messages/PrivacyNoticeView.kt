@@ -168,7 +168,7 @@ internal fun PrivacyNoticeView(
                 }
             }
         }
-        if (collapsible && (hasSummary || truncated)) {
+        if (collapsible && (expanded || hasSummary || truncated)) {
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.heightIn(min = 48.dp).semantics { stateDescription = expandedState }
