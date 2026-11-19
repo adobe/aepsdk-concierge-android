@@ -28,6 +28,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.VoiceTransport
+import com.adobe.marketing.mobile.concierge.ui.components.messages.messageKey
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
 import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
@@ -417,6 +418,20 @@ class ConciergeChatViewModelVoiceSessionTest {
         )
         assertTrue(vm.messages.value[1].sseComplete)
         assertNull(vm.messages.value[1].interactionId)
+    }
+
+    @Test
+    fun `a voice bubble keeps its list key while its text changes`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+
+        session.transcript("Yes", VoiceTranscriptRole.USER)
+        val key = messageKey(vm.messages.value.single())
+        session.transcript("Yes please", VoiceTranscriptRole.USER, isFinal = true)
+        assertEquals(key, messageKey(vm.messages.value.single()))
+
+        session.transcript("Yes please", VoiceTranscriptRole.USER, isFinal = true)
+        assertEquals(2, vm.messages.value.map(::messageKey).distinct().size)
     }
 
     @Test

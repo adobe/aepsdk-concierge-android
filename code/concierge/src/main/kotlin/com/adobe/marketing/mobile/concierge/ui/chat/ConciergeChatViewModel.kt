@@ -112,6 +112,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -2219,7 +2220,9 @@ class ConciergeChatViewModel : AndroidViewModel {
                     content = MessageContent.Text(text),
                     isFromUser = isFromUser,
                     timestamp = System.currentTimeMillis(),
-                    sseComplete = !isFromUser
+                    sseComplete = !isFromUser,
+                    // Its text is rewritten on every update, so the list can't key it by content.
+                    localId = UUID.randomUUID().toString()
                 )
             }
             run.openMessageIndices[role] = newIndex

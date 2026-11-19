@@ -86,6 +86,15 @@ internal fun scrollTargetIndex(
 }
 
 /**
+ * The list key for [message]. A message without a server [ChatMessage.interactionId] or a
+ * [ChatMessage.localId] is keyed by its content, which must then not change.
+ */
+internal fun messageKey(message: ChatMessage): String =
+    message.interactionId
+        ?: message.localId
+        ?: "${message.timestamp}:${message.isFromUser}:${message.text.hashCode()}"
+
+/**
  * Component that displays a list of chat messages.
  */
 @Composable
@@ -126,9 +135,7 @@ internal fun MessageList(
             // Show messages in chronological order (oldest first, newest last)
             itemsIndexed(
                 items = messages,
-                key = { _, message ->
-                    message.interactionId ?: "${message.timestamp}:${message.isFromUser}:${message.text.hashCode()}"
-                }
+                key = { _, message -> messageKey(message) }
             ) { index, message ->
                 // Set the filling item's minimum height to the parent height so the response
                 // "fills the screen", but allow it to extend beyond if the content is larger.
