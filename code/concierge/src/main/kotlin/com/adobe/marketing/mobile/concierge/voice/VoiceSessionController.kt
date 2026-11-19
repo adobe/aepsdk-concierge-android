@@ -137,7 +137,7 @@ internal class VoiceSessionController(
         if (!isActive) return
 
         if (!isValidServerUrl(url) || token.isBlank()) {
-            fail(FailureReasons.INVALID_CONNECTION)
+            fail(VoiceSessionFailure.InvalidCredentials)
             return
         }
         // ConciergeChatViewModel already checks the permission before requesting the session. This
@@ -150,7 +150,7 @@ internal class VoiceSessionController(
             false
         }
         if (!permissionGranted) {
-            fail(FailureReasons.MICROPHONE_PERMISSION)
+            fail(VoiceSessionFailure.MicrophonePermissionDenied)
             return
         }
 
@@ -161,13 +161,13 @@ internal class VoiceSessionController(
         startConnectionTimeout(
             CONNECT_TIMEOUT_MILLIS,
             VoiceSessionState.Connecting,
-            "The voice connection was not established within ${CONNECT_TIMEOUT_MILLIS / 1000} seconds."
+            VoiceSessionFailure.ConnectTimeout(CONNECT_TIMEOUT_MILLIS / 1000)
         )
         try {
             transportContinuesInBackground = transport.continuesInBackground
             transport.connect(VoiceConnection(url, token))
         } catch (e: Exception) {
-            fail(e.message ?: FailureReasons.CONNECT_FAILED)
+            failForTransportError("connect", e)
         }
     }
 
@@ -201,23 +201,22 @@ internal class VoiceSessionController(
                     startConnectionTimeout(
                         RECONNECT_TIMEOUT_MILLIS,
                         VoiceSessionState.Reconnecting,
-                        "The voice connection was not restored within ${RECONNECT_TIMEOUT_MILLIS / 1000} seconds."
+                        VoiceSessionFailure.ReconnectTimeout(RECONNECT_TIMEOUT_MILLIS / 1000)
                     )
                 }
             }
             is VoiceTransportState.Disconnected -> finish(VoiceSessionState.Ended)
-            is VoiceTransportState.Failed ->
-                fail(transportState.error.message ?: FailureReasons.CONNECT_FAILED)
+            is VoiceTransportState.Failed -> failForTransportError("reported Failed", transportState.error)
         }
     }
 
     /**
-     * Fails the session with [reason], which also disconnects the transport, if it is still in
+     * Fails the session with [failure], which also disconnects the transport, if it is still in
      * [waitingState] after [timeoutMillis].
      */
-    private fun startConnectionTimeout(timeoutMillis: Long, waitingState: VoiceSessionState, reason: String) {
+    private fun startConnectionTimeout(timeoutMillis: Long, waitingState: VoiceSessionState, failure: VoiceSessionFailure) {
         cancelConnectionTimeout()
-        val timeout = Runnable { if (currentState == waitingState) fail(reason) }
+        val timeout = Runnable { if (currentState == waitingState) fail(failure) }
         connectionTimeout = timeout
         mainHandler.postDelayed(timeout, timeoutMillis)
     }
@@ -250,20 +249,28 @@ internal class VoiceSessionController(
         try {
             transport.setMicrophoneEnabled(enabled)
         } catch (e: Exception) {
-            Log.warning(
-                ConciergeConstants.EXTENSION_NAME,
-                SELF_TAG,
-                "Failed to set microphone enabled=%s: %s",
-                enabled,
-                e.message
-            )
+            Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Failed to set microphone enabled=%s.", enabled)
+            logTransportError("setMicrophoneEnabled", e)
         }
     }
 
-    private fun fail(reason: String) {
+    private fun fail(failure: VoiceSessionFailure) {
         if (!isActive) return
-        Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Voice session failed: %s", reason)
-        finish(VoiceSessionState.Failed(reason))
+        Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Voice session failed: %s", failure.message)
+        finish(VoiceSessionState.Failed(failure))
+    }
+
+    private fun failForTransportError(operation: String, error: Throwable) {
+        logTransportError(operation, error)
+        fail(VoiceSessionFailure.TransportFailed)
+    }
+
+    /**
+     * The transport is app code, and its errors can carry the server URL or a server response, so
+     * their text is logged at debug level only and never tracked.
+     */
+    private fun logTransportError(operation: String, error: Throwable) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Voice transport error (%s): %s", operation, error.message)
     }
 
     /**
@@ -283,7 +290,8 @@ internal class VoiceSessionController(
             try {
                 transport.disconnect()
             } catch (e: Exception) {
-                Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Voice transport failed to disconnect: %s", e.message)
+                Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Voice transport failed to disconnect.")
+                logTransportError("disconnect", e)
             }
         }
         pendingAssistantText.setLength(0)
@@ -335,8 +343,7 @@ internal class VoiceSessionController(
             EndReason.ROOM_EMPTY_TIMEOUT,
             EndReason.USER_JOIN_TIMEOUT,
             EndReason.USER_INACTIVITY_TIMEOUT -> finish(VoiceSessionState.Ended)
-            EndReason.ERROR, EndReason.WORKER_SHUTDOWN, null ->
-                fail("The voice agent ended the session (${reason?.wireValue ?: "unknown reason"}).")
+            EndReason.ERROR, EndReason.WORKER_SHUTDOWN, null -> fail(VoiceSessionFailure.AgentEnded(reason))
         }
     }
 
@@ -348,12 +355,6 @@ internal class VoiceSessionController(
 
     private fun onMain(action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) action() else mainHandler.post(action)
-    }
-
-    internal object FailureReasons {
-        const val INVALID_CONNECTION = "Voice connection requires a valid server URL and a non-empty token."
-        const val MICROPHONE_PERMISSION = "Microphone permission (RECORD_AUDIO) has not been granted."
-        const val CONNECT_FAILED = "Failed to connect to the voice session."
     }
 
     internal companion object {

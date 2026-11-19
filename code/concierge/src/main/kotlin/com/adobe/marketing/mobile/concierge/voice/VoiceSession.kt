@@ -74,10 +74,43 @@ internal sealed class VoiceSessionState {
         override fun toString(): String = "Ended"
     }
 
-    data class Failed(val reason: String) : VoiceSessionState()
+    /** Could not start, or the connection was lost. The failure is for logging and tracking, not for display. */
+    data class Failed(val failure: VoiceSessionFailure) : VoiceSessionState()
 
     val isTerminal: Boolean
         get() = this is Ended || this is Failed
+}
+
+/**
+ * Why a voice session failed. Each case has a fixed [message], which is logged and sent to Edge
+ * with `ErrorOccurred`. Error text from the transport or the network is never part of it: a
+ * transport's error can carry the server URL or a server response.
+ */
+internal sealed class VoiceSessionFailure(val message: String) {
+    /** The credentials had no `wss`/`https` server URL or no token. */
+    object InvalidCredentials :
+        VoiceSessionFailure("Voice connection requires a valid server URL and a non-empty token.")
+
+    object MicrophonePermissionDenied :
+        VoiceSessionFailure("Microphone permission (RECORD_AUDIO) has not been granted.")
+
+    /** The transport reported neither `Connected` nor `Failed` in time. */
+    data class ConnectTimeout(val seconds: Long) :
+        VoiceSessionFailure("The voice connection was not established within $seconds seconds.")
+
+    /** The transport did not restore a lost connection in time. */
+    data class ReconnectTimeout(val seconds: Long) :
+        VoiceSessionFailure("The voice connection was not restored within $seconds seconds.")
+
+    /** The voice agent ended the session with an error, a shutdown, or a reason this SDK doesn't know (null). */
+    data class AgentEnded(val reason: EndReason?) :
+        VoiceSessionFailure("The voice agent ended the session (${reason?.wireValue ?: "unknown reason"}).")
+
+    /** The transport threw from `connect` or reported `Failed`. */
+    object TransportFailed : VoiceSessionFailure("The voice transport reported a failure.")
+
+    /** The Concierge service returned no voice credentials. */
+    object BootstrapFailed : VoiceSessionFailure("The Concierge service did not return voice session credentials.")
 }
 
 internal enum class VoiceTranscriptRole { USER, ASSISTANT }

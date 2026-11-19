@@ -77,6 +77,7 @@ import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.voice.VoiceSession
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionController
+import com.adobe.marketing.mobile.concierge.voice.VoiceSessionFailure
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionListener
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
@@ -2123,7 +2124,8 @@ class ConciergeChatViewModel : AndroidViewModel {
         activeVoice = run
         val generation = conciergeState.resetGeneration
         run.bootstrapJob = viewModelScope.launch {
-            val failure = try {
+            // Debug log only: the error can carry the service URL or a server response.
+            val detail = try {
                 val sessionId = withContext(sessionDispatcher) {
                     stateRepository.withConversation(generation) { sessionManager.getSessionId() }
                 }
@@ -2132,17 +2134,18 @@ class ConciergeChatViewModel : AndroidViewModel {
                         connectVoiceSession(run, bootstrap)
                     }
                 }
-                "Voice session bootstrap completed without credentials"
+                "no voice session in the response"
             } catch (e: CancellationException) {
                 if (!isActive) throw e
                 // The conversation was invalidated by an identity reset, which ends voice too.
                 finishVoiceSession(run)
                 return@launch
             } catch (e: Exception) {
-                "Voice session bootstrap failed: ${e.message}"
+                e.message
             }
             if (activeVoice === run && run.session == null) {
-                failVoiceSession(run, failure)
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Voice bootstrap ended without credentials: $detail")
+                failVoiceSession(run, VoiceSessionFailure.BootstrapFailed)
             }
         }
     }
@@ -2179,7 +2182,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             is VoiceSessionState.Listening -> _isVoiceConnecting.value = false
             is VoiceSessionState.Reconnecting -> _isVoiceConnecting.value = true
             is VoiceSessionState.Ended -> finishVoiceSession(run)
-            is VoiceSessionState.Failed -> failVoiceSession(run, state.reason)
+            is VoiceSessionState.Failed -> failVoiceSession(run, state.failure)
         }
     }
 
@@ -2236,10 +2239,10 @@ class ConciergeChatViewModel : AndroidViewModel {
         run.claim.release()
     }
 
-    private fun failVoiceSession(run: VoiceRun, reason: String) {
+    private fun failVoiceSession(run: VoiceRun, failure: VoiceSessionFailure) {
         if (activeVoice !== run) return
-        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Voice session failed: $reason")
-        dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(reason))
+        Log.error(ConciergeConstants.EXTENSION_NAME, TAG, "Voice session failed: ${failure.message}")
+        dispatchTrackingEvent(ConciergeTrackingEvent.ErrorOccurred(failure.message))
         finishVoiceSession(run)
         appendAgentMessage(DEFAULT_CONVERSATION_ERROR_MESSAGE)
     }

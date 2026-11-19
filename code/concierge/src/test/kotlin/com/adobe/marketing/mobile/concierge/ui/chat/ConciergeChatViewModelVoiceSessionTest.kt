@@ -40,6 +40,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.voice.FakeVoiceTransport
+import com.adobe.marketing.mobile.concierge.voice.VoiceSessionFailure
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole
@@ -167,6 +168,9 @@ class ConciergeChatViewModelVoiceSessionTest {
     private fun errorEvents() = dispatched.filter {
         it.name == ConciergeConstants.TrackingEvent.Name.ERROR_OCCURRED
     }
+
+    private fun trackedErrorMessage(): String? =
+        errorEvents().single().eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ERROR_MESSAGE) as? String
 
     private fun ConciergeChatViewModel.texts(): List<Pair<Boolean, String>> =
         messages.value.map { it.isFromUser to it.text }
@@ -359,7 +363,7 @@ class ConciergeChatViewModelVoiceSessionTest {
 
         vm.assertIdle()
         vm.assertErrorBubble()
-        assertEquals(1, errorEvents().size)
+        assertEquals(VoiceSessionFailure.BootstrapFailed.message, trackedErrorMessage())
         assertTrue(factory.connections.isEmpty())
     }
 
@@ -369,14 +373,12 @@ class ConciergeChatViewModelVoiceSessionTest {
         vm.startVoiceSession()
         runCurrent()
 
-        service.failBootstrap(IOException("HTTP 503"))
+        service.failBootstrap(IOException("HTTP 503 from https://edge.example.com/conversations?token=secret"))
         runCurrent()
 
         vm.assertIdle()
         vm.assertErrorBubble()
-        val errorMessage = errorEvents().single().eventData
-            ?.get(ConciergeConstants.TrackingEvent.EventData.Key.ERROR_MESSAGE) as String
-        assertTrue(errorMessage, errorMessage.contains("HTTP 503"))
+        assertEquals(VoiceSessionFailure.BootstrapFailed.message, trackedErrorMessage())
     }
 
     @Test
@@ -480,14 +482,11 @@ class ConciergeChatViewModelVoiceSessionTest {
         val vm = makeViewModel()
         val session = startConnectedSession(vm)
 
-        session.report(VoiceSessionState.Failed("room disconnected"))
+        session.report(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed))
 
         vm.assertIdle()
         vm.assertErrorBubble()
-        assertEquals(
-            "room disconnected",
-            errorEvents().single().eventData?.get(ConciergeConstants.TrackingEvent.EventData.Key.ERROR_MESSAGE)
-        )
+        assertEquals(VoiceSessionFailure.TransportFailed.message, trackedErrorMessage())
     }
 
     // MARK: - One conversation app-wide
@@ -620,7 +619,7 @@ class ConciergeChatViewModelVoiceSessionTest {
         val second = startConnectedSession(vm)
         second.report(VoiceSessionState.Listening)
 
-        first.deliverUnchecked(VoiceSessionState.Failed("late"))
+        first.deliverUnchecked(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed))
         first.transcript("stale", VoiceTranscriptRole.USER)
 
         assertTrue(vm.state.value is ChatScreenState.VoiceSession)
@@ -648,7 +647,7 @@ class ConciergeChatViewModelVoiceSessionTest {
 
     @Test
     fun `synchronous failure during start returns to idle`() = runTest(testDispatcher) {
-        factory.onStart = { session -> session.report(VoiceSessionState.Failed("no audio")) }
+        factory.onStart = { session -> session.report(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed)) }
         val vm = makeViewModel()
         val session = startConnectedSession(vm)
 
