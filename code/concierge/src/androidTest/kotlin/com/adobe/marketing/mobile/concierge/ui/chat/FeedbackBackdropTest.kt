@@ -215,6 +215,122 @@ class FeedbackBackdropTest {
     )
 
     @Test
+    fun modal_keyboardTraversal_onlyFocusesVisibleFormControls() {
+        verifyVisibleKeyboardTraversal(notesEnabled = false)
+    }
+
+    @Test
+    fun modal_keyboardTraversal_withNotes_onlyFocusesVisibleFormControls() {
+        verifyVisibleKeyboardTraversal(notesEnabled = true)
+    }
+
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+    private fun verifyVisibleKeyboardTraversal(notesEnabled: Boolean) {
+        showChat(
+            "modal",
+            messages = conversation(),
+            feedbackConfig = ""","showCloseButton":true""",
+            themeConfig = ""","arrays":{"feedback.positive.options":["Modal category"]},"components":{"feedback":{"positiveNotesEnabled":$notesEnabled}}"""
+        )
+        scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
+        await("modal category") { nodeWithText("Modal category") != null }
+        var category = requireNotNull(nodeWithText("Modal category"))
+        while (!category.isClickable) category = requireNotNull(category.parent)
+        assertTrue(category.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+        scenario.onActivity { assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard)) }
+        await("initial visible keyboard target") { focusedFormControl() != null }
+        val visited = mutableSetOf<String>()
+        for (reverse in listOf(false, true)) {
+            repeat(12) {
+                // Multiline Notes consumes plain Tab as text; Ctrl+Tab leaves the editor.
+                val metaState = when {
+                    reverse -> KeyEvent.META_SHIFT_ON
+                    focusedFormControl() == "Notes" -> KeyEvent.META_CTRL_ON
+                    else -> 0
+                }
+                if (metaState != 0) {
+                    val now = SystemClock.uptimeMillis()
+                    assertTrue(instrumentation.uiAutomation.injectInputEvent(
+                        KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB, 0, metaState), true
+                    ))
+                    assertTrue(instrumentation.uiAutomation.injectInputEvent(
+                        KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_TAB, 0, metaState), true
+                    ))
+                } else {
+                    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_TAB)
+                }
+                instrumentation.waitForIdleSync()
+                val focused = findNode { it.isFocused }
+                assertNotNull("Every Tab stop must expose a visible form control (reverse=$reverse, step=$it)", focused)
+                val control = requireNotNull(focused)
+                assertTrue("Focused node must be visible: $control", control.isVisibleToUser)
+                val label = focusedFormControl()
+                assertNotNull("Unexpected focus outside a labeled form control: $control", label)
+                visited.add(requireNotNull(label))
+            }
+        }
+        val expected = setOf("Modal category", "Submit", "Cancel", "Close") +
+            if (notesEnabled) setOf("Notes") else emptySet()
+        assertEquals(expected, visited)
+        for (direction in listOf(
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_LEFT
+        )) {
+            repeat(8) {
+                instrumentation.sendKeyDownUpSync(direction)
+                instrumentation.waitForIdleSync()
+                assertNotNull("D-pad focus must stay on a labeled form control", focusedFormControl())
+            }
+        }
+        scenario.onActivity {
+            assertTrue(backgroundEvents.isEmpty())
+            assertEquals(0, closeCalls)
+            assertNotNull(feedback.value)
+        }
+    }
+
+    private fun focusedFormControl(): String? {
+        val focused = findNode { it.isFocused && it.isVisibleToUser } ?: return null
+        if (focused.isEditable) return "Notes"
+        val labels = mutableSetOf<String>()
+        fun collect(node: AccessibilityNodeInfo) {
+            node.text?.toString()?.let(labels::add)
+            node.contentDescription?.toString()?.let(labels::add)
+            for (index in 0 until node.childCount) {
+                node.getChild(index)?.let(::collect)
+            }
+        }
+        collect(focused)
+        return labels.intersect(setOf("Modal category", "Submit", "Cancel", "Close")).singleOrNull()
+    }
+
+    @Test
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+    fun modal_switchingToHardwareKeyboard_preservesNotesFocusAndText() {
+        showChat("modal", messages = conversation())
+        scenario.onActivity { feedback.value = Feedback("test-id", FeedbackType.POSITIVE) }
+        await("modal feedback") { nodeWithText("Your feedback is appreciated") != null }
+        val editorBounds = revealNotesEditor()
+        tap(editorBounds.exactCenterX(), editorBounds.exactCenterY())
+        await("notes keyboard") { isKeyboardVisible() }
+        revealNotesEditor()
+        val arguments = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Draft")
+        }
+        assertTrue(requireNotNull(findNode { it.isEditable }).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments))
+        await("draft notes") { findNode { it.isEditable }?.text?.toString() == "Draft" }
+        scenario.onActivity { assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard)) }
+        instrumentation.waitForIdleSync()
+        assertEquals("Notes", focusedFormControl())
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_A)
+        await("hardware key entered in existing Notes editor") {
+            findNode { it.isEditable }?.text?.toString() == "Drafta"
+        }
+        assertEquals("Notes", focusedFormControl())
+        assertTrue(backgroundEvents.isEmpty())
+    }
+
+    @Test
     @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
     fun modal_keyboardCanSelectCategoryAndSubmitAfterBackdropTap() {
         showChat(
@@ -229,13 +345,16 @@ class FeedbackBackdropTest {
         requireNotNull(nodeWithText("Modal category")).getBoundsInScreen(categoryBounds)
         tap(4 * instrumentation.targetContext.resources.displayMetrics.density, categoryBounds.exactCenterY())
         scenario.onActivity { assertTrue(inputModeManager.requestInputMode(InputMode.Keyboard)) }
-        for (target in 1..12) {
-            if (submittedFeedback != null) break
-            repeat(target) { instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_TAB) }
-            instrumentation.waitForIdleSync()
-            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
-            instrumentation.waitForIdleSync()
+        await("keyboard entry into category after backdrop tap") { focusedFormControl() == "Modal category" }
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+        await("enabled Submit after keyboard category selection") {
+            var submit = nodeWithText("Submit") ?: return@await false
+            while (!submit.isClickable) submit = submit.parent ?: return@await false
+            submit.isEnabled
         }
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_TAB)
+        await("keyboard focus on Submit") { focusedFormControl() == "Submit" }
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
         await("keyboard feedback submission") { submittedFeedback != null }
         assertEquals(listOf("Modal category"), submittedFeedback?.selectedCategories)
         scenario.onActivity {

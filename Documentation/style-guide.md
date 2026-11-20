@@ -1086,7 +1086,7 @@ The modal blurs the chat behind it on Android 12 (API 31) and later, with a tran
 
 Opening modal feedback clears focus from the chat composer and prevents keyboard navigation into background controls, including controls in populated message lists. In hosts with an Android Back dispatcher, Back dismisses feedback before closing the chat, including when both Cancel and Close are hidden. Vertical padding contracts on short layouts to preserve space for both the scrollable form and the action buttons.
 
-The full-screen chat dialog delegates system-bar and keyboard insets to the chat layout so the form and actions remain within the usable viewport in landscape.
+The full-screen chat dialog retains full-display window sizing and delegates system-bar and keyboard insets to the chat layout so the form and actions remain within the usable viewport in landscape. The backdrop and chat's empty-space tap handlers do not add keyboard-focus stops.
 
 ### Layout - Citations
 

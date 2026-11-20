@@ -22,9 +22,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,10 +48,14 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -169,7 +172,6 @@ fun ConciergeChat(
                 properties = DialogProperties(
                     dismissOnBackPress = true,
                     dismissOnClickOutside = false,
-                    usePlatformDefaultWidth = false,
                     decorFitsSystemWindows = false
                 )
             ) {
@@ -347,16 +349,22 @@ internal fun ConciergeChat(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val modalFocusRequester = remember { FocusRequester() }
-    val interactionSource = remember { MutableInteractionSource() }
+    val inputModeManager = LocalInputModeManager.current
     val modalFeedback = chatState.feedback.takeUnless {
         ConciergeTheme.behavior?.feedback?.displayMode == FeedbackDisplayMode.ACTION
     }
+    var modalHasFocus by remember(modalFeedback != null) { mutableStateOf(false) }
     DisposableEffect(modalFeedback != null) {
         if (modalFeedback != null) {
             focusManager.clearFocus(force = true)
             keyboardController?.hide()
         }
         onDispose {}
+    }
+    LaunchedEffect(modalFeedback != null, inputModeManager.inputMode) {
+        if (modalFeedback != null && inputModeManager.inputMode == InputMode.Keyboard && !modalHasFocus) {
+            modalFocusRequester.requestFocus()
+        }
     }
     if (LocalOnBackPressedDispatcherOwner.current != null) {
         BackHandler(enabled = modalFeedback != null) {
@@ -375,11 +383,8 @@ internal fun ConciergeChat(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
-                focusManager.clearFocus()
+            .pointerInput(focusManager) {
+                detectTapGestures { focusManager.clearFocus() }
             }
     ) {
         Column(
@@ -498,12 +503,11 @@ internal fun ConciergeChat(
                         }
                     )
                     .clearAndSetSemantics {}
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus(force = true)
-                        keyboardController?.hide()
+                    .pointerInput(focusManager, keyboardController) {
+                        detectTapGestures {
+                            focusManager.clearFocus(force = true)
+                            keyboardController?.hide()
+                        }
                     }
             )
             FeedbackDialog(
@@ -511,6 +515,7 @@ internal fun ConciergeChat(
                     .fillMaxWidth()
                     .align(Alignment.Center)
                     .focusRequester(modalFocusRequester)
+                    .onFocusChanged { modalHasFocus = it.hasFocus }
                     .focusGroup(),
                 feedback = feedback,
                 onDismiss = {
