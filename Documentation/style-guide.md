@@ -597,6 +597,13 @@ While there are no strict requirements for character limits in many of these tex
 |----------|---------|-------------|
 | `text["suggestions.header"]` | `"Suggestions"` | Header label shown above prompt suggestion chips when `behavior.promptSuggestions.showHeader` is `true`. |
 
+### Voice
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["voice.turn.failed"]` | `"Sorry, I couldn't process that. Please try again."` | Replaces the voice agent's reply when a voice turn ends with an error or an empty reply. The conversation stays open. |
+| `text["voice.turn.messageSendFailed"]` | `"Sorry, your message couldn't be sent. Please try again."` | Replaces the voice agent's reply when a prompt suggestion tapped during a voice conversation can't be delivered. |
+
 ### Example
 
 ```json
@@ -1181,7 +1188,9 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "feedback.dialog.notes.placeholder": "Additional notes (optional)",
     "feedback.toast.success": "Thank you for the feedback.",
     "feedback.thumbsUp.aria": "Thumbs up",
-    "feedback.thumbsDown.aria": "Thumbs down"
+    "feedback.thumbsDown.aria": "Thumbs down",
+    "voice.turn.failed": "Sorry, I couldn't process that. Please try again.",
+    "voice.turn.messageSendFailed": "Sorry, your message couldn't be sent. Please try again."
   },
   "arrays": {
     "welcome.examples": [
@@ -1521,6 +1530,8 @@ This section documents which properties are fully implemented, partially impleme
 | `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented | - |
 | `text["sourcesLabel"]` | ✅ | Accordion label for sources/feedback section | `ChatFooter` → `SourcesAccordionButton` |
 | `text["feedbackHelpfulLabel"]` | ✅ | Feedback helpful label shown in `below` thumbs placement mode | `FeedbackButtons` |
+| `text["voice.turn.failed"]` | ✅ | Replaces the reply when a voice turn fails; pushed from the theme by `ConciergeChat` | `ConciergeChatViewModel` |
+| `text["voice.turn.messageSendFailed"]` | ✅ | Replaces the reply when a message sent during voice can't be delivered; pushed from the theme by `ConciergeChat` | `ConciergeChatViewModel` |
 
 ### Behavior — Feedback & Citations
 

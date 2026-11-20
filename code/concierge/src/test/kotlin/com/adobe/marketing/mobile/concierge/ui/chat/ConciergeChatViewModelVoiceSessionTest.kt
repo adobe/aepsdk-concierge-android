@@ -28,6 +28,10 @@ import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.VoiceTransport
+import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.CtaButton
+import com.adobe.marketing.mobile.concierge.network.MultimodalElement
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import com.adobe.marketing.mobile.concierge.ui.components.messages.messageKey
 import com.adobe.marketing.mobile.concierge.ui.state.ChatEvent
 import com.adobe.marketing.mobile.concierge.ui.state.ChatMessage
@@ -35,16 +39,23 @@ import com.adobe.marketing.mobile.concierge.ui.state.ChatScreenState
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
+import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTextStrings
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeConfig
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.voice.FakeVoiceTransport
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionFailure
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
+import com.adobe.marketing.mobile.concierge.voice.UiPayloadData
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnFailure
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnResult
 import com.adobe.marketing.mobile.services.ServiceProvider
 import io.mockk.every
 import io.mockk.mockk
@@ -175,6 +186,20 @@ class ConciergeChatViewModelVoiceSessionTest {
 
     private fun ConciergeChatViewModel.texts(): List<Pair<Boolean, String>> =
         messages.value.map { it.isFromUser to it.text }
+
+    private fun completed(text: String, payload: UiPayloadData? = null) =
+        VoiceTurnResult(VoiceTurnResult.Outcome.Completed(text), payload)
+
+    private fun failed(failure: VoiceTurnFailure, payload: UiPayloadData? = null) =
+        VoiceTurnResult(VoiceTurnResult.Outcome.Failed(failure), payload)
+
+    private fun payload(
+        suggestions: List<String> = emptyList(),
+        sources: List<Citation> = emptyList(),
+        elements: List<ParsedMultimodalItem> = emptyList()
+    ) = UiPayloadData(turnId = null, sources = sources, promptSuggestions = suggestions, orderedElements = elements)
+
+    private fun trackedEventNames() = dispatched.map { it.name }
 
     private fun ConciergeChatViewModel.assertIdle() {
         assertTrue("expected Idle but was ${state.value}", state.value is ChatScreenState.Idle)
@@ -494,6 +519,204 @@ class ConciergeChatViewModelVoiceSessionTest {
 
         session.report(VoiceSessionState.Ended)
         assertNull(vm.voiceScrollAnchorIndex.value)
+    }
+
+    // MARK: - Turn end
+
+    @Test
+    fun `turn end renders the reply with sources, then the cards and CTAs with the suggestions, like a typed turn`() =
+        runTest(testDispatcher) {
+            val vm = makeViewModel()
+            val session = startConnectedSession(vm)
+            val source = Citation("Example", "https://example.com", citationNumber = 1)
+            val card = MultimodalElement(id = "p1", title = "Runner")
+            val cta = CtaButton("Shop", "https://example.com/shop")
+
+            session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+            session.transcript("Here are", VoiceTranscriptRole.ASSISTANT)
+            dispatched.clear()
+            session.turnFinished(
+                completed(
+                    "Here are some shoes",
+                    payload(
+                        suggestions = listOf("Red ones", "Blue ones"),
+                        sources = listOf(source),
+                        elements = listOf(ParsedMultimodalItem.Card(card), ParsedMultimodalItem.Cta(cta))
+                    )
+                )
+            )
+
+            val messages = vm.messages.value
+            assertEquals(4, messages.size)
+            assertEquals("Here are some shoes", messages[1].text)
+            assertEquals(listOf(source), messages[1].citations)
+            assertTrue(messages[1].promptSuggestions.isEmpty())
+            assertNull("a voice reply has no feedback controls", messages[1].interactionId)
+            assertFalse(messages[1].feedbackEligible)
+            assertEquals(MessageContent.Mixed(text = "", multimodalElements = listOf(card)), messages[2].content)
+            assertEquals(listOf("Red ones", "Blue ones"), messages[2].promptSuggestions)
+            assertEquals(MessageContent.CtaButton(cta), messages[3].content)
+            assertEquals(listOf(ConciergeConstants.TrackingEvent.Name.CARDS_RENDERED), trackedEventNames())
+            assertEquals("the reply shows below the user's words", 0, vm.voiceScrollAnchorIndex.value)
+        }
+
+    @Test
+    fun `turn end without cards or CTAs puts the suggestions on the reply`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+
+        session.transcript("Hi", VoiceTranscriptRole.USER, isFinal = true)
+        session.transcript("Hello", VoiceTranscriptRole.ASSISTANT)
+        session.turnFinished(completed("Hello!", payload(suggestions = listOf("Shoes"))))
+        session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+
+        assertEquals(listOf(true to "Hi", false to "Hello!", true to "Shoes"), vm.texts())
+        assertEquals(listOf("Shoes"), vm.messages.value[1].promptSuggestions)
+    }
+
+    @Test
+    fun `turn end with only CTAs drops the suggestions, like a typed turn`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+        val cta = CtaButton("Shop", "https://example.com/shop")
+
+        session.transcript("Hello", VoiceTranscriptRole.ASSISTANT)
+        session.turnFinished(
+            completed("Hello!", payload(suggestions = listOf("Shoes"), elements = listOf(ParsedMultimodalItem.Cta(cta))))
+        )
+
+        assertEquals(listOf(false to "Hello!", false to "Shop"), vm.texts())
+        assertTrue(vm.messages.value.all { it.promptSuggestions.isEmpty() })
+    }
+
+    @Test
+    fun `a failed turn replaces the reply with the theme's copy and still renders the payload`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        vm.updateVoiceCopyFromTheme(
+            ConciergeThemeConfig(text = ConciergeTextStrings(voiceTurnFailed = "Try again", voiceTurnMessageSendFailed = "Not sent"))
+        )
+        val session = startConnectedSession(vm)
+
+        session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+        session.transcript("Here are", VoiceTranscriptRole.ASSISTANT)
+        session.turnFinished(failed(VoiceTurnFailure.TURN_FAILED, payload(suggestions = listOf("Red ones"))))
+        session.transcript("Hello", VoiceTranscriptRole.USER, isFinal = true)
+        session.turnFinished(failed(VoiceTurnFailure.MESSAGE_SEND_FAILED))
+
+        assertEquals(listOf(true to "Shoes", false to "Try again", true to "Hello", false to "Not sent"), vm.texts())
+        assertEquals(listOf("Red ones"), vm.messages.value[1].promptSuggestions)
+        assertTrue("a failed turn keeps the conversation open", vm.isVoiceSessionActive.value)
+        assertTrue(errorEvents().isEmpty())
+    }
+
+    @Test
+    fun `a failed turn without a reply adds the default copy as a new bubble`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        vm.updateVoiceCopyFromTheme(ConciergeThemeConfig(text = ConciergeTextStrings()))
+        val session = startConnectedSession(vm)
+
+        session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+        session.turnFinished(failed(VoiceTurnFailure.TURN_FAILED))
+        session.transcript("Hello", VoiceTranscriptRole.USER, isFinal = true)
+
+        assertEquals(
+            listOf(
+                true to "Shoes",
+                false to ConciergeChatViewModel.DEFAULT_VOICE_TURN_FAILED_MESSAGE,
+                true to "Hello"
+            ),
+            vm.texts()
+        )
+    }
+
+    @Test
+    fun `turn end rewrites the reply after an earlier bubble was removed`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+
+        session.transcript("Sh", VoiceTranscriptRole.USER)
+        session.transcript("Here", VoiceTranscriptRole.ASSISTANT)
+        session.transcript("", VoiceTranscriptRole.USER, isFinal = true)
+        session.turnFinished(completed("Here you go"))
+
+        assertEquals(listOf(false to "Here you go"), vm.texts())
+    }
+
+    @Test
+    fun `turn end with no reply bubble becomes the scroll anchor when there is none`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+
+        session.turnFinished(completed("Welcome back"))
+
+        assertEquals(listOf(false to "Welcome back"), vm.texts())
+        assertEquals(0, vm.voiceScrollAnchorIndex.value)
+    }
+
+    // MARK: - Prompt suggestions
+
+    @Test
+    fun `suggestion taps during voice go to the voice agent and are tracked as queries, not streamed`() =
+        runTest(testDispatcher) {
+            listOf(
+                MessageInteractionEvent.PromptSuggestionClick(" Red ones ") to
+                    ConciergeConstants.TrackingEvent.Name.PROMPT_SUGGESTION_CLICKED,
+                MessageInteractionEvent.WelcomePromptSuggestionClick(" Red ones ") to
+                    ConciergeConstants.TrackingEvent.Name.WELCOME_PROMPT_SUGGESTION_CLICKED
+            ).forEach { (tap, clickEvent) ->
+                val vm = makeViewModel()
+                val session = startConnectedSession(vm)
+                repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+                dispatched.clear()
+
+                vm.processEvent(tap)
+                runCurrent()
+
+                assertEquals(listOf(" Red ones "), session.sentTexts)
+                assertTrue(service.chatMessages.isEmpty())
+                assertTrue(vm.state.value is ChatScreenState.VoiceSession)
+                assertTrue("the composer is left alone", vm.inputState.value is UserInputState.Empty)
+                assertEquals(listOf(clickEvent, ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED), trackedEventNames())
+                val query = dispatched.last().eventData
+                assertEquals("Red ones", query?.get(ConciergeConstants.TrackingEvent.EventData.Key.QUERY))
+                assertEquals(
+                    mapOf("tier" to "gold"),
+                    (query?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS) as? Map<*, *>)?.get("loyalty")
+                )
+                session.report(VoiceSessionState.Ended)
+            }
+        }
+
+    @Test
+    fun `suggestion taps the voice session refuses, or before it exists, are dropped`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        vm.startVoiceSession()
+        runCurrent()
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Red ones"))
+        service.emitBootstrap()
+        runCurrent()
+        val session = requireNotNull(factory.lastSession)
+        session.acceptsText = false
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Blue ones"))
+        runCurrent()
+
+        assertEquals(listOf("Blue ones"), session.sentTexts)
+        assertTrue(service.chatMessages.isEmpty())
+        assertFalse(trackedEventNames().contains(ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED))
+        assertTrue(vm.isVoiceSessionActive.value)
+    }
+
+    @Test
+    fun `suggestion taps after voice ends stream like a typed message`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+        session.report(VoiceSessionState.Ended)
+
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Red ones"))
+        runCurrent()
+
+        assertEquals(listOf("Red ones"), service.chatMessages)
+        assertTrue(session.sentTexts.isEmpty())
     }
 
     // MARK: - Session end

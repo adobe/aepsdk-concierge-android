@@ -32,6 +32,14 @@ internal interface VoiceSession {
     fun start(url: String, token: String)
 
     /**
+     * Sends [text] to the voice agent as the user's next turn, as if they had said it, and reports
+     * it as the user's final transcript right away. Returns false, sending nothing, when the text
+     * is blank, the conversation is not [VoiceSessionState.Listening], or a user turn is waiting
+     * for the agent to start replying. Call on the main thread.
+     */
+    fun sendText(text: String): Boolean
+
+    /**
      * Ends the session; the end is reported as [VoiceSessionState.Ended]. Calling it again, or
      * after the session has already ended or failed, has no effect.
      */
@@ -48,6 +56,36 @@ internal interface VoiceSessionListener {
      * delta. [isFinal] closes the turn; the next update for the same role starts a new one.
      */
     fun onTranscriptUpdated(session: VoiceSession, text: String, role: VoiceTranscriptRole, isFinal: Boolean)
+
+    /**
+     * Called once when a turn ends, after its last transcript update. The host replaces the open
+     * assistant reply with the result and renders the turn's UI payload.
+     */
+    fun onTurnFinished(session: VoiceSession, result: VoiceTurnResult)
+}
+
+/** How a voice turn ended, and the content to render with it. */
+internal data class VoiceTurnResult(
+    val outcome: Outcome,
+    /** Sources, suggestions and product cards for the turn, rendered even when the turn failed. */
+    val uiPayload: UiPayloadData?
+) {
+    sealed class Outcome {
+        /** The agent answered. [text] is the authoritative full reply. */
+        data class Completed(val text: String) : Outcome()
+
+        /** The turn produced no usable reply. The session stays open. */
+        data class Failed(val failure: VoiceTurnFailure) : Outcome()
+    }
+}
+
+/** Why a voice turn failed, which picks the copy shown in place of the reply. */
+internal enum class VoiceTurnFailure {
+    /** The agent returned an error or an empty reply (`voice.turn.failed`). */
+    TURN_FAILED,
+
+    /** A message sent during the conversation could not be delivered (`voice.turn.messageSendFailed`). */
+    MESSAGE_SEND_FAILED
 }
 
 /**

@@ -12,6 +12,9 @@
 
 package com.adobe.marketing.mobile.concierge.voice
 
+import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.CtaButton
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,6 +34,8 @@ class DataChannelMessageParserTest {
     private fun parseDelta(json: String) = (parse(json) as DataChannelMessage.TranscriptDelta).data
 
     private fun parseTurnDone(json: String) = (parse(json) as DataChannelMessage.TurnDone).data
+
+    private fun parseUiPayload(json: String) = (parse(json) as DataChannelMessage.UiPayload).data
 
     private fun parseNotice(json: String) = (parse(json) as DataChannelMessage.SessionNotice).data
 
@@ -114,18 +119,67 @@ class DataChannelMessageParserTest {
     }
 
     @Test
-    fun uiPayload_eventBased_parsesPromptSuggestions() {
+    fun uiPayload_eventBased_parsesIntoTypedChatModels() {
+        val payload = parseUiPayload(
+            """{"event":"ui_payload","turnId":"turn_9","promptSuggestions":["a","b"],
+            "sources":[{"url":"https://example.com","title":"Example","start_index":0,"end_index":4,"citation_number":1}],
+            "multimodalElements":{"elements":[
+              {"id":"p1","entity_info":{"productName":"Shoe"}},
+              {"id":"cta","type":"ctaButton","entity_info":{"primary":{"text":"Shop","url":"https://example.com/shop"}}}
+            ]},
+            "widgets":[{"type":"unsupported"}]}"""
+        )
+        assertEquals("turn_9", payload.turnId)
+        assertEquals(listOf("a", "b"), payload.promptSuggestions)
+        assertEquals(listOf(Citation("Example", "https://example.com", 1, 0, 4)), payload.sources)
+        val card = payload.orderedElements[0] as ParsedMultimodalItem.Card
+        assertEquals("p1", card.element.id)
+        assertEquals("Shoe", card.element.title)
         assertEquals(
-            DataChannelMessage.UiPayload(UiPayloadData(listOf("a", "b"))),
-            parse("""{"event":"ui_payload","promptSuggestions":["a","b"],"sources":[]}""")
+            ParsedMultimodalItem.Cta(CtaButton("Shop", "https://example.com/shop")),
+            payload.orderedElements[1]
+        )
+        assertFalse(payload.isEmpty)
+    }
+
+    @Test
+    fun uiPayload_malformedParts_areDroppedLikeTypedChat() {
+        val payload = parseUiPayload(
+            """{"event":"ui_payload","promptSuggestions":["a",1],
+            "sources":[{"url":"https://example.com"},{"url":"https://example.com/b","title":"B"}],
+            "multimodalElements":{"elements":[{"id":""},{"id":"p1"}]}}"""
+        )
+        assertTrue("a non-string suggestion drops the list", payload.promptSuggestions.isEmpty())
+        assertEquals("a source without a title is dropped", listOf("B"), payload.sources.map { it.title })
+        assertEquals(
+            "a card without an id is dropped",
+            listOf("p1"),
+            payload.orderedElements.map { (it as ParsedMultimodalItem.Card).element.id }
         )
     }
 
     @Test
-    fun uiPayload_nonStringSuggestion_dropsList() {
+    fun uiPayload_withNoContent_isEmpty() {
+        val payload = parseUiPayload("""{"event":"ui_payload"}""")
+        assertNull(payload.turnId)
+        assertTrue(payload.isEmpty)
+    }
+
+    // Type-based: text_input_error
+
+    @Test
+    fun textInputError_parsesTurnIdAndReason() {
         assertEquals(
-            DataChannelMessage.UiPayload(UiPayloadData(emptyList())),
-            parse("""{"event":"ui_payload","promptSuggestions":["a",1]}""")
+            DataChannelMessage.TextInputError(TextInputErrorData("txt-1", "voice_turn_in_progress")),
+            parse("""{"type":"text_input_error","data":{"turnId":"txt-1","reason":"voice_turn_in_progress"}}""")
+        )
+    }
+
+    @Test
+    fun textInputError_withoutData_hasNoTurnId() {
+        assertEquals(
+            DataChannelMessage.TextInputError(TextInputErrorData(null, "")),
+            parse("""{"type":"text_input_error"}""")
         )
     }
 

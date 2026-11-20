@@ -21,11 +21,14 @@ import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
 import com.adobe.marketing.mobile.services.Log
+import org.json.JSONObject
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * One voice conversation over the app's [VoiceTransport]: the microphone permission check, the
  * connection lifecycle, audio interruptions, and turning the voice agent's data messages into
- * transcript updates.
+ * transcript updates and turn results.
  *
  * The transport is shared by every conversation in the app. Only one conversation runs at a time
  * (see [VoiceSessionOwnership]), and a session claims the transport (becomes its listener) only for
@@ -52,7 +55,24 @@ internal class VoiceSessionController(
 
     // The fields below are confined to the main thread.
     private var listener: VoiceSessionListener? = listener
+
+    /**
+     * The turn in flight, from the user's first words (or the agent's, when it speaks first) until
+     * its `turn_completed` or the next user turn.
+     */
+    private var turn: Turn? = null
+
+    /**
+     * Turns that ended. Their late messages, such as the worker's second `turn_completed` after a
+     * playback error, are dropped.
+     */
+    private val closedTurnIds = HashSet<String>()
+
+    /** The in-flight turn's assistant text so far. */
     private val pendingAssistantText = StringBuilder()
+
+    /** The in-flight turn's latest UI payload. Each one is a snapshot of the whole turn. */
+    private var latestUiPayload: UiPayloadData? = null
 
     /** True from `connect` until this session disconnects the transport. */
     private var holdsTransport = false
@@ -129,6 +149,62 @@ internal class VoiceSessionController(
 
     override fun stop() {
         onMain { finish(VoiceSessionState.Ended) }
+    }
+
+    /**
+     * Whether [sendText] can start a turn now: the conversation is connected, and no user turn is
+     * waiting for the agent to start replying. Mirrors web, which holds text back from the start
+     * of the user's speech until the reply starts, and while reconnecting. Read on main.
+     */
+    private val canSendText: Boolean
+        get() {
+            if (!holdsTransport || currentState != VoiceSessionState.Listening) return false
+            val current = turn ?: return true
+            return current.replyStarted
+        }
+
+    override fun sendText(text: String): Boolean {
+        val trimmed = text.trim()
+        if (!canSendText || trimmed.isEmpty()) return false
+        val turnId = "txt-" + UUID.randomUUID().toString().lowercase()
+        val data = JSONObject()
+            .put("type", "text_prompt")
+            .put("turn_id", turnId)
+            .put("text", trimmed)
+            .toString()
+            .toByteArray(Charsets.UTF_8)
+
+        beginTurn(null)
+        turn?.apply {
+            textTurnId = turnId
+            echoText = trimmed
+            userFinal = true
+        }
+        emit(VoiceTranscriptRole.USER, trimmed, true)
+
+        // Only the first outcome counts, so a repeated callback can't fail a delivered prompt. A
+        // failure is always handled later on main, after this method has returned.
+        val completed = AtomicBoolean(false)
+        val onSendFailed = { error: Throwable ->
+            if (completed.compareAndSet(false, true)) {
+                mainHandler.post { handleSendFailure(turnId, error) }
+            }
+        }
+        try {
+            transport.send(data, TEXT_INPUT_TOPIC) { error ->
+                if (error == null) completed.set(true) else onSendFailed(error)
+            }
+        } catch (e: Exception) {
+            onSendFailed(e)
+        }
+        return true
+    }
+
+    private fun handleSendFailure(turnId: String, error: Throwable) {
+        Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Could not send a text prompt to the voice agent.")
+        logTransportError("send", error)
+        if (!isActive || turn?.textTurnId != turnId) return
+        finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.MESSAGE_SEND_FAILED))
     }
 
     private fun begin(url: String, token: String) {
@@ -295,7 +371,9 @@ internal class VoiceSessionController(
                 logTransportError("disconnect", e)
             }
         }
+        turn = null
         pendingAssistantText.setLength(0)
+        latestUiPayload = null
         setState(terminalState)
     }
 
@@ -310,29 +388,173 @@ internal class VoiceSessionController(
     private fun handle(message: DataChannelMessage) {
         when (message) {
             is DataChannelMessage.TranscriptDelta -> {
-                val delta = message.data
-                if (delta.role == TranscriptDeltaData.Role.USER) {
-                    // User STT chunks are cumulative snapshots of the current utterance.
-                    emit(VoiceTranscriptRole.USER, delta.delta, delta.final)
+                if (message.data.role == TranscriptDeltaData.Role.USER) {
+                    handleUserTranscript(message.data)
                 } else {
-                    pendingAssistantText.append(delta.delta)
-                    val text = pendingAssistantText.toString()
-                    if (delta.final) pendingAssistantText.setLength(0)
-                    emit(VoiceTranscriptRole.ASSISTANT, text, delta.final)
+                    handleAssistantTranscript(message.data)
                 }
             }
-            is DataChannelMessage.TurnDone -> {
-                val fullText = message.data.fullText.trim()
-                val text = if (fullText.isEmpty()) pendingAssistantText.toString() else fullText
-                pendingAssistantText.setLength(0)
-                emit(VoiceTranscriptRole.ASSISTANT, text, true)
+            is DataChannelMessage.UiPayload -> {
+                if (acceptsTurnMessage(message.data.turnId, startsTurn = false)) {
+                    latestUiPayload = message.data
+                }
             }
+            is DataChannelMessage.TurnDone -> handleTurnDone(message.data)
             is DataChannelMessage.SessionNotice -> {
                 val notice = message.data
                 if (notice is SessionNoticeData.SessionEnded) handleSessionEnded(notice.reason)
             }
-            is DataChannelMessage.UiPayload, is DataChannelMessage.StateUpdate -> Unit
+            is DataChannelMessage.TextInputError -> handleTextInputError(message.data)
+            is DataChannelMessage.StateUpdate -> Unit
         }
+    }
+
+    /**
+     * Mirrors web's turn handling (`LiveKitVoiceManager`): the user's transcript decides the
+     * current turn, and messages for any other turn are dropped.
+     */
+    private class Turn(
+        /** The worker's turn id, null until a message for the turn carries one. */
+        var id: String?
+    ) {
+        /** The `turn_id` sent with the text prompt that started the turn, if text started it. */
+        var textTurnId: String? = null
+
+        /** The prompt's text, until the worker echoes it back as the user's transcript. */
+        var echoText: String? = null
+        var userFinal = false
+        var replyStarted = false
+    }
+
+    private fun handleUserTranscript(delta: TranscriptDeltaData) {
+        val text = delta.delta.trim()
+        val echoing = turn
+        if (delta.final && echoing?.echoText != null && text == echoing.echoText) {
+            // The worker's echo of the text prompt carries the worker's id for the turn. The user's
+            // bubble is already shown.
+            echoing.echoText = null
+            if (echoing.id == null) echoing.id = delta.turnId
+            return
+        }
+        if (text.isNotEmpty()) {
+            val id = delta.turnId
+            if (id != null && id in closedTurnIds) {
+                Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a user transcript for a turn that already ended.")
+                return
+            }
+            val current = turn
+            if (startsNewTurn(id)) {
+                if (current != null && current.textTurnId != null && current.echoText != null && !current.replyStarted) {
+                    // The user spoke before the worker took the text prompt. The worker rejects a
+                    // prompt once the user is speaking, and its text_input_error would arrive after
+                    // this turn was replaced, so fail the prompt now.
+                    finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.TURN_FAILED))
+                }
+                beginTurn(id)
+            } else if (current != null && current.id == null) {
+                current.id = id
+            }
+            if (delta.final) turn?.userFinal = true
+        }
+        // User STT chunks are cumulative snapshots of the current utterance.
+        emit(VoiceTranscriptRole.USER, delta.delta, delta.final)
+    }
+
+    private fun startsNewTurn(userTurnId: String?): Boolean {
+        val current = turn ?: return true
+        val currentId = current.id
+        if (userTurnId != null && currentId != null) return userTurnId != currentId
+        return current.userFinal || current.replyStarted
+    }
+
+    private fun handleAssistantTranscript(delta: TranscriptDeltaData) {
+        if (!acceptsTurnMessage(delta.turnId, startsTurn = true)) return
+        turn?.replyStarted = true
+        pendingAssistantText.append(delta.delta)
+        val text = pendingAssistantText.toString()
+        if (delta.final) pendingAssistantText.setLength(0)
+        emit(VoiceTranscriptRole.ASSISTANT, text, delta.final)
+    }
+
+    /**
+     * The worker rejected a text prompt, for example because the user started speaking. Fails the
+     * prompt's turn unless the reply already started or a newer turn replaced it.
+     */
+    private fun handleTextInputError(error: TextInputErrorData) {
+        val current = turn
+        val textTurnId = current?.textTurnId
+        if (current == null || textTurnId == null || current.replyStarted ||
+            (error.turnId != null && error.turnId != textTurnId)
+        ) {
+            Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a text_input_error for a turn that is not in flight.")
+            return
+        }
+        Log.debug(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "The voice agent rejected a text prompt (%s).", error.reason)
+        finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.TURN_FAILED))
+    }
+
+    /**
+     * Mirrors web's `handleTurnDone`. An error or an empty reply fails the turn; `interrupted`
+     * counts as completed.
+     */
+    private fun handleTurnDone(done: TurnDoneData) {
+        if (turn == null || !acceptsTurnMessage(done.turnId, startsTurn = false)) {
+            Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a turn_completed for a turn that is not in flight.")
+            return
+        }
+        val fullText = done.fullText.trim()
+        if (done.state == TurnDoneData.TurnState.ERROR || fullText.isEmpty()) {
+            finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.TURN_FAILED))
+        } else {
+            finishTurn(VoiceTurnResult.Outcome.Completed(fullText))
+        }
+    }
+
+    /**
+     * Whether an assistant message belongs to the turn in flight. A turn without an id adopts the
+     * message's id. With no turn in flight, only a message that [startsTurn] is kept, as the start
+     * of a turn the agent opens.
+     */
+    private fun acceptsTurnMessage(turnId: String?, startsTurn: Boolean): Boolean {
+        if (turnId != null && turnId in closedTurnIds) return false
+        val current = turn
+        if (current == null) {
+            if (!startsTurn) return false
+            beginTurn(turnId)
+            return true
+        }
+        if (turnId == null) return true
+        val currentId = current.id
+        if (currentId == null) {
+            current.id = turnId
+            return true
+        }
+        return turnId == currentId
+    }
+
+    /** Closes the turn in flight, if any, and opens a new one. */
+    private fun beginTurn(id: String?) {
+        if (turn != null) {
+            // The previous turn got no turn_completed, for example because the user interrupted it.
+            // Close its reply bubble and drop its UI payload.
+            val text = pendingAssistantText.toString()
+            if (text.isNotBlank()) emit(VoiceTranscriptRole.ASSISTANT, text, true)
+            closeTurn()
+        }
+        turn = Turn(id)
+    }
+
+    private fun finishTurn(outcome: VoiceTurnResult.Outcome) {
+        val result = VoiceTurnResult(outcome, latestUiPayload)
+        closeTurn()
+        listener?.onTurnFinished(this, result)
+    }
+
+    private fun closeTurn() {
+        turn?.id?.let { closedTurnIds.add(it) }
+        turn = null
+        pendingAssistantText.setLength(0)
+        latestUiPayload = null
     }
 
     /**
@@ -367,6 +589,9 @@ internal class VoiceSessionController(
 
         /** How long a conversation may last from its first `Connected` before it ends normally. */
         const val MAX_SESSION_MILLIS = 60 * 60_000L
+
+        /** The topic the voice agent reads text prompts from. */
+        const val TEXT_INPUT_TOPIC = "bc-text-input"
 
         private const val SELF_TAG = "VoiceSessionController"
         /** Encrypted schemes only: the access token travels on this connection. */

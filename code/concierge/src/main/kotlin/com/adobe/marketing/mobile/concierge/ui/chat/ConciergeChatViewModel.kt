@@ -82,6 +82,8 @@ import com.adobe.marketing.mobile.concierge.voice.VoiceSessionListener
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionOwnership
 import com.adobe.marketing.mobile.concierge.voice.VoiceSessionState
 import com.adobe.marketing.mobile.concierge.voice.VoiceTranscriptRole
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnFailure
+import com.adobe.marketing.mobile.concierge.voice.VoiceTurnResult
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
 import kotlinx.coroutines.CancellationException
@@ -128,6 +130,14 @@ class ConciergeChatViewModel : AndroidViewModel {
          */
         private const val DEFAULT_CONVERSATION_ERROR_MESSAGE =
             "Sorry, I encountered an error. Please try again."
+
+        /** Web's default for the `voice.turn.failed` copy. */
+        internal const val DEFAULT_VOICE_TURN_FAILED_MESSAGE =
+            "Sorry, I couldn't process that. Please try again."
+
+        /** Web's default for the `voice.turn.messageSendFailed` copy. */
+        internal const val DEFAULT_VOICE_MESSAGE_SEND_FAILED_MESSAGE =
+            "Sorry, your message couldn't be sent. Please try again."
 
         private fun deriveChatState(turnState: ChatScreenState, isVoiceActive: Boolean): ChatScreenState = when {
             turnState is ChatScreenState.Processing -> turnState
@@ -303,6 +313,10 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         // The transcript bubble each role is still speaking into, by index into the messages.
         val openMessageIndices = mutableMapOf<VoiceTranscriptRole, Int>()
+
+        // The current turn's reply bubble, kept after it closes so the turn's end can rewrite it.
+        // Cleared when the user's next bubble opens.
+        var replyIndex: Int? = null
         private val reservationReleased = AtomicBoolean(false)
 
         fun releaseReservation(release: () -> Unit) {
@@ -331,7 +345,19 @@ class ConciergeChatViewModel : AndroidViewModel {
         ) {
             onVoiceCallback { handleVoiceTranscript(session, text, role, isFinal) }
         }
+
+        override fun onTurnFinished(session: VoiceSession, result: VoiceTurnResult) {
+            onVoiceCallback { handleVoiceTurnFinished(session, result) }
+        }
     }
+
+    // Copy that replaces the voice agent's reply when a voice turn fails. The theme lives in
+    // Compose, so ConciergeChat pushes it in with updateVoiceCopyFromTheme.
+    @Volatile
+    private var voiceTurnFailedMessage = DEFAULT_VOICE_TURN_FAILED_MESSAGE
+
+    @Volatile
+    private var voiceMessageSendFailedMessage = DEFAULT_VOICE_MESSAGE_SEND_FAILED_MESSAGE
     
     /**
      * Updates the welcome configuration from a theme config
@@ -341,6 +367,16 @@ class ConciergeChatViewModel : AndroidViewModel {
         if (themeConfig != null) {
             _welcomeConfig.value = themeConfig.toWelcomeConfig(showWelcomeCard = true)
         }
+    }
+
+    /**
+     * Updates the copy shown when a voice turn fails from a theme config, falling back to web's
+     * defaults for copy the theme doesn't set.
+     */
+    internal fun updateVoiceCopyFromTheme(themeConfig: ConciergeThemeConfig?) {
+        val text = themeConfig?.text
+        voiceTurnFailedMessage = text?.voiceTurnFailed ?: DEFAULT_VOICE_TURN_FAILED_MESSAGE
+        voiceMessageSendFailedMessage = text?.voiceTurnMessageSendFailed ?: DEFAULT_VOICE_MESSAGE_SEND_FAILED_MESSAGE
     }
 
     /**
@@ -885,8 +921,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleWelcomePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Welcome Prompt suggestion clicked: $suggestion")
         dispatchTrackingEvent(ConciergeTrackingEvent.WelcomePromptSuggestionClicked(suggestion))
-        // Auto-send the suggestion as a message
-        handleSendMessage(suggestion)
+        sendPromptSuggestion(suggestion)
     }
 
     /**
@@ -914,8 +949,47 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handlePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
         dispatchTrackingEvent(ConciergeTrackingEvent.PromptSuggestionClicked(suggestion))
-        // Auto-send the suggestion as a message
-        handleSendMessage(suggestion)
+        sendPromptSuggestion(suggestion)
+    }
+
+    /**
+     * Sends a tapped prompt suggestion. During a voice conversation it goes to the voice agent as
+     * the user's next turn, like on web; otherwise it is sent as a typed message.
+     */
+    private fun sendPromptSuggestion(suggestion: String) {
+        val run = activeVoice ?: return handleSendMessage(suggestion)
+        if (stateRepository.state.value.resetInProgress) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion rejected while identity reset is pending.")
+            return
+        }
+        if (run.session?.sendText(suggestion) != true) {
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Prompt suggestion ignored. The voice conversation is connecting or a turn is waiting for its reply."
+            )
+            return
+        }
+        trackVoiceQuery(suggestion.trim())
+    }
+
+    /** Tracks a query sent to the voice agent as typed chat tracks one, with the held XDM context. */
+    private fun trackVoiceQuery(query: String) {
+        val contextSnapshot = stateRepository.captureXDMContext()
+        viewModelScope.launch {
+            try {
+                val sessionId = withContext(sessionDispatcher) {
+                    stateRepository.withConversation(contextSnapshot.generation) { sessionManager.getSessionId() }
+                }
+                stateRepository.withConversation(contextSnapshot.generation) {
+                    val xdmFields = stateRepository.resolveXDMContext(contextSnapshot, sessionId)
+                    dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(query, xdmFields))
+                }
+            } catch (e: CancellationException) {
+                // An identity reset discards the query's tracking along with the conversation.
+                if (!isActive) throw e
+            }
+        }
     }
 
     /**
@@ -2226,12 +2300,78 @@ class ConciergeChatViewModel : AndroidViewModel {
                 )
             }
             run.openMessageIndices[role] = newIndex
+            run.replyIndex = if (isFromUser) null else newIndex
             if (isFromUser || _voiceScrollAnchorIndex.value == null) {
                 _voiceScrollAnchorIndex.value = newIndex
             }
         }
         if (isFinal) {
             run.openMessageIndices.remove(role)
+        }
+    }
+
+    /**
+     * Renders the end of a voice turn the way a typed turn ends: the reply bubble gets the final
+     * text (or the failure copy) and the sources, then the cards and CTAs follow, with the
+     * suggestions on the card message or, with no cards or CTAs, on the reply. Voice replies have
+     * no interaction id, so no feedback controls are shown.
+     */
+    private fun handleVoiceTurnFinished(session: VoiceSession, result: VoiceTurnResult) {
+        val run = voiceRun(session) ?: return
+        val text = when (val outcome = result.outcome) {
+            is VoiceTurnResult.Outcome.Completed -> outcome.text
+            is VoiceTurnResult.Outcome.Failed -> when (outcome.failure) {
+                VoiceTurnFailure.TURN_FAILED -> voiceTurnFailedMessage
+                VoiceTurnFailure.MESSAGE_SEND_FAILED -> voiceMessageSendFailedMessage
+            }
+        }
+        val payload = result.uiPayload
+        val sources = payload?.sources.orEmpty()
+        val orderedElements = payload?.orderedElements.orEmpty()
+        val suggestions = payload?.promptSuggestions.orEmpty()
+        val replySuggestions = if (orderedElements.isEmpty()) suggestions else emptyList()
+        val citations = sources.takeIf { it.isNotEmpty() }
+        val uniqueCitations = citations?.let(CitationUtils::createUniqueSources)
+
+        val replyIndex = run.replyIndex?.takeIf { _messages.value.getOrNull(it)?.isFromUser == false }
+        if (replyIndex != null) {
+            _messages.update { currentMessages ->
+                currentMessages.toMutableList().apply {
+                    set(
+                        replyIndex,
+                        this[replyIndex].copy(
+                            content = MessageContent.Text(text),
+                            citations = citations,
+                            uniqueCitations = uniqueCitations,
+                            promptSuggestions = replySuggestions
+                        )
+                    )
+                }
+            }
+        } else {
+            var newIndex = 0
+            _messages.update { currentMessages ->
+                newIndex = currentMessages.size
+                currentMessages + ChatMessage(
+                    content = MessageContent.Text(text),
+                    isFromUser = false,
+                    timestamp = System.currentTimeMillis(),
+                    citations = citations,
+                    uniqueCitations = uniqueCitations,
+                    sseComplete = true,
+                    promptSuggestions = replySuggestions,
+                    localId = UUID.randomUUID().toString()
+                )
+            }
+            if (_voiceScrollAnchorIndex.value == null) {
+                _voiceScrollAnchorIndex.value = newIndex
+            }
+        }
+        run.openMessageIndices.remove(VoiceTranscriptRole.ASSISTANT)
+        run.replyIndex = null
+
+        if (orderedElements.isNotEmpty()) {
+            appendOrderedElementMessages(orderedElements, suggestions)
         }
     }
 
@@ -2243,6 +2383,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         _messages.update { currentMessages -> currentMessages.filterIndexed { i, _ -> i != index } }
         run.openMessageIndices.entries.forEach { entry ->
             if (entry.value > index) entry.setValue(entry.value - 1)
+        }
+        run.replyIndex = run.replyIndex?.let { reply ->
+            when {
+                reply == index -> null
+                reply > index -> reply - 1
+                else -> reply
+            }
         }
         _voiceScrollAnchorIndex.value = _voiceScrollAnchorIndex.value?.let { anchor ->
             when {

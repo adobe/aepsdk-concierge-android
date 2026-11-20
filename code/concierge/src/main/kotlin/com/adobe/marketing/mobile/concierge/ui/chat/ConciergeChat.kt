@@ -14,6 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -44,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -149,6 +153,7 @@ fun ConciergeChat(
         val currentTheme = ConciergeTheme.config
         LaunchedEffect(ConciergeTheme.config) {
             viewModel.updateWelcomeConfigFromTheme(currentTheme)
+            viewModel.updateVoiceCopyFromTheme(currentTheme)
         }
 
         // Render the content composable with the callback
@@ -257,11 +262,13 @@ fun ConciergeChat(
     
     val isReturningUser = remember { viewModel.isReturningUser() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = LocalContext.current.findActivity()
 
     // Capture the current theme to update welcome card config
     val currentTheme = ConciergeTheme.config
     LaunchedEffect(currentTheme) {
         viewModel.updateWelcomeConfigFromTheme(currentTheme)
+        viewModel.updateVoiceCopyFromTheme(currentTheme)
     }
 
     // Refresh permission status when app resumes (e.g., returning from settings)
@@ -281,11 +288,16 @@ fun ConciergeChat(
     // ChatOpened fires once when this composable enters composition.
     // ChatClosed fires when this composable leaves composition — which covers the close button,
     // back-press dialog dismissal, and XML view detachment — with no double-tracking.
+    // Leaving the chat also ends a voice conversation, except when the activity is recreated for a
+    // configuration change (for example, rotation): the ViewModel survives and the chat is shown
+    // again, so the conversation keeps running.
     DisposableEffect(Unit) {
         viewModel.activateDataHandoffSession()
         viewModel.trackChatOpened()
         onDispose {
-            viewModel.stopVoiceSession()
+            if (activity?.isChangingConfigurations != true) {
+                viewModel.stopVoiceSession()
+            }
             viewModel.deactivateDataHandoffSession()
             viewModel.trackChatClosed()
         }
@@ -524,6 +536,12 @@ private fun UserInputSection(
         onVoiceToggle = onVoiceToggle,
         modifier = modifier
     )
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 /**

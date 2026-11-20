@@ -12,19 +12,23 @@
 
 package com.adobe.marketing.mobile.concierge.voice
 
+import com.adobe.marketing.mobile.concierge.network.Citation
+import com.adobe.marketing.mobile.concierge.network.ParsedMultimodalItem
+
 /**
  * Kotlin mirror of the web client's data-channel message contract. The worker on the other end is
  * the same backend process regardless of client platform, so wire names are copied verbatim and
  * must not drift.
  *
- * The worker sends type-based messages (user STT `transcript_delta`, `session_notice`) and
- * event-based messages (assistant `text_delta`, `turn_completed`, ...), which
+ * The worker sends type-based messages (user STT `transcript_delta`, `session_notice`,
+ * `text_input_error`) and event-based messages (assistant `text_delta`, `turn_completed`, ...), which
  * [DataChannelMessageParser] normalizes into these cases.
  */
 internal sealed class DataChannelMessage {
     data class TranscriptDelta(val data: TranscriptDeltaData) : DataChannelMessage()
     data class TurnDone(val data: TurnDoneData) : DataChannelMessage()
     data class UiPayload(val data: UiPayloadData) : DataChannelMessage()
+    data class TextInputError(val data: TextInputErrorData) : DataChannelMessage()
     data class SessionNotice(val data: SessionNoticeData) : DataChannelMessage()
 
     /** A coarse worker state signal (`turn_started`, `state_update`, `response_metadata`, `tts_hint`). */
@@ -63,8 +67,23 @@ internal data class TurnDoneData(
     }
 }
 
-/** Rich turn content. Parsed for contract completeness; only `promptSuggestions` is typed. */
-internal data class UiPayloadData(val promptSuggestions: List<String>)
+/**
+ * A turn's sources, prompt suggestions and product cards, parsed the way typed chat parses a
+ * response. Each `ui_payload` is a snapshot of the whole turn. Widgets are not parsed.
+ */
+internal data class UiPayloadData(
+    val turnId: String?,
+    val sources: List<Citation>,
+    val promptSuggestions: List<String>,
+    /** Cards and CTA buttons, in the order the agent sent them. */
+    val orderedElements: List<ParsedMultimodalItem>
+) {
+    val isEmpty: Boolean
+        get() = sources.isEmpty() && promptSuggestions.isEmpty() && orderedElements.isEmpty()
+}
+
+/** The worker rejected a text prompt, for example because the user was speaking. */
+internal data class TextInputErrorData(val turnId: String?, val reason: String)
 
 /**
  * The worker's terminal reason for a session, validated against the known set. An unknown value

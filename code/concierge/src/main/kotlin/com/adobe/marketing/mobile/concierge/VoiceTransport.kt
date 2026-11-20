@@ -25,7 +25,7 @@ package com.adobe.marketing.mobile.concierge
  *
  * Implementations must follow these rules:
  * - Brand Concierge calls every method on the main thread. Each method returns immediately and
- *   reports its outcome to [listener].
+ *   reports its outcome to [listener], except [send], which reports to its callback.
  * - One instance serves every conversation: [connect] can be called again after [disconnect]. Keep
  *   it for the lifetime of the app (for example, in your `Application`), not in an `Activity`.
  *   Brand Concierge runs one conversation at a time across the app, so it never calls [connect]
@@ -94,10 +94,34 @@ interface VoiceTransport {
     fun setMicrophoneEnabled(enabled: Boolean)
 
     /**
+     * Sends a data message to the voice agent, for example a prompt suggestion the user tapped
+     * during the conversation. Brand Concierge builds [data] and picks [topic]; send both unchanged.
+     *
+     * Deliver it reliably: in order, and retransmitted if lost (in LiveKit, publish it with
+     * `DataPublishReliability.RELIABLE`). A lost message leaves the user's turn without a reply.
+     *
+     * Return immediately. Call [callback] exactly once, from any thread: with null once the
+     * connection has accepted the message, or with the error if it can't be sent, for example
+     * because the connection is not open. Brand Concierge then shows the user that the message
+     * wasn't sent; it does the same if this method throws. Called only while connected.
+     */
+    fun send(data: ByteArray, topic: String, callback: VoiceSendCallback)
+
+    /**
      * Leaves the room and releases the microphone. Safe to call at any time, including while
      * connecting or when not connected.
      */
     fun disconnect()
+}
+
+/** Receives the outcome of [VoiceTransport.send]. */
+fun interface VoiceSendCallback {
+    /**
+     * Called once, on any thread.
+     *
+     * @param error null if the connection accepted the message, or why it couldn't be sent.
+     */
+    fun onComplete(error: Throwable?)
 }
 
 /** Receives updates from a [VoiceTransport]. Methods can be called on any thread. */
