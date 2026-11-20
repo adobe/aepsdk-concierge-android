@@ -311,6 +311,9 @@ class ConciergeChatViewModel : AndroidViewModel {
         var session: VoiceSession? = null
         var bootstrapJob: Job? = null
 
+        // The held XDM context sent with the bootstrap, which the service uses for every voice turn.
+        var xdmFields: Map<String, Any> = emptyMap()
+
         // The transcript bubble each role is still speaking into, by index into the messages.
         val openMessageIndices = mutableMapOf<VoiceTranscriptRole, Int>()
 
@@ -970,26 +973,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             )
             return
         }
-        trackVoiceQuery(suggestion.trim())
-    }
-
-    /** Tracks a query sent to the voice agent as typed chat tracks one, with the held XDM context. */
-    private fun trackVoiceQuery(query: String) {
-        val contextSnapshot = stateRepository.captureXDMContext()
-        viewModelScope.launch {
-            try {
-                val sessionId = withContext(sessionDispatcher) {
-                    stateRepository.withConversation(contextSnapshot.generation) { sessionManager.getSessionId() }
-                }
-                stateRepository.withConversation(contextSnapshot.generation) {
-                    val xdmFields = stateRepository.resolveXDMContext(contextSnapshot, sessionId)
-                    dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(query, xdmFields))
-                }
-            } catch (e: CancellationException) {
-                // An identity reset discards the query's tracking along with the conversation.
-                if (!isActive) throw e
-            }
-        }
+        // The context the service sends with this turn, not the repository's current one.
+        dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(suggestion.trim(), run.xdmFields))
     }
 
     /**
@@ -2198,13 +2183,17 @@ class ConciergeChatViewModel : AndroidViewModel {
         _isVoiceConnecting.value = true
         activeVoice = run
         val generation = conciergeState.resetGeneration
+        // The service replays the bootstrap's context on every voice turn, so this snapshot is the
+        // context for the whole conversation. Later updates apply from the next conversation or typed turn.
+        val contextSnapshot = stateRepository.captureXDMContext()
         run.bootstrapJob = viewModelScope.launch {
             // Debug log only: the error can carry the service URL or a server response.
             val detail = try {
                 val sessionId = withContext(sessionDispatcher) {
                     stateRepository.withConversation(generation) { sessionManager.getSessionId() }
                 }
-                chatService.bootstrapVoiceSession(sessionId).collect { bootstrap ->
+                run.xdmFields = stateRepository.resolveXDMContext(contextSnapshot, sessionId)
+                chatService.bootstrapVoiceSession(run.xdmFields, sessionId).collect { bootstrap ->
                     if (activeVoice === run && run.session == null) {
                         connectVoiceSession(run, bootstrap)
                     }

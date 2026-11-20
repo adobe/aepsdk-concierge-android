@@ -127,8 +127,8 @@ After reset, if a conversation was in progress, Concierge dispatches a **Brand C
 ## XDM context
 
 Use `Concierge.updateXDMContext(...)` to hold app-provided XDM data. The SDK sends it with every
-later chat message (typed, spoken, or a tapped prompt suggestion) and every data handoff. Feedback
-requests don't include it.
+later chat message (typed, spoken, or a tapped prompt suggestion), every voice conversation, and
+every data handoff. Feedback requests don't include it.
 
 ```kotlin
 Concierge.updateXDMContext(
@@ -156,6 +156,10 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
   and the next update starts from an empty context. `MobileCore.resetIdentities()` also clears it.
 - **Timing:** A chat message or handoff captures the context when it's submitted. Updates made
   after that don't change requests that are already queued.
+- **Voice conversations:** A voice conversation captures the context once, when it starts. The
+  service uses that context for every spoken turn and every prompt suggestion tapped during the
+  conversation, and the Query Submitted event for a tapped suggestion carries the same context.
+  Updates made during the conversation apply from the next voice conversation or typed message.
 - **Data handoffs:** The handoff's `xdmFields` are deep-merged over the held context using the same
   rules, and the handoff values win. The held context itself isn't changed.
 - **Visibility:** The context is included in the **Brand Concierge Query Submitted** Event Hub
