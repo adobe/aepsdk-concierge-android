@@ -115,7 +115,7 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     fun `bootstrap uses an explicit session id when provided`() = runTest {
         respondWith("")
 
-        client().bootstrapVoiceSession("explicit-session").toList()
+        client().bootstrapVoiceSession(sessionId = "explicit-session").toList()
 
         assertTrue(URI(requestSlot.captured.url).query.contains("sessionId=explicit-session"))
     }
@@ -153,6 +153,24 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
         // The service needs both this and `data.type` to treat the request as a bootstrap.
         assertEquals("conversation.voice", xdm.getString("eventType"))
         assertTrue(xdm.has("identityMap"))
+    }
+
+    @Test
+    fun `bootstrap body carries the held xdm context alongside the identityMap`() = runTest {
+        respondWith("")
+
+        client().bootstrapVoiceSession(
+            xdmFields = mapOf("loyalty" to mapOf("tier" to "gold"), "eventType" to "app.custom")
+        ).toList()
+
+        val xdm = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
+            .getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
+        assertEquals("gold", xdm.getJSONObject("loyalty").getString("tier"))
+        assertEquals("the SDK's eventType wins", "conversation.voice", xdm.getString("eventType"))
+        assertEquals(
+            "test-ecid",
+            xdm.getJSONObject("identityMap").getJSONArray("ECID").getJSONObject(0).getString("id")
+        )
     }
 
     @Test
