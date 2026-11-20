@@ -321,6 +321,18 @@ class ConciergeChatViewModelVoiceSessionTest {
     }
 
     @Test
+    fun `bootstrap sends the held xdm context for the resolved session`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+
+        vm.startVoiceSession()
+        runCurrent()
+
+        assertEquals(listOf<String?>("session-1"), service.bootstrapSessionIds)
+        assertEquals(listOf(mapOf<String, Any>("loyalty" to mapOf("tier" to "gold"))), service.bootstrapXdmFields)
+    }
+
+    @Test
     fun `bootstrap starts a session over the transport with the url and token`() = runTest(testDispatcher) {
         val vm = makeViewModel()
         vm.startVoiceSession()
@@ -656,7 +668,7 @@ class ConciergeChatViewModelVoiceSessionTest {
     // MARK: - Prompt suggestions
 
     @Test
-    fun `suggestion taps during voice go to the voice agent and are tracked as queries, not streamed`() =
+    fun `suggestion taps during voice go to the voice agent and are tracked with the bootstrap's context`() =
         runTest(testDispatcher) {
             listOf(
                 MessageInteractionEvent.PromptSuggestionClick(" Red ones ") to
@@ -665,8 +677,10 @@ class ConciergeChatViewModelVoiceSessionTest {
                     ConciergeConstants.TrackingEvent.Name.WELCOME_PROMPT_SUGGESTION_CLICKED
             ).forEach { (tap, clickEvent) ->
                 val vm = makeViewModel()
-                val session = startConnectedSession(vm)
                 repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+                val session = startConnectedSession(vm)
+                // A running voice conversation keeps the context it started with.
+                repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "platinum")))
                 dispatched.clear()
 
                 vm.processEvent(tap)

@@ -121,6 +121,7 @@ internal class FakeVoiceConversationService : ConversationService {
     private var bootstrap = Channel<VoiceSessionBootstrap>(Channel.UNLIMITED)
 
     val bootstrapSessionIds = mutableListOf<String?>()
+    val bootstrapXdmFields = mutableListOf<Map<String, Any>>()
     val chatMessages = mutableListOf<String>()
 
     /** What a chat turn streams back; completes empty unless a test needs a turn to stay open. */
@@ -147,8 +148,12 @@ internal class FakeVoiceConversationService : ConversationService {
 
     override suspend fun sendFeedback(feedback: Feedback): Boolean = true
 
-    override fun bootstrapVoiceSession(sessionId: String?): Flow<VoiceSessionBootstrap> {
+    override fun bootstrapVoiceSession(
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<VoiceSessionBootstrap> {
         bootstrapSessionIds.add(sessionId)
+        bootstrapXdmFields.add(xdmFields)
         val channel = Channel<VoiceSessionBootstrap>(Channel.UNLIMITED).also { bootstrap = it }
         return flow {
             activeBootstrapCollectors++
