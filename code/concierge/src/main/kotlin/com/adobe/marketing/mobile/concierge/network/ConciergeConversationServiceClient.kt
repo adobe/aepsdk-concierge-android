@@ -80,8 +80,15 @@ internal interface ConversationService {
      * Requests voice session credentials. Emits at most one [VoiceSessionBootstrap] and completes
      * when the stream closes; completing without an emission means the bootstrap failed. Services
      * without voice support complete immediately.
+     *
+     * [xdmFields] is the held XDM context snapshot. The service keeps the bootstrap's `xdm` for the
+     * voice session and sends it with every voice turn, so later context updates don't reach a
+     * running voice session. Pass [sessionId] from the same resolution as the snapshot.
      */
-    fun bootstrapVoiceSession(sessionId: String? = null): Flow<VoiceSessionBootstrap> = emptyFlow()
+    fun bootstrapVoiceSession(
+        xdmFields: Map<String, Any> = emptyMap(),
+        sessionId: String? = null
+    ): Flow<VoiceSessionBootstrap> = emptyFlow()
     fun cleanup()
 }
 
@@ -215,7 +222,10 @@ internal class ConciergeConversationServiceClient(
      * `livekit_session` credentials it streams back, at most once. The flow completes when the
      * stream closes, so a stream that closes without credentials completes without an emission.
      */
-    override fun bootstrapVoiceSession(sessionId: String?): Flow<VoiceSessionBootstrap> {
+    override fun bootstrapVoiceSession(
+        xdmFields: Map<String, Any>,
+        sessionId: String?
+    ): Flow<VoiceSessionBootstrap> {
         val resolvedSessionId = sessionId ?: sessionManager.getSessionId()
         val generation = stateRepository.state.value.resetGeneration
         return flow {
@@ -226,7 +236,7 @@ internal class ConciergeConversationServiceClient(
                 prepareRequest = { state ->
                     createConversationServiceRequest(
                         endpoint(state, resolvedSessionId),
-                        createVoiceBootstrapRequestBody(state)
+                        createVoiceBootstrapRequestBody(state, xdmFields)
                     )
                 }
             ) { event ->
@@ -343,13 +353,14 @@ internal class ConciergeConversationServiceClient(
      * discriminator instead of a message, and `xdm.eventType` is `conversation.voice`. The service
      * needs both to treat the request as a bootstrap rather than a chat turn. No auth token is
      * attached: the `data` slot holds the discriminator, and the service identifies the user through
-     * the identityMap.
+     * the identityMap. The held XDM context in [xdmFields] goes into `xdm` as in a chat turn, and the
+     * SDK's `eventType` wins on collision.
      */
-    private fun createVoiceBootstrapRequestBody(state: ConciergeState): String =
+    private fun createVoiceBootstrapRequestBody(state: ConciergeState, xdmFields: Map<String, Any>): String =
         createConversationEventBody(
             state,
             listOf(""""data": {"type": "${ConciergeConstants.VoiceBootstrap.TYPE_LIVEKIT_BOOTSTRAP}"}"""),
-            mapOf(ConciergeConstants.VoiceBootstrap.XDM_EVENT_TYPE to ConciergeConstants.VoiceBootstrap.EVENT_TYPE_VOICE)
+            xdmFields + (ConciergeConstants.VoiceBootstrap.XDM_EVENT_TYPE to ConciergeConstants.VoiceBootstrap.EVENT_TYPE_VOICE)
         )
 
     /**
