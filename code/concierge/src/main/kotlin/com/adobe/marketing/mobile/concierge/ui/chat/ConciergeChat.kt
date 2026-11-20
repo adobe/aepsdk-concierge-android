@@ -18,10 +18,12 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,10 +44,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -158,7 +172,8 @@ fun ConciergeChat(
                 onDismissRequest = { viewModel.closeConcierge() },
                 properties = DialogProperties(
                     dismissOnBackPress = true,
-                    dismissOnClickOutside = false
+                    dismissOnClickOutside = false,
+                    decorFitsSystemWindows = false
                 )
             ) {
                 val parentView = LocalView.current.parent as View
@@ -316,6 +331,7 @@ fun ConciergeChat(
 }
 
 @Composable
+@OptIn(ExperimentalComposeUiApi::class)
 internal fun ConciergeChat(
     modifier: Modifier = Modifier,
     messages: List<ChatMessage>,
@@ -335,7 +351,31 @@ internal fun ConciergeChat(
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
-    val interactionSource = remember { MutableInteractionSource() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val modalFocusRequester = remember { FocusRequester() }
+    val inputModeManager = LocalInputModeManager.current
+    val modalFeedback = chatState.feedback.takeUnless {
+        ConciergeTheme.behavior?.feedback?.displayMode == FeedbackDisplayMode.ACTION
+    }
+    var modalHasFocus by remember(modalFeedback != null) { mutableStateOf(false) }
+    DisposableEffect(modalFeedback != null) {
+        if (modalFeedback != null) {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+        onDispose {}
+    }
+    LaunchedEffect(modalFeedback != null, inputModeManager.inputMode) {
+        if (modalFeedback != null && inputModeManager.inputMode == InputMode.Keyboard && !modalHasFocus) {
+            modalFocusRequester.requestFocus()
+        }
+    }
+    if (LocalOnBackPressedDispatcherOwner.current != null) {
+        BackHandler(enabled = modalFeedback != null) {
+            focusManager.clearFocus(force = true)
+            onEvent(FeedbackEvent.DismissFeedbackDialog)
+        }
+    }
     
     // Derive UI state from ChatScreenState
     val isProcessing = identityResetInProgress || chatState is ChatScreenState.Processing
@@ -347,15 +387,28 @@ internal fun ConciergeChat(
             .statusBarsPadding()
             .navigationBarsPadding()
             .imePadding()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null
-            ) {
-                focusManager.clearFocus()
+            .pointerInput(focusManager) {
+                detectTapGestures { focusManager.clearFocus() }
             }
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
+                // Keep the boundary stable and redirect nested lazy-list focus into the modal.
+                .focusProperties {
+                    enter = {
+                        if (modalFeedback != null) modalFocusRequester else FocusRequester.Default
+                    }
+                }
+                .focusGroup()
+                .then(
+                    if (modalFeedback != null) {
+                        Modifier
+                            .blur(16.dp)
+                            .clearAndSetSemantics {}
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             ChatHeader(
                 onClose = onClose
@@ -442,21 +495,40 @@ internal fun ConciergeChat(
         }
 
         // Feedback dialog overlay (modal mode; bottom sheet is rendered at outer composable level)
-        if (ConciergeTheme.behavior?.feedback?.displayMode != FeedbackDisplayMode.ACTION) {
-            chatState.feedback?.let { feedback ->
-                FeedbackDialog(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center),
-                    feedback = feedback,
-                    onDismiss = {
-                        onEvent(FeedbackEvent.DismissFeedbackDialog)
-                    },
-                    onSubmit = { submittedFeedback ->
-                        onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+        modalFeedback?.let { feedback ->
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            style.backgroundColor.copy(alpha = 0.35f)
+                        } else {
+                            Color.Black.copy(alpha = 0.32f)
+                        }
+                    )
+                    .clearAndSetSemantics {}
+                    .pointerInput(focusManager, keyboardController) {
+                        detectTapGestures {
+                            focusManager.clearFocus(force = true)
+                            keyboardController?.hide()
+                        }
                     }
-                )
-            }
+            )
+            FeedbackDialog(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center)
+                    .focusRequester(modalFocusRequester)
+                    .onFocusChanged { modalHasFocus = it.hasFocus }
+                    .focusGroup(),
+                feedback = feedback,
+                onDismiss = {
+                    onEvent(FeedbackEvent.DismissFeedbackDialog)
+                },
+                onSubmit = { submittedFeedback ->
+                    onEvent(FeedbackEvent.SubmitFeedback(submittedFeedback))
+                }
+            )
         }
     }
 }

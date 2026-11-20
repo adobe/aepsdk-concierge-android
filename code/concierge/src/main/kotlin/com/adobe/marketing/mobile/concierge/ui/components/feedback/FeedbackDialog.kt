@@ -25,6 +25,7 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -375,23 +376,27 @@ private fun FeedbackDialogCard(
 ) {
     val style = ConciergeStyles.feedbackDialogStyle
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(style.padding),
-        colors = CardDefaults.cardColors(containerColor = style.backgroundColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
-        shape = style.shape
-    ) {
-        FeedbackCardContent(
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // Reserve an editable row and the action row before allocating vertical padding.
+        val paddingBudget = ((maxHeight - 56.dp - 48.dp) / 4).coerceAtLeast(0.dp)
+        val verticalPadding = minOf(style.contentPadding, paddingBudget)
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(style.contentPadding)
-                .verticalScroll(rememberScrollState()),
-            feedback = feedback,
-            onDismiss = onDismiss,
-            onSubmit = onSubmit
-        )
+                .padding(horizontal = style.padding, vertical = minOf(style.padding, paddingBudget)),
+            colors = CardDefaults.cardColors(containerColor = style.backgroundColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = style.elevation),
+            shape = style.shape
+        ) {
+            FeedbackCardContent(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = style.contentPadding, vertical = verticalPadding),
+                feedback = feedback,
+                onDismiss = onDismiss,
+                onSubmit = onSubmit
+            )
+        }
     }
 }
 
@@ -420,84 +425,96 @@ private fun FeedbackCardContent(
     var notesText by remember { mutableStateOf("") }
 
     Column(modifier = modifier) {
-        FeedbackTitleRow(
-            titleText = titleText,
-            showCloseButton = showCloseButton,
-            onDismiss = onDismiss,
-            style = style
-        )
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+        ) {
+            FeedbackTitleRow(
+                titleText = titleText,
+                showCloseButton = showCloseButton,
+                onDismiss = {
+                    focusManager.clearFocus()
+                    onDismiss()
+                },
+                style = style
+            )
 
-        Spacer(modifier = Modifier.height(style.titleSpacing))
-
-        Text(
-            text = questionText,
-            style = style.questionStyle,
-            color = style.questionColor,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(style.questionSpacing))
-
-        CategoryCheckboxList(
-            categories = categories,
-            selectedCategories = selectedCategories,
-            onToggle = { category ->
-                selectedCategories = if (category in selectedCategories) {
-                    selectedCategories - category
-                } else {
-                    selectedCategories + category
-                }
-            },
-            style = style
-        )
-
-        if (showNotes) {
-            Spacer(modifier = Modifier.height(style.categoriesNotesSpacing))
+            Spacer(modifier = Modifier.height(style.titleSpacing))
 
             Text(
-                text = themeText?.feedbackDialogNotes ?: "Notes",
-                style = style.notesLabelStyle,
-                color = style.notesLabelColor,
+                text = questionText,
+                style = style.questionStyle,
+                color = style.questionColor,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(style.notesLabelSpacing))
+            Spacer(modifier = Modifier.height(style.questionSpacing))
 
-            OutlinedTextField(
-                value = notesText,
-                onValueChange = { notesText = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
-                        style = style.notesPlaceholderStyle,
-                        color = style.notesPlaceholderColor
-                    )
+            CategoryCheckboxList(
+                categories = categories,
+                selectedCategories = selectedCategories,
+                onToggle = { category ->
+                    selectedCategories = if (category in selectedCategories) {
+                        selectedCategories - category
+                    } else {
+                        selectedCategories + category
+                    }
                 },
-                shape = style.checkboxShape,
-                colors = OutlinedTextFieldDefaults.colors(
-                    // Notes fill matches the sheet/card surface.
-                    focusedContainerColor = style.backgroundColor,
-                    unfocusedContainerColor = style.backgroundColor,
-                    // Notes outline matches the checkbox outline when themed.
-                    focusedBorderColor = style.textFieldBorderColor,
-                    unfocusedBorderColor = style.textFieldBorderColor,
-                    focusedTextColor = style.textFieldTextColor,
-                    unfocusedTextColor = style.textFieldTextColor
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                maxLines = 3
+                style = style
             )
-        }
 
-        Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
+            if (showNotes) {
+                Spacer(modifier = Modifier.height(style.categoriesNotesSpacing))
+
+                Text(
+                    text = themeText?.feedbackDialogNotes ?: "Notes",
+                    style = style.notesLabelStyle,
+                    color = style.notesLabelColor,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(style.notesLabelSpacing))
+
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = { notesText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = themeText?.feedbackDialogNotesPlaceholder ?: "Add any additional comments...",
+                            style = style.notesPlaceholderStyle,
+                            color = style.notesPlaceholderColor
+                        )
+                    },
+                    shape = style.checkboxShape,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        // Notes fill matches the sheet/card surface.
+                        focusedContainerColor = style.backgroundColor,
+                        unfocusedContainerColor = style.backgroundColor,
+                        // Notes outline matches the checkbox outline when themed.
+                        focusedBorderColor = style.textFieldBorderColor,
+                        unfocusedBorderColor = style.textFieldBorderColor,
+                        focusedTextColor = style.textFieldTextColor,
+                        unfocusedTextColor = style.textFieldTextColor
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    maxLines = 3
+                )
+            }
+            Spacer(modifier = Modifier.height(style.notesButtonsSpacing))
+        }
 
         FeedbackActionButtons(
             showCancelButton = showCancelButton,
             submitEnabled = selectedCategories.isNotEmpty() || (showNotes && notesText.isNotBlank()),
-            onCancel = onDismiss,
+            onCancel = {
+                focusManager.clearFocus()
+                onDismiss()
+            },
             onSubmit = {
+                focusManager.clearFocus()
                 onSubmit(
                     feedback.copy(
                         selectedCategories = selectedCategories.toList(),

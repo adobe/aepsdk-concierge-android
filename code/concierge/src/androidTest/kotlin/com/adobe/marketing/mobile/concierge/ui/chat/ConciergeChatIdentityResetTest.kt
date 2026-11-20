@@ -5,16 +5,24 @@
 package com.adobe.marketing.mobile.concierge.ui.chat
 
 import android.app.Application
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.graphics.Rect
+import android.graphics.Point
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.Bundle
+import android.os.Build
 import android.os.SystemClock
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inspector.WindowInspector
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -24,11 +32,14 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.network.ConversationService
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
+import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.network.ParsedConversationMessage
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeTheme
+import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeThemeData
+import com.adobe.marketing.mobile.concierge.ui.theme.ThemeParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
@@ -53,6 +64,7 @@ class ConciergeChatIdentityResetTest {
     private lateinit var vm: ConciergeChatViewModel
     private lateinit var request: Event
     private var originalAccessibilityFlags = 0
+    private val feedbackTheme = mutableStateOf<ConciergeThemeData?>(null)
 
     @Before
     fun setup() {
@@ -75,15 +87,208 @@ class ConciergeChatIdentityResetTest {
                 dispatch = events::add
             )
             store.put("chat", vm)
-            activity.setContent {
-                ConciergeTheme {
-                    ConciergeChat(viewModel = vm, surfaces = listOf("web://example.com")) { show ->
-                        Button(onClick = show) { Text("Open test chat") }
-                    }
+            setChatContent(activity)
+        }
+        await("rendered production host trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+    }
+
+    private fun setChatContent(activity: ComponentActivity) {
+        activity.setContent {
+            ConciergeTheme(theme = feedbackTheme.value) {
+                ConciergeChat(viewModel = vm, surfaces = listOf("web://example.com")) { show ->
+                    Button(onClick = show) { Text("Open test chat") }
                 }
             }
         }
-        await("rendered production host trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+    }
+
+    @Test
+    fun productionDialog_portraitFillsDisplayBeforeAndAfterFeedback() {
+        verifyFullscreenChat(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, Configuration.ORIENTATION_PORTRAIT)
+    }
+
+    @Test
+    fun productionDialog_landscapeFillsDisplayBeforeAndAfterFeedback() {
+        verifyFullscreenChat(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, Configuration.ORIENTATION_LANDSCAPE)
+    }
+
+    private fun setOrientation(requested: Int, expected: Int) {
+        scenario.onActivity { it.requestedOrientation = requested }
+        await("activity orientation $expected") {
+            var orientation = Configuration.ORIENTATION_UNDEFINED
+            scenario.onActivity { orientation = it.resources.configuration.orientation }
+            orientation == expected
+        }
+        scenario.onActivity { setChatContent(it) }
+        await("remounted host trigger") { nativeNode { it.text?.toString() == "Open test chat" } != null }
+    }
+
+    private fun verifyFullscreenChat(requested: Int, expected: Int) {
+        setOrientation(requested, expected)
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        val root = dialogRoots().single()
+        assertFullscreenDialog(root)
+        await("chat composer") { composer() != null }
+        clickNative { it.isEditable }
+        await("composer keyboard") {
+            ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        }
+        instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        await("dismissed composer keyboard") {
+            ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == false
+        }
+        assertFullscreenDialog(root)
+        for (mode in listOf("modal", "action")) {
+            setFeedbackTheme(mode)
+            scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+            await("$mode feedback") { nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null }
+            assertFullscreenDialog(root)
+            clickNative { it.contentDescription?.toString() == "Close" }
+            await("dismissed $mode feedback") { vm.state.value.feedback == null && dialogRoots().size == 1 }
+            assertSame(root, dialogRoots().single())
+            assertFullscreenDialog(root)
+            assertTrue(vm.isConciergeActive.value)
+        }
+        clickNative { it.contentDescription?.toString() == "Close chat" }
+        await("closed chat") { dialogRoots().isEmpty() && !vm.isConciergeActive.value }
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("reopened chat") { dialogRoots().size == 1 }
+        assertFullscreenDialog(dialogRoots().single())
+    }
+
+    @Suppress("DEPRECATION")
+    private fun assertFullscreenDialog(root: View) {
+        val displaySize = Point()
+        scenario.onActivity { root.display.getRealSize(displaySize) }
+        val expected = Rect(0, 0, displaySize.x, displaySize.y)
+        // Cutout-safe window bounds still include system-bar areas.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            root.display.cutout?.let {
+                expected.inset(it.safeInsetLeft, it.safeInsetTop, it.safeInsetRight, it.safeInsetBottom)
+            }
+        }
+        val actual = Rect()
+        await("full-screen dialog bounds $expected", diagnostics = { "actual=$actual" }) {
+            scenario.onActivity {
+                val location = IntArray(2)
+                root.getLocationOnScreen(location)
+                actual.set(location[0], location[1], location[0] + root.width, location[1] + root.height)
+            }
+            actual == expected
+        }
+        assertEquals(expected, actual)
+    }
+
+    @Test
+    fun modalFeedback_productionDialog_landscapeKeyboardKeepsEditorAndActionsVisible() {
+        setOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE, Configuration.ORIENTATION_LANDSCAPE)
+        setFeedbackTheme("modal", extraJson = ""","components":{"feedback":{"negativeNotesEnabled":true}}""")
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+        await("feedback modal") { nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null }
+        await("notes editor") {
+            if (nativeNode { it.isEditable } == null) {
+                nativeNode { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                false
+            } else true
+        }
+        clickNative { it.isEditable }
+        await("dialog keyboard") {
+            ViewCompat.getRootWindowInsets(dialogRoots().single())?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        }
+        await("notes editor after landscape resize") {
+            val editor = nativeNode { it.isEditable }
+            if (editor == null) {
+                nativeNode { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                false
+            } else true
+        }
+        val notes = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Landscape notes")
+        }
+        assertTrue(requireNotNull(nativeNode { it.isEditable }).performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, notes))
+        await("landscape notes") { nativeNode { it.isEditable }?.text?.toString() == "Landscape notes" }
+        val visible = Rect()
+        val root = dialogRoots().single()
+        await("resized landscape form and actions above the keyboard") {
+            scenario.onActivity { root.getWindowVisibleDisplayFrame(visible) }
+            val actionsVisible = listOf("Submit", "Cancel").all { label ->
+                var button = nativeNode { it.text?.toString() == label } ?: return@all false
+                while (!button.isClickable) button = button.parent ?: return@all false
+                val bounds = Rect()
+                button.getBoundsInScreen(bounds)
+                visible.contains(bounds)
+            }
+            val editor = Rect()
+            val field = nativeNode { it.isEditable }
+            field?.getBoundsInScreen(editor)
+            actionsVisible && field != null && visible.contains(editor) &&
+                editor.height() >= 48 * instrumentation.targetContext.resources.displayMetrics.density
+        }
+        for (label in listOf("Submit", "Cancel")) {
+            val bounds = Rect()
+            var button = requireNotNull(nativeNode { it.text?.toString() == label })
+            while (!button.isClickable) button = requireNotNull(button.parent)
+            button.getBoundsInScreen(bounds)
+            assertTrue("$label must fit the production landscape dialog: $bounds, visible=$visible", visible.contains(bounds))
+        }
+        val editor = Rect()
+        requireNotNull(nativeNode { it.isEditable }).getBoundsInScreen(editor)
+        assertTrue("Notes must fit the production landscape dialog: $editor, visible=$visible", visible.contains(editor))
+        val density = instrumentation.targetContext.resources.displayMetrics.density
+        assertTrue("Landscape Notes must remain usable: $editor", editor.height() >= 48 * density)
+        val form = Rect()
+        requireNotNull(nativeNode { it.isScrollable }).getBoundsInScreen(form)
+        assertTrue("Landscape IME must exercise a compact usable form: $form",
+            form.height() >= 48 * density && form.height() <= 200 * density)
+        clickNative { it.text?.toString() == "Cancel" }
+        await("closed landscape feedback and keyboard") {
+            vm.state.value.feedback == null &&
+                ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == false
+        }
+        assertTrue(vm.isConciergeActive.value)
+    }
+
+    @Test
+    fun actionFeedback_rendersRealSheetAndDismissesWithoutClosingChat() {
+        setFeedbackTheme("action")
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+        await("real action sheet") {
+            dialogRoots().size == 2 && nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null
+        }
+        assertTrue(composer() == null)
+        clickNative { it.contentDescription?.toString() == "Close" }
+        await("dismissed sheet with chat retained") { dialogRoots().size == 1 && vm.state.value.feedback == null }
+        assertTrue(vm.isConciergeActive.value)
+    }
+
+    @Test
+    fun modalFeedback_backDismissesFeedbackWhenCancelAndCloseAreHidden() {
+        setFeedbackTheme("modal", hideDismissButtons = true)
+        clickNative { it.text?.toString() == "Open test chat" }
+        await("chat dialog") { dialogRoots().size == 1 }
+        scenario.onActivity { vm.processEvent(FeedbackEvent.ThumbsDown("test-id")) }
+        await("feedback modal") { nativeNode { it.text?.toString() == "Your feedback is appreciated" } != null }
+        assertTrue(nativeNode { it.text?.toString() == "Cancel" } == null)
+        instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        await("feedback dismissed without closing chat") { vm.state.value.feedback == null }
+        assertTrue(vm.isConciergeActive.value)
+        assertEquals(1, dialogRoots().size)
+    }
+
+    private fun setFeedbackTheme(mode: String, hideDismissButtons: Boolean = false, extraJson: String = "") {
+        val json = """{"behavior":{"feedback":{"displayMode":"$mode","showCancelButton":${!hideDismissButtons},"showCloseButton":${!hideDismissButtons}}}$extraJson}"""
+        scenario.onActivity {
+            feedbackTheme.value = ConciergeThemeData(
+                config = requireNotNull(ThemeParser.parseThemeJson(json)),
+                tokens = requireNotNull(ThemeParser.parseThemeTokens(json))
+            )
+        }
+        instrumentation.waitForIdleSync()
     }
 
     @After
@@ -177,6 +382,7 @@ class ConciergeChatIdentityResetTest {
     }
 
     private fun findNode(root: AccessibilityNodeInfo, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
+        if (!root.refresh()) return null
         if (predicate(root)) return root
         for (index in 0 until root.childCount) {
             val child = root.getChild(index) ?: continue
@@ -194,14 +400,14 @@ class ConciergeChatIdentityResetTest {
         assertTrue("Native click rejected: $clickable", clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK))
     }
 
-    private fun await(description: String, condition: () -> Boolean) {
+    private fun await(description: String, diagnostics: () -> String = { "" }, condition: () -> Boolean) {
         val deadline = SystemClock.elapsedRealtime() + 5_000
         do {
             instrumentation.waitForIdleSync()
             if (condition()) return
             SystemClock.sleep(25)
         } while (SystemClock.elapsedRealtime() < deadline)
-        fail("Timed out waiting for $description; dialog roots=${dialogRoots().size}, composer=${composer()?.node}")
+        fail("Timed out waiting for $description; ${diagnostics()}; dialog roots=${dialogRoots().size}, composer=${composer()?.node}")
     }
 
     private fun assertTracking(opened: Int, closed: Int) {
