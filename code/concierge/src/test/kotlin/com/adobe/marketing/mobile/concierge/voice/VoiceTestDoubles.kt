@@ -14,6 +14,7 @@ package com.adobe.marketing.mobile.concierge.voice
 
 import android.os.Looper
 import com.adobe.marketing.mobile.concierge.VoiceConnection
+import com.adobe.marketing.mobile.concierge.VoiceSendCallback
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
@@ -28,6 +29,10 @@ internal class FakeVoiceTransport(
     var connectError: Exception? = null,
     /** Thrown by [setMicrophoneEnabled] after it records the change. */
     var microphoneError: Exception? = null,
+    /** Thrown by [send] after it records the message. */
+    var sendError: Exception? = null,
+    /** When true, [send] completes the callback before it returns; otherwise call [completeSend]. */
+    var sendCompletesImmediately: Boolean = true,
     override var continuesInBackground: Boolean = false
 ) : VoiceTransport {
 
@@ -36,6 +41,10 @@ internal class FakeVoiceTransport(
     val microphoneChanges = mutableListOf<Boolean>()
     var disconnectCount = 0
         private set
+
+    /** Each message the session sent, with its topic. */
+    val sent = mutableListOf<Pair<String, String>>()
+    private val pendingSends = mutableListOf<VoiceSendCallback>()
 
     /** The listener held when [disconnect] was last called. */
     var listenerAtDisconnect: VoiceTransportListener? = null
@@ -52,6 +61,17 @@ internal class FakeVoiceTransport(
         microphoneError?.let { throw it }
     }
 
+    override fun send(data: ByteArray, topic: String, callback: VoiceSendCallback) {
+        sent += String(data, Charsets.UTF_8) to topic
+        sendError?.let { throw it }
+        if (sendCompletesImmediately) callback.onComplete(null) else pendingSends += callback
+    }
+
+    /** Completes the oldest send still waiting, with [error] or as delivered. */
+    fun completeSend(error: Throwable? = null) {
+        pendingSends.removeAt(0).onComplete(error)
+    }
+
     override fun disconnect() {
         disconnectCount++
         listenerAtDisconnect = listener
@@ -61,7 +81,8 @@ internal class FakeVoiceTransport(
         listener?.onStateChanged(this, state)
     }
 
-    fun send(json: String) {
+    /** Delivers [json] as a data message from the voice agent. */
+    fun receive(json: String) {
         listener?.onDataReceived(this, json.toByteArray(), null)
     }
 

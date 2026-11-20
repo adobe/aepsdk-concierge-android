@@ -32,6 +32,14 @@ internal interface VoiceSession {
     fun start(url: String, token: String)
 
     /**
+     * Sends [text] to the voice agent as the user's next turn, as if they had said it, and reports
+     * it as the user's final transcript right away. Returns false, sending nothing, when the text
+     * is blank, the conversation is not [VoiceSessionState.Listening], or a user turn is waiting
+     * for the agent to start replying. Call on the main thread.
+     */
+    fun sendText(text: String): Boolean
+
+    /**
      * Ends the session; the end is reported as [VoiceSessionState.Ended]. Calling it again, or
      * after the session has already ended or failed, has no effect.
      */

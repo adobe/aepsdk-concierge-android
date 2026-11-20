@@ -921,8 +921,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handleWelcomePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Welcome Prompt suggestion clicked: $suggestion")
         dispatchTrackingEvent(ConciergeTrackingEvent.WelcomePromptSuggestionClicked(suggestion))
-        // Auto-send the suggestion as a message
-        handleSendMessage(suggestion)
+        sendPromptSuggestion(suggestion)
     }
 
     /**
@@ -950,8 +949,47 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun handlePromptSuggestionClick(suggestion: String) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion clicked: $suggestion")
         dispatchTrackingEvent(ConciergeTrackingEvent.PromptSuggestionClicked(suggestion))
-        // Auto-send the suggestion as a message
-        handleSendMessage(suggestion)
+        sendPromptSuggestion(suggestion)
+    }
+
+    /**
+     * Sends a tapped prompt suggestion. During a voice conversation it goes to the voice agent as
+     * the user's next turn, like on web; otherwise it is sent as a typed message.
+     */
+    private fun sendPromptSuggestion(suggestion: String) {
+        val run = activeVoice ?: return handleSendMessage(suggestion)
+        if (stateRepository.state.value.resetInProgress) {
+            Log.warning(ConciergeConstants.EXTENSION_NAME, TAG, "Prompt suggestion rejected while identity reset is pending.")
+            return
+        }
+        if (run.session?.sendText(suggestion) != true) {
+            Log.warning(
+                ConciergeConstants.EXTENSION_NAME,
+                TAG,
+                "Prompt suggestion ignored. The voice conversation is connecting or a turn is waiting for its reply."
+            )
+            return
+        }
+        trackVoiceQuery(suggestion.trim())
+    }
+
+    /** Tracks a query sent to the voice agent as typed chat tracks one, with the held XDM context. */
+    private fun trackVoiceQuery(query: String) {
+        val contextSnapshot = stateRepository.captureXDMContext()
+        viewModelScope.launch {
+            try {
+                val sessionId = withContext(sessionDispatcher) {
+                    stateRepository.withConversation(contextSnapshot.generation) { sessionManager.getSessionId() }
+                }
+                stateRepository.withConversation(contextSnapshot.generation) {
+                    val xdmFields = stateRepository.resolveXDMContext(contextSnapshot, sessionId)
+                    dispatchTrackingEvent(ConciergeTrackingEvent.QuerySubmitted(query, xdmFields))
+                }
+            } catch (e: CancellationException) {
+                // An identity reset discards the query's tracking along with the conversation.
+                if (!isActive) throw e
+            }
+        }
     }
 
     /**

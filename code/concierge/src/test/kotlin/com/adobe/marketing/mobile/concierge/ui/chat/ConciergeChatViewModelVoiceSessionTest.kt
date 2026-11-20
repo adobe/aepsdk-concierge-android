@@ -40,6 +40,7 @@ import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
+import com.adobe.marketing.mobile.concierge.ui.state.MessageInteractionEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MicEvent
 import com.adobe.marketing.mobile.concierge.ui.state.UserInputState
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
@@ -650,6 +651,72 @@ class ConciergeChatViewModelVoiceSessionTest {
 
         assertEquals(listOf(false to "Welcome back"), vm.texts())
         assertEquals(0, vm.voiceScrollAnchorIndex.value)
+    }
+
+    // MARK: - Prompt suggestions
+
+    @Test
+    fun `suggestion taps during voice go to the voice agent and are tracked as queries, not streamed`() =
+        runTest(testDispatcher) {
+            listOf(
+                MessageInteractionEvent.PromptSuggestionClick(" Red ones ") to
+                    ConciergeConstants.TrackingEvent.Name.PROMPT_SUGGESTION_CLICKED,
+                MessageInteractionEvent.WelcomePromptSuggestionClick(" Red ones ") to
+                    ConciergeConstants.TrackingEvent.Name.WELCOME_PROMPT_SUGGESTION_CLICKED
+            ).forEach { (tap, clickEvent) ->
+                val vm = makeViewModel()
+                val session = startConnectedSession(vm)
+                repository.updateXDMContext(mapOf("loyalty" to mapOf("tier" to "gold")))
+                dispatched.clear()
+
+                vm.processEvent(tap)
+                runCurrent()
+
+                assertEquals(listOf(" Red ones "), session.sentTexts)
+                assertTrue(service.chatMessages.isEmpty())
+                assertTrue(vm.state.value is ChatScreenState.VoiceSession)
+                assertTrue("the composer is left alone", vm.inputState.value is UserInputState.Empty)
+                assertEquals(listOf(clickEvent, ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED), trackedEventNames())
+                val query = dispatched.last().eventData
+                assertEquals("Red ones", query?.get(ConciergeConstants.TrackingEvent.EventData.Key.QUERY))
+                assertEquals(
+                    mapOf("tier" to "gold"),
+                    (query?.get(ConciergeConstants.TrackingEvent.EventData.Key.XDM_FIELDS) as? Map<*, *>)?.get("loyalty")
+                )
+                session.report(VoiceSessionState.Ended)
+            }
+        }
+
+    @Test
+    fun `suggestion taps the voice session refuses, or before it exists, are dropped`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        vm.startVoiceSession()
+        runCurrent()
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Red ones"))
+        service.emitBootstrap()
+        runCurrent()
+        val session = requireNotNull(factory.lastSession)
+        session.acceptsText = false
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Blue ones"))
+        runCurrent()
+
+        assertEquals(listOf("Blue ones"), session.sentTexts)
+        assertTrue(service.chatMessages.isEmpty())
+        assertFalse(trackedEventNames().contains(ConciergeConstants.TrackingEvent.Name.QUERY_SUBMITTED))
+        assertTrue(vm.isVoiceSessionActive.value)
+    }
+
+    @Test
+    fun `suggestion taps after voice ends stream like a typed message`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+        session.report(VoiceSessionState.Ended)
+
+        vm.processEvent(MessageInteractionEvent.PromptSuggestionClick("Red ones"))
+        runCurrent()
+
+        assertEquals(listOf("Red ones"), service.chatMessages)
+        assertTrue(session.sentTexts.isEmpty())
     }
 
     // MARK: - Session end

@@ -68,9 +68,20 @@ internal class FakeVoiceSession(
     var stopCallCount = 0
         private set
 
+    /** Each text passed to [sendText]. */
+    val sentTexts = mutableListOf<String>()
+
+    /** What [sendText] returns. */
+    var acceptsText = true
+
     override fun start(url: String, token: String) {
         connection = url to token
         onStart(this)
+    }
+
+    override fun sendText(text: String): Boolean {
+        sentTexts += text
+        return acceptsText
     }
 
     override fun stop() {

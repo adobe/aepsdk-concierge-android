@@ -21,6 +21,9 @@ import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
 import com.adobe.marketing.mobile.services.Log
+import org.json.JSONObject
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * One voice conversation over the app's [VoiceTransport]: the microphone permission check, the
@@ -146,6 +149,62 @@ internal class VoiceSessionController(
 
     override fun stop() {
         onMain { finish(VoiceSessionState.Ended) }
+    }
+
+    /**
+     * Whether [sendText] can start a turn now: the conversation is connected, and no user turn is
+     * waiting for the agent to start replying. Mirrors web, which holds text back from the start
+     * of the user's speech until the reply starts, and while reconnecting. Read on main.
+     */
+    private val canSendText: Boolean
+        get() {
+            if (!holdsTransport || currentState != VoiceSessionState.Listening) return false
+            val current = turn ?: return true
+            return current.replyStarted
+        }
+
+    override fun sendText(text: String): Boolean {
+        val trimmed = text.trim()
+        if (!canSendText || trimmed.isEmpty()) return false
+        val turnId = "txt-" + UUID.randomUUID().toString().lowercase()
+        val data = JSONObject()
+            .put("type", "text_prompt")
+            .put("turn_id", turnId)
+            .put("text", trimmed)
+            .toString()
+            .toByteArray(Charsets.UTF_8)
+
+        beginTurn(null)
+        turn?.apply {
+            textTurnId = turnId
+            echoText = trimmed
+            userFinal = true
+        }
+        emit(VoiceTranscriptRole.USER, trimmed, true)
+
+        // Only the first outcome counts, so a repeated callback can't fail a delivered prompt. A
+        // failure is always handled later on main, after this method has returned.
+        val completed = AtomicBoolean(false)
+        val onSendFailed = { error: Throwable ->
+            if (completed.compareAndSet(false, true)) {
+                mainHandler.post { handleSendFailure(turnId, error) }
+            }
+        }
+        try {
+            transport.send(data, TEXT_INPUT_TOPIC) { error ->
+                if (error == null) completed.set(true) else onSendFailed(error)
+            }
+        } catch (e: Exception) {
+            onSendFailed(e)
+        }
+        return true
+    }
+
+    private fun handleSendFailure(turnId: String, error: Throwable) {
+        Log.warning(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Could not send a text prompt to the voice agent.")
+        logTransportError("send", error)
+        if (!isActive || turn?.textTurnId != turnId) return
+        finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.MESSAGE_SEND_FAILED))
     }
 
     private fun begin(url: String, token: String) {
@@ -345,7 +404,8 @@ internal class VoiceSessionController(
                 val notice = message.data
                 if (notice is SessionNoticeData.SessionEnded) handleSessionEnded(notice.reason)
             }
-            is DataChannelMessage.TextInputError, is DataChannelMessage.StateUpdate -> Unit
+            is DataChannelMessage.TextInputError -> handleTextInputError(message.data)
+            is DataChannelMessage.StateUpdate -> Unit
         }
     }
 
@@ -357,12 +417,26 @@ internal class VoiceSessionController(
         /** The worker's turn id, null until a message for the turn carries one. */
         var id: String?
     ) {
+        /** The `turn_id` sent with the text prompt that started the turn, if text started it. */
+        var textTurnId: String? = null
+
+        /** The prompt's text, until the worker echoes it back as the user's transcript. */
+        var echoText: String? = null
         var userFinal = false
         var replyStarted = false
     }
 
     private fun handleUserTranscript(delta: TranscriptDeltaData) {
-        if (delta.delta.isNotBlank()) {
+        val text = delta.delta.trim()
+        val echoing = turn
+        if (delta.final && echoing?.echoText != null && text == echoing.echoText) {
+            // The worker's echo of the text prompt carries the worker's id for the turn. The user's
+            // bubble is already shown.
+            echoing.echoText = null
+            if (echoing.id == null) echoing.id = delta.turnId
+            return
+        }
+        if (text.isNotEmpty()) {
             val id = delta.turnId
             if (id != null && id in closedTurnIds) {
                 Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a user transcript for a turn that already ended.")
@@ -370,6 +444,12 @@ internal class VoiceSessionController(
             }
             val current = turn
             if (startsNewTurn(id)) {
+                if (current != null && current.textTurnId != null && current.echoText != null && !current.replyStarted) {
+                    // The user spoke before the worker took the text prompt. The worker rejects a
+                    // prompt once the user is speaking, and its text_input_error would arrive after
+                    // this turn was replaced, so fail the prompt now.
+                    finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.TURN_FAILED))
+                }
                 beginTurn(id)
             } else if (current != null && current.id == null) {
                 current.id = id
@@ -394,6 +474,23 @@ internal class VoiceSessionController(
         val text = pendingAssistantText.toString()
         if (delta.final) pendingAssistantText.setLength(0)
         emit(VoiceTranscriptRole.ASSISTANT, text, delta.final)
+    }
+
+    /**
+     * The worker rejected a text prompt, for example because the user started speaking. Fails the
+     * prompt's turn unless the reply already started or a newer turn replaced it.
+     */
+    private fun handleTextInputError(error: TextInputErrorData) {
+        val current = turn
+        val textTurnId = current?.textTurnId
+        if (current == null || textTurnId == null || current.replyStarted ||
+            (error.turnId != null && error.turnId != textTurnId)
+        ) {
+            Log.trace(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "Dropped a text_input_error for a turn that is not in flight.")
+            return
+        }
+        Log.debug(ConciergeConstants.EXTENSION_NAME, SELF_TAG, "The voice agent rejected a text prompt (%s).", error.reason)
+        finishTurn(VoiceTurnResult.Outcome.Failed(VoiceTurnFailure.TURN_FAILED))
     }
 
     /**
@@ -492,6 +589,9 @@ internal class VoiceSessionController(
 
         /** How long a conversation may last from its first `Connected` before it ends normally. */
         const val MAX_SESSION_MILLIS = 60 * 60_000L
+
+        /** The topic the voice agent reads text prompts from. */
+        const val TEXT_INPUT_TOPIC = "bc-text-input"
 
         private const val SELF_TAG = "VoiceSessionController"
         /** Encrypted schemes only: the access token travels on this connection. */
