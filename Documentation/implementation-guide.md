@@ -419,7 +419,8 @@ The transport, and therefore LiveKit, owns audio focus, audio routing and audio 
 
 #### Limitations
 
-- **No authentication token or XDM context.** Brand Concierge doesn't send the token from `Concierge.setAuthTokenProvider` or the context from `Concierge.updateXDMContext(...)` when it starts a voice conversation, so the voice agent works without them. Typed and dictated messages in the same chat still include them.
+- **No authentication token.** Brand Concierge doesn't send the token from `Concierge.setAuthTokenProvider` when it starts a voice conversation, so the voice agent works without it. Typed and dictated messages in the same chat still include it.
+- **XDM context is captured once.** A voice conversation uses the context from `Concierge.updateXDMContext(...)` as it was when the conversation started. Updates made during the conversation apply from the next voice conversation or typed message. See [XDM context](#xdm-context).
 - **Language.** The app doesn't send a locale with voice; the agent speaks the language set for your Brand Concierge.
 - **Voice UI text is English** and not configurable: the voice button's accessibility labels ("Start voice conversation", "Stop voice conversation") and the microphone permission rationale.
 - **Network.** Voice uses WebRTC (UDP, with TCP and TLS fallback) in addition to the HTTPS chat requests. Networks that block it, such as some corporate or venue Wi-Fi, can prevent voice from connecting while text chat works. Test on the networks your users use.
