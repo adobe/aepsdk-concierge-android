@@ -18,6 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.adobe.marketing.mobile.concierge.VoiceConnection
+import com.adobe.marketing.mobile.concierge.VoiceSendCallback
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.VoiceTransportListener
 import com.adobe.marketing.mobile.concierge.VoiceTransportState
@@ -30,6 +31,7 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.participant.AudioTrackPublishDefaults
+import io.livekit.android.room.track.DataPublishReliability
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -176,6 +178,28 @@ class LiveKitTransport(context: Context) : VoiceTransport {
                     fail(error)
                 }
             }
+        }
+    }
+
+    override fun send(data: ByteArray, topic: String, callback: VoiceSendCallback) {
+        val currentRoom = room
+        val currentScope = scope
+        if (currentRoom == null || currentScope == null) {
+            callback.onComplete(IllegalStateException("The voice room is not connected."))
+            return
+        }
+        currentScope.launch {
+            val error = try {
+                currentRoom.localParticipant.publishData(data, DataPublishReliability.RELIABLE, topic).exceptionOrNull()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e
+            }
+            callback.onComplete(error)
+        }.invokeOnCompletion { cause ->
+            // A send cancelled by [disconnect] still completes, with the cancellation.
+            if (cause != null) callback.onComplete(cause)
         }
     }
 
