@@ -74,6 +74,9 @@ internal class VoiceSessionController(
     /** The in-flight turn's latest UI payload. Each one is a snapshot of the whole turn. */
     private var latestUiPayload: UiPayloadData? = null
 
+    /** The last value reported through `onAwaitingReplyChanged`. */
+    private var awaitingReply = false
+
     /** True from `connect` until this session disconnects the transport. */
     private var holdsTransport = false
 
@@ -181,6 +184,7 @@ internal class VoiceSessionController(
             userFinal = true
         }
         emit(VoiceTranscriptRole.USER, trimmed, true)
+        updateAwaitingReply()
 
         // Only the first outcome counts, so a repeated callback can't fail a delivered prompt. A
         // failure is always handled later on main, after this method has returned.
@@ -374,6 +378,7 @@ internal class VoiceSessionController(
         turn = null
         pendingAssistantText.setLength(0)
         latestUiPayload = null
+        updateAwaitingReply()
         setState(terminalState)
     }
 
@@ -458,6 +463,7 @@ internal class VoiceSessionController(
         }
         // User STT chunks are cumulative snapshots of the current utterance.
         emit(VoiceTranscriptRole.USER, delta.delta, delta.final)
+        updateAwaitingReply()
     }
 
     private fun startsNewTurn(userTurnId: String?): Boolean {
@@ -474,6 +480,7 @@ internal class VoiceSessionController(
         val text = pendingAssistantText.toString()
         if (delta.final) pendingAssistantText.setLength(0)
         emit(VoiceTranscriptRole.ASSISTANT, text, delta.final)
+        updateAwaitingReply()
     }
 
     /**
@@ -540,6 +547,7 @@ internal class VoiceSessionController(
             val text = pendingAssistantText.toString()
             if (text.isNotBlank()) emit(VoiceTranscriptRole.ASSISTANT, text, true)
             closeTurn()
+            updateAwaitingReply()
         }
         turn = Turn(id)
     }
@@ -548,6 +556,7 @@ internal class VoiceSessionController(
         val result = VoiceTurnResult(outcome, latestUiPayload)
         closeTurn()
         listener?.onTurnFinished(this, result)
+        updateAwaitingReply()
     }
 
     private fun closeTurn() {
@@ -555,6 +564,18 @@ internal class VoiceSessionController(
         turn = null
         pendingAssistantText.setLength(0)
         latestUiPayload = null
+    }
+
+    /**
+     * Reports a change in whether the turn in flight waits for its reply: the user's final
+     * transcript was shown and the reply has not started.
+     */
+    private fun updateAwaitingReply() {
+        val current = turn
+        val awaiting = isActive && current != null && current.userFinal && !current.replyStarted
+        if (awaiting == awaitingReply) return
+        awaitingReply = awaiting
+        listener?.onAwaitingReplyChanged(this, awaiting)
     }
 
     /**

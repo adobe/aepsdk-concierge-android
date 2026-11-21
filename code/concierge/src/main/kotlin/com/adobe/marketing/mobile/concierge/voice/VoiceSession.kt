@@ -62,6 +62,14 @@ internal interface VoiceSessionListener {
      * assistant reply with the result and renders the turn's UI payload.
      */
     fun onTurnFinished(session: VoiceSession, result: VoiceTurnResult)
+
+    /**
+     * Called when the current turn starts or stops waiting for its reply. It waits from the user's
+     * final transcript, spoken or sent as text, until the reply's first transcript update, the
+     * turn's end, a newer turn or the session's end. Turned off after that transcript update or
+     * turn end has been reported.
+     */
+    fun onAwaitingReplyChanged(session: VoiceSession, awaitingReply: Boolean)
 }
 
 /** How a voice turn ended, and the content to render with it. */
