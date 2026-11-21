@@ -323,7 +323,9 @@ class ThemeParserTest {
                     "feedback.dialog.cancel": "Cancel",
                     "feedback.dialog.notes.placeholder": "Enter notes",
                     "feedback.toast.success": "Thank you!",
-                    "error.network": "Network error"
+                    "error.network": "Network error",
+                    "voice.turn.failed": "Try again",
+                    "voice.turn.messageSendFailed": "Not sent"
                 }
             }
         """.trimIndent()
@@ -345,6 +347,8 @@ class ThemeParserTest {
         assertEquals("Enter notes", config?.text?.feedbackDialogNotesPlaceholder)
         assertEquals("Thank you!", config?.text?.feedbackToastSuccess)
         assertEquals("Network error", config?.text?.errorNetwork)
+        assertEquals("Try again", config?.text?.voiceTurnFailed)
+        assertEquals("Not sent", config?.text?.voiceTurnMessageSendFailed)
     }
 
     @Test

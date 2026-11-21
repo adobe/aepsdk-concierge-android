@@ -189,7 +189,7 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
     // via the dialog-mode wrapper instead, without ever opening its dialog (empty content, showChat
     // unused) - it sets ConciergeStateRepository's surfaces as an unconditional side effect.
     ConciergeTheme(theme = theme) {
-        ConciergeChat(viewModel = viewModel, surfaces = SURFACES) { }
+        ConciergeChat(viewModel = viewModel, surfaces = SURFACES, voiceTransport = Voice.transport) { }
     }
 
     Scaffold(
@@ -312,7 +312,8 @@ fun DataHandoffDemoScreen(onBack: () -> Unit) {
                     onClose = onBack,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .weight(1f),
+                    voiceTransport = Voice.transport
                 )
             }
         }

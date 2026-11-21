@@ -74,7 +74,9 @@
     "feedback.dialog.notes.placeholder": "Additional notes (optional)",
     "feedback.toast.success": "Thank you for the feedback.",
     "feedback.thumbsUp.aria": "Thumbs up",
-    "feedback.thumbsDown.aria": "Thumbs down"
+    "feedback.thumbsDown.aria": "Thumbs down",
+    "voice.turn.failed": "Sorry, I couldn't process that. Please try again.",
+    "voice.turn.messageSendFailed": "Sorry, your message couldn't be sent. Please try again."
   },
   "arrays": {
     "welcome.examples": [
