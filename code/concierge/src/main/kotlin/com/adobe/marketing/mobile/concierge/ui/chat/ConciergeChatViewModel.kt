@@ -320,6 +320,10 @@ class ConciergeChatViewModel : AndroidViewModel {
         // The current turn's reply bubble, kept after it closes so the turn's end can rewrite it.
         // Cleared when the user's next bubble opens.
         var replyIndex: Int? = null
+
+        // The empty reply bubble shown as the thinking indicator while the turn waits for its
+        // reply. The reply's first text fills it, as in a typed turn.
+        var thinkingIndex: Int? = null
         private val reservationReleased = AtomicBoolean(false)
 
         fun releaseReservation(release: () -> Unit) {
@@ -351,6 +355,10 @@ class ConciergeChatViewModel : AndroidViewModel {
 
         override fun onTurnFinished(session: VoiceSession, result: VoiceTurnResult) {
             onVoiceCallback { handleVoiceTurnFinished(session, result) }
+        }
+
+        override fun onAwaitingReplyChanged(session: VoiceSession, awaitingReply: Boolean) {
+            onVoiceCallback { handleVoiceAwaitingReply(session, awaitingReply) }
         }
     }
 
@@ -2365,6 +2373,44 @@ class ConciergeChatViewModel : AndroidViewModel {
     }
 
     /**
+     * Shows the thinking indicator the way a typed turn does: an empty reply bubble, which the
+     * reply's first text or the turn's end then fills. When the wait ends with the bubble still
+     * empty, for example because a newer turn replaced this one, the bubble is removed.
+     */
+    private fun handleVoiceAwaitingReply(session: VoiceSession, awaitingReply: Boolean) {
+        val run = voiceRun(session) ?: return
+        if (!awaitingReply) {
+            removeVoiceThinkingIndicator(run)
+            return
+        }
+        if (run.thinkingIndex != null) return
+        var newIndex = 0
+        _messages.update { currentMessages ->
+            newIndex = currentMessages.size
+            currentMessages + ChatMessage(
+                content = MessageContent.Text(""),
+                isFromUser = false,
+                timestamp = System.currentTimeMillis(),
+                sseComplete = true,
+                localId = UUID.randomUUID().toString()
+            )
+        }
+        run.thinkingIndex = newIndex
+        run.openMessageIndices[VoiceTranscriptRole.ASSISTANT] = newIndex
+        run.replyIndex = newIndex
+    }
+
+    private fun removeVoiceThinkingIndicator(run: VoiceRun) {
+        val index = run.thinkingIndex ?: return
+        run.thinkingIndex = null
+        if (_messages.value.getOrNull(index)?.isThinking != true) return
+        removeVoiceBubble(run, index)
+        if (run.openMessageIndices[VoiceTranscriptRole.ASSISTANT] == index) {
+            run.openMessageIndices.remove(VoiceTranscriptRole.ASSISTANT)
+        }
+    }
+
+    /**
      * Removes the bubble at [index] and moves the indices that point past it. When it was the
      * scroll anchor, the next bubble becomes the anchor.
      */
@@ -2372,6 +2418,13 @@ class ConciergeChatViewModel : AndroidViewModel {
         _messages.update { currentMessages -> currentMessages.filterIndexed { i, _ -> i != index } }
         run.openMessageIndices.entries.forEach { entry ->
             if (entry.value > index) entry.setValue(entry.value - 1)
+        }
+        run.thinkingIndex = run.thinkingIndex?.let { thinking ->
+            when {
+                thinking == index -> null
+                thinking > index -> thinking - 1
+                else -> thinking
+            }
         }
         run.replyIndex = run.replyIndex?.let { reply ->
             when {
@@ -2394,6 +2447,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         run.releaseReservation { pendingConversationRequests.decrementAndGet() }
         _isVoiceConnecting.value = false
         _voiceScrollAnchorIndex.value = null
+        removeVoiceThinkingIndicator(run)
         activeVoice = null
         run.session?.stop()
         run.bootstrapJob?.cancel()

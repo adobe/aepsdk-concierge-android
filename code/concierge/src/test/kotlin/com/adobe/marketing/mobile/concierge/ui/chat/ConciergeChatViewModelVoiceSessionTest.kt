@@ -665,6 +665,80 @@ class ConciergeChatViewModelVoiceSessionTest {
         assertEquals(0, vm.voiceScrollAnchorIndex.value)
     }
 
+    // MARK: - Thinking indicator
+
+    @Test
+    fun `the thinking indicator follows the user's final and the reply fills it, like a typed turn`() =
+        runTest(testDispatcher) {
+            val vm = makeViewModel()
+            val session = startConnectedSession(vm)
+
+            session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+            session.awaitingReply(true)
+            assertEquals(listOf(true to "Shoes", false to ""), vm.texts())
+            assertTrue(vm.messages.value[1].isThinking)
+            assertEquals("the user's words stay at the top", 0, vm.voiceScrollAnchorIndex.value)
+            val thinking = vm.messages.value[1].localId
+
+            session.transcript("Here", VoiceTranscriptRole.ASSISTANT)
+            session.awaitingReply(false)
+            assertEquals(listOf(true to "Shoes", false to "Here"), vm.texts())
+            session.transcript("Here are shoes", VoiceTranscriptRole.ASSISTANT)
+            session.turnFinished(completed("Here are shoes"))
+
+            assertEquals(listOf(true to "Shoes", false to "Here are shoes"), vm.texts())
+            assertEquals("the reply takes the indicator's place", thinking, vm.messages.value[1].localId)
+            assertEquals(0, vm.voiceScrollAnchorIndex.value)
+        }
+
+    @Test
+    fun `a failed turn without a reply shows the copy in place of the thinking indicator`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        vm.updateVoiceCopyFromTheme(ConciergeThemeConfig(text = ConciergeTextStrings(voiceTurnFailed = "Try again")))
+        val session = startConnectedSession(vm)
+
+        session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+        session.awaitingReply(true)
+        val thinking = vm.messages.value[1].localId
+        session.turnFinished(failed(VoiceTurnFailure.TURN_FAILED))
+        session.awaitingReply(false)
+
+        assertEquals(listOf(true to "Shoes", false to "Try again"), vm.texts())
+        assertEquals(thinking, vm.messages.value[1].localId)
+    }
+
+    @Test
+    fun `the thinking indicator is removed when a newer turn replaces it`() = runTest(testDispatcher) {
+        val vm = makeViewModel()
+        val session = startConnectedSession(vm)
+
+        session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+        session.awaitingReply(true)
+        session.awaitingReply(false)
+        session.transcript("Stop", VoiceTranscriptRole.USER)
+        session.transcript("Stop", VoiceTranscriptRole.USER, isFinal = true)
+        session.awaitingReply(true)
+        session.transcript("OK", VoiceTranscriptRole.ASSISTANT)
+
+        assertEquals(listOf(true to "Shoes", true to "Stop", false to "OK"), vm.texts())
+        assertEquals(1, vm.voiceScrollAnchorIndex.value)
+    }
+
+    @Test
+    fun `the thinking indicator is removed when voice stops or fails`() = runTest(testDispatcher) {
+        listOf(false, true).forEach { fails ->
+            val vm = makeViewModel()
+            val session = startConnectedSession(vm)
+            session.transcript("Shoes", VoiceTranscriptRole.USER, isFinal = true)
+            session.awaitingReply(true)
+
+            if (fails) session.report(VoiceSessionState.Failed(VoiceSessionFailure.TransportFailed)) else vm.stopVoiceSession()
+
+            val expected = if (fails) listOf(true to "Shoes", false to ERROR_MESSAGE) else listOf(true to "Shoes")
+            assertEquals("fails=$fails", expected, vm.texts())
+        }
+    }
+
     // MARK: - Prompt suggestions
 
     @Test

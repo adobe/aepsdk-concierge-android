@@ -111,6 +111,10 @@ internal class FakeVoiceSession(
     fun turnFinished(result: VoiceTurnResult) {
         listener.onTurnFinished(this, result)
     }
+
+    fun awaitingReply(awaiting: Boolean) {
+        listener.onAwaitingReplyChanged(this, awaiting)
+    }
 }
 
 /**

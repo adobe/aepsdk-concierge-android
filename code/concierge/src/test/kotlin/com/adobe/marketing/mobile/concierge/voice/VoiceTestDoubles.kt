@@ -97,6 +97,14 @@ internal class FakeVoiceTransport(
 
 internal data class TranscriptEvent(val text: String, val role: VoiceTranscriptRole, val isFinal: Boolean)
 
+/** One `onAwaitingReplyChanged`, with how many other reports came before it. */
+internal data class AwaitingChange(
+    val awaiting: Boolean,
+    val afterTranscripts: Int,
+    val afterResults: Int = 0,
+    val afterStates: Int = 2
+)
+
 internal class RecordingVoiceListener : VoiceSessionListener {
     val states = mutableListOf<VoiceSessionState>()
     val transcripts = mutableListOf<TranscriptEvent>()
@@ -104,6 +112,7 @@ internal class RecordingVoiceListener : VoiceSessionListener {
     val outcomes: List<VoiceTurnResult.Outcome>
         get() = results.map { it.outcome }
     val callbackLoopers = mutableListOf<Looper?>()
+    val awaitingChanges = mutableListOf<AwaitingChange>()
 
     /** Runs after each recorded state, to model a host that reacts inside the callback. */
     var onState: ((VoiceSession, VoiceSessionState) -> Unit)? = null
@@ -122,5 +131,10 @@ internal class RecordingVoiceListener : VoiceSessionListener {
     override fun onTurnFinished(session: VoiceSession, result: VoiceTurnResult) {
         callbackLoopers += Looper.myLooper()
         results += result
+    }
+
+    override fun onAwaitingReplyChanged(session: VoiceSession, awaitingReply: Boolean) {
+        callbackLoopers += Looper.myLooper()
+        awaitingChanges += AwaitingChange(awaitingReply, transcripts.size, results.size, states.size)
     }
 }

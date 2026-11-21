@@ -596,6 +596,99 @@ class VoiceSessionControllerTest {
         assertEquals(listOf(TranscriptEvent("", USER, true)), listener.transcripts)
     }
 
+    // Awaiting the reply
+
+    @Test
+    fun awaitingReply_fromTheUsersFinal_untilAfterTheReplysFirstText() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Show me", "t1", final = false)
+        assertTrue("the user is still speaking", listener.awaitingChanges.isEmpty())
+        userSays(transport, "Show me shoes", "t1")
+        userSays(transport, "Show me shoes", "t1")
+        transport.receive("""{"event":"ui_payload","turnId":"t1","promptSuggestions":["a"]}""")
+        transport.receive("""{"event":"text_delta","delta":"Here","turnId":"t1"}""")
+        transport.receive("""{"event":"text_delta","delta":" you go","turnId":"t1"}""")
+        transport.receive("""{"event":"turn_completed","turnId":"t1","fullText":"Here you go"}""")
+
+        assertEquals(listOf(AwaitingChange(true, 2), AwaitingChange(false, 4)), listener.awaitingChanges)
+    }
+
+    @Test
+    fun awaitingReply_endsAfterTheTurnEnds_whenNoReplyStarted() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Hi", "t1")
+        transport.receive("""{"event":"turn_completed","turnId":"t1","fullText":"","state":"error"}""")
+
+        assertEquals(
+            listOf(AwaitingChange(true, 1), AwaitingChange(false, 1, afterResults = 1)),
+            listener.awaitingChanges
+        )
+    }
+
+    @Test
+    fun awaitingReply_forASentText_fromTheUsersWords_untilAfterTheTurnFails() {
+        val (transport, listener, session) = listeningSession()
+        session.sendText("Red ones")
+        val turnId = transport.sentPrompts().single().getString("turn_id")
+        userSays(transport, "Red ones", turnId = "w1")
+        assertEquals("the echo changes nothing", listOf(AwaitingChange(true, 1)), listener.awaitingChanges)
+
+        transport.receive(textInputError(turnId))
+
+        assertEquals(AwaitingChange(false, 1, afterResults = 1), listener.awaitingChanges.last())
+    }
+
+    @Test
+    fun awaitingReply_forATextThatFailsToSend_endsAfterTheTurnFails() {
+        val (transport, listener, session) = listeningSession()
+        transport.sendError = IOException("offline")
+        session.sendText("Red ones")
+        drainMain()
+
+        assertEquals(
+            listOf(AwaitingChange(true, 1), AwaitingChange(false, 1, afterResults = 1)),
+            listener.awaitingChanges
+        )
+    }
+
+    @Test
+    fun awaitingReply_endsBeforeANewerTurnsWords_andStartsAgainAtItsFinal() {
+        val (transport, listener) = listeningSession()
+        userSays(transport, "Hi", "t1")
+        userSays(transport, "Wait", "t2", final = false)
+        userSays(transport, "Wait", "t2")
+
+        assertEquals(
+            listOf(AwaitingChange(true, 1), AwaitingChange(false, 1), AwaitingChange(true, 3)),
+            listener.awaitingChanges
+        )
+    }
+
+    @Test
+    fun awaitingReply_endsBeforeTheSessionEnds() {
+        listOf("stop", "failure").forEach { end ->
+            val (transport, listener, session) = listeningSession()
+            userSays(transport, "Hi", "t1")
+            if (end == "stop") session.stop() else transport.report(VoiceTransportState.Failed(IOException("lost")))
+            drainMain()
+
+            assertEquals(end, 3, listener.states.size)
+            assertEquals(end, listOf(AwaitingChange(true, 1), AwaitingChange(false, 1)), listener.awaitingChanges)
+        }
+    }
+
+    @Test
+    fun awaitingReply_isNotReported_forAWithdrawnUtterance_orATurnTheAgentOpens() {
+        val (transport, listener) = listeningSession()
+        transport.receive("""{"event":"text_delta","delta":"Hi! How can I help?","turnId":"a1"}""")
+        transport.receive("""{"event":"turn_completed","turnId":"a1","fullText":"Hi! How can I help?"}""")
+        userSays(transport, "Um", "t1", final = false)
+        userSays(transport, "", "t1")
+
+        assertEquals(listOf(Completed("Hi! How can I help?")), listener.outcomes)
+        assertTrue(listener.awaitingChanges.isEmpty())
+    }
+
     @Test
     fun dataFromBackgroundThread_isDeliveredOnMain() {
         val transport = FakeVoiceTransport()
