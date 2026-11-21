@@ -48,6 +48,12 @@ object ConciergeConstants {
         const val DEFAULT_VALUE = IN_VALUE
     }
 
+    internal object VoiceBootstrap {
+        const val TYPE_LIVEKIT_BOOTSTRAP = "livekit-bootstrap"
+        const val XDM_EVENT_TYPE = "eventType"
+        const val EVENT_TYPE_VOICE = "conversation.voice"
+    }
+
     object ChatInteraction {
         const val POSITIVE = "positive"
         const val NEGATIVE = "negative"

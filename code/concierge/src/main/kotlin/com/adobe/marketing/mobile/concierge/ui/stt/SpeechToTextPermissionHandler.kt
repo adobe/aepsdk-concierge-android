@@ -31,6 +31,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 
+internal const val DICTATION_PERMISSION_RATIONALE_TITLE = "Microphone & Speech Recognition Permission Required"
+internal const val DICTATION_PERMISSION_RATIONALE_TEXT =
+    "This app needs access to your microphone to enable voice input. \nYour audio will be recorded and sent to Google servers for speech recognition processing."
+internal const val VOICE_PERMISSION_RATIONALE_TITLE = "Microphone Permission Required"
+internal const val VOICE_PERMISSION_RATIONALE_TEXT =
+    "This app needs access to your microphone to have a voice conversation with the assistant."
+
 /**
  * Simple permission handler for audio recording.
  * 
@@ -50,7 +57,9 @@ internal fun SpeechPermissionHandler(
     hasPermission: Boolean,
     shouldRequestPermission: Boolean,
     onPermissionResult: (Boolean) -> Unit,
-    onPermissionHandled: () -> Unit
+    onPermissionHandled: () -> Unit,
+    rationaleTitle: String = DICTATION_PERMISSION_RATIONALE_TITLE,
+    rationaleText: String = DICTATION_PERMISSION_RATIONALE_TEXT
 ) {
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -103,10 +112,8 @@ internal fun SpeechPermissionHandler(
                 isInPermissionFlow = false
                 onPermissionHandled()
             },
-            title = { Text("Microphone & Speech Recognition Permission Required") },
-            text = { 
-                Text("This app needs access to your microphone to enable voice input. \nYour audio will be recorded and sent to Google servers for speech recognition processing.")
-            },
+            title = { Text(rationaleTitle) },
+            text = { Text(rationaleText) },
             confirmButton = {
                 Button(onClick = {
                     showRationaleDialog = false

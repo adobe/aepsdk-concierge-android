@@ -53,6 +53,13 @@ android {
     resourcePrefix = "concierge_"
 }
 
+// Compile interface members with a body into Java default methods, so Java classes implementing a
+// public interface (such as VoiceTransport) inherit them. "all-compatibility" also keeps the
+// DefaultImpls classes, so apps compiled against an earlier release still link.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions.freeCompilerArgs += "-Xjvm-default=all-compatibility"
+}
+
 dependencies {
     // COMPOSE_RUNTIME, COMPOSE_MATERIAL, ANDROIDX_ACTIVITY_COMPOSE, COMPOSE_UI_TOOLING
     implementation("androidx.compose.ui:ui-tooling-preview:${BuildConstants.Versions.COMPOSE}")

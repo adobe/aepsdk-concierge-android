@@ -1069,6 +1069,33 @@ internal object ConciergeStyles {
         }
 
     /**
+     * Styling for the voice conversation button. Follows the mic's tint so both read as one
+     * family; a running conversation fills the button with the primary color.
+     */
+    @Immutable
+    data class VoiceButtonStyle(
+        val size: Dp,
+        val iconColor: Color,
+        val activeBackgroundColor: Color,
+        val activeIconColor: Color,
+        val progressColor: Color,
+        val disabledAlpha: Float
+    )
+
+    val voiceButtonStyle: VoiceButtonStyle
+        @Composable get() {
+            val themeColors = ConciergeTheme.colors
+            return VoiceButtonStyle(
+                size = inputRowIconSize,
+                iconColor = themeColors.micIconColor ?: themeColors.primary,
+                activeBackgroundColor = themeColors.primary,
+                activeIconColor = themeColors.onPrimary,
+                progressColor = themeColors.primary,
+                disabledAlpha = 0.38f
+            )
+        }
+
+    /**
      * Styling for send button
      */
     @Immutable
