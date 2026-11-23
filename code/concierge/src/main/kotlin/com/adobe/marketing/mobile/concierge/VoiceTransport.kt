@@ -20,8 +20,7 @@ package com.adobe.marketing.mobile.concierge
  * only carries audio and data, so Brand Concierge does not depend on any real-time media SDK. The
  * test app contains a complete LiveKit implementation to copy.
  *
- * Pass a transport to `ConciergeChat(...)`, or set `ConciergeChatView.voiceTransport`. Without one,
- * the voice button is hidden.
+ * Register a transport with [Concierge.setVoiceTransport]. Without one, the voice button is hidden.
  *
  * Implementations must follow these rules:
  * - Brand Concierge calls every method on the main thread. Each method returns immediately and

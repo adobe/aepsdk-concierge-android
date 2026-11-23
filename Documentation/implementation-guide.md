@@ -366,9 +366,9 @@ Copy [`LiveKitTransport.kt`](../code/testapp/src/main/kotlin/com/adobe/marketing
 
 If you change the transport, keep the rules in the `VoiceTransport` documentation: Brand Concierge calls the transport on the main thread, and the transport may call the listener from any thread. When you update LiveKit, check that the file still builds and repeat the device checks below.
 
-#### 4. Pass the transport to the chat
+#### 4. Register the transport
 
-Keep one instance for the life of the app, created with the application context: Brand Concierge reuses it for each conversation, sets the listener before connecting and clears it before disconnecting.
+Keep one instance for the life of the app, created with the application context, and register it once in `Application.onCreate()`. Brand Concierge reuses it for each conversation, sets the listener before connecting and clears it before disconnecting.
 
 ```kotlin
 object Voice {
@@ -377,6 +377,7 @@ object Voice {
 
     fun initialize(application: Application) {
         transport = LiveKitTransport(application)
+        Concierge.setVoiceTransport(transport)
     }
 }
 
@@ -389,17 +390,9 @@ class MyApplication : Application() {
 }
 ```
 
-```kotlin
-ConciergeChat(
-    viewModel = viewModel,
-    surfaces = listOf("my-surface"),
-    voiceTransport = Voice.transport
-) { showChat -> /* ... */ }
-```
+The transport applies to every chat (both `ConciergeChat` composables and `ConciergeChatView`), including chats that are already open. A voice conversation that is running keeps the transport it started with, so a new transport takes effect from the next conversation. Pass `null` to turn voice off: the voice button disappears, or, if a conversation is running, stays until the conversation ends so the user can stop it. `setVoiceTransport` can be called from any thread.
 
-The direct `ConciergeChat(viewModel, onClose, ...)` composable takes the same `voiceTransport` parameter. For the XML view, set `ConciergeChatView.voiceTransport` before or after calling `bind`. Passing `null` hides the voice button; a conversation that is already running keeps its transport until it ends. When several `ConciergeChat` calls share a view model, pass the same transport to each of them; otherwise the last one to recompose decides which transport the chat uses.
-
-When a transport is provided, the composer shows a voice button. During a conversation:
+While a transport is registered, the composer shows a voice button. During a conversation:
 
 - **Chat.** The transcript appears in the chat. From the end of the user's words until the agent starts to reply, the chat shows the thinking indicator (with the theme's `loading.message`), as it does for a typed message. Each reply's product cards, sources and prompt suggestions appear when the agent finishes it. Tapping a prompt suggestion sends it to the voice agent, which answers by voice; taps are ignored while connecting, while the user is speaking and until the agent starts to reply. Typing, dictation and data handoffs are paused; `Concierge.sendDataHandoff` completes with `CHAT_IN_PROGRESS`.
 - **Microphone permission.** Brand Concierge asks for it when the user taps the voice button, the same way as for dictation. If the user denies it, no conversation starts.

@@ -19,10 +19,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModelStore
+import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
-import com.adobe.marketing.mobile.concierge.VoiceTransport
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
@@ -90,7 +90,7 @@ class ConciergeChatVoiceLifecycleTest {
         )
         viewModelStore.put("chat", viewModel)
         ChatHostActivity.viewModel = viewModel
-        ChatHostActivity.transport = FakeVoiceTransport()
+        Concierge.setVoiceTransport(FakeVoiceTransport())
         ChatHostActivity.showChat.value = true
     }
 
@@ -98,7 +98,7 @@ class ConciergeChatVoiceLifecycleTest {
     fun tearDown() {
         activities.filterNot { it.get().isDestroyed }.forEach { it.pause().stop().destroy() }
         ChatHostActivity.viewModel = null
-        ChatHostActivity.transport = null
+        Concierge.setVoiceTransport(null)
         viewModelStore.clear()
         ConciergeStateRepository.instance.clear()
         unmockkObject(ConciergeSessionManager.instance)
@@ -131,6 +131,19 @@ class ConciergeChatVoiceLifecycleTest {
      * only as the clock advances; otherwise the chat's endless animations would keep it busy.
      */
     private fun runFrames() = shadowOf(Looper.getMainLooper()).idleFor(FRAME.multipliedBy(5))
+
+    @Test
+    fun `setVoiceTransport reaches a chat that is already open`() {
+        launchChat()
+
+        Concierge.setVoiceTransport(null)
+        runFrames()
+        assertFalse(viewModel.isVoiceAvailable.value)
+
+        Concierge.setVoiceTransport(FakeVoiceTransport())
+        runFrames()
+        assertTrue(viewModel.isVoiceAvailable.value)
+    }
 
     @Test
     fun `voice keeps running when the activity is recreated for a configuration change`() {
@@ -190,14 +203,13 @@ class ConciergeChatVoiceLifecycleTest {
             setContent {
                 val vm = viewModel
                 if (vm != null && showChat.value) {
-                    ConciergeChat(viewModel = vm, onClose = {}, voiceTransport = transport)
+                    ConciergeChat(viewModel = vm, onClose = {})
                 }
             }
         }
 
         companion object {
             var viewModel: ConciergeChatViewModel? = null
-            var transport: VoiceTransport? = null
             val showChat = mutableStateOf(true)
         }
     }
