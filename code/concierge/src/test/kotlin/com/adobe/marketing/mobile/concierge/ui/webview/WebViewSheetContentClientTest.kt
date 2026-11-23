@@ -189,6 +189,7 @@ class WebViewSheetContentClientTest {
             every { url } returns telUri
             every { isForMainFrame } returns true
             every { hasGesture() } returns true
+            every { isRedirect } returns false
         }
 
         val client = SecureSheetWebViewClient(context)
@@ -198,14 +199,25 @@ class WebViewSheetContentClientTest {
         verify { tryOpenWithSystemHandler(context, "tel:+15555550100") }
     }
 
-    private fun request(url: String, hasGesture: Boolean, isForMainFrame: Boolean = true): WebResourceRequest {
+    private fun request(
+        url: String,
+        hasGesture: Boolean,
+        isForMainFrame: Boolean = true,
+        isRedirect: Boolean = false
+    ): WebResourceRequest {
         val uri = Uri.parse(url)
         every { uri.toString() } returns url
         return mockk {
             every { this@mockk.url } returns uri
             every { hasGesture() } returns hasGesture
             every { this@mockk.isForMainFrame } returns isForMainFrame
+            every { this@mockk.isRedirect } returns isRedirect
         }
+    }
+
+    /** A client whose initial sheet load has committed, so later redirects are not user-initiated. */
+    private fun clientAfterInitialLoad() = SecureSheetWebViewClient(context).also {
+        it.onPageStarted(view, "https://example.com", null)
     }
 
     @Test
@@ -230,18 +242,88 @@ class WebViewSheetContentClientTest {
     }
 
     @Test
-    fun `https navigation without a gesture never tries a native app`() {
+    fun `https navigation without a gesture stays in the WebView`() {
+        every { tryOpenAsAppLink(any(), any()) } returns true
         every { tryOpenInNativeApp(any(), any()) } returns true
 
-        val client = SecureSheetWebViewClient(context)
-        val result = client.shouldOverrideUrlLoading(view, request("https://example.com", hasGesture = false))
+        val result = clientAfterInitialLoad().shouldOverrideUrlLoading(view, request("https://example.com", hasGesture = false))
 
         assertFalse(result)
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
         verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
     }
 
     @Test
-    fun `tapped subframe navigation never tries a native app`() {
+    fun `scripted redirect after the page loads stays in the WebView`() {
+        every { tryOpenAsAppLink(any(), any()) } returns true
+
+        val result = clientAfterInitialLoad().shouldOverrideUrlLoading(
+            view,
+            request("https://example.com/next", hasGesture = false, isRedirect = true)
+        )
+
+        assertFalse(result)
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+    }
+
+    @Test
+    fun `redirect of a tapped navigation may open the host App Link but no other app`() {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+        val url = "https://example.com/callback"
+
+        val result = clientAfterInitialLoad().shouldOverrideUrlLoading(
+            view,
+            request(url, hasGesture = true, isRedirect = true)
+        )
+
+        assertFalse(result)
+        verify { tryOpenAsAppLink(context, url) }
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+    }
+
+    @Test
+    fun `server redirect of the URL opened in the sheet is treated as user-initiated`() {
+        val result = SecureSheetWebViewClient(context).shouldOverrideUrlLoading(
+            view,
+            request("myapp://return", hasGesture = false, isRedirect = true)
+        )
+
+        assertTrue(result)
+        verify { tryOpenWithSystemHandler(context, "myapp://return") }
+    }
+
+    @Test
+    fun `loading a new URL makes its server redirects user-initiated again`() {
+        val client = clientAfterInitialLoad()
+        client.onInitialLoad()
+
+        client.shouldOverrideUrlLoading(view, request("myapp://return", hasGesture = false, isRedirect = true))
+
+        verify { tryOpenWithSystemHandler(context, "myapp://return") }
+    }
+
+    @Test
+    fun `non-web scheme without a gesture is dropped`() {
+        val result = clientAfterInitialLoad().shouldOverrideUrlLoading(view, request("myapp://screen", hasGesture = false))
+
+        assertTrue(result)
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+    }
+
+    @Test
+    fun `tapped non-web scheme in a subframe goes to the system`() {
+        val result = clientAfterInitialLoad().shouldOverrideUrlLoading(
+            view,
+            request("tel:+15555550100", hasGesture = true, isForMainFrame = false)
+        )
+
+        assertTrue(result)
+        verify { tryOpenWithSystemHandler(context, "tel:+15555550100") }
+    }
+
+    @Test
+    fun `tapped subframe navigation stays in the WebView`() {
+        every { tryOpenAsAppLink(any(), any()) } returns true
         every { tryOpenInNativeApp(any(), any()) } returns true
 
         val client = SecureSheetWebViewClient(context)
@@ -251,6 +333,7 @@ class WebViewSheetContentClientTest {
         )
 
         assertFalse(result)
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
         verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
     }
 

@@ -12,13 +12,23 @@
 
 package com.adobe.marketing.mobile.concierge.ui.webview
 
+import android.app.UiAutomation
+import android.graphics.Rect
+import android.view.View
+import android.webkit.WebView
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.semantics.SemanticsNode
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
+import androidx.activity.compose.setContent
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.matcher.RootMatchers.isDialog
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,34 +38,70 @@ import org.junit.runner.RunWith
 class WebviewOverlayDialogInsetsTest {
 
     @get:Rule
-    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+    val composeTestRule = createEmptyComposeRule()
 
-    @Test
-    fun sheetAndWebViewStayWithinTheVisibleWindow() {
-        composeTestRule.setContent {
-            WebviewOverlayDialog(url = "about:blank", onDismiss = {})
-        }
-        composeTestRule.waitForIdle()
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-        val sheet = composeTestRule.onNodeWithTag(WEBVIEW_OVERLAY_SHEET_TAG).fetchSemanticsNode()
-        val webView = composeTestRule.onNodeWithTag(WEBVIEW_OVERLAY_WEBVIEW_TAG).fetchSemanticsNode()
-        val windowHeight = sheet.windowRoot().size.height
-        val navBarBottom = composeTestRule.runOnUiThread {
-            ViewCompat.getRootWindowInsets(composeTestRule.activity.window.decorView)
-                ?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
-        }
-
-        val sheetBottom = sheet.boundsInWindow.bottom
-        val webViewBottom = webView.boundsInWindow.bottom
-        assertTrue("Sheet bottom $sheetBottom exceeds window height $windowHeight", sheetBottom <= windowHeight + 1f)
-        assertTrue(
-            "WebView bottom $webViewBottom overlaps navigation bar (window $windowHeight, inset $navBarBottom)",
-            webViewBottom <= windowHeight - navBarBottom + 1f
-        )
+    @After
+    fun restoreRotation() {
+        instrumentation.uiAutomation.setRotation(UiAutomation.ROTATION_UNFREEZE)
     }
 
-    private fun SemanticsNode.windowRoot(): SemanticsNode {
-        var node = this
-        while (true) node = node.parent ?: return node
+    @Test
+    fun webViewStaysInsideTheDialogSafeAreaInPortrait() =
+        assertWebViewInsideSafeArea(UiAutomation.ROTATION_FREEZE_0, edgeToEdgeHost = false)
+
+    @Test
+    fun webViewStaysInsideTheDialogSafeAreaInLandscape() =
+        assertWebViewInsideSafeArea(UiAutomation.ROTATION_FREEZE_90, edgeToEdgeHost = false)
+
+    @Test
+    fun webViewStaysInsideTheDialogSafeAreaInPortraitOverEdgeToEdgeHost() =
+        assertWebViewInsideSafeArea(UiAutomation.ROTATION_FREEZE_0, edgeToEdgeHost = true)
+
+    @Test
+    fun webViewStaysInsideTheDialogSafeAreaInLandscapeOverEdgeToEdgeHost() =
+        assertWebViewInsideSafeArea(UiAutomation.ROTATION_FREEZE_90, edgeToEdgeHost = true)
+
+    private fun assertWebViewInsideSafeArea(rotation: Int, edgeToEdgeHost: Boolean) {
+        instrumentation.uiAutomation.setRotation(rotation)
+        ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+            scenario.onActivity {
+                if (edgeToEdgeHost) WindowCompat.setDecorFitsSystemWindows(it.window, false)
+                it.setContent { WebviewOverlayDialog(url = "about:blank", onDismiss = {}) }
+            }
+            composeTestRule.waitForIdle()
+
+            var webView: View? = null
+            onView(isAssignableFrom(WebView::class.java)).inRoot(isDialog()).check { view, _ -> webView = view }
+            lateinit var bounds: Rect
+            lateinit var safeArea: Rect
+            lateinit var visibleFrame: Rect
+            instrumentation.runOnMainSync {
+                val view = requireNotNull(webView)
+                val root = view.rootView
+                val insets = requireNotNull(ViewCompat.getRootWindowInsets(root)).getInsets(
+                    WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or
+                        WindowInsetsCompat.Type.ime()
+                )
+                // Unclipped View geometry, in screen coordinates, so overflow past the window is visible.
+                val location = IntArray(2).also(view::getLocationOnScreen)
+                bounds = Rect(location[0], location[1], location[0] + view.width, location[1] + view.height)
+                val rootLocation = IntArray(2).also(root::getLocationOnScreen)
+                safeArea = Rect(
+                    rootLocation[0] + insets.left,
+                    rootLocation[1] + insets.top,
+                    rootLocation[0] + root.width - insets.right,
+                    rootLocation[1] + root.height - insets.bottom
+                )
+                visibleFrame = Rect().also(root::getWindowVisibleDisplayFrame)
+            }
+
+            // Compose sizes dialog windows from the dp-rounded screen size, which can add 1px.
+            safeArea.inset(-1, -1)
+            visibleFrame.inset(-1, -1)
+            assertTrue("WebView $bounds is outside the dialog's safe area $safeArea", safeArea.contains(bounds))
+            assertTrue("WebView $bounds is outside the visible window $visibleFrame", visibleFrame.contains(bounds))
+        }
     }
 }

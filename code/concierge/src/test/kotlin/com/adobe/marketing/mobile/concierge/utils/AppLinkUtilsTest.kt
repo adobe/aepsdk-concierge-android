@@ -31,6 +31,7 @@ import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -200,12 +201,62 @@ class AppLinkUtilsApi31Test {
         verify { Log.debug(any(), any(), match { it.contains("tryOpenAsAppLink failed") }) }
     }
 
-    private fun setupDomainVerification(host: String, state: Int) {
+    @Test
+    fun `tryOpenAsAppLink launches only the host package as a browsable intent`() {
+        setupDomainVerification("example.com", DomainVerificationUserState.DOMAIN_STATE_VERIFIED)
+        val intentSlot = slot<Intent>()
+        every { context.startActivity(capture(intentSlot)) } just Runs
+
+        assertTrue(tryOpenAsAppLink(context, "https://example.com/page"))
+
+        assertEquals("com.example.app", intentSlot.captured.`package`)
+        assertTrue(intentSlot.captured.hasCategory(Intent.CATEGORY_BROWSABLE))
+    }
+
+    @Test
+    fun `tryOpenAsAppLink returns false when the host app declares no activity for the URL path`() {
+        setupDomainVerification("example.com", DomainVerificationUserState.DOMAIN_STATE_VERIFIED, hasActivity = false)
+
+        assertFalse(tryOpenAsAppLink(context, "https://example.com/unhandled"))
+        verify(exactly = 0) { context.startActivity(any()) }
+    }
+
+    @Test
+    fun `tryOpenAsAppLink returns false when the user turned off link handling`() {
+        setupDomainVerification(
+            "example.com",
+            DomainVerificationUserState.DOMAIN_STATE_VERIFIED,
+            linkHandlingAllowed = false
+        )
+
+        assertFalse(tryOpenAsAppLink(context, "https://example.com/page"))
+        verify(exactly = 0) { context.startActivity(any()) }
+    }
+
+    @Test
+    fun `tryOpenAsAppLink matches a verified wildcard domain`() {
+        setupDomainVerification("*.example.com", DomainVerificationUserState.DOMAIN_STATE_VERIFIED)
+
+        assertTrue(tryOpenAsAppLink(context, "https://shop.EXAMPLE.com/page"))
+        verify { context.startActivity(any()) }
+    }
+
+    private fun setupDomainVerification(
+        host: String,
+        state: Int,
+        linkHandlingAllowed: Boolean = true,
+        hasActivity: Boolean = true
+    ) {
         val dvm = mockk<DomainVerificationManager>()
         val userState = mockk<DomainVerificationUserState>()
+        val pm = mockk<PackageManager>()
         every { context.getSystemService(DomainVerificationManager::class.java) } returns dvm
         every { context.packageName } returns "com.example.app"
+        every { context.packageManager } returns pm
+        every { pm.queryIntentActivities(any<Intent>(), PackageManager.MATCH_DEFAULT_ONLY) } returns
+            if (hasActivity) listOf(ResolveInfo()) else emptyList()
         every { dvm.getDomainVerificationUserState("com.example.app") } returns userState
+        every { userState.isLinkHandlingAllowed } returns linkHandlingAllowed
         every { userState.hostToStateMap } returns mapOf(host to state)
     }
 }
@@ -238,9 +289,12 @@ class AppLinkUtilsApi30Test {
         every { context.packageManager } returns pm
         every { context.packageName } returns "com.example.app"
         every { pm.resolveActivity(any(), PackageManager.MATCH_DEFAULT_ONLY) } returns resolveInfo
+        every { pm.queryIntentActivities(any<Intent>(), PackageManager.MATCH_DEFAULT_ONLY) } returns listOf(resolveInfo)
+        val intentSlot = slot<Intent>()
+        every { context.startActivity(capture(intentSlot)) } just Runs
 
         assertTrue(tryOpenAsAppLink(context, "https://example.com/page"))
-        verify { context.startActivity(any()) }
+        assertEquals("com.example.app", intentSlot.captured.`package`)
     }
 
     @Test
@@ -311,6 +365,12 @@ class AppLinkUtilsNativeAppTest {
         every { context.startActivity(any()) } throws ActivityNotFoundException()
 
         assertFalse(tryOpenInNativeApp(context, "https://example.com/page"))
+    }
+
+    @Test
+    fun `tryOpenInNativeApp never hands cleartext http to another app`() {
+        assertFalse(tryOpenInNativeApp(context, "http://example.com/page"))
+        verify(exactly = 0) { context.startActivity(any()) }
     }
 
     @Test

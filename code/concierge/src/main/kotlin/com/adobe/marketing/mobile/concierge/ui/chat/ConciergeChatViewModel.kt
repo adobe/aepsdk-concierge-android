@@ -274,7 +274,7 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Handles a link click: host callback first, then App Link if host app is verified handler,
-     * blocked schemes dropped, other non-web schemes to the system, http/https to a non-browser
+     * blocked schemes dropped, other non-web schemes to the system, https to a non-browser
      * native app (Android 11+), else WebView overlay. Dispatches a `LinkClicked` tracking event tagged with the [origin].
      *
      * @param url The URL to open
