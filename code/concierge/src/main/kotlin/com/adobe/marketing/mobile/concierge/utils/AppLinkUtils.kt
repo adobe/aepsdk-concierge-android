@@ -12,6 +12,7 @@
 
 package com.adobe.marketing.mobile.concierge.utils
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -85,6 +86,28 @@ internal fun tryOpenAsAppLink(context: Context, url: String): Boolean {
         wouldHandle
     } catch (e: Exception) {
         Log.debug(ConciergeConstants.EXTENSION_NAME, "AppLinkUtils", "tryOpenAsAppLink failed: ${e.message}")
+        false
+    }
+}
+
+/**
+ * Attempts to open an http/https URL in a non-browser app that handles it (e.g. Google Maps
+ * for a Maps URL). Returns true if an app was started; false if no non-browser app handles the
+ * URL, the scheme is not http/https, or the device is below Android 11 (API 30), where
+ * [Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER] is unavailable. Callers should fall back to the WebView.
+ */
+internal fun tryOpenInNativeApp(context: Context, url: String): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !isAllowedUrlScheme(url)) return false
+    return try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER)
+        })
+        true
+    } catch (e: ActivityNotFoundException) {
+        false
+    } catch (e: Exception) {
+        Log.debug(ConciergeConstants.EXTENSION_NAME, "AppLinkUtils", "tryOpenInNativeApp failed: ${e.message}")
         false
     }
 }

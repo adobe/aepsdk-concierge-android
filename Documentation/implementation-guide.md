@@ -600,11 +600,11 @@ Add the following `<queries>` block to your `AndroidManifest.xml`. Without it, t
 
 #### Chat message link handling
 
-The Concierge extension automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). If your app is not the handler, the link opens in the in-app WebView overlay.
+The Concierge extension automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). Otherwise, on Android 11 (API 30) and higher, it opens http/https links in an installed non-browser app that handles them (for example, Google Maps for a directions link). If no such app exists, or on Android 10 and lower, the link opens in the in-app WebView overlay. Blocked schemes (`javascript:`, `file:`, `content:`, `intent:`, `data:`) are dropped before any app is launched.
 
-**Default link handling flow:** host `handleLink` callback (if provided) → App Link check → WebView overlay.
+**Default link handling flow:** host `handleLink` callback (if provided) → blocked-scheme check → App Link check → system handler for non-web schemes (e.g., `tel:`, `geo:`) → native app (API 30+) → WebView overlay.
 
-To customize this behavior, provide a `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with its default behavior (trying to open it as an App Link first, then using the WebView overlay).
+To customize this behavior, provide a `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with its default behavior (trying an App Link, then a native app, then the WebView overlay).
 
 **Compose (ConciergeChat):**
 ```kotlin
@@ -644,7 +644,7 @@ chatView.bind(
 )
 ```
 
-When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying to open it as an App Link first, then using the WebView overlay).
+When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying an App Link, then a native app, then the WebView overlay).
 
 To close the chat when a deeplink is clicked, call `viewModel.closeConcierge()` inside your `handleLink` callback before returning `true`:
 
@@ -667,7 +667,7 @@ ConciergeChat(
 
 Links clicked inside the in-app WebView overlay (e.g., links on a product page) follow their own routing rules, independent of the `handleLink` callback:
 
-- **http/https URLs**: If your app is the verified App Link handler for the domain, the URL is forwarded to your app. Otherwise it loads in the WebView.
+- **http/https URLs**: If your app is the verified App Link handler for the domain, the URL is forwarded to your app. Otherwise, if the user tapped the link in the main frame and a non-browser app handles it (API 30+), that app opens. Redirects, scripted navigations, and subframe navigations always stay in the WebView.
 - **Non-web schemes** (e.g., `mailto:`, `tel:`, `sms:`, `myapp://`): Forwarded to the system via `Intent.ACTION_VIEW`.
 - **Dangerous schemes** (`javascript:`, `file:`, `content:`, `intent:`, `data:`): Blocked.
 

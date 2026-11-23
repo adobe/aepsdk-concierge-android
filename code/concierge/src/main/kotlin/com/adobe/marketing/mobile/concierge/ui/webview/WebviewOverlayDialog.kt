@@ -13,7 +13,10 @@
 package com.adobe.marketing.mobile.concierge.ui.webview
 
 import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -21,13 +24,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +54,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
@@ -51,6 +63,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import kotlinx.coroutines.launch
+
+internal const val WEBVIEW_OVERLAY_SHEET_TAG = "webview_overlay_sheet"
+internal const val WEBVIEW_OVERLAY_WEBVIEW_TAG = "webview_overlay_webview"
 
 /**
  * Full-height overlay dialog that presents a URL in a WebView.
@@ -81,15 +96,36 @@ internal fun WebviewOverlayDialog(
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnBackPress = true,
-            dismissOnClickOutside = false
+            dismissOnClickOutside = false,
+            // Lay out edge-to-edge so the sheet sizes from the real window and applies insets itself.
+            decorFitsSystemWindows = false
         )
     ) {
         val parentView = LocalView.current.parent as? View
         (parentView as? DialogWindowProvider)?.window?.let { window ->
             window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
             window.setDimAmount(0f)
+            // Make the window cover the whole display (bars and cutout included) so Compose's
+            // measured height matches the real frame; the insets are applied in Compose instead.
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            window.attributes = window.attributes.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    fitInsetsTypes = 0
+                    fitInsetsSides = 0
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+            @Suppress("DEPRECATION")
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+        ) {
+            val sheetHeight = maxHeight * style.contentHeightFraction
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -111,8 +147,9 @@ internal fun WebviewOverlayDialog(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(style.contentHeightFraction)
+                    .height(sheetHeight)
                     .align(Alignment.BottomCenter)
+                    .testTag(WEBVIEW_OVERLAY_SHEET_TAG)
                     .onSizeChanged { size: IntSize -> contentHeightPx = size.height.toFloat() }
                     .graphicsLayer { translationY = offsetY.value }
                     .shadow(
@@ -126,7 +163,9 @@ internal fun WebviewOverlayDialog(
                 WebViewSheetContent(
                     url = url,
                     onDismiss = onDismiss,
-                    modifier = Modifier.fillMaxHeight()
+                    modifier = Modifier.windowInsetsPadding(
+                        WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)
+                    )
                 )
                 Box(
                     modifier = Modifier

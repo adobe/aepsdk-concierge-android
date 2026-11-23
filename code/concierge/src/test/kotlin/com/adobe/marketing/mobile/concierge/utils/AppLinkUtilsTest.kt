@@ -270,3 +270,69 @@ class AppLinkUtilsApi30Test {
         return ResolveInfo().apply { this.activityInfo = activityInfo }
     }
 }
+
+/**
+ * Tests for [tryOpenInNativeApp] on API 30+ (FLAG_ACTIVITY_REQUIRE_NON_BROWSER available).
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.R])
+class AppLinkUtilsNativeAppTest {
+
+    private lateinit var context: Context
+
+    @Before
+    fun setUp() {
+        context = mockk(relaxed = true)
+        mockkStatic(Log::class)
+        every { Log.debug(any(), any(), any()) } just Runs
+    }
+
+    @After
+    fun tearDown() {
+        unmockkStatic(Log::class)
+    }
+
+    @Test
+    fun `tryOpenInNativeApp starts a browsable non-browser intent and returns true`() {
+        val intentSlot = slot<Intent>()
+        every { context.startActivity(capture(intentSlot)) } just Runs
+
+        assertTrue(tryOpenInNativeApp(context, "https://www.google.com/maps/dir/?api=1"))
+
+        val intent = intentSlot.captured
+        assertTrue(intent.action == Intent.ACTION_VIEW)
+        assertTrue(intent.hasCategory(Intent.CATEGORY_BROWSABLE))
+        assertTrue(intent.flags and Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER != 0)
+        assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
+    }
+
+    @Test
+    fun `tryOpenInNativeApp returns false when no non-browser app handles the URL`() {
+        every { context.startActivity(any()) } throws ActivityNotFoundException()
+
+        assertFalse(tryOpenInNativeApp(context, "https://example.com/page"))
+    }
+
+    @Test
+    fun `tryOpenInNativeApp never launches non-web schemes`() {
+        assertFalse(tryOpenInNativeApp(context, "intent://maps#Intent;package=com.google.android.apps.maps;end"))
+        assertFalse(tryOpenInNativeApp(context, "tel:+15555550100"))
+        verify(exactly = 0) { context.startActivity(any()) }
+    }
+}
+
+/**
+ * Tests for [tryOpenInNativeApp] below API 30, where the WebView is used as before.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [Build.VERSION_CODES.Q])
+class AppLinkUtilsNativeAppApi29Test {
+
+    @Test
+    fun `tryOpenInNativeApp returns false without launching on Android 10`() {
+        val context = mockk<Context>(relaxed = true)
+
+        assertFalse(tryOpenInNativeApp(context, "https://www.google.com/maps/dir/?api=1"))
+        verify(exactly = 0) { context.startActivity(any()) }
+    }
+}
