@@ -115,8 +115,8 @@ MobileCore.resetIdentities()
 
 Concierge then ends the current conversation locally:
 
-- **Cleared:** backend session, transcript, unsent draft, pending XDM context, image cache and in-flight work (chat, data handoff, feedback and speech capture). Nothing is retried under the new identity.
-- **Retained:** token-provider registration, configuration, consent, surfaces and server-side conversation history. The host remains responsible for sign-out and clearing its auth token.
+- **Cleared:** backend session, transcript, unsent draft, pending XDM context, image cache and in-flight work (chat, data handoff, feedback, speech capture and voice conversation). Nothing is retried under the new identity.
+- **Retained:** token-provider and voice transport registrations, configuration, consent, surfaces and server-side conversation history. The host remains responsible for sign-out and clearing its auth token.
 - **UI:** a visible chat stays open with input disabled until Concierge is ready again; a hidden chat stays hidden. Open calls made during reset are ignored, and data handoffs during reset complete with `NO_ACTIVE_SESSION`.
 
 Sending resumes, with a new `sessionId`, once Edge Identity reports reset complete and refreshed identity and configuration are available. This requires **Edge Identity 3.0.0 or later**. If reset is still pending after five seconds, Concierge logs an error describing what it is waiting on.
