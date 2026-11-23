@@ -28,10 +28,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
 import com.adobe.marketing.mobile.concierge.utils.isAllowedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.isBlockedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenInNativeApp
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import java.nio.charset.StandardCharsets
 
@@ -79,7 +81,9 @@ internal fun WebViewSheetContent(
                     webView.loadUrl(url)
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag(WEBVIEW_OVERLAY_WEBVIEW_TAG)
         )
     }
 }
@@ -110,8 +114,9 @@ private fun applySecureSettings(settings: WebSettings) {
 
 /**
  * WebViewClient that handles URL navigation inside the sheet WebView.
- * http/https URLs are forwarded to the host app if it is a verified App Link handler,
- * otherwise loaded in the WebView.
+ * http/https URLs are forwarded to the host app if it is a verified App Link handler; user-tapped
+ * main-frame navigations may also open a non-browser native app (Android 11+); otherwise they load
+ * in the WebView.
  * Non-web schemes are forwarded to the system unless explicitly blocked.
  * Dangerous schemes (javascript, file, content, intent, data) are blocked.
  */
@@ -119,10 +124,13 @@ internal class SecureSheetWebViewClient(private val context: Context) : WebViewC
     override fun shouldOverrideUrlLoading(
         view: WebView,
         request: WebResourceRequest
-    ): Boolean = handleUrl(request.url?.toString())
+    ): Boolean = handleUrl(
+        request.url?.toString(),
+        isUserTap = request.isForMainFrame && request.hasGesture()
+    )
 
     @Suppress("DEPRECATION")
-    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = handleUrl(url)
+    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = handleUrl(url, isUserTap = false)
 
     // Safety net for data: URLs that bypass shouldOverrideUrlLoading on some WebView versions.
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
@@ -134,13 +142,14 @@ internal class SecureSheetWebViewClient(private val context: Context) : WebViewC
         super.onPageStarted(view, url, favicon)
     }
 
-    private fun handleUrl(url: String?): Boolean {
+    private fun handleUrl(url: String?, isUserTap: Boolean): Boolean {
         if (url == null) return true
         if (isBlockedUrlScheme(url)) return true
         if (isAllowedUrlScheme(url)) {
-            // http/https: forward to host app if it is a verified App Link handler,
-            // otherwise let the WebView load the page.
-            return tryOpenAsAppLink(context, url)
+            // http/https: forward to host app if it is a verified App Link handler; for user taps
+            // also try a non-browser native app; otherwise let the WebView load the page.
+            if (tryOpenAsAppLink(context, url)) return true
+            return isUserTap && tryOpenInNativeApp(context, url)
         }
         // All other schemes (e.g. mailto:, tel:, myapp://): forward to the system.
         tryOpenWithSystemHandler(context, url)

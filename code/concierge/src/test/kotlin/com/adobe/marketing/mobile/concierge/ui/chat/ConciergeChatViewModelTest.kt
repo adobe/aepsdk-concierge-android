@@ -56,6 +56,7 @@ import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCaptureListener
 import com.adobe.marketing.mobile.concierge.ui.stt.SpeechCapturing
 import com.adobe.marketing.mobile.services.ServiceProvider
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenInNativeApp
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.concierge.utils.image.DefaultImageProvider
 import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
@@ -71,6 +72,7 @@ import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.unmockkObject
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
@@ -637,6 +639,7 @@ class ConciergeChatViewModelTest {
             mockk { every { this@mockk.scheme } returns scheme }
         }
         every { tryOpenAsAppLink(any(), any()) } returns false
+        every { tryOpenInNativeApp(any(), any()) } returns false
         every { tryOpenWithSystemHandler(any(), any()) } just Runs
     }
 
@@ -3841,6 +3844,78 @@ class ConciergeChatViewModelTest {
 
         verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
         assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick with https URL opens native app when one handles it`() = runTest {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+        val url = "https://www.google.com/maps/dir/?api=1&destination=Golden1Center"
+
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verifyOrder {
+            tryOpenAsAppLink(app, url)
+            tryOpenInNativeApp(app, url)
+        }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick falls back to overlay when no native app handles https URL`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verify { tryOpenInNativeApp(app, "https://example.com") }
+        assertEquals("https://example.com", vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick host callback takes precedence over native app`() = runTest {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, handleLink = { true })
+
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick host App Link takes precedence over native app`() = runTest {
+        every { tryOpenAsAppLink(any(), any()) } returns true
+        every { tryOpenInNativeApp(any(), any()) } returns true
+
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("https://example.com", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick blocks intent links before any app launch`() = runTest {
+        every { tryOpenAsAppLink(any(), any()) } returns true
+        every { tryOpenInNativeApp(any(), any()) } returns true
+        val url = "intent://maps.google.com/maps#Intent;scheme=https;package=com.google.android.apps.maps;end"
+
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick(url, ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+        assertNull(vm.webviewOverlay.value)
+    }
+
+    @Test
+    fun `handleLinkClick does not try native app for non-web schemes`() = runTest {
+        val vm = ConciergeChatViewModel(app)
+        vm.handleLinkClick("tel:+15555550100", ConciergeConstants.TrackingEvent.LinkClickOrigin.INLINE, null)
+
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+        verify { tryOpenWithSystemHandler(app, "tel:+15555550100") }
     }
 
     @Test

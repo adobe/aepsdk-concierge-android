@@ -17,6 +17,7 @@ import android.net.Uri
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenInNativeApp
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import io.mockk.every
 import io.mockk.just
@@ -51,6 +52,7 @@ class WebViewSheetContentClientTest {
             mockk { every { this@mockk.scheme } returns scheme }
         }
         every { tryOpenAsAppLink(any(), any()) } returns false
+        every { tryOpenInNativeApp(any(), any()) } returns false
         every { tryOpenWithSystemHandler(any(), any()) } just Runs
     }
 
@@ -185,6 +187,8 @@ class WebViewSheetContentClientTest {
         every { telUri.toString() } returns "tel:+15555550100"
         val request = mockk<WebResourceRequest> {
             every { url } returns telUri
+            every { isForMainFrame } returns true
+            every { hasGesture() } returns true
         }
 
         val client = SecureSheetWebViewClient(context)
@@ -194,9 +198,91 @@ class WebViewSheetContentClientTest {
         verify { tryOpenWithSystemHandler(context, "tel:+15555550100") }
     }
 
+    private fun request(url: String, hasGesture: Boolean, isForMainFrame: Boolean = true): WebResourceRequest {
+        val uri = Uri.parse(url)
+        every { uri.toString() } returns url
+        return mockk {
+            every { this@mockk.url } returns uri
+            every { hasGesture() } returns hasGesture
+            every { this@mockk.isForMainFrame } returns isForMainFrame
+        }
+    }
+
+    @Test
+    fun `tapped https navigation opens native app when one handles it`() {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+        val url = "https://www.google.com/maps/dir/?api=1"
+
+        val client = SecureSheetWebViewClient(context)
+        val result = client.shouldOverrideUrlLoading(view, request(url, hasGesture = true))
+
+        assertTrue(result)
+        verify { tryOpenInNativeApp(context, url) }
+    }
+
+    @Test
+    fun `tapped https navigation loads in WebView when no native app handles it`() {
+        val client = SecureSheetWebViewClient(context)
+        val result = client.shouldOverrideUrlLoading(view, request("https://example.com", hasGesture = true))
+
+        assertFalse(result)
+        verify { tryOpenInNativeApp(context, "https://example.com") }
+    }
+
+    @Test
+    fun `https navigation without a gesture never tries a native app`() {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+
+        val client = SecureSheetWebViewClient(context)
+        val result = client.shouldOverrideUrlLoading(view, request("https://example.com", hasGesture = false))
+
+        assertFalse(result)
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+    }
+
+    @Test
+    fun `tapped subframe navigation never tries a native app`() {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+
+        val client = SecureSheetWebViewClient(context)
+        val result = client.shouldOverrideUrlLoading(
+            view,
+            request("https://example.com", hasGesture = true, isForMainFrame = false)
+        )
+
+        assertFalse(result)
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+    }
+
+    @Test
+    fun `deprecated String overload never tries a native app`() {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+
+        val client = SecureSheetWebViewClient(context)
+        @Suppress("DEPRECATION")
+        val result = client.shouldOverrideUrlLoading(view, "https://example.com")
+
+        assertFalse(result)
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+    }
+
+    @Test
+    fun `tapped intent navigation stays blocked`() {
+        every { tryOpenInNativeApp(any(), any()) } returns true
+        val url = "intent://maps.google.com#Intent;package=com.google.android.apps.maps;end"
+
+        val client = SecureSheetWebViewClient(context)
+        val result = client.shouldOverrideUrlLoading(view, request(url, hasGesture = true))
+
+        assertTrue(result)
+        verify(exactly = 0) { tryOpenAsAppLink(any(), any()) }
+        verify(exactly = 0) { tryOpenInNativeApp(any(), any()) }
+        verify(exactly = 0) { tryOpenWithSystemHandler(any(), any()) }
+    }
+
     @Test
     fun `WebResourceRequest with null URL returns true`() {
-        val request = mockk<WebResourceRequest>()
+        val request = mockk<WebResourceRequest>(relaxed = true)
         every { request.url } returns null
 
         val client = SecureSheetWebViewClient(context)
