@@ -46,6 +46,7 @@ internal object MarkdownParser {
         val messageTextStyle = messageBubbleStyle.textStyle.copy(color = messageBubbleStyle.botMessageTextColor)
         val darkTheme = isSystemInDarkTheme()
         val linkColor = ConciergeTheme.colors.messageConciergeLink ?: ConciergeTheme.colors.onSurface
+        val headingColor = ConciergeTheme.colors.messageConciergeHeading
         val typography = ConciergeTheme.tokens?.typography
         val linkFontWeight = typography?.linkFontWeight?.let { FontWeight(it) }
         val linkUnderline = typography?.linkUnderline ?: true
@@ -65,13 +66,19 @@ internal object MarkdownParser {
         val bodyLineHeight = if (typography?.lineHeight != null || typography?.lineHeightPx != null) {
             messageTextStyle.lineHeight
         } else TextUnit.Unspecified
-        return remember(markdown, linkHints, messageTextStyle, linkColor, linkFontWeight, linkUnderline, bodyLineHeight, darkTheme) {
+        return remember(
+            markdown, linkHints, messageTextStyle, linkColor, headingColor, linkFontWeight,
+            linkUnderline, bodyLineHeight, darkTheme
+        ) {
             Log.debug(
                 ConciergeConstants.EXTENSION_NAME,
                 TAG,
                 "Parsed ${tokens.size} tokens, starting rendering."
             )
-            MarkdownRenderer.render(markdown, tokens, colorScheme, messageTextStyle, linkHints, linkColor, linkFontWeight, linkUnderline, bodyLineHeight)
+            MarkdownRenderer.render(
+                markdown, tokens, colorScheme, messageTextStyle, linkHints, linkColor, linkFontWeight,
+                linkUnderline, bodyLineHeight, headingColor
+            )
         }
     }
 }

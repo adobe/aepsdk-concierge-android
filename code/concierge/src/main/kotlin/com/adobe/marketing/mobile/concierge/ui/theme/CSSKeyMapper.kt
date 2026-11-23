@@ -229,7 +229,10 @@ internal object CSSKeyMapper {
             existing?.copy(conciergeBackground = color) ?: ConciergeMessageColors(conciergeBackground = color)
         },
         ColorToken("message-concierge-text") { existing, color -> existing?.copy(conciergeText = color) ?: ConciergeMessageColors(conciergeText = color) },
-        ColorToken("message-concierge-link-color") { existing, color -> existing?.copy(conciergeLink = color) ?: ConciergeMessageColors(conciergeLink = color) }
+        ColorToken("message-concierge-link-color") { existing, color -> existing?.copy(conciergeLink = color) ?: ConciergeMessageColors(conciergeLink = color) },
+        ColorToken("message-concierge-heading-color") { existing, color ->
+            existing?.copy(conciergeHeading = color) ?: ConciergeMessageColors(conciergeHeading = color)
+        }
     )
 
     private val buttonColorTokens: List<ColorToken<ConciergeButtonColors>> = listOf(

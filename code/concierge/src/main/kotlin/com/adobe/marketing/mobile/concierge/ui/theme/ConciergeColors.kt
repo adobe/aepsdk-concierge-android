@@ -126,7 +126,10 @@ data class ConciergeColors(
     val productCardSecondaryCtaButtonBorder: Color? = null,
 
     // Thinking animation colors (from CSS themes)
-    val thinkingDotColor: Color? = null
+    val thinkingDotColor: Color? = null,
+
+    // Markdown heading color (from CSS themes)
+    val messageConciergeHeading: Color? = null
 )
 
 /**

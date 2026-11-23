@@ -324,6 +324,23 @@ class MarkdownRendererTest {
     }
 
     @Test
+    fun `heading color token overrides heading level color when configured`() {
+        val markdown = "### Parking options"
+        val headingColor = Color.White
+        val result = MarkdownRenderer.render(
+            markdown,
+            MarkdownTokenizer.tokenize(markdown),
+            lightColorScheme(),
+            testTextStyle,
+            headingColor = headingColor
+        )
+
+        assertEquals(headingColor, result.spanStyles.single().item.color)
+        assertEquals(18.sp, result.spanStyles.single().item.fontSize)
+        assertEquals(FontWeight.Bold, result.spanStyles.single().item.fontWeight)
+    }
+
+    @Test
     fun `test render list token`() {
         val markdown = "- List item"
         val tokens = MarkdownTokenizer.tokenize(markdown)

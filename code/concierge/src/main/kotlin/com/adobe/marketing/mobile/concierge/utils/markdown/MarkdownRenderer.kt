@@ -79,7 +79,8 @@ internal object MarkdownRenderer {
         linkColor: Color = Color.Unspecified,
         linkFontWeight: FontWeight? = null,
         linkUnderline: Boolean = true,
-        bodyLineHeight: TextUnit = TextUnit.Unspecified
+        bodyLineHeight: TextUnit = TextUnit.Unspecified,
+        headingColor: Color? = null
     ): AnnotatedString {
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
@@ -97,7 +98,10 @@ internal object MarkdownRenderer {
             if (token.start < currentIndex) return@forEach
 
             appendGapText(markdown, currentIndex, token.start, builder, colorScheme, baseTextStyle)
-            renderToken(token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
+            renderToken(
+                token, builder, colorScheme, baseTextStyle, resolvedLinkColor, linkHintByHref,
+                linkFontWeight, linkUnderline, specializedBlocks, headingColor
+            )
             currentIndex = token.end
         }
 
@@ -160,7 +164,8 @@ internal object MarkdownRenderer {
         linkHintByHref: Map<String, String> = emptyMap(),
         linkFontWeight: FontWeight? = null,
         linkUnderline: Boolean = true,
-        specializedBlocks: MutableList<IntRange>
+        specializedBlocks: MutableList<IntRange>,
+        headingColor: Color? = null
     ) {
         val start = builder.length
         when (token.type) {
@@ -172,7 +177,7 @@ internal object MarkdownRenderer {
             TokenType.CITATION -> renderCitation(token, builder, colorScheme, baseTextStyle)
             TokenType.BOLD -> renderBold(token, builder, colorScheme, baseTextStyle)
             TokenType.ITALIC -> renderItalic(token, builder, colorScheme, baseTextStyle)
-            TokenType.HEADING -> renderHeading(token, builder, colorScheme, baseTextStyle)
+            TokenType.HEADING -> renderHeading(token, builder, colorScheme, baseTextStyle, headingColor)
             TokenType.LIST -> renderList(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
             TokenType.BLOCKQUOTE -> renderBlockquote(token, builder, colorScheme, baseTextStyle, linkColor, linkHintByHref, linkFontWeight, linkUnderline, specializedBlocks)
         }
@@ -420,7 +425,8 @@ internal object MarkdownRenderer {
         token: MarkdownToken,
         builder: AnnotatedString.Builder,
         colorScheme: ColorScheme,
-        baseTextStyle: TextStyle
+        baseTextStyle: TextStyle,
+        headingColor: Color?
     ) {
         val headingLevel = token.groups[0].length
         val headingText = token.groups[1]
@@ -429,7 +435,7 @@ internal object MarkdownRenderer {
 
         builder.append(headingText)
 
-        val headingColor = when (headingLevel) {
+        val resolvedHeadingColor = headingColor ?: when (headingLevel) {
             1 -> colorScheme.primary
             2 -> colorScheme.secondary
             3 -> colorScheme.tertiary
@@ -447,7 +453,7 @@ internal object MarkdownRenderer {
             SpanStyle(
                 fontSize = headingSize,
                 fontWeight = FontWeight.Bold,
-                color = headingColor
+                color = resolvedHeadingColor
             ),
             styleStart,
             builder.length

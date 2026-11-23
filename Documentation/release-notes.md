@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Markdown heading color
+
+Added the optional `--message-concierge-heading-color` theme token for Markdown
+headings in concierge responses. When omitted, headings keep their existing
+per-level colors. The override applies to top-level headings; headings nested
+inside block quotes or list items can keep their per-level colors.
+
+**Binary compatibility:** Adding `messageConciergeHeading` to the public
+`ConciergeColors` data class and `conciergeHeading` to the public
+`ConciergeMessageColors` data class changes their constructor and generated
+`copy` signatures. Default parameter values preserve ordinary source calls, but
+applications and libraries compiled against the previous classes must be
+recompiled when upgrading.
+
 ### Message typography
 
 Added optional message body size/weight and inline link weight/underline theme
