@@ -240,6 +240,32 @@ class ConciergeChatViewModelNativeCardTest {
         assertEquals(DataHandoffDeliveryResult.Delivered, result)
         assertEquals(1, vm.nativeCardIds().size)
         assertEquals(1, vm.messages.value.size)
+        assertNotNull(vm.messages.value.single().turnId)
+    }
+
+    @Test
+    fun `handoff rows retain placeholder turn identity with repeated or absent local text`() = runTest {
+        registerMenu()
+        val placeholderTurns = mutableListOf<String?>()
+        lateinit var vm: ConciergeChatViewModel
+        vm = viewModel(frame("", state = "in_progress")) {
+            placeholderTurns += vm.messages.value.last().turnId
+            ConversationResponseParser.parseConversationData(
+                frame("", menu, menu + ("id" to "menu-2"), ctaElement("cta"))
+            ).forEach { emit(it) }
+        }
+
+        listOf("Opening menu", "Opening menu", null).forEachIndexed { index, localMessage ->
+            val before = vm.messages.value.size
+            vm.enqueueDataHandoff(ConciergeDataHandoffEvent("menu", mapOf("request" to "menu"), localMessage)) {}
+            advanceUntilIdle()
+
+            val rows = vm.messages.value.drop(before)
+            assertEquals(if (localMessage == null) 3 else 4, rows.size)
+            assertNotNull(placeholderTurns[index])
+            assertTrue(rows.all { it.turnId == placeholderTurns[index] && !it.isFromUser })
+        }
+        assertEquals(3, placeholderTurns.distinct().size)
     }
 
     @Test
@@ -398,6 +424,8 @@ class ConciergeChatViewModelNativeCardTest {
         val card = requireNotNull(vm.nativeCards.renderableCard(vm.nativeCardIds().single()))
         assertEquals(menu, card.element)
         assertEquals(3, messages.count { !it.isFromUser })
+        assertNotNull(messages.first().turnId)
+        assertTrue(messages.all { it.turnId == messages.first().turnId })
     }
 
     @Test

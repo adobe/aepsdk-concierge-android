@@ -12,22 +12,27 @@
 
 package com.adobe.marketing.mobile.concierge.ui.components.messages
 
-import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import com.adobe.marketing.mobile.concierge.network.CtaButton
 import com.adobe.marketing.mobile.concierge.network.MultimodalElement
 import com.adobe.marketing.mobile.concierge.ui.components.card.ProductActionButton
@@ -36,6 +41,12 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
+import kotlinx.coroutines.flow.first
+
+private val navigatedTurnsSaver = listSaver<MutableSet<String>, String>(
+    save = { it.toList() },
+    restore = { it.toMutableSet() }
+)
 
 internal fun privacyNoticeIndex(
     messages: List<ChatMessage>,
@@ -58,50 +69,76 @@ internal fun MessageList(
     onSuggestionClick: (String) -> Unit = {},
     handleLink: (String, String) -> Unit = { _, _ -> },
     onCtaButtonClick: (CtaButton) -> Unit = {},
-    privacyNotice: PrivacyNoticeConfig? = null
+    privacyNotice: PrivacyNoticeConfig? = null,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val style = ConciergeStyles.messageListStyle
-    val listState = rememberLazyListState()
 
-    // Keep track of the last user message index we've scrolled to
-    var lastScrolledUserMessageIndex by remember { mutableStateOf<Int?>(null) }
-
-    val lastUserIndex = remember(messages) { messages.indexOfLast { it.isFromUser } }
+    val turnStartIndex = remember(messages) {
+        val turnId = messages.lastOrNull()?.turnId
+        if (turnId != null) {
+            messages.indexOfLast { it.turnId != turnId } + 1
+        } else {
+            messages.indexOfLast { it.isFromUser }
+        }
+    }
+    val turnStart = messages.getOrNull(turnStartIndex)
+    val turnId = turnStart?.let { it.turnId ?: it.localId }
+    val currentMessages = rememberUpdatedState(messages)
+    val currentTurnId = rememberUpdatedState(turnId)
+    val navigatedTurns = rememberSaveable(saver = navigatedTurnsSaver) { mutableSetOf() }
+    val rowHeights = remember(turnId) { mutableStateMapOf<String, Int>() }
     val privacyNoticeIndex = remember(messages, privacyNotice) { privacyNoticeIndex(messages, privacyNotice) }
+    val density = LocalDensity.current
 
-    // When a new user message arrives, scroll so that it is anchored at the top
-    LaunchedEffect(lastUserIndex) {
-        if (lastUserIndex >= 0 && lastUserIndex != lastScrolledUserMessageIndex) {
-            listState.animateScrollToItem(lastUserIndex)
-            lastScrolledUserMessageIndex = lastUserIndex
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) {
+                currentTurnId.value?.let(navigatedTurns::add)
+            }
         }
     }
 
     BoxWithConstraints(modifier = modifier) {
+        val turnRows = if (turnStartIndex >= 0) messages.drop(turnStartIndex) else emptyList()
+        val turnHeight = turnRows.sumOf { rowHeights[it.localId] ?: 0 } +
+            with(density) { style.verticalSpacing.roundToPx() } * (turnRows.size - 1).coerceAtLeast(0)
+        val trailingSpace = if (turnStart == null) 0 else (constraints.maxHeight - turnHeight).coerceAtLeast(0)
+
+        LaunchedEffect(turnId) {
+            if (messages.isEmpty()) navigatedTurns.clear()
+            if (turnId == null || turnId in navigatedTurns) return@LaunchedEffect
+            // A rollback must not navigate back to an older retained turn.
+            navigatedTurns.addAll(messages.map { it.turnId ?: it.localId }.filter { it != turnId })
+            snapshotFlow {
+                val latest = currentMessages.value
+                val anchorIndex = latest.indexOfFirst { (it.turnId ?: it.localId) == turnId }
+                anchorIndex.takeIf {
+                    it >= 0 && listState.layoutInfo.totalItemsCount == latest.size &&
+                        listState.layoutInfo.viewportSize.height > 0
+                }
+            }.first { it != null }?.let {
+                if (turnId !in navigatedTurns) {
+                    listState.animateScrollToItem(it)
+                    navigatedTurns.add(turnId)
+                }
+            }
+        }
+
         LazyColumn(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(style.verticalSpacing),
+            contentPadding = PaddingValues(bottom = with(density) { trailingSpace.toDp() })
         ) {
             // Show messages in chronological order (oldest first, newest last)
             itemsIndexed(
                 items = messages,
                 key = { _, message -> message.localId }
             ) { index, message ->
-                // If the last item is an assistant message immediately following the latest user message,
-                // set its minimum height to the parent height so the response "fills the screen",
-                // but allow it to extend beyond if the content is larger.
-                val shouldFillRemaining = (index == messages.lastIndex &&
-                        !message.isFromUser &&
-                        lastUserIndex == index - 1)
-
                 Box(
-                    modifier = (
-                            if (shouldFillRemaining) Modifier.then(
-                                Modifier
-                                    .heightIn(min = this@BoxWithConstraints.maxHeight)
-                                    .animateContentSize()
-                            ) else Modifier
-                            )
+                    modifier = if (index >= turnStartIndex && turnStart != null) {
+                        Modifier.onSizeChanged { rowHeights[message.localId] = it.height }
+                    } else Modifier
                 ) {
                     if (index == privacyNoticeIndex && privacyNotice != null) {
                         Column(verticalArrangement = Arrangement.spacedBy(style.verticalSpacing)) {

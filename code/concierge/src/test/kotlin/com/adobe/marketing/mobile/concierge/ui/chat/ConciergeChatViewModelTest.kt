@@ -580,6 +580,8 @@ class ConciergeChatViewModelTest {
         val results = mutableListOf<DataHandoffDeliveryResult>()
         vm.enqueueDataHandoff(ConciergeDataHandoffEvent("old", mapOf("old" to true)), results::add)
         runCurrent()
+        val oldTurnId = vm.messages.value.single().turnId
+        assertNotNull(oldTurnId)
         val events = mutableListOf<Event>()
         repository.beginIdentityReset(resetRequest) {
             assertEquals(1, results.size)
@@ -593,6 +595,8 @@ class ConciergeChatViewModelTest {
         runCurrent()
         vm.enqueueDataHandoff(ConciergeDataHandoffEvent("new", mapOf("new" to true)), results::add)
         runCurrent()
+        assertNotNull(vm.messages.value.single().turnId)
+        assertTrue(oldTurnId != vm.messages.value.single().turnId)
         assertEquals(listOf(
             DataHandoffDeliveryResult.Failed(ConciergeDataHandoffRejectReason.NO_ACTIVE_SESSION),
             DataHandoffDeliveryResult.Delivered
@@ -810,6 +814,8 @@ class ConciergeChatViewModelTest {
         assertEquals("Hi", messages[0].text)
         assertTrue(!messages[1].isFromUser)
         assertEquals("Hello", messages[1].text)
+        assertNotNull(messages[0].turnId)
+        assertEquals(messages[0].turnId, messages[1].turnId)
 
         assertTrue(vm.state.value is ChatScreenState.Idle)
     }
@@ -850,6 +856,8 @@ class ConciergeChatViewModelTest {
             assertEquals("You may also like this.", messages[1].text)
             assertTrue(messages[2].content is MessageContent.Mixed)
             assertTrue(messages[3].content is MessageContent.CtaButton)
+            assertNotNull(messages.first().turnId)
+            assertEquals(1, messages.map { it.turnId }.distinct().size)
             assertEquals(DataHandoffDeliveryResult.Delivered, deliveryResult)
         } finally {
             vm.deactivateDataHandoffSession()
@@ -2315,6 +2323,8 @@ class ConciergeChatViewModelTest {
 
         // While still backgrounded: no error bubble, the turn stays in progress.
         assertEquals(listOf("Hi"), vm.messages.value.map { it.text })
+        val turnId = vm.messages.value.single().turnId
+        assertNotNull(turnId)
         assertTrue(vm.state.value is ChatScreenState.Processing)
         verify(exactly = 1) { chatClient.chat("Hi", emptyMap(), any()) }
 
@@ -2322,6 +2332,7 @@ class ConciergeChatViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf("Hi", "Answer"), vm.messages.value.map { it.text })
+        assertTrue(vm.messages.value.all { it.turnId == turnId })
         assertTrue(vm.state.value is ChatScreenState.Idle)
         verify(exactly = 2) { chatClient.chat("Hi", emptyMap(), any()) }
     }
