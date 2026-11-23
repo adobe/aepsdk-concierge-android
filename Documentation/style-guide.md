@@ -845,7 +845,7 @@ ratio; the lower threshold applies only when text meets WCAG's large-text criter
 | `--message-concierge-background` | `colors.message.conciergeBackground` | `String` | `"#F5F5F5"` | AI message bubble background (hex) |
 | `--message-concierge-text` | `colors.message.conciergeText` | `String` | `"#000000"` | AI message text color (hex) |
 | `--message-concierge-link-color` | `colors.message.conciergeLink` | `String` | `"#1976D2"` | Link color in AI messages (hex): inline link text, expanded citation URLs, and the inline link-icon fallback color. When a theme JSON omits this key, all of these fall back to `--color-text`. With no theme JSON loaded, the built-in palettes use `#0000FF` (light) and `#1E88E5` (dark). |
-| `--message-concierge-heading-color` | `colors.message.conciergeHeading` | `String?` | `unset` (preserves the existing heading-level Material colors) | Optional color for Markdown headings in AI messages (hex). When set in theme JSON, it overrides the heading color for all Markdown heading levels; when omitted, heading levels keep their existing primary, secondary, and tertiary colors. |
+| `--message-concierge-heading-color` | `colors.message.conciergeHeading` | `String?` | `unset` (preserves the existing heading-level Material colors) | Optional color for Markdown headings in AI messages (hex). When set in theme JSON, it overrides the heading color for all Markdown heading levels; when omitted, heading levels keep their existing primary, secondary, and tertiary colors. Limitation: the override applies to top-level headings; headings nested inside block quotes or list items can keep their per-level colors. |
 
 ### Colors - Buttons
 
