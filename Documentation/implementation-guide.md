@@ -277,6 +277,8 @@ does. With `localMessage`, that agent-attributed message is the turn's start; wi
 response starts there, initially showing the thinking indicator. Text, cards and CTAs share the
 same turn position, including when cards replace the thinking indicator. Streaming and card-state
 updates do not repeatedly scroll the transcript or override a user's subsequent manual scrolling.
+A turn that starts while the user is scrolling does not move the transcript, including after
+rotation.
 
 ---
 

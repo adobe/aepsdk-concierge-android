@@ -97,6 +97,19 @@ class MessageListLifecycleTest {
 
     private fun state(): LazyListState = requireNotNull(MessageListLifecycleHarness.listState)
 
+    private fun position(scenario: ActivityScenario<MessageListLifecycleActivity>): Pair<Int, Int> {
+        var position = -1 to -1
+        scenario.onActivity { position = state().firstVisibleItemIndex to state().firstVisibleItemScrollOffset }
+        return position
+    }
+
+    /** Waits for a list state other than [previous] that has laid out and finished scrolling. */
+    private fun awaitFreshSettledState(previous: LazyListState?) = awaitActivity {
+        val current = MessageListLifecycleHarness.listState
+        current != null && current !== previous && current.layoutInfo.viewportSize.height > 0 &&
+            !current.isScrollInProgress
+    }
+
     private fun awaitActivity(predicate: () -> Boolean) {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8)
         while (System.nanoTime() < deadline) {
@@ -130,19 +143,21 @@ class MessageListLifecycleTest {
             val anchorIndex = history().size
             awaitActivity { state().firstVisibleItemIndex == anchorIndex }
             val manualPosition = scrollToHistory(scenario, anchorIndex)
+            val original = state()
             scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
             awaitActivity {
                 MessageListLifecycleHarness.activityCreations > 1 &&
                     scenarioOrientation(scenario) == Configuration.ORIENTATION_LANDSCAPE
             }
+            awaitFreshSettledState(original)
 
-            assertEquals(manualPosition, state().firstVisibleItemIndex to state().firstVisibleItemScrollOffset)
+            assertEquals(manualPosition, position(scenario))
             MessageListLifecycleHarness.messages.value =
                 MessageListLifecycleHarness.messages.value.dropLast(1) +
                     ComposeTestUtils.createTextMessage("Choose an item, with streamed details", timestamp = 22)
                         .copy(turnId = "handoff-turn")
             instrumentation.waitForIdleSync()
-            assertEquals(manualPosition, state().firstVisibleItemIndex to state().firstVisibleItemScrollOffset)
+            assertEquals(manualPosition, position(scenario))
         } finally {
             scenario.close()
         }
@@ -165,12 +180,14 @@ class MessageListLifecycleTest {
                         .copy(turnId = "handoff-turn")
             scenario.moveToState(Lifecycle.State.RESUMED)
             instrumentation.waitForIdleSync()
-            assertEquals(manualPosition, state().firstVisibleItemIndex to state().firstVisibleItemScrollOffset)
+            assertEquals(manualPosition, position(scenario))
 
             scenario.close()
+            MessageListLifecycleHarness.listState = null
             scenario = ActivityScenario.launch(MessageListLifecycleActivity::class.java)
-            awaitActivity { MessageListLifecycleHarness.listState != null }
-            assertEquals(anchorIndex, state().firstVisibleItemIndex)
+            awaitFreshSettledState(null)
+            awaitActivity { state().firstVisibleItemIndex == anchorIndex }
+            assertEquals(anchorIndex, position(scenario).first)
         } finally {
             scenario.close()
         }

@@ -24,11 +24,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -41,12 +43,21 @@ import com.adobe.marketing.mobile.concierge.ui.state.FeedbackEvent
 import com.adobe.marketing.mobile.concierge.ui.state.MessageContent
 import com.adobe.marketing.mobile.concierge.ui.theme.ConciergeStyles
 import com.adobe.marketing.mobile.concierge.ui.theme.PrivacyNoticeConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 
-private val navigatedTurnsSaver = listSaver<MutableSet<String>, String>(
-    save = { it.toList() },
-    restore = { it.toMutableSet() }
-)
+private fun turnKey(message: ChatMessage): String = message.turnId ?: message.localId
+
+/** Start of the turn ending before [end]; rows without a turn ID fall back to the last user row. */
+private fun turnStartBefore(messages: List<ChatMessage>, end: Int): Int {
+    val turnId = messages.getOrNull(end - 1)?.turnId
+        ?: return messages.subList(0, end.coerceIn(0, messages.size)).indexOfLast { it.isFromUser }
+    for (index in end - 1 downTo 0) {
+        if (messages[index].turnId != turnId) return index + 1
+    }
+    return 0
+}
 
 internal fun privacyNoticeIndex(
     messages: List<ChatMessage>,
@@ -74,27 +85,27 @@ internal fun MessageList(
 ) {
     val style = ConciergeStyles.messageListStyle
 
-    val turnStartIndex = remember(messages) {
-        val turnId = messages.lastOrNull()?.turnId
-        if (turnId != null) {
-            messages.indexOfLast { it.turnId != turnId } + 1
-        } else {
-            messages.indexOfLast { it.isFromUser }
-        }
-    }
+    val turnStartIndex = remember(messages) { turnStartBefore(messages, messages.size) }
     val turnStart = messages.getOrNull(turnStartIndex)
-    val turnId = turnStart?.let { it.turnId ?: it.localId }
+    val turnId = turnStart?.let(::turnKey)
+    val previousTurnId = remember(messages, turnStartIndex) {
+        if (turnStartIndex > 0) messages.getOrNull(turnStartBefore(messages, turnStartIndex))?.let(::turnKey) else null
+    }
     val currentMessages = rememberUpdatedState(messages)
-    val currentTurnId = rememberUpdatedState(turnId)
-    val navigatedTurns = rememberSaveable(saver = navigatedTurnsSaver) { mutableSetOf() }
+    val currentTurn = rememberUpdatedState(turnId to previousTurnId)
+    // Bounded: turns are appended, and a rollback only exposes the turn before the handled one.
+    var handledTurnId by rememberSaveable { mutableStateOf<String?>(null) }
+    var handledPreviousTurnId by rememberSaveable { mutableStateOf<String?>(null) }
     val rowHeights = remember(turnId) { mutableStateMapOf<String, Int>() }
     val privacyNoticeIndex = remember(messages, privacyNotice) { privacyNoticeIndex(messages, privacyNotice) }
     val density = LocalDensity.current
 
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { interaction ->
-            if (interaction is DragInteraction.Start) {
-                currentTurnId.value?.let(navigatedTurns::add)
+            val (turn, previous) = currentTurn.value
+            if (interaction is DragInteraction.Start && turn != null && turn != handledPreviousTurnId) {
+                handledTurnId = turn
+                handledPreviousTurnId = previous
             }
         }
     }
@@ -106,23 +117,29 @@ internal fun MessageList(
         val trailingSpace = if (turnStart == null) 0 else (constraints.maxHeight - turnHeight).coerceAtLeast(0)
 
         LaunchedEffect(turnId) {
-            if (messages.isEmpty()) navigatedTurns.clear()
-            if (turnId == null || turnId in navigatedTurns) return@LaunchedEffect
-            // A rollback must not navigate back to an older retained turn.
-            navigatedTurns.addAll(messages.map { it.turnId ?: it.localId }.filter { it != turnId })
-            snapshotFlow {
+            if (messages.isEmpty()) {
+                handledTurnId = null
+                handledPreviousTurnId = null
+            }
+            // A rollback must not navigate back to the turn before the handled one.
+            if (turnId == null || turnId == handledTurnId || turnId == handledPreviousTurnId) return@LaunchedEffect
+            val anchorIndex = snapshotFlow {
                 val latest = currentMessages.value
-                val anchorIndex = latest.indexOfFirst { (it.turnId ?: it.localId) == turnId }
-                anchorIndex.takeIf {
+                latest.indexOfFirst { turnKey(it) == turnId }.takeIf {
                     it >= 0 && listState.layoutInfo.totalItemsCount == latest.size &&
                         listState.layoutInfo.viewportSize.height > 0
                 }
-            }.first { it != null }?.let {
-                if (turnId !in navigatedTurns) {
-                    listState.animateScrollToItem(it)
-                    navigatedTurns.add(turnId)
-                }
+            }.first { it != null } ?: return@LaunchedEffect
+            // A drag that started while waiting for layout already claimed this turn.
+            if (turnId == handledTurnId) return@LaunchedEffect
+            try {
+                listState.animateScrollToItem(anchorIndex)
+            } catch (e: CancellationException) {
+                // Disposal leaves the turn pending for restoration; an active user scroll claims it.
+                if (!isActive) throw e
             }
+            handledTurnId = turnId
+            handledPreviousTurnId = previousTurnId
         }
 
         LazyColumn(

@@ -18,8 +18,12 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
+import androidx.compose.runtime.saveable.SaveableStateRegistry
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -53,6 +57,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -273,8 +278,10 @@ class MessageListTest {
         val before = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
         assertTrue(before.first < start)
 
+        val original = listState
         restorationTester.emulateSavedInstanceStateRestore()
         composeTestRule.runOnIdle {
+            assertNotSame(original, listState)
             assertEquals(before, listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset)
             messages.value = messages.value.dropLast(1) + text("Completed response", "handoff")
         }
@@ -286,23 +293,56 @@ class MessageListTest {
     }
 
     @Test
-    fun messageList_restorationCompletesInterruptedAutomaticNavigation() {
+    fun messageList_restorationCompletesNavigationInterruptedByDisposal() {
         val messages = mutableStateOf(history())
-        val restorationTester = showRestorableTranscript(messages)
+        val shown = mutableStateOf(true)
+        var registry = SaveableStateRegistry(null) { true }
+        val registryState = mutableStateOf(registry)
+        var disposals = 0
+        composeTestRule.setContent {
+            if (shown.value) {
+                CompositionLocalProvider(LocalSaveableStateRegistry provides registryState.value) {
+                    ConciergeTheme {
+                        listState = rememberLazyListState()
+                        DisposableEffect(Unit) { onDispose { disposals++ } }
+                        CompositionLocalProvider(LocalImageProvider provides DefaultImageProvider()) {
+                            MessageList(
+                                modifier = Modifier.fillMaxWidth().height(viewportHeight.value),
+                                messages = messages.value,
+                                listState = listState
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        composeTestRule.waitForIdle()
         composeTestRule.runOnIdle { scope.launch { listState.scrollToItem(0) } }
         composeTestRule.waitForIdle()
         val start = messages.value.size
+        val original = listState
 
         composeTestRule.mainClock.autoAdvance = false
         try {
-            composeTestRule.runOnIdle { messages.value += text("Opening menu", "handoff") }
+            composeTestRule.runOnUiThread { messages.value += text("Opening menu", "handoff") }
             composeTestRule.mainClock.advanceTimeByFrame()
             composeTestRule.mainClock.advanceTimeByFrame()
-            composeTestRule.runOnIdle { assertTrue(listState.isScrollInProgress) }
-            restorationTester.emulateSavedInstanceStateRestore()
+            composeTestRule.runOnUiThread { assertTrue(original.isScrollInProgress) }
+            composeTestRule.runOnUiThread {
+                val saved = registry.performSave()
+                registry = SaveableStateRegistry(saved) { true }
+                shown.value = false
+            }
+            composeTestRule.mainClock.advanceTimeByFrame()
+            composeTestRule.runOnUiThread {
+                assertEquals(1, disposals)
+                registryState.value = registry
+                shown.value = true
+            }
         } finally {
             composeTestRule.mainClock.autoAdvance = true
         }
+        composeTestRule.runOnIdle { assertNotSame(original, listState) }
         assertAnchoredAt(start)
     }
 
@@ -327,8 +367,39 @@ class MessageListTest {
         composeTestRule.waitForIdle()
         val before = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
         assertTrue(before.first < start)
+        val original = listState
         restorationTester.emulateSavedInstanceStateRestore()
         composeTestRule.runOnIdle {
+            assertNotSame(original, listState)
+            assertEquals(before, listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset)
+        }
+    }
+
+    @Test
+    fun messageList_turnArrivingDuringDragDoesNotMoveViewportAfterRestoration() {
+        val messages = mutableStateOf(history())
+        val restorationTester = showRestorableTranscript(messages)
+        val start = messages.value.size
+        val list = composeTestRule.onNode(hasScrollAction())
+
+        list.performTouchInput {
+            down(center)
+            moveBy(Offset(0f, 150f))
+        }
+        composeTestRule.runOnIdle { messages.value += text("Opening menu", "handoff") }
+        composeTestRule.waitForIdle()
+        list.performTouchInput {
+            moveBy(Offset(0f, 150f))
+            up()
+        }
+        composeTestRule.waitForIdle()
+        val before = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        assertTrue(before.first < start)
+
+        val original = listState
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.runOnIdle {
+            assertNotSame(original, listState)
             assertEquals(before, listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset)
         }
     }
@@ -351,19 +422,29 @@ class MessageListTest {
     }
 
     @Test
-    fun messageList_rollbackDoesNotNavigateBackToPreviousTurn() {
+    fun messageList_rollbackAndReappearingTurnDoNotNavigateBackward() {
         val messages = mutableStateOf(history())
         showTranscript(messages)
-        composeTestRule.runOnIdle { messages.value += text("Failed handoff", "failed") }
-        assertAnchoredAt(messages.value.lastIndex)
+        val start = messages.value.size
+        composeTestRule.runOnIdle { messages.value += text("", "handoff").copy(sseComplete = false) }
+        assertAnchoredAt(start)
         composeTestRule.onNode(hasScrollAction()).performTouchInput { swipeDown() }
         composeTestRule.waitForIdle()
         val before = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-        assertTrue(before.first < messages.value.lastIndex)
-        composeTestRule.runOnIdle { messages.value = messages.value.dropLast(1) }
-        composeTestRule.runOnIdle {
+        assertTrue(before.first < start)
+
+        fun assertUnmoved() = composeTestRule.runOnIdle {
             assertEquals(before, listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset)
         }
+        composeTestRule.runOnIdle { messages.value = messages.value.dropLast(1) }
+        assertUnmoved()
+        composeTestRule.runOnIdle { messages.value += text("Menu card", "handoff") }
+        assertUnmoved()
+        composeTestRule.runOnIdle { messages.value = messages.value.dropLast(1) }
+        assertUnmoved()
+
+        composeTestRule.runOnIdle { messages.value += text("Next request", "next", user = true) }
+        assertAnchoredAt(start)
     }
 
     @Test
