@@ -13,7 +13,9 @@
 package com.adobe.marketing.mobile.concierge.ui.webview
 
 import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.view.View
+import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -21,13 +23,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,15 +88,33 @@ internal fun WebviewOverlayDialog(
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnBackPress = true,
-            dismissOnClickOutside = false
+            dismissOnClickOutside = false,
+            // Lay out edge-to-edge so the sheet sizes from the real window and applies insets itself.
+            decorFitsSystemWindows = false
         )
     ) {
         val parentView = LocalView.current.parent as? View
         (parentView as? DialogWindowProvider)?.window?.let { window ->
             window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
             window.setDimAmount(0f)
+            // Let the window overlap system bars and cutouts; the insets are applied in Compose instead.
+            window.attributes = window.attributes.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    fitInsetsTypes = 0
+                    fitInsetsSides = 0
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+            @Suppress("DEPRECATION")
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -126,7 +151,10 @@ internal fun WebviewOverlayDialog(
                 WebViewSheetContent(
                     url = url,
                     onDismiss = onDismiss,
-                    modifier = Modifier.fillMaxHeight()
+                    // Bars, cutouts and the IME on the sides and bottom; the sheet background stays edge-to-edge.
+                    modifier = Modifier.windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                    )
                 )
                 Box(
                     modifier = Modifier

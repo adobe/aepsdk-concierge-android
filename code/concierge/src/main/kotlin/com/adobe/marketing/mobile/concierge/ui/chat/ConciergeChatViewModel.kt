@@ -74,6 +74,7 @@ import com.adobe.marketing.mobile.concierge.utils.image.ImageProvider
 import com.adobe.marketing.mobile.concierge.utils.isAllowedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.isBlockedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenInNativeApp
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
 import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.ServiceProvider
@@ -273,7 +274,8 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Handles a link click: host callback first, then App Link if host app is verified handler,
-     * else WebView overlay. Dispatches a `LinkClicked` tracking event tagged with the [origin].
+     * blocked schemes dropped, other non-web schemes to the system, https to a non-browser
+     * native app (Android 11+), else WebView overlay. Dispatches a `LinkClicked` tracking event tagged with the [origin].
      *
      * @param url The URL to open
      * @param origin The surface that produced the click (see [ConciergeConstants.TrackingEvent.LinkClickOrigin])
@@ -286,16 +288,19 @@ class ConciergeChatViewModel : AndroidViewModel {
             handleLink?.invoke(url) == true -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: handled by host callback")
             }
-            tryOpenAsAppLink(getApplication(), url) -> {
-                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened as App Link")
-            }
             isBlockedUrlScheme(url) -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: blocked scheme, ignoring")
+            }
+            tryOpenAsAppLink(getApplication(), url) -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened as App Link")
             }
             !isAllowedUrlScheme(url) -> {
                 // Non-http/https scheme (e.g. tel:, geo:, mailto:) — forward to system.
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: forwarding system scheme to device")
                 tryOpenWithSystemHandler(getApplication(), url)
+            }
+            tryOpenInNativeApp(getApplication(), url) -> {
+                Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opened in native app")
             }
             else -> {
                 Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "handleLinkClick: opening in WebView overlay")

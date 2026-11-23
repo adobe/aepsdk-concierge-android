@@ -23,16 +23,21 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.utils.isAllowedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.isBlockedUrlScheme
 import com.adobe.marketing.mobile.concierge.utils.tryOpenAsAppLink
+import com.adobe.marketing.mobile.concierge.utils.tryOpenInNativeApp
 import com.adobe.marketing.mobile.concierge.utils.tryOpenWithSystemHandler
+import com.adobe.marketing.mobile.services.Log
 import java.nio.charset.StandardCharsets
 
 /**
@@ -50,6 +55,7 @@ internal fun WebViewSheetContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val client = remember(context) { SecureSheetWebViewClient(context) }
 
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
@@ -62,7 +68,7 @@ internal fun WebViewSheetContent(
                     setBackgroundColor(AndroidColor.TRANSPARENT)
                     isScrollbarFadingEnabled = true
                     scrollBarStyle = WebView.SCROLLBARS_INSIDE_OVERLAY
-                    webViewClient = SecureSheetWebViewClient(context)
+                    webViewClient = client
                     applySecureSettings(settings)
                     setOnTouchListener { _, event ->
                         when (event.action) {
@@ -76,6 +82,7 @@ internal fun WebViewSheetContent(
             update = { webView ->
                 webView.setBackgroundColor(AndroidColor.TRANSPARENT)
                 if (webView.url != url && isAllowedUrlScheme(url)) {
+                    client.onInitialLoad()
                     webView.loadUrl(url)
                 }
             },
@@ -109,20 +116,55 @@ private fun applySecureSettings(settings: WebSettings) {
 }
 
 /**
- * WebViewClient that handles URL navigation inside the sheet WebView.
- * http/https URLs are forwarded to the host app if it is a verified App Link handler,
- * otherwise loaded in the WebView.
- * Non-web schemes are forwarded to the system unless explicitly blocked.
- * Dangerous schemes (javascript, file, content, intent, data) are blocked.
+ * How a navigation inside the sheet WebView started.
+ *
+ * @property userInitiated The user tapped a link, or this is a server redirect of the link the
+ * user opened in the sheet or of a tapped main-frame navigation.
+ * @property mainFrame The navigation targets the top-level page rather than an iframe.
+ * @property redirect The navigation is a server redirect.
+ */
+internal data class SheetNavigation(
+    val userInitiated: Boolean,
+    val mainFrame: Boolean,
+    val redirect: Boolean
+)
+
+/**
+ * WebViewClient that handles URL navigation inside the sheet WebView. Only user-initiated
+ * navigations may leave the WebView:
+ * - http/https main-frame navigations open the host app when it is the approved App Link handler.
+ *   A tapped link (not a redirect) may also open a non-browser app for https (Android 11+).
+ *   Everything else, including scripted and iframe navigations, loads in the WebView.
+ * - Other non-blocked schemes (e.g. tel:, mailto:, myapp://) go to the system; without a user
+ *   gesture they are dropped.
+ * - Dangerous schemes (javascript, file, content, intent, data) are always blocked.
+ *
+ * Android 6.0 (API 23) and lower report no gesture or redirect information, so navigations there
+ * keep the earlier behavior: App Links and non-web schemes open, and no other app is tried.
  */
 internal class SecureSheetWebViewClient(private val context: Context) : WebViewClient() {
+    /** True until the URL loaded by the sheet commits; its server redirects follow the user's tap. */
+    private var initialLoadPending = true
+
+    /** Call before loading a new URL into the sheet. */
+    fun onInitialLoad() {
+        initialLoadPending = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
     override fun shouldOverrideUrlLoading(
         view: WebView,
         request: WebResourceRequest
-    ): Boolean = handleUrl(request.url?.toString())
+    ): Boolean {
+        val mainFrame = request.isForMainFrame
+        val redirect = request.isRedirect
+        val userInitiated = request.hasGesture() || (mainFrame && redirect && initialLoadPending)
+        return handleUrl(request.url?.toString(), SheetNavigation(userInitiated, mainFrame, redirect))
+    }
 
     @Suppress("DEPRECATION")
-    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = handleUrl(url)
+    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+        handleUrl(url, LEGACY_NAVIGATION)
 
     // Safety net for data: URLs that bypass shouldOverrideUrlLoading on some WebView versions.
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
@@ -131,19 +173,28 @@ internal class SecureSheetWebViewClient(private val context: Context) : WebViewC
             if (view.canGoBack()) view.goBack() else view.loadUrl("about:blank")
             return
         }
+        initialLoadPending = false
         super.onPageStarted(view, url, favicon)
     }
 
-    private fun handleUrl(url: String?): Boolean {
+    internal fun handleUrl(url: String?, navigation: SheetNavigation): Boolean {
         if (url == null) return true
         if (isBlockedUrlScheme(url)) return true
         if (isAllowedUrlScheme(url)) {
-            // http/https: forward to host app if it is a verified App Link handler,
-            // otherwise let the WebView load the page.
-            return tryOpenAsAppLink(context, url)
+            if (!navigation.userInitiated || !navigation.mainFrame) return false
+            if (tryOpenAsAppLink(context, url)) return true
+            return !navigation.redirect && tryOpenInNativeApp(context, url)
         }
-        // All other schemes (e.g. mailto:, tel:, myapp://): forward to the system.
+        if (!navigation.userInitiated) {
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Dropped a non-web navigation without a user gesture")
+            return true
+        }
         tryOpenWithSystemHandler(context, url)
         return true
+    }
+
+    private companion object {
+        const val TAG = "SecureSheetWebViewClient"
+        val LEGACY_NAVIGATION = SheetNavigation(userInitiated = true, mainFrame = true, redirect = true)
     }
 }

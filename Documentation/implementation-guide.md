@@ -581,11 +581,9 @@ Add an `<intent-filter>` with `android:autoVerify="true"` to the activity in you
 
 **2. Package visibility for Android 11 or higher**
 
-Add the following `<queries>` block to your `AndroidManifest.xml`. Without it, the Concierge extension cannot use `PackageManager.resolveActivity()` to detect the App Link handler on API 30 or higher, and App Links will silently fall back to the in-app WebView on that API level.
+No action is needed. The Concierge extension declares the following `<queries>` block in its own manifest, which merges into your app. On Android 11 (API 30), the extension uses `PackageManager.resolveActivity()` to check whether your app is the default handler for a URL; this block lets it see browsers, so a domain your app has not verified does not resolve to your app alone. Android 12 (API 31) and higher use domain verification instead.
 
 ```xml
-<!-- Required for PackageManager.resolveActivity() on Android 11+ to detect
-     which app handles VIEW intents for http/https URLs. -->
 <queries>
     <intent>
         <action android:name="android.intent.action.VIEW" />
@@ -600,11 +598,15 @@ Add the following `<queries>` block to your `AndroidManifest.xml`. Without it, t
 
 #### Chat message link handling
 
-The Concierge extension automatically opens links when your app is the verified handler for the URL's domain (e.g., listed in the domain's assetlinks.json). If your app is not the handler, the link opens in the in-app WebView overlay.
+The Concierge extension opens an http/https link in your app when your app is the approved App Link handler for it. Your app must declare an activity whose intent filter matches the full URL, including its path. On Android 12 (API 31) and higher, the domain (or a matching wildcard domain such as `*.example.com`) must also be verified (e.g., listed in the domain's assetlinks.json) or selected by the user, and the user must not have turned off "Open supported links" for your app. On Android 11 and lower, your app must be the default handler for the URL. The launch targets only your app's package.
 
-**Default link handling flow:** host `handleLink` callback (if provided) → App Link check → WebView overlay.
+Otherwise, on Android 11 (API 30) and higher, an https link opens in an installed non-browser app that handles it, using `FLAG_ACTIVITY_REQUIRE_NON_BROWSER`. Android may show a chooser when several non-browser apps handle the link. Plain `http` links are never handed to another app. If no such app exists, or on Android 10 and lower, the link opens in the in-app WebView overlay. This is similar to iOS universal links. On Android 11, an app can also open links for domains it has not verified.
 
-To customize this behavior, provide a `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with its default behavior (trying to open it as an App Link first, then using the WebView overlay).
+Your `handleLink` callback receives every link first, including links with blocked schemes (`javascript:`, `file:`, `content:`, `intent:`, `data:`). If the callback does not handle a blocked link, the SDK drops it without opening anything.
+
+**Default link handling flow:** host `handleLink` callback (if provided) → blocked-scheme check → App Link check → system handler for non-web schemes (e.g., `tel:`, `geo:`) → non-browser app for https (API 30+) → WebView overlay.
+
+To customize this behavior, provide a `handleLink` callback. Return `true` if your app handled the link; return `false` to have the Brand Concierge extension handle the link with its default behavior (trying an App Link, then a native app, then the WebView overlay).
 
 **Compose (ConciergeChat):**
 ```kotlin
@@ -644,7 +646,7 @@ chatView.bind(
 )
 ```
 
-When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying to open it as an App Link first, then using the WebView overlay).
+When `handleLink` returns `true`, the SDK does not open the WebView overlay. When it returns `false` or is null, the SDK uses the default flow (trying an App Link, then a native app, then the WebView overlay).
 
 To close the chat when a deeplink is clicked, call `viewModel.closeConcierge()` inside your `handleLink` callback before returning `true`:
 
@@ -667,8 +669,12 @@ ConciergeChat(
 
 Links clicked inside the in-app WebView overlay (e.g., links on a product page) follow their own routing rules, independent of the `handleLink` callback:
 
-- **http/https URLs**: If your app is the verified App Link handler for the domain, the URL is forwarded to your app. Otherwise it loads in the WebView.
-- **Non-web schemes** (e.g., `mailto:`, `tel:`, `sms:`, `myapp://`): Forwarded to the system via `Intent.ACTION_VIEW`.
-- **Dangerous schemes** (`javascript:`, `file:`, `content:`, `intent:`, `data:`): Blocked.
+Only user-initiated navigations leave the WebView. A navigation is user-initiated when the user tapped a link, or when it is a server redirect of a tapped link or of the link that opened the overlay. Scripted navigations without a tap are not.
 
-No additional configuration is required for this behavior. App Link forwarding within the WebView uses the same domain verification as chat message link handling.
+- **http/https URLs**: A user-initiated top-level navigation opens your app when it is the approved App Link handler (same rules as chat links). Otherwise, if the user tapped the link (not a redirect) and the URL is https, a non-browser app that handles it opens (API 30+). Everything else loads in the WebView, including iframe navigations.
+- **Non-web schemes** (e.g., `mailto:`, `tel:`, `sms:`, `myapp://`): A user-initiated navigation, including one from an iframe, is forwarded to the system via `Intent.ACTION_VIEW`. Without a user gesture, it is dropped.
+- **Dangerous schemes** (`javascript:`, `file:`, `content:`, `intent:`, `data:`): Always blocked.
+
+On Android 6.0 (API 23) and lower, the WebView reports no gesture or redirect information. There, App Links and non-web schemes open for any navigation, and no other app is tried for http/https.
+
+No additional configuration is required for this behavior.
