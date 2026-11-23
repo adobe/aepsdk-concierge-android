@@ -73,8 +73,7 @@ fun LinkHandlingTesting(onBack: () -> Unit) {
     ConciergeChat(
         viewModel = viewModel,
         surfaces = SURFACES,
-        handleLink = handleLink,
-        voiceTransport = Voice.transport
+        handleLink = handleLink
     ) { showChat ->
         Scaffold(
             topBar = {

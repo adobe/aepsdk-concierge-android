@@ -18,13 +18,14 @@ import com.adobe.marketing.mobile.MobileCore
 import com.adobe.marketing.mobile.concierge.Concierge
 import com.adobe.marketing.mobile.concierge.VoiceTransport
 
-/** The app's one voice transport, shared by every chat entry point. */
+/** The app's one voice transport, registered at launch and shared by every chat entry point. */
 object Voice {
     lateinit var transport: VoiceTransport
         private set
 
     fun initialize(application: Application) {
         transport = LiveKitTransport(application)
+        Concierge.setVoiceTransport(transport)
     }
 }
 

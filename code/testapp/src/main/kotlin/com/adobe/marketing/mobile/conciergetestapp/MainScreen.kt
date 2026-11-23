@@ -133,8 +133,7 @@ fun MainScreen() {
                     ConciergeChat(
                         modifier = Modifier.fillMaxSize(),
                         viewModel = viewModel,
-                        surfaces = surfaces,
-                        voiceTransport = Voice.transport
+                        surfaces = surfaces
                     ) { showChat ->
                         Button(
                             onClick = { showChat() },
