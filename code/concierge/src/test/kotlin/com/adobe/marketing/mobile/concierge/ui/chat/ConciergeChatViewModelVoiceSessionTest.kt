@@ -67,6 +67,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -95,6 +96,9 @@ class ConciergeChatViewModelVoiceSessionTest {
     private lateinit var service: FakeVoiceConversationService
     private lateinit var factory: FakeVoiceSessionFactory
     private lateinit var transport: FakeVoiceTransport
+
+    /** Stands in for the transport the app registers with `Concierge.setVoiceTransport`. */
+    private lateinit var registeredTransport: MutableStateFlow<VoiceTransport?>
     private lateinit var speech: FakeSpeechCapturing
     private lateinit var repository: ConciergeStateRepository
     private val dispatched = mutableListOf<Event>()
@@ -119,6 +123,7 @@ class ConciergeChatViewModelVoiceSessionTest {
         service = FakeVoiceConversationService()
         factory = FakeVoiceSessionFactory()
         transport = FakeVoiceTransport()
+        registeredTransport = MutableStateFlow(transport)
         speech = FakeSpeechCapturing()
         repository = ConciergeStateRepository(
             ConciergeState(
@@ -146,7 +151,6 @@ class ConciergeChatViewModelVoiceSessionTest {
     }
 
     private fun makeViewModel(
-        voiceTransport: VoiceTransport? = transport,
         appLifecycle: Lifecycle? = null,
         // Unconfined delivers session callbacks inline, as Dispatchers.Main.immediate does on the
         // main thread, so synchronous callbacks during start are exercised as in production.
@@ -159,7 +163,7 @@ class ConciergeChatViewModelVoiceSessionTest {
             sessionDispatcher = testDispatcher,
             appLifecycle = appLifecycle,
             dispatch = { dispatched.add(it) },
-            voiceTransport = voiceTransport,
+            voiceTransport = registeredTransport,
             voiceSessionFactory = factory::create,
             voiceCallbackDispatcher = voiceCallbackDispatcher,
             voiceOwnership = voiceOwnership
@@ -217,7 +221,8 @@ class ConciergeChatViewModelVoiceSessionTest {
 
     @Test
     fun `voice is unavailable without a transport`() = runTest(testDispatcher) {
-        val vm = makeViewModel(voiceTransport = null)
+        registeredTransport.value = null
+        val vm = makeViewModel()
         runCurrent()
 
         assertFalse(vm.isVoiceAvailable.value)
@@ -240,16 +245,17 @@ class ConciergeChatViewModelVoiceSessionTest {
     }
 
     @Test
-    fun `setting and clearing the transport toggles voice`() = runTest(testDispatcher) {
-        val vm = makeViewModel(voiceTransport = null)
+    fun `setting and clearing the transport toggles voice in an open chat`() = runTest(testDispatcher) {
+        registeredTransport.value = null
+        val vm = makeViewModel()
         runCurrent()
 
-        vm.setVoiceTransport(transport)
+        registeredTransport.value = transport
         runCurrent()
         assertTrue(vm.isVoiceAvailable.value)
         assertTrue(vm.voiceEnabled.value)
 
-        vm.setVoiceTransport(null)
+        registeredTransport.value = null
         runCurrent()
         assertFalse(vm.isVoiceAvailable.value)
         assertFalse(vm.voiceEnabled.value)
@@ -261,7 +267,7 @@ class ConciergeChatViewModelVoiceSessionTest {
         val session = startConnectedSession(vm)
         session.report(VoiceSessionState.Listening)
 
-        vm.setVoiceTransport(null)
+        registeredTransport.value = null
         runCurrent()
         assertTrue(vm.isVoiceAvailable.value)
         assertTrue(vm.voiceEnabled.value)
@@ -280,7 +286,7 @@ class ConciergeChatViewModelVoiceSessionTest {
         val first = startConnectedSession(vm)
         val replacement = FakeVoiceTransport()
 
-        vm.setVoiceTransport(replacement)
+        registeredTransport.value = replacement
         first.report(VoiceSessionState.Listening)
         assertTrue(vm.state.value is ChatScreenState.VoiceSession)
         vm.stopVoiceSession()
@@ -1152,10 +1158,8 @@ class ConciergeChatViewModelVoiceSessionTest {
     @Test
     fun `backgrounding while requesting credentials ends the voice session`() = runTest(testDispatcher) {
         val owner = TestAppLifecycleOwner()
-        val vm = makeViewModel(
-            voiceTransport = FakeVoiceTransport(continuesInBackground = true),
-            appLifecycle = owner.lifecycle
-        )
+        registeredTransport.value = FakeVoiceTransport(continuesInBackground = true)
+        val vm = makeViewModel(appLifecycle = owner.lifecycle)
         vm.startVoiceSession()
         runCurrent()
 

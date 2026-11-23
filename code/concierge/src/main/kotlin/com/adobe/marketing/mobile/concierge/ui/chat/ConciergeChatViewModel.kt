@@ -33,6 +33,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ConciergeTrackingEvent
+import com.adobe.marketing.mobile.concierge.ConciergeVoiceTransportHolder
 import com.adobe.marketing.mobile.concierge.DataHandoffDeliveryResult
 import com.adobe.marketing.mobile.concierge.network.Citation
 import com.adobe.marketing.mobile.concierge.network.ConciergeConversationServiceClient
@@ -283,10 +284,11 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val sessionDispatcher: CoroutineDispatcher
 
     /**
-     * The app's voice transport, or null when the app hasn't provided one. Without it the voice
-     * control is hidden. A running conversation keeps the transport it started with.
+     * The transport the app registered with `Concierge.setVoiceTransport`, or null when it has
+     * registered none. Without it the voice control is hidden. A running conversation keeps the
+     * transport it started with.
      */
-    private val _voiceTransport = MutableStateFlow<VoiceTransport?>(null)
+    private val voiceTransport: StateFlow<VoiceTransport?>
 
     /**
      * Whether the voice control should be offered: the app provided a transport, or a
@@ -699,7 +701,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
         sessionDispatcher: CoroutineDispatcher = Dispatchers.IO,
         appLifecycle: Lifecycle? = null,
-        voiceTransport: VoiceTransport? = null,
+        voiceTransport: StateFlow<VoiceTransport?> = ConciergeVoiceTransportHolder.transport,
         voiceSessionFactory: ((VoiceTransport, VoiceSessionListener) -> VoiceSession)? = null,
         voiceCallbackDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
         voiceOwnership: VoiceSessionOwnership = VoiceSessionOwnership(),
@@ -713,17 +715,17 @@ class ConciergeChatViewModel : AndroidViewModel {
         this.sessionManager = sessionManager
         this.sessionDispatcher = sessionDispatcher
         this.appLifecycle = appLifecycle
-        _voiceTransport.value = voiceTransport
+        this.voiceTransport = voiceTransport
         this.voiceSessionFactory = voiceSessionFactory ?: { transport, listener ->
             VoiceSessionController(transport, listener, ::checkAudioPermission)
         }
         this.voiceCallbackDispatcher = voiceCallbackDispatcher
         this.voiceOwnership = voiceOwnership
-        isVoiceAvailable = combine(_voiceTransport, _isVoiceSessionActive) { transport, isActive ->
+        isVoiceAvailable = combine(voiceTransport, _isVoiceSessionActive) { transport, isActive ->
             transport != null || isActive
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, voiceTransport != null)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, voiceTransport.value != null)
         // A claim while this chat has no conversation belongs to another chat's conversation.
-        val canStartVoice = combine(_voiceTransport, voiceOwnership.currentClaim) { transport, claim ->
+        val canStartVoice = combine(voiceTransport, voiceOwnership.currentClaim) { transport, claim ->
             transport != null && claim == null
         }
         voiceEnabled = combine(
@@ -735,7 +737,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             SharingStarted.Eagerly,
             isVoiceEnabled(
                 stateRepository.state.value, _state.value, _inputState.value, false,
-                voiceTransport != null && voiceOwnership.currentClaim.value == null
+                voiceTransport.value != null && voiceOwnership.currentClaim.value == null
             )
         )
         observedResetGeneration = stateRepository.state.value.resetGeneration
@@ -2129,14 +2131,6 @@ class ConciergeChatViewModel : AndroidViewModel {
     private fun isIdentityReady(conciergeState: ConciergeState): Boolean =
         !conciergeState.resetInProgress && conciergeState.configurationReady
 
-    /**
-     * Sets the app's voice transport for the next conversation. A running conversation keeps the
-     * transport it started with. Null hides the voice control once no conversation is running.
-     */
-    internal fun setVoiceTransport(transport: VoiceTransport?) {
-        _voiceTransport.value = transport
-    }
-
     /** Starts a voice conversation, or stops the running one. */
     internal fun toggleVoiceSession() {
         if (activeVoice != null) {
@@ -2153,7 +2147,7 @@ class ConciergeChatViewModel : AndroidViewModel {
      * granted, and no other chat's voice conversation is running.
      */
     internal fun startVoiceSession() {
-        val transport = _voiceTransport.value ?: run {
+        val transport = voiceTransport.value ?: run {
             Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored: the app provided no voice transport.")
             return
         }
