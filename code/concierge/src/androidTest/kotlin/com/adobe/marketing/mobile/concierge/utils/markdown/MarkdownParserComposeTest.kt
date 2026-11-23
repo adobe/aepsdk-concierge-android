@@ -186,11 +186,41 @@ class MarkdownParserComposeTest {
         }
     }
 
+    @Test
+    fun parse_usesConfiguredHeadingColor_andRecomputesWhenThemeChanges() {
+        val renderedResults = mutableListOf<AnnotatedString>()
+        val themeState = mutableStateOf(themeWithHeadingColor("#FF0000"))
+
+        composeTestRule.setContent {
+            ConciergeTheme(theme = themeState.value) {
+                val rendered = MarkdownParser.parse("### Parking options")
+                SideEffect { renderedResults.add(rendered) }
+            }
+        }
+
+        composeTestRule.waitForIdle()
+        composeTestRule.runOnIdle {
+            assertEquals(Color(0xFFFF0000), renderedResults.last().spanStyles.single().item.color)
+        }
+
+        composeTestRule.runOnIdle { themeState.value = themeWithHeadingColor("#00FF00") }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.runOnIdle {
+            assertEquals(Color(0xFF00FF00), renderedResults.last().spanStyles.single().item.color)
+        }
+    }
+
     private fun themeWithLinkColor(hex: String) = ConciergeThemeData(
         config = ConciergeThemeConfig(
             colors = ConciergeThemeColors(message = ConciergeMessageColors(conciergeLink = hex))
         ),
         tokens = null
+    )
+
+    private fun themeWithHeadingColor(hex: String) = ConciergeThemeData(
+        config = ConciergeThemeConfig(),
+        tokens = ThemeParser.parseThemeTokens("""{"theme":{"--message-concierge-heading-color":"$hex"}}""")
     )
 
     private fun linkColorOf(rendered: AnnotatedString): Color =

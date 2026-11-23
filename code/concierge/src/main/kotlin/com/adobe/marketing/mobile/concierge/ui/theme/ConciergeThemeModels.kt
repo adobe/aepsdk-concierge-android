@@ -226,7 +226,8 @@ data class ConciergeMessageColors(
     val userText: String? = null,
     val conciergeBackground: String? = null,
     val conciergeText: String? = null,
-    val conciergeLink: String? = null
+    val conciergeLink: String? = null,
+    val conciergeHeading: String? = null
 )
 
 data class ConciergeButtonColors(

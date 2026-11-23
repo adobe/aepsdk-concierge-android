@@ -1402,7 +1402,8 @@ class ThemeParserTest {
                 userText = "#000000",
                 conciergeBackground = "#F5F5F5",
                 conciergeText = "#333333",
-                conciergeLink = "#0066CC"
+                conciergeLink = "#0066CC",
+                conciergeHeading = "#FFFFFF"
             )
         )
 
@@ -1417,6 +1418,7 @@ class ThemeParserTest {
         assertEquals(Color(0xFFF5F5F5), colors.conciergeMessageBackground)
         assertEquals(Color(0xFF333333), colors.conciergeMessageText)
         assertEquals(Color(0xFF0066CC), colors.messageConciergeLink)
+        assertEquals(Color.White, colors.messageConciergeHeading)
     }
 
     @Test

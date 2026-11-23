@@ -341,6 +341,7 @@ internal object ThemeParser {
             conciergeMessageBackground = themeColors.message?.conciergeBackground?.toComposeColor(),
             conciergeMessageText = themeColors.message?.conciergeText?.toComposeColor() ?: defaultColors.conciergeMessageText,
             messageConciergeLink = themeColors.message?.conciergeLink?.toComposeColor(),
+            messageConciergeHeading = themeColors.message?.conciergeHeading?.toComposeColor(),
             // Button-specific colors from CSS themes
             buttonPrimaryBackground = themeColors.button?.primaryBackground?.toComposeColor(),
             buttonPrimaryText = themeColors.button?.primaryText?.toComposeColor(),

@@ -291,13 +291,20 @@ class CSSKeyMapperTest {
     }
 
     @Test
+    fun `apply maps message-concierge-heading-color`() {
+        val result = CSSKeyMapper.apply("--message-concierge-heading-color", "#FFFFFF", emptyTheme)
+        assertEquals("#FFFFFF", result.colors?.message?.conciergeHeading)
+    }
+
+    @Test
     fun `apply builds up all message colors from a realistic sequence of keys without clobbering earlier ones`() {
         val cssBlock = listOf(
             "message-user-background" to "#EBEEFF",
             "message-user-text" to "#292929",
             "message-concierge-background" to "#F5F5F5",
             "message-concierge-text" to "#292929",
-            "message-concierge-link-color" to "#274DEA"
+            "message-concierge-link-color" to "#274DEA",
+            "message-concierge-heading-color" to "#FFFFFF"
         )
         val theme = cssBlock.fold(emptyTheme) { acc, (key, value) -> CSSKeyMapper.apply("--$key", value, acc) }
 
@@ -307,6 +314,7 @@ class CSSKeyMapperTest {
         assertEquals("#F5F5F5", message?.conciergeBackground)
         assertEquals("#292929", message?.conciergeText)
         assertEquals("#274DEA", message?.conciergeLink)
+        assertEquals("#FFFFFF", message?.conciergeHeading)
     }
 
     // -----------------------------------------------------------------------
