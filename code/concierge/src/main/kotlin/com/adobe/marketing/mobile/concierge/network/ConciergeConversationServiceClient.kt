@@ -81,6 +81,9 @@ internal interface ConversationService {
      * when the stream closes; completing without an emission means the bootstrap failed. Services
      * without voice support complete immediately.
      *
+     * The app's auth token is resolved and sent where a chat turn sends it. The service doesn't pass
+     * it to the agent during voice yet.
+     *
      * [xdmFields] is the held XDM context snapshot. The service keeps the bootstrap's `xdm` for the
      * voice session and sends it with every voice turn, so later context updates don't reach a
      * running voice session. Pass [sessionId] from the same resolution as the snapshot.
@@ -217,8 +220,8 @@ internal class ConciergeConversationServiceClient(
     }
 
     /**
-     * Sends a `livekit-bootstrap` conversation event to the conversations endpoint (with the region,
-     * like a chat turn) and emits the first
+     * Sends a `voice: {"action": "start"}` conversation event to the conversations endpoint (with the
+     * region, like a chat turn) and emits the first
      * `livekit_session` credentials it streams back, at most once. The flow completes when the
      * stream closes, so a stream that closes without credentials completes without an emission.
      */
@@ -349,19 +352,19 @@ internal class ConciergeConversationServiceClient(
 
     /**
      * Creates the JSON request body for a voice-bootstrap request. Same envelope as a chat turn
-     * (surfaces, identityMap, consent), but `conversation.data` carries the `livekit-bootstrap`
-     * discriminator instead of a message, and `xdm.eventType` is `conversation.voice`. The service
-     * needs both to treat the request as a bootstrap rather than a chat turn. No auth token is
-     * attached: the `data` slot holds the discriminator, and the service identifies the user through
-     * the identityMap. The held XDM context in [xdmFields] goes into `xdm` as in a chat turn, and the
-     * SDK's `eventType` wins on collision.
+     * (surfaces, identityMap, consent, and the auth token in `data`), but `conversation` carries the
+     * `voice: {"action": "start"}` marker instead of a message. The service rejects `voice` together
+     * with `message`. The held XDM context in [xdmFields] goes into `xdm` as in a chat turn.
      */
-    private fun createVoiceBootstrapRequestBody(state: ConciergeState, xdmFields: Map<String, Any>): String =
-        createConversationEventBody(
+    private suspend fun createVoiceBootstrapRequestBody(state: ConciergeState, xdmFields: Map<String, Any>): String {
+        // Validate before resolving the auth token, as for a chat turn.
+        requireSurfaces(state)
+        return createConversationEventBody(
             state,
-            listOf(""""data": {"type": "${ConciergeConstants.VoiceBootstrap.TYPE_LIVEKIT_BOOTSTRAP}"}"""),
-            xdmFields + (ConciergeConstants.VoiceBootstrap.XDM_EVENT_TYPE to ConciergeConstants.VoiceBootstrap.EVENT_TYPE_VOICE)
+            listOfNotNull(""""voice": {"action": "${ConciergeConstants.VoiceBootstrap.ACTION_START}"}""", authDataPart()),
+            xdmFields
         )
+    }
 
     /**
      * Wraps the given `conversation` fields (after `surfaces`) in the single-event envelope shared
