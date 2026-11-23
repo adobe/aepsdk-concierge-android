@@ -272,6 +272,14 @@ After an accepted handoff starts, delivery failures, empty responses, and timeou
 error message to the transcript. An already-rendered `localMessage` remains visible, and the host
 app owns any failure UI based on the completion result.
 
+When a handoff starts, the transcript scrolls to the start of its turn, just as a typed prompt
+does. With `localMessage`, that agent-attributed message is the turn's start; without it, the
+response starts there, initially showing the thinking indicator. Text, cards and CTAs share the
+same turn position, including when cards replace the thinking indicator. Streaming and card-state
+updates do not repeatedly scroll the transcript or override a user's subsequent manual scrolling.
+A turn that starts while the user is scrolling does not move the transcript, including after
+rotation.
+
 ---
 
 ## Native card renderers (preview)

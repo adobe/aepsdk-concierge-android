@@ -194,6 +194,8 @@ internal data class ChatMessage(
     val linkHints: List<LinkHint> = emptyList(),
     /** Stable local identity used as the transcript list key. */
     val localId: String = UUID.randomUUID().toString(),
+    /** Shared by the prompt and all response rows of one logical request, including retries. */
+    val turnId: String? = null,
 ) {
     val text: String
         get() = when (content) {

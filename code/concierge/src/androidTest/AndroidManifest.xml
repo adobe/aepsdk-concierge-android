@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="com.adobe.marketing.mobile.concierge.ui.components.messages.MessageListLifecycleActivity"
+            android:exported="false" />
+    </application>
+</manifest>

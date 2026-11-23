@@ -106,6 +106,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ConciergeChatViewModel : AndroidViewModel {
@@ -340,6 +341,9 @@ class ConciergeChatViewModel : AndroidViewModel {
     /** Identifies the turn being streamed; native card occurrences are keyed by it. */
     private var turnSequence = 0L
     private var currentTurnId = "turn-0"
+
+    /** Unlike native occurrence identity, viewport identity survives a background stream retry. */
+    private var transcriptTurnId: String? = null
 
     /** The latest backend interaction id seen in the turn being streamed. */
     private var currentTurnInteractionId: String? = null
@@ -1089,6 +1093,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         stateRepository.withConversation(generation) { }
         responseStartedDispatched = false
 
+        transcriptTurnId = UUID.randomUUID().toString()
         appendUserMessage(messageText)
 
         // Transition to processing state, carrying forward any feedback dialog left open on an
@@ -1168,7 +1173,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             currentMessages + ChatMessage(
                 content = MessageContent.Text(messageText),
                 isFromUser = true,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                turnId = transcriptTurnId
             )
         }
     }
@@ -1191,7 +1197,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                 content = MessageContent.Text(messageText),
                 isFromUser = false,
                 timestamp = System.currentTimeMillis(),
-                sseComplete = true
+                sseComplete = true,
+                turnId = transcriptTurnId
             )
         }
     }
@@ -1283,6 +1290,7 @@ class ConciergeChatViewModel : AndroidViewModel {
             request.handoff.xdmFields
         )
         responseStartedDispatched = false
+        transcriptTurnId = UUID.randomUUID().toString()
         request.handoff.localMessage?.let(::appendAgentMessage)
         // Carry forward any feedback dialog left open on an earlier turn.
         _state.update { currentState ->
@@ -1423,7 +1431,8 @@ class ConciergeChatViewModel : AndroidViewModel {
             content = MessageContent.Text(""),
             isFromUser = false,
             timestamp = System.currentTimeMillis(),
-            citations = emptyList()
+            citations = emptyList(),
+            turnId = transcriptTurnId
         )
         _messages.update { currentMessages -> currentMessages + assistantMessage }
 
@@ -1880,7 +1889,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
                     sseComplete = true,
-                    promptSuggestions = suggestions
+                    promptSuggestions = suggestions,
+                    turnId = transcriptTurnId
                 )
                 is ElementRenderTarget.BuiltInCard -> if (cardMessageAppended) {
                     null
@@ -1891,7 +1901,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                         isFromUser = false,
                         timestamp = System.currentTimeMillis(),
                         sseComplete = true,
-                        promptSuggestions = suggestions
+                        promptSuggestions = suggestions,
+                        turnId = transcriptTurnId
                     )
                 }
                 is ElementRenderTarget.NativeCard -> ChatMessage(
@@ -1899,7 +1910,8 @@ class ConciergeChatViewModel : AndroidViewModel {
                     isFromUser = false,
                     timestamp = System.currentTimeMillis(),
                     sseComplete = true,
-                    promptSuggestions = suggestions
+                    promptSuggestions = suggestions,
+                    turnId = transcriptTurnId
                 )
             } ?: return@forEachIndexed
             newMessages += message
@@ -2236,6 +2248,7 @@ class ConciergeChatViewModel : AndroidViewModel {
         speechCapturing.setListener(captureListener)
         _inputState.value = UserInputState.Empty
         _messages.value = emptyList()
+        transcriptTurnId = null
         nativeCards.disposeAll()
         imageProvider.clear()
         currentConversationId = null
