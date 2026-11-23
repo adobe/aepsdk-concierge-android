@@ -291,7 +291,7 @@ class ConciergeChatViewModel : AndroidViewModel {
     private val voiceTransport: StateFlow<VoiceTransport?>
 
     /**
-     * Whether the voice control should be offered: the app provided a transport, or a
+     * Whether the voice control should be offered: a transport is registered, or a
      * conversation is still running and must stay stoppable.
      */
     internal val isVoiceAvailable: StateFlow<Boolean>
@@ -2142,13 +2142,13 @@ class ConciergeChatViewModel : AndroidViewModel {
 
     /**
      * Starts a voice conversation: requests credentials from the conversation service, then
-     * connects the app's voice transport with them. Ignored unless the identity is ready, the app
-     * provided a transport, the chat is idle and not dictating, microphone permission has been
+     * connects the app's voice transport with them. Ignored unless the identity is ready, a
+     * transport is registered, the chat is idle and not dictating, microphone permission has been
      * granted, and no other chat's voice conversation is running.
      */
     internal fun startVoiceSession() {
         val transport = voiceTransport.value ?: run {
-            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored: the app provided no voice transport.")
+            Log.debug(ConciergeConstants.EXTENSION_NAME, TAG, "Voice ignored: no voice transport is registered.")
             return
         }
         if (activeVoice != null) return
