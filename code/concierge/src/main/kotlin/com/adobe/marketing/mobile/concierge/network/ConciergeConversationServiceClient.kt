@@ -290,15 +290,41 @@ internal class ConciergeConversationServiceClient(
 
     private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
         val identityMap = JSONObject(identityMapJson(state))
-        return JSONObject().put("identityMap", identityMap).apply {
-            xdmFields.forEach { (key, value) ->
-                require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
-                    "XDM fields must not overwrite reserved key '$key'."
+        val time = currentXdmTime()
+        return JSONObject()
+            .put("identityMap", identityMap)
+            .put("timestamp", time.timestamp)
+            .put(
+                "placeContext",
+                JSONObject()
+                    .put("localTimezoneOffset", time.localTimezoneOffset)
+                    .put("localTime", time.localTime)
+            )
+            .apply {
+                xdmFields.forEach { (key, value) ->
+                    require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
+                        "XDM fields must not overwrite reserved key '$key'."
+                    }
+                    val jsonValue = value.toJsonValue()
+                    if (key == "placeContext" && jsonValue is JSONObject) {
+                        val placeContext = getJSONObject("placeContext")
+                        jsonValue.keys().forEach { field -> placeContext.put(field, jsonValue.get(field)) }
+                    } else {
+                        put(key, jsonValue)
+                    }
                 }
-                put(key, value.toJsonValue())
             }
-        }
     }
+
+    private class XdmTime(val timestamp: String, val localTime: String, val localTimezoneOffset: Int)
+
+    private fun currentXdmTime(now: Date = Date()): XdmTime = XdmTime(
+        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(now),
+        localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(now),
+        localTimezoneOffset = TimeZone.getDefault().getOffset(now.time) / 60000 // minutes
+    )
 
     private fun Any.toJsonValue(): Any = when (this) {
         is Map<*, *> -> JSONObject().apply {
@@ -514,13 +540,7 @@ internal class ConciergeConversationServiceClient(
      * Creates the feedback request body in XDM format
      */
     private suspend fun createFeedbackRequestBody(feedback: Feedback, state: ConciergeState): String {
-        val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.format(Date())
-
-        val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date())
-        val timeZoneOffset =
-            TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
+        val time = currentXdmTime()
 
         val rawArray = if (feedback.notes.isNotBlank()) {
             """[{"text": "${feedback.notes.escapedForJson()}","purpose": "user input"}]"""
@@ -562,10 +582,10 @@ internal class ConciergeConversationServiceClient(
                 $xdmConversationFields
             },
             "eventType": "conversation.feedback",
-            "timestamp": "$timestamp",
+            "timestamp": "${time.timestamp}",
             "placeContext": {
-                "localTimezoneOffset": $timeZoneOffset,
-                "localTime": "$localTime"
+                "localTimezoneOffset": ${time.localTimezoneOffset},
+                "localTime": "${time.localTime}"
             },
             "implementationDetails": {
             	"environment": "app",

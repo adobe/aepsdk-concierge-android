@@ -597,6 +597,75 @@ class ConciergeConversationServiceClientTest {
     }
 
     @Test
+    fun `chat request includes timestamp and placeContext in xdm`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello", emptyMap()).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertTrue(
+            xdm.getString("timestamp").matches(Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"""))
+        )
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertTrue(
+            placeContext.getString("localTime")
+                .matches(Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})"""))
+        )
+        assertEquals(
+            java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000,
+            placeContext.getInt("localTimezoneOffset")
+        )
+    }
+
+    @Test
+    fun `handoff merges caller placeContext with generated time fields`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.sendDataHandoff(
+            routingHint = "buy_now",
+            xdmFields = mapOf(
+                "timestamp" to "2020-01-01T00:00:00.000Z",
+                "placeContext" to mapOf(
+                    "localTimezoneOffset" to 60,
+                    "geo" to mapOf("city" to "Boston")
+                )
+            )
+        ).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2020-01-01T00:00:00.000Z", xdm.getString("timestamp"))
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertEquals(60, placeContext.getInt("localTimezoneOffset"))
+        assertEquals("Boston", placeContext.getJSONObject("geo").getString("city"))
+        assertTrue(placeContext.getString("localTime").isNotBlank())
+    }
+
+    @Test
+    fun `chat preserves held placeContext fields alongside generated local time`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        client.chat("hello", mapOf("placeContext" to mapOf("geo" to mapOf("city" to "Boston")))).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertEquals("Boston", placeContext.getJSONObject("geo").getString("city"))
+        assertTrue(placeContext.getString("localTime").isNotBlank())
+        assertEquals(
+            java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000,
+            placeContext.getInt("localTimezoneOffset")
+        )
+    }
+
+    @Test
     fun `chat request serializes null values inside XDM lists and uses the captured session`() = runTest {
         val requestSlot = slot<NetworkRequest>()
         stubConnection(requestSlot)
