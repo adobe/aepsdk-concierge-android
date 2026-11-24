@@ -93,11 +93,32 @@ private class DefaultRequestStartedFlow<T>(
     override fun onRequestStarted(callback: () -> Unit): Flow<T> = flowFactory(callback)
 }
 
+internal data class XdmTime(val timestamp: String, val localTime: String, val localTimezoneOffset: Int)
+
+internal fun createXdmTime(now: Date, timeZone: TimeZone): XdmTime {
+    val offsetMinutes = timeZone.getOffset(now.time) / 60000
+    val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).apply {
+        this.timeZone = timeZone
+    }.format(now)
+    val offsetHours = kotlin.math.abs(offsetMinutes) / 60
+    val offsetRemainderMinutes = kotlin.math.abs(offsetMinutes) % 60
+    val offsetSign = if (offsetMinutes >= 0) "+" else "-"
+    return XdmTime(
+        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            this.timeZone = TimeZone.getTimeZone("UTC")
+        }.format(now),
+        localTime = "$localTime$offsetSign${"%02d:%02d".format(Locale.US, offsetHours, offsetRemainderMinutes)}",
+        localTimezoneOffset = -offsetMinutes
+    )
+}
+
 internal class ConciergeConversationServiceClient(
     private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
     private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val feedbackDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val feedbackDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val dateProvider: () -> Date = ::Date,
+    private val timeZoneProvider: () -> TimeZone = { TimeZone.getDefault() }
 ) : ConversationService {
 
     companion object {
@@ -289,42 +310,26 @@ internal class ConciergeConversationServiceClient(
     }
 
     private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
-        val identityMap = JSONObject(identityMapJson(state))
         val time = currentXdmTime()
-        return JSONObject()
-            .put("identityMap", identityMap)
-            .put("timestamp", time.timestamp)
-            .put(
-                "placeContext",
-                JSONObject()
-                    .put("localTimezoneOffset", time.localTimezoneOffset)
-                    .put("localTime", time.localTime)
-            )
-            .apply {
-                xdmFields.forEach { (key, value) ->
-                    require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
-                        "XDM fields must not overwrite reserved key '$key'."
-                    }
-                    val jsonValue = value.toJsonValue()
-                    if (key == "placeContext" && jsonValue is JSONObject) {
-                        val placeContext = getJSONObject("placeContext")
-                        jsonValue.keys().forEach { field -> placeContext.put(field, jsonValue.get(field)) }
-                    } else {
-                        put(key, jsonValue)
-                    }
+        val xdm = JSONObject().apply {
+            xdmFields.forEach { (key, value) ->
+                require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
+                    "XDM fields must not overwrite reserved key '$key'."
                 }
+                put(key, value.toJsonValue())
             }
+        }
+        val placeContext = (xdm.opt("placeContext") as? JSONObject) ?: JSONObject()
+        placeContext
+            .put("localTimezoneOffset", time.localTimezoneOffset)
+            .put("localTime", time.localTime)
+        return xdm
+            .put("identityMap", JSONObject(identityMapJson(state)))
+            .put("timestamp", time.timestamp)
+            .put("placeContext", placeContext)
     }
 
-    private class XdmTime(val timestamp: String, val localTime: String, val localTimezoneOffset: Int)
-
-    private fun currentXdmTime(now: Date = Date()): XdmTime = XdmTime(
-        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.format(now),
-        localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(now),
-        localTimezoneOffset = TimeZone.getDefault().getOffset(now.time) / 60000 // minutes
-    )
+    private fun currentXdmTime(): XdmTime = createXdmTime(dateProvider(), timeZoneProvider())
 
     private fun Any.toJsonValue(): Any = when (this) {
         is Map<*, *> -> JSONObject().apply {

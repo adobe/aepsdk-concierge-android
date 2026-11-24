@@ -145,6 +145,11 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 - **Merging:** Each update is applied as an RFC 7396 JSON Merge Patch. Maps merge recursively,
   lists and scalar values replace the existing value, and a `null` map value removes that key.
   There is no reset API. To remove context, send `null` values.
+- **Request timestamps:** The SDK sets `timestamp`, `placeContext.localTime`, and
+  `placeContext.localTimezoneOffset` from one fresh instant for every chat, handoff, and feedback
+  request. The offset uses XDM's minutes-west-of-UTC convention (UTC+05:30 is -330). These fields
+  are SDK-owned and override matching caller values; other `placeContext` fields, such as `geo`,
+  are preserved.
 - **Allowed values:** strings, booleans, finite `Byte`, `Short`, `Int`, `Long`, `Float`, or
   `Double` values, maps with string keys, and lists of these values. A `null` inside a list is
   sent as JSON null. Nesting is limited to 20 levels below each top-level value. The top-level
