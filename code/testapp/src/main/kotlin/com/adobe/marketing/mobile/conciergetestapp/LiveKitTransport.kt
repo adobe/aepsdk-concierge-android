@@ -50,8 +50,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Brand Concierge's [VoiceTransport] built on the LiveKit Android SDK.
  *
  * Copy this file and [VoiceForegroundService] into your app and add `io.livekit:livekit-android` to
- * your app's dependencies. Create one instance with the application context and pass it to every
- * `ConciergeChat(...)` call and `ConciergeChatView`.
+ * your app's dependencies. Create one instance for the life of the app with the application context
+ * and register it once with `Concierge.setVoiceTransport`, for example in `Application.onCreate()`.
  *
  * Brand Concierge calls this class on the main thread, and the class keeps its own state on the
  * main thread too: LiveKit callbacks hop to main and are dropped unless they come from the current
