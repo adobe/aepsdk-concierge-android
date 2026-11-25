@@ -44,6 +44,7 @@ import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Brand Concierge's [VoiceTransport] built on the LiveKit Android SDK.
@@ -188,6 +189,9 @@ class LiveKitTransport(context: Context) : VoiceTransport {
             callback.onComplete(IllegalStateException("The voice room is not connected."))
             return
         }
+        // The body and a cancellation by [disconnect] can both finish the send; the first one wins.
+        val completed = AtomicBoolean(false)
+        val complete = { error: Throwable? -> if (completed.compareAndSet(false, true)) callback.onComplete(error) }
         currentScope.launch {
             val error = try {
                 currentRoom.localParticipant.publishData(data, DataPublishReliability.RELIABLE, topic).exceptionOrNull()
@@ -196,10 +200,10 @@ class LiveKitTransport(context: Context) : VoiceTransport {
             } catch (e: Exception) {
                 e
             }
-            callback.onComplete(error)
+            complete(error)
         }.invokeOnCompletion { cause ->
             // A send cancelled by [disconnect] still completes, with the cancellation.
-            if (cause != null) callback.onComplete(cause)
+            if (cause != null) complete(cause)
         }
     }
 
