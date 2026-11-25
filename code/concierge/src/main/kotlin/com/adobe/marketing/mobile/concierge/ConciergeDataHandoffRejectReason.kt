@@ -44,7 +44,7 @@ enum class ConciergeDataHandoffRejectReason(val rawValue: String) {
     /** `xdmFields` used a reserved top-level key (e.g. `identityMap`). */
     RESERVED_KEY_COLLISION(ConciergeConstants.DataHandoff.RejectReason.RESERVED_KEY_COLLISION),
 
-    /** `xdmFields` contained a value that isn't JSON-safe. */
+    /** `xdmFields` contained a value that isn't JSON-safe or an invalid `placeContext`. */
     INVALID_XDM_FIELD_VALUE(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE),
 
     /** No rendered Concierge chat session was available to receive the handoff. */

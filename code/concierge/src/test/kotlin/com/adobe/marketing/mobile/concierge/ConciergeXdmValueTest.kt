@@ -67,6 +67,37 @@ class ConciergeXdmValueTest {
     }
 
     @Test
+    fun `both paths reject non-object placeContext and context null deletes it`() {
+        val repository = repository()
+        val place = mapOf("geo" to mapOf("city" to "Boston"))
+        repository.updateXDMContext(mapOf("placeContext" to place, "retained" to true))
+        for (invalid in listOf("invalid", 1, listOf("invalid"))) {
+            assertThrows(IllegalArgumentException::class.java) {
+                repository.updateXDMContext(mapOf("retained" to false, "placeContext" to invalid))
+            }
+            assertEquals(mapOf("placeContext" to place, "retained" to true), repository.snapshotXDMContext("session"))
+            assertEquals(
+                DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE),
+                ConciergeDataHandoffEvent.fromEventData(
+                    mapOf(ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("placeContext" to invalid))
+                )
+            )
+        }
+        val accepted = ConciergeDataHandoffEvent.fromEventData(
+            mapOf(ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("placeContext" to place))
+        )
+        assertTrue(accepted is DataHandoffDecodeResult.Success)
+        assertEquals(
+            DataHandoffDecodeResult.Rejected(ConciergeConstants.DataHandoff.RejectReason.INVALID_XDM_FIELD_VALUE),
+            ConciergeDataHandoffEvent.fromEventData(
+                mapOf(ConciergeConstants.DataHandoff.EventData.Key.XDM_FIELDS to mapOf("placeContext" to null))
+            )
+        )
+        repository.updateXDMContext(mapOf("placeContext" to null))
+        assertEquals(mapOf("retained" to true), repository.snapshotXDMContext("session"))
+    }
+
+    @Test
     fun `both paths accept depth twenty and reject depth twenty one`() {
         for (useLists in listOf(false, true)) {
             var value: Any = "leaf"

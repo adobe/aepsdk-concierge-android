@@ -61,7 +61,10 @@ import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
+import java.util.Date
 import java.util.Collections
+import java.util.SimpleTimeZone
+import java.util.TimeZone
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.cancelAndJoin
@@ -594,6 +597,238 @@ class ConciergeConversationServiceClientTest {
                 .getJSONObject(0)
                 .getString("id")
         )
+    }
+
+    @Test
+    fun `chat request includes timestamp and placeContext in xdm`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            dateProvider = { Date(1_705_322_096_789L) },
+            timeZoneProvider = { TimeZone.getTimeZone("Asia/Kolkata") }
+        )
+        client.chat("hello", emptyMap()).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertEquals("2024-01-15T18:04:56.789+05:30", placeContext.getString("localTime"))
+        assertEquals(-330, placeContext.getInt("localTimezoneOffset"))
+    }
+
+    @Test
+    fun `chat handoff and feedback use numeric UTC local time offsets`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository, mockSessionManager,
+            dateProvider = { Date(1_705_322_096_789L) },
+            timeZoneProvider = { TimeZone.getTimeZone("UTC") }
+        )
+
+        fun assertUtcTime() {
+            val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
+            assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+            assertEquals("2024-01-15T12:34:56.789+00:00", xdm.getJSONObject("placeContext").getString("localTime"))
+            assertEquals(0, xdm.getJSONObject("placeContext").getInt("localTimezoneOffset"))
+        }
+
+        client.chat("hello", emptyMap()).toList()
+        assertUtcTime()
+        client.sendDataHandoff("handoff", mapOf("example" to true)).toList()
+        assertUtcTime()
+        assertTrue(client.sendFeedback(Feedback("turn", FeedbackType.POSITIVE)))
+        assertUtcTime()
+        verify(exactly = 3) { networkService.connectAsync(any(), any()) }
+    }
+
+    @Test
+    fun `chat and feedback use whole minute offsets for subminute timezone rules`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        var zone = SimpleTimeZone(9 * 60000 + 21000, "positive")
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository, mockSessionManager,
+            dateProvider = { Date(1_705_322_096_789L) },
+            timeZoneProvider = { zone }
+        )
+
+        client.chat("hello", emptyMap()).toList()
+        var xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+        assertEquals("2024-01-15T12:43:56.789+00:09", xdm.getJSONObject("placeContext").getString("localTime"))
+        assertEquals(-9, xdm.getJSONObject("placeContext").getInt("localTimezoneOffset"))
+
+        zone = SimpleTimeZone(-(3 * 60000 + 21000), "negative")
+        assertTrue(client.sendFeedback(Feedback("turn", FeedbackType.POSITIVE)))
+        xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+        assertEquals("2024-01-15T12:31:56.789-00:03", xdm.getJSONObject("placeContext").getString("localTime"))
+        assertEquals(3, xdm.getJSONObject("placeContext").getInt("localTimezoneOffset"))
+    }
+
+    @Test
+    fun `conversation rejects non-object placeContext before network connection`() = runTest {
+        val client = ConciergeConversationServiceClient(mockStateRepository, mockSessionManager)
+        for (value in listOf("invalid", listOf("invalid"))) {
+            val error = runCatching { client.chat("hello", mapOf("placeContext" to value)).toList() }.exceptionOrNull()
+            assertTrue(error is IllegalArgumentException)
+            assertEquals("XDM placeContext must be an object.", error?.message)
+        }
+        verify(exactly = 0) { networkService.connectAsync(any(), any()) }
+    }
+
+    @Test
+    fun `handoff preserves caller placeContext data but keeps generated time fields consistent`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            dateProvider = { Date(1_705_322_096_789L) },
+            timeZoneProvider = { TimeZone.getTimeZone("Asia/Kolkata") }
+        )
+        client.sendDataHandoff(
+            routingHint = "buy_now",
+            xdmFields = mapOf(
+                "timestamp" to "2020-01-01T00:00:00.000Z",
+                "placeContext" to mapOf(
+                    "localTimezoneOffset" to 60,
+                    "localTime" to "caller-local-time",
+                    "geo" to mapOf("city" to "Boston")
+                )
+            )
+        ).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertEquals(-330, placeContext.getInt("localTimezoneOffset"))
+        assertEquals("2024-01-15T18:04:56.789+05:30", placeContext.getString("localTime"))
+        assertEquals("Boston", placeContext.getJSONObject("geo").getString("city"))
+    }
+
+    @Test
+    fun `chat preserves held placeContext data and refreshes held timestamp fields`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            dateProvider = { Date(1_705_322_096_789L) },
+            timeZoneProvider = { TimeZone.getTimeZone("America/Los_Angeles") }
+        )
+        client.chat(
+            "hello",
+            mapOf(
+                "timestamp" to "2020-01-01T00:00:00.000Z",
+                "placeContext" to mapOf(
+                    "geo" to mapOf("city" to "Boston"),
+                    "localTime" to "stale-local-time",
+                    "localTimezoneOffset" to -330
+                )
+            )
+        ).toList()
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertEquals("Boston", placeContext.getJSONObject("geo").getString("city"))
+        assertEquals("2024-01-15T04:34:56.789-08:00", placeContext.getString("localTime"))
+        assertEquals(480, placeContext.getInt("localTimezoneOffset"))
+    }
+
+    @Test
+    fun `feedback request uses XDM offset sign for a negative timezone`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            dateProvider = { Date(1_705_322_096_789L) },
+            timeZoneProvider = { TimeZone.getTimeZone("America/Los_Angeles") }
+        )
+
+        assertTrue(client.sendFeedback(Feedback("turn", FeedbackType.POSITIVE)))
+
+        val xdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        assertEquals("2024-01-15T12:34:56.789Z", xdm.getString("timestamp"))
+        val placeContext = xdm.getJSONObject("placeContext")
+        assertEquals("2024-01-15T04:34:56.789-08:00", placeContext.getString("localTime"))
+        assertEquals(480, placeContext.getInt("localTimezoneOffset"))
+    }
+
+    @Test
+    fun `chat and feedback time fields stay consistent across a DST transition`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        var currentDate = Date(1_710_064_799_999L)
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            dateProvider = { currentDate },
+            timeZoneProvider = { TimeZone.getTimeZone("America/Los_Angeles") }
+        )
+
+        client.chat("before DST", emptyMap()).toList()
+        val before = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        val beforePlace = before.getJSONObject("placeContext")
+        assertEquals("2024-03-10T09:59:59.999Z", before.getString("timestamp"))
+        assertEquals("2024-03-10T01:59:59.999-08:00", beforePlace.getString("localTime"))
+        assertEquals(480, beforePlace.getInt("localTimezoneOffset"))
+
+        currentDate = Date(1_710_064_800_000L)
+        assertTrue(client.sendFeedback(Feedback("turn", FeedbackType.POSITIVE)))
+        val after = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        val afterPlace = after.getJSONObject("placeContext")
+        assertEquals("2024-03-10T10:00:00.000Z", after.getString("timestamp"))
+        assertEquals("2024-03-10T03:00:00.000-07:00", afterPlace.getString("localTime"))
+        assertEquals(420, afterPlace.getInt("localTimezoneOffset"))
+    }
+
+    @Test
+    fun `chat request time fields are regenerated for each turn`() = runTest {
+        val requestSlot = slot<NetworkRequest>()
+        stubConnection(requestSlot)
+        var currentDate = Date(1_705_322_096_789L)
+        val client = ConciergeConversationServiceClient(
+            mockStateRepository,
+            mockSessionManager,
+            dateProvider = { currentDate },
+            timeZoneProvider = { TimeZone.getTimeZone("Asia/Kathmandu") }
+        )
+
+        client.chat("first", emptyMap()).toList()
+        val firstXdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+        currentDate = Date(1_721_046_896_789L)
+        client.chat("second", emptyMap()).toList()
+        val secondXdm = JSONObject(capturedBody(requestSlot)).getJSONArray("events")
+            .getJSONObject(0).getJSONObject("xdm")
+
+        assertEquals("2024-01-15T12:34:56.789Z", firstXdm.getString("timestamp"))
+        assertEquals("2024-07-15T12:34:56.789Z", secondXdm.getString("timestamp"))
+        assertEquals(
+            "2024-01-15T18:19:56.789+05:45",
+            firstXdm.getJSONObject("placeContext").getString("localTime")
+        )
+        assertEquals(-345, firstXdm.getJSONObject("placeContext").getInt("localTimezoneOffset"))
+        assertEquals(
+            "2024-07-15T18:19:56.789+05:45",
+            secondXdm.getJSONObject("placeContext").getString("localTime")
+        )
+        assertEquals(-345, secondXdm.getJSONObject("placeContext").getInt("localTimezoneOffset"))
     }
 
     @Test

@@ -264,7 +264,8 @@ internal class ConciergeStateRepository internal constructor(
         require(ConciergeConstants.SharedState.EdgeIdentity.IDENTITY_MAP !in fields) {
             "XDM context must not use the reserved top-level identityMap key."
         }
-        val copiedPatch = fields.mapValues { (_, value) ->
+        val copiedPatch = fields.mapValues { (key, value) ->
+            ConciergeXdmValue.validateField(key, value, allowNull = true)
             ConciergeXdmValue.copyAndValidate(value, allowNull = true)
         }
 

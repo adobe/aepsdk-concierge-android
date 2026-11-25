@@ -17,6 +17,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.ConciergeXdmValue
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.services.HttpConnecting
@@ -49,6 +50,7 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.SimpleTimeZone
 import java.util.TimeZone
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -93,11 +95,32 @@ private class DefaultRequestStartedFlow<T>(
     override fun onRequestStarted(callback: () -> Unit): Flow<T> = flowFactory(callback)
 }
 
+internal data class XdmTime(val timestamp: String, val localTime: String, val localTimezoneOffset: Int)
+
+internal fun createXdmTime(now: Date, timeZone: TimeZone): XdmTime {
+    val offsetMinutes = timeZone.getOffset(now.time) / 60000
+    val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).apply {
+        this.timeZone = SimpleTimeZone(offsetMinutes * 60000, "")
+    }.format(now)
+    val offsetHours = kotlin.math.abs(offsetMinutes) / 60
+    val offsetRemainderMinutes = kotlin.math.abs(offsetMinutes) % 60
+    val offsetSign = if (offsetMinutes >= 0) "+" else "-"
+    return XdmTime(
+        timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            this.timeZone = TimeZone.getTimeZone("UTC")
+        }.format(now),
+        localTime = "$localTime$offsetSign${"%02d:%02d".format(Locale.US, offsetHours, offsetRemainderMinutes)}",
+        localTimezoneOffset = -offsetMinutes
+    )
+}
+
 internal class ConciergeConversationServiceClient(
     private val stateRepository: ConciergeStateRepository = ConciergeStateRepository.instance,
     private val sessionManager: ConciergeSessionManager = ConciergeSessionManager.instance,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val feedbackDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val feedbackDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val dateProvider: () -> Date = ::Date,
+    private val timeZoneProvider: () -> TimeZone = { TimeZone.getDefault() }
 ) : ConversationService {
 
     companion object {
@@ -289,16 +312,27 @@ internal class ConciergeConversationServiceClient(
     }
 
     private fun createXdmObject(state: ConciergeState, xdmFields: Map<String, Any>): JSONObject {
-        val identityMap = JSONObject(identityMapJson(state))
-        return JSONObject().put("identityMap", identityMap).apply {
+        val time = currentXdmTime()
+        val xdm = JSONObject().apply {
             xdmFields.forEach { (key, value) ->
                 require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
                     "XDM fields must not overwrite reserved key '$key'."
                 }
+                ConciergeXdmValue.validateField(key, value, allowNull = false)
                 put(key, value.toJsonValue())
             }
         }
+        val placeContext = (xdm.opt("placeContext") as? JSONObject) ?: JSONObject()
+        placeContext
+            .put("localTimezoneOffset", time.localTimezoneOffset)
+            .put("localTime", time.localTime)
+        return xdm
+            .put("identityMap", JSONObject(identityMapJson(state)))
+            .put("timestamp", time.timestamp)
+            .put("placeContext", placeContext)
     }
+
+    private fun currentXdmTime(): XdmTime = createXdmTime(dateProvider(), timeZoneProvider())
 
     private fun Any.toJsonValue(): Any = when (this) {
         is Map<*, *> -> JSONObject().apply {
@@ -514,13 +548,7 @@ internal class ConciergeConversationServiceClient(
      * Creates the feedback request body in XDM format
      */
     private suspend fun createFeedbackRequestBody(feedback: Feedback, state: ConciergeState): String {
-        val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.format(Date())
-
-        val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(Date())
-        val timeZoneOffset =
-            TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000 // offset in minutes
+        val time = currentXdmTime()
 
         val rawArray = if (feedback.notes.isNotBlank()) {
             """[{"text": "${feedback.notes.escapedForJson()}","purpose": "user input"}]"""
@@ -562,10 +590,10 @@ internal class ConciergeConversationServiceClient(
                 $xdmConversationFields
             },
             "eventType": "conversation.feedback",
-            "timestamp": "$timestamp",
+            "timestamp": "${time.timestamp}",
             "placeContext": {
-                "localTimezoneOffset": $timeZoneOffset,
-                "localTime": "$localTime"
+                "localTimezoneOffset": ${time.localTimezoneOffset},
+                "localTime": "${time.localTime}"
             },
             "implementationDetails": {
             	"environment": "app",

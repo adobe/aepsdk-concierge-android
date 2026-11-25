@@ -14,6 +14,12 @@ package com.adobe.marketing.mobile.concierge
 internal object ConciergeXdmValue {
     const val MAX_DEPTH = 20
 
+    fun validateField(key: String, value: Any?, allowNull: Boolean) {
+        require(key != "placeContext" || value is Map<*, *> || (allowNull && value == null)) {
+            "XDM placeContext must be an object."
+        }
+    }
+
     fun copyAndValidate(value: Any?, allowNull: Boolean, depth: Int = 0): Any? {
         require(depth <= MAX_DEPTH) { "XDM values must not exceed a nesting depth of $MAX_DEPTH." }
         return when (value) {
