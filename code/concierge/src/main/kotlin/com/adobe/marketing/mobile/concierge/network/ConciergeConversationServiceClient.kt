@@ -236,6 +236,8 @@ internal class ConciergeConversationServiceClient(
             streamConversationEvents(
                 generation,
                 onRequestStarted = {},
+                // The response carries the LiveKit URL and token.
+                logPayload = false,
                 prepareRequest = { state ->
                     createConversationServiceRequest(
                         endpoint(state, resolvedSessionId),
@@ -259,11 +261,13 @@ internal class ConciergeConversationServiceClient(
 
     /**
      * Prepares and sends one streaming conversation request bound to [generation], delivering each
-     * [StreamingEvent] to [onEvent]. Cancellation closes the connection proactively.
+     * [StreamingEvent] to [onEvent]. Cancellation closes the connection proactively. With
+     * [logPayload] false, the response's content stays out of the debug log.
      */
     private suspend fun streamConversationEvents(
         generation: Long,
         onRequestStarted: () -> Unit,
+        logPayload: Boolean = true,
         prepareRequest: suspend (ConciergeState) -> NetworkRequest,
         onEvent: suspend (StreamingEvent) -> Unit
     ) {
@@ -283,7 +287,7 @@ internal class ConciergeConversationServiceClient(
                 }
             }
             try {
-                processResponse(connection).collect { event ->
+                processResponse(connection, logPayload).collect { event ->
                     stateRepository.withConversation(generation) { }
                     onEvent(event)
                 }
@@ -512,12 +516,14 @@ internal class ConciergeConversationServiceClient(
      *
      * Behavior:
      * - Validates HTTP status; on non-2xx throws an [IOException]
-     * - Delegates parsing to [SSEParser.process], which emits Started, data events, and Closed
+     * - Delegates parsing to [SSEParser.process], which emits Started, data events, and Closed;
+     *   [logPayload] is passed to the parser
      * - Re-throws on [StreamingEvent.Error]
      * - Always closes the underlying [HttpConnecting]
      */
     private fun processResponse(
-        connection: HttpConnecting
+        connection: HttpConnecting,
+        logPayload: Boolean
     ): Flow<StreamingEvent> = flow {
         try {
             validateResponseCode(connection)
@@ -526,7 +532,7 @@ internal class ConciergeConversationServiceClient(
             BufferedReader(
                 InputStreamReader(input, StandardCharsets.UTF_8)
             ).use { reader ->
-                SSEParser().process(reader).collect { event ->
+                SSEParser(logPayload).process(reader).collect { event ->
                     when (event) {
                         is StreamingEvent.Started -> {
                             Log.trace(

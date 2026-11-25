@@ -17,10 +17,13 @@ import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
+import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.Networking
 import com.adobe.marketing.mobile.services.ServiceProvider
+import io.mockk.Call
+import io.mockk.MockKAnswerScope
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -209,6 +212,30 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
 
         assertEquals(listOf(VoiceSessionBootstrap("wss://lk.example.com", "jwt")), result)
         verify { connection.close() }
+    }
+
+    @Test
+    fun `bootstrap does not log the token of a successful response`() = runTest {
+        val logged = mutableListOf<String>()
+        mockkStatic(Log::class)
+        try {
+            val record: MockKAnswerScope<Unit, Unit>.(Call) -> Unit = {
+                logged += args.drop(2).flatMap { (it as? Array<*>)?.toList() ?: listOf(it) }.joinToString()
+            }
+            every { Log.trace(any(), any(), any(), *anyVararg()) } answers(record)
+            every { Log.debug(any(), any(), any(), *anyVararg()) } answers(record)
+            every { Log.warning(any(), any(), any(), *anyVararg()) } answers(record)
+            every { Log.error(any(), any(), any(), *anyVararg()) } answers(record)
+            respondWith(sse(session("wss://lk.example.com", "secret-token")))
+
+            val result = client().bootstrapVoiceSession().toList()
+
+            assertEquals(listOf(VoiceSessionBootstrap("wss://lk.example.com", "secret-token")), result)
+            assertTrue("the stream is still logged", logged.any { it.startsWith("SSE Event") })
+            assertFalse(logged.joinToString("\n"), logged.any { it.contains("secret-token") })
+        } finally {
+            unmockkStatic(Log::class)
+        }
     }
 
     @Test

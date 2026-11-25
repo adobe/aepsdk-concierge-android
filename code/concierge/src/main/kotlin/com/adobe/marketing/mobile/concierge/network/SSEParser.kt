@@ -31,7 +31,11 @@ internal sealed class StreamingEvent {
     data class Retry(val delayMillis: Int) : StreamingEvent()
 }
 
-internal class SSEParser {
+/**
+ * @param logPayload whether the debug log shows the raw lines and each event's data. Off for
+ * streams that carry credentials, such as the voice bootstrap.
+ */
+internal class SSEParser(private val logPayload: Boolean = true) {
     private companion object {
         private const val FIELD_DATA = "data"
         private const val FIELD_EVENT = "event"
@@ -83,11 +87,13 @@ internal class SSEParser {
             reader.useLines { lines ->
                 lines.forEach { line ->
                     try {
-                        Log.debug(
-                            ConciergeConstants.EXTENSION_NAME,
-                            TAG,
-                            "SSE raw line: $line"
-                        )
+                        if (logPayload) {
+                            Log.debug(
+                                ConciergeConstants.EXTENSION_NAME,
+                                TAG,
+                                "SSE raw line: $line"
+                            )
+                        }
                         val events = feed(line)
                         events.forEach { sseEvent ->
                             emit(convertToStreamingEvent(sseEvent))
@@ -200,10 +206,11 @@ internal class SSEParser {
      * Converts a raw SSEEvent to a StreamingEvent with proper defaults.
      */
     private fun convertToStreamingEvent(sseEvent: SSEEvent): StreamingEvent {
+        val data = if (logPayload) sseEvent.data else "(${sseEvent.data.length} characters, not logged)"
         Log.debug(
             ConciergeConstants.EXTENSION_NAME,
             TAG,
-            "SSE Event - type: ${sseEvent.eventType}, id: ${sseEvent.id}, data: ${sseEvent.data}, retry: ${sseEvent.retry}"
+            "SSE Event - type: ${sseEvent.eventType}, id: ${sseEvent.id}, data: $data, retry: ${sseEvent.retry}"
         )
         return when {
             sseEvent.hasEventType() -> StreamingEvent.EventReceived(
