@@ -267,9 +267,11 @@ internal class VoiceSessionController(
                     if (isAudioInterrupted) setMicrophoneEnabled(false)
                 }
                 VoiceSessionState.Reconnecting -> {
-                    // The transport keeps the microphone as it was; an interruption mute stays.
                     cancelConnectionTimeout()
                     setState(VoiceSessionState.Listening)
+                    // A transport can come back with the microphone live, so mute it again if an
+                    // interruption is still on.
+                    if (isAudioInterrupted) setMicrophoneEnabled(false)
                 }
                 else -> Unit
             }

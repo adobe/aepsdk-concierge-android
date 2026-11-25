@@ -319,7 +319,7 @@ class VoiceSessionControllerTest {
     }
 
     @Test
-    fun reconnecting_keepsTheSessionAndReturnsToListeningWithoutUnmuting() {
+    fun reconnecting_keepsTheSessionAndReturnsToListeningMutedAgainWhileInterrupted() {
         val transport = FakeVoiceTransport()
         val listener = RecordingVoiceListener()
         val session = start(transport, listener)
@@ -339,11 +339,28 @@ class VoiceSessionControllerTest {
             ),
             listener.states
         )
-        assertEquals("the interruption mute stays after reconnecting", listOf(false), transport.microphoneChanges)
+        assertEquals(
+            "a transport can reconnect with the microphone live, so the interruption mute is applied again",
+            listOf(false, false),
+            transport.microphoneChanges
+        )
         transport.interruptionEnded()
-        assertEquals(listOf(false, true), transport.microphoneChanges)
+        assertEquals(listOf(false, false, true), transport.microphoneChanges)
         assertEquals(0, transport.disconnectCount)
         assertTrue(transport.listener != null)
+    }
+
+    @Test
+    fun reconnecting_withoutAnInterruption_leavesTheMicrophoneAlone() {
+        val transport = FakeVoiceTransport()
+        val listener = RecordingVoiceListener()
+        val session = start(transport, listener)
+
+        transport.report(VoiceTransportState.Reconnecting)
+        transport.report(VoiceTransportState.Connected)
+
+        assertEquals(VoiceSessionState.Listening, session.state)
+        assertEquals(emptyList<Boolean>(), transport.microphoneChanges)
     }
 
     @Test

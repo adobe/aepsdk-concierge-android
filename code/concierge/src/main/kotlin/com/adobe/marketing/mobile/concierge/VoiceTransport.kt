@@ -84,7 +84,8 @@ interface VoiceTransport {
      * Mutes or unmutes the microphone without leaving the room. Brand Concierge mutes it while
      * another app holds the audio (see [VoiceTransportListener.onAudioInterruptionBegan]),
      * including an interruption that began while connecting, and unmutes it afterwards. Called
-     * only while connected.
+     * only while connected or reconnecting. When a reconnect succeeds, it mutes the microphone
+     * again if the interruption is still on.
      *
      * If the microphone cannot be changed, report [VoiceTransportState.Failed], including when the
      * change fails after this method has returned: Brand Concierge can't tell whether the

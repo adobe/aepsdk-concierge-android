@@ -17,10 +17,13 @@ import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.services.HttpConnecting
 import com.adobe.marketing.mobile.services.HttpMethod
+import com.adobe.marketing.mobile.services.Log
 import com.adobe.marketing.mobile.services.NetworkCallback
 import com.adobe.marketing.mobile.services.NetworkRequest
 import com.adobe.marketing.mobile.services.Networking
 import com.adobe.marketing.mobile.services.ServiceProvider
+import io.mockk.Call
+import io.mockk.MockKAnswerScope
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -121,8 +124,7 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     }
 
     @Test
-    fun `bootstrap body carries the livekit-bootstrap discriminator in the chat envelope`() = runTest {
-        ConciergeAuthTokenHolder.setProvider(provider = { "should-not-be-sent" })
+    fun `bootstrap body carries the voice start marker in the chat envelope`() = runTest {
         respondWith("")
 
         client().bootstrapVoiceSession().toList()
@@ -130,8 +132,9 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
         val body = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
         val event = body.getJSONArray("events").getJSONObject(0)
         val conversation = event.getJSONObject("query").getJSONObject("conversation")
-        assertEquals("livekit-bootstrap", conversation.getJSONObject("data").getString("type"))
-        assertEquals(1, conversation.getJSONObject("data").length())
+        assertEquals("start", conversation.getJSONObject("voice").getString("action"))
+        assertEquals(1, conversation.getJSONObject("voice").length())
+        assertFalse("without a token, there is no data part", conversation.has("data"))
         assertFalse(conversation.has("message"))
         assertEquals(listOf("surface1", "surface2"), conversation.getJSONArray("surfaces").let { a -> List(a.length()) { a.getString(it) } })
         assertEquals("in", event.getJSONObject("meta").getJSONObject("consent").getString("state"))
@@ -139,19 +142,35 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
             "test-ecid",
             event.getJSONObject("xdm").getJSONObject("identityMap").getJSONArray("ECID").getJSONObject(0).getString("id")
         )
-        assertFalse(body.toString().contains("should-not-be-sent"))
     }
 
     @Test
-    fun `bootstrap body marks xdm eventType as voice`() = runTest {
+    fun `bootstrap body carries the auth token as a data part next to the voice marker`() = runTest {
+        ConciergeAuthTokenHolder.setProvider(provider = { "token-abc" })
+        respondWith("")
+
+        client().bootstrapVoiceSession().toList()
+
+        val request = requestSlot.captured
+        val conversation = JSONObject(String(request.body, StandardCharsets.UTF_8))
+            .getJSONArray("events").getJSONObject(0).getJSONObject("query").getJSONObject("conversation")
+        assertEquals("start", conversation.getJSONObject("voice").getString("action"))
+        val auth = conversation.getJSONObject("data")
+        assertEquals("auth", auth.getString("type"))
+        assertEquals("token-abc", auth.getJSONObject("payload").getString("token"))
+        assertFalse(request.headers.values.any { it.contains("token-abc") })
+    }
+
+    @Test
+    fun `bootstrap body has no xdm eventType`() = runTest {
         respondWith("")
 
         client().bootstrapVoiceSession().toList()
 
         val xdm = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
             .getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
-        // The service needs both this and `data.type` to treat the request as a bootstrap.
-        assertEquals("conversation.voice", xdm.getString("eventType"))
+        // The `voice` marker alone makes the request a bootstrap.
+        assertFalse(xdm.has("eventType"))
         assertTrue(xdm.has("identityMap"))
     }
 
@@ -166,7 +185,7 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
         val xdm = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
             .getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
         assertEquals("gold", xdm.getJSONObject("loyalty").getString("tier"))
-        assertEquals("the SDK's eventType wins", "conversation.voice", xdm.getString("eventType"))
+        assertEquals("passed through as in a chat turn", "app.custom", xdm.getString("eventType"))
         assertEquals(
             "test-ecid",
             xdm.getJSONObject("identityMap").getJSONArray("ECID").getJSONObject(0).getString("id")
@@ -174,14 +193,15 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     }
 
     @Test
-    fun `chat body has no voice eventType`() = runTest {
+    fun `chat body has no voice marker`() = runTest {
         respondWith("")
 
         client().chat("hi").toList()
 
-        val xdm = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
-            .getJSONArray("events").getJSONObject(0).getJSONObject("xdm")
-        assertFalse(xdm.has("eventType"))
+        val conversation = JSONObject(String(requestSlot.captured.body, StandardCharsets.UTF_8))
+            .getJSONArray("events").getJSONObject(0).getJSONObject("query").getJSONObject("conversation")
+        // The service rejects `voice` together with `message`.
+        assertFalse(conversation.has("voice"))
     }
 
     @Test
@@ -192,6 +212,30 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
 
         assertEquals(listOf(VoiceSessionBootstrap("wss://lk.example.com", "jwt")), result)
         verify { connection.close() }
+    }
+
+    @Test
+    fun `bootstrap does not log the token of a successful response`() = runTest {
+        val logged = mutableListOf<String>()
+        mockkStatic(Log::class)
+        try {
+            val record: MockKAnswerScope<Unit, Unit>.(Call) -> Unit = {
+                logged += args.drop(2).flatMap { (it as? Array<*>)?.toList() ?: listOf(it) }.joinToString()
+            }
+            every { Log.trace(any(), any(), any(), *anyVararg()) } answers(record)
+            every { Log.debug(any(), any(), any(), *anyVararg()) } answers(record)
+            every { Log.warning(any(), any(), any(), *anyVararg()) } answers(record)
+            every { Log.error(any(), any(), any(), *anyVararg()) } answers(record)
+            respondWith(sse(session("wss://lk.example.com", "secret-token")))
+
+            val result = client().bootstrapVoiceSession().toList()
+
+            assertEquals(listOf(VoiceSessionBootstrap("wss://lk.example.com", "secret-token")), result)
+            assertTrue("the stream is still logged", logged.any { it.startsWith("SSE Event") })
+            assertFalse(logged.joinToString("\n"), logged.any { it.contains("secret-token") })
+        } finally {
+            unmockkStatic(Log::class)
+        }
     }
 
     @Test
@@ -266,8 +310,10 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
     }
 
     @Test
-    fun `bootstrap with no surfaces fails without sending a request`() = runTest {
+    fun `bootstrap with no surfaces fails without asking for a token or sending a request`() = runTest {
         stateFlow.value = testState.copy(surfaces = emptyList())
+        var tokenRequested = false
+        ConciergeAuthTokenHolder.setProvider(provider = { tokenRequested = true; "token-abc" })
 
         try {
             client().bootstrapVoiceSession().toList()
@@ -275,6 +321,7 @@ class ConciergeConversationServiceClientVoiceBootstrapTest {
         } catch (e: IllegalStateException) {
             // expected
         }
+        assertFalse(tokenRequested)
         verify(exactly = 0) { networkService.connectAsync(any(), any()) }
     }
 
