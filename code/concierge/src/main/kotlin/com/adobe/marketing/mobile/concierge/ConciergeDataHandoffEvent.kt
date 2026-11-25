@@ -13,7 +13,7 @@ package com.adobe.marketing.mobile.concierge
 
 /**
  * A generic payload the SDK forwards toward Brand Concierge on behalf of a host app, without the
- * user typing or saying anything in chat. The SDK does not interpret [xdmFields]'s contents.
+ * user typing or saying anything in chat.
  *
  * Internal wire-format plumbing for [Concierge.sendDataHandoff] — [toEventData] builds the
  * request [com.adobe.marketing.mobile.Event]'s data (type [ConciergeConstants.EventType.CONCIERGE],
@@ -30,6 +30,7 @@ package com.adobe.marketing.mobile.concierge
  * [ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS] are rejected, as is any value that isn't
  * JSON-safe (`String`, `Boolean`, finite `Int`/`Long`/`Double`/`Float`, or a `Map`/`List` of
  * further JSON-safe values, up to a bounded nesting depth; null is allowed inside lists).
+ * A top-level `placeContext`, when present, must be a map.
  * @property localMessage Message to render in chat immediately before its queued handoff starts.
  */
 internal data class ConciergeDataHandoffEvent(
@@ -94,6 +95,7 @@ internal data class ConciergeDataHandoffEvent(
                     return DataHandoffDecodeResult.Rejected(reasons.RESERVED_KEY_COLLISION)
                 }
                 try {
+                    ConciergeXdmValue.validateField(key, value, allowNull = false)
                     xdmFields[key] = ConciergeXdmValue.copyAndValidate(value, allowNull = false)!!
                 } catch (exception: IllegalArgumentException) {
                     return DataHandoffDecodeResult.Rejected(reasons.INVALID_XDM_FIELD_VALUE)

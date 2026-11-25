@@ -137,6 +137,37 @@ class ConciergeDataHandoffSenderTest {
     }
 
     @Test
+    fun `public handoff reports invalid placeContext without forwarding`() {
+        var forwarded = false
+        val handler = ConciergeDataHandoffEventHandler(
+            forwarder = object : ConciergeDataHandoffForwarder {
+                override fun forward(result: ConciergeDataHandoffEvent, completion: (DataHandoffDeliveryResult) -> Unit) {
+                    forwarded = true
+                }
+            }
+        )
+        lateinit var callback: AdobeCallbackWithError<Event>
+        every { MobileCore.dispatchEvent(any()) } answers {
+            callback.call(firstArg())
+        }
+        every { MobileCore.dispatchEventWithResponseCallback(any(), any(), any()) } answers {
+            callback = thirdArg()
+            handler.handle(firstArg())
+        }
+        var accepted: Boolean? = null
+        var reason: ConciergeDataHandoffRejectReason? = null
+
+        Concierge.sendDataHandoff(xdmFields = mapOf("placeContext" to listOf("invalid"))) { result, error ->
+            accepted = result
+            reason = error
+        }
+
+        assertEquals(false, forwarded)
+        assertEquals(false, accepted)
+        assertEquals(ConciergeDataHandoffRejectReason.INVALID_XDM_FIELD_VALUE, reason)
+    }
+
+    @Test
     fun `send invokes completion with accepted false and NO_RESPONSE reason on dispatch failure`() {
         val callbackSlot = captureCallback()
         var resultAccepted: Boolean? = null

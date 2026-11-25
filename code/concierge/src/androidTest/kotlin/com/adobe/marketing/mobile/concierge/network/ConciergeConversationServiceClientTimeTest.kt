@@ -17,6 +17,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Date
+import java.util.SimpleTimeZone
 import java.util.TimeZone
 
 @RunWith(AndroidJUnit4::class)
@@ -24,6 +25,13 @@ class ConciergeConversationServiceClientTimeTest {
 
     @Test
     fun timeFieldsUseDeviceFormatterAndDstOffset() {
+        for (zone in listOf("UTC", "Europe/London")) {
+            val utc = createXdmTime(Date(1_705_322_096_789L), TimeZone.getTimeZone(zone))
+            assertEquals("2024-01-15T12:34:56.789Z", utc.timestamp)
+            assertEquals("2024-01-15T12:34:56.789+00:00", utc.localTime)
+            assertEquals(0, utc.localTimezoneOffset)
+        }
+
         val india = createXdmTime(Date(1_705_322_096_789L), TimeZone.getTimeZone("Asia/Kolkata"))
         assertEquals("2024-01-15T12:34:56.789Z", india.timestamp)
         assertEquals("2024-01-15T18:04:56.789+05:30", india.localTime)
@@ -39,5 +47,16 @@ class ConciergeConversationServiceClientTimeTest {
         assertEquals("2024-03-10T10:00:00.000Z", after.timestamp)
         assertEquals("2024-03-10T03:00:00.000-07:00", after.localTime)
         assertEquals(420, after.localTimezoneOffset)
+    }
+
+    @Test
+    fun subminuteOffsetsUseTheSamePrecisionForWallTimeAndSuffix() {
+        val date = Date(1_705_322_096_789L)
+        val positive = createXdmTime(date, SimpleTimeZone(9 * 60000 + 21000, "positive"))
+        assertEquals("2024-01-15T12:43:56.789+00:09", positive.localTime)
+        assertEquals(-9, positive.localTimezoneOffset)
+        val negative = createXdmTime(date, SimpleTimeZone(-(3 * 60000 + 21000), "negative"))
+        assertEquals("2024-01-15T12:31:56.789-00:03", negative.localTime)
+        assertEquals(3, negative.localTimezoneOffset)
     }
 }

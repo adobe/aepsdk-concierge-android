@@ -91,9 +91,11 @@ object Concierge {
      * separate reset API; use null-valued patch entries to remove specific values.
      *
      * @param fields a JSON-safe object to merge into the held XDM context. The top-level
-     * `identityMap` key is reserved for the SDK.
+     * `identityMap` key is reserved for the SDK. `placeContext` must be a map or null to remove it.
+     * The SDK overwrites `timestamp`, `placeContext.localTime` and `placeContext.localTimezoneOffset`.
      * @throws IllegalArgumentException if a value is not JSON-compatible, exceeds 20 nesting
-     * levels below a top-level field value (including cyclic input), or `identityMap` is used.
+     * levels below a top-level field value (including cyclic input), `identityMap` is used, or
+     * `placeContext` is neither a map nor null.
      */
     @JvmStatic
     fun updateXDMContext(fields: Map<String, Any?>) {
@@ -111,9 +113,10 @@ object Concierge {
      * @param routingHint a keyword the end user never sees, consumed by Brand Concierge's
      * phrase-based router (e.g. "successful-checkout"). Defaults to an empty string, which
      * forwards an empty service query for callers whose XDM fields already determine routing.
-     * @param xdmFields arbitrary XDM data merged into the root of the outbound XDM object; the
-     * SDK does not interpret its contents. Must be non-empty and JSON-safe (null is allowed inside
-     * lists), and must not use `identityMap` (or any other SDK-reserved top-level XDM key).
+     * @param xdmFields XDM data merged into the root of the outbound XDM object. Must be non-empty
+     * and JSON-safe (null is allowed inside lists), and must not use `identityMap` (or any other
+     * SDK-reserved top-level XDM key). When supplied, `placeContext` must be a map. The SDK
+     * overwrites `timestamp`, `placeContext.localTime` and `placeContext.localTimezoneOffset`.
      * @param localMessage text to render in chat when this handoff starts, distinct from the data
      * forwarded to Brand Concierge. The handoff is rejected with [ConciergeDataHandoffRejectReason.CHAT_IN_PROGRESS]
      * when a chat turn or another handoff is active or waiting; callers can retry after it completes.

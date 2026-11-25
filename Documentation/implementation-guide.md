@@ -147,14 +147,14 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
   There is no reset API. To remove context, send `null` values.
 - **Request timestamps:** The SDK sets `timestamp`, `placeContext.localTime`, and
   `placeContext.localTimezoneOffset` from one fresh instant for every chat, handoff, and feedback
-  request. The offset uses XDM's minutes-west-of-UTC convention (UTC+05:30 is -330). These fields
+  request. The offset is minutes west of UTC, matching the Web SDK (UTC+05:30 is -330). These fields
   are SDK-owned and override matching caller values; other `placeContext` fields, such as `geo`,
   are preserved.
 - **Allowed values:** strings, booleans, finite `Byte`, `Short`, `Int`, `Long`, `Float`, or
   `Double` values, maps with string keys, and lists of these values. A `null` inside a list is
   sent as JSON null. Nesting is limited to 20 levels below each top-level value. The top-level
-  `identityMap` key is reserved for the SDK. Invalid input, including cyclic input, throws
-  `IllegalArgumentException`.
+  `identityMap` key is reserved for the SDK. `placeContext` must be a map, or `null` to remove it.
+  Invalid input, including cyclic input, throws `IllegalArgumentException`.
 - **Lifetime:** Context is held in memory for the current Concierge session (30 minutes of
   inactivity). Updating it doesn't start or extend a session. If no session exists yet, the next
   request adopts the context. When a session expires, its context is not sent with later requests,
@@ -162,7 +162,8 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 - **Timing:** A chat message or handoff captures the context when it's submitted. Updates made
   after that don't change requests that are already queued.
 - **Data handoffs:** The handoff's `xdmFields` are deep-merged over the held context using the same
-  rules, and the handoff values win. The held context itself isn't changed.
+  rules, and the handoff values win. SDK-owned request timestamp fields override both. The held
+  context itself isn't changed.
 - **Visibility:** The context is included in the **Brand Concierge Query Submitted** Event Hub
   event, so Assurance and other listening extensions can read it. The SDK doesn't forward it to
   Edge tracking and doesn't write it to the SDK log.
@@ -244,7 +245,8 @@ Concierge.sendDataHandoff(
   `mapOf("commerce" to mapOf("order" to mapOf("purchaseID" to "123")))`. The map must be non-empty;
   every key must be a `String`; and values follow the [XDM context](#xdm-context) value rules,
   except that `null` is allowed only inside lists. Do not use `identityMap` as a top-level key
-  because the SDK owns and populates it. These fields are deep-merged over any held XDM context.
+  because the SDK owns and populates it. If supplied, `placeContext` must be a map. These fields
+  are deep-merged over any held XDM context; the SDK-owned request timestamp fields take precedence.
 - **`localMessage`**: Optional text for a local, non-networked chat message distinct from the data
   forwarded to Brand Concierge. The SDK renders it immediately before an accepted handoff starts,
   as an agent-attributed message rather than a user message.
@@ -262,7 +264,7 @@ Concierge.sendDataHandoff(
   | `EMPTY_XDM_FIELDS` | `xdmFields` was empty. |
   | `INVALID_XDM_FIELD_KEY` | `xdmFields` contained a key that was not a string. |
   | `RESERVED_KEY_COLLISION` | `xdmFields` used an SDK-reserved top-level key such as `identityMap`. |
-  | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON. |
+  | `INVALID_XDM_FIELD_VALUE` | `xdmFields` contained a value that cannot be serialized as JSON or an invalid `placeContext`. |
   | `NO_ACTIVE_SESSION` | No rendered Concierge chat session was available to receive the handoff. |
   | `CHAT_IN_PROGRESS` | A chat turn or another handoff is active or waiting. Retry after it completes. |
   | `DELIVERY_FAILED` | Brand Concierge returned an error or the service request could not complete. |

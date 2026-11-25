@@ -17,6 +17,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeConstants
 import com.adobe.marketing.mobile.concierge.ConciergeSessionManager
 import com.adobe.marketing.mobile.concierge.ConciergeState
 import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
+import com.adobe.marketing.mobile.concierge.ConciergeXdmValue
 import com.adobe.marketing.mobile.concierge.ui.state.Feedback
 import com.adobe.marketing.mobile.concierge.ui.state.FeedbackType
 import com.adobe.marketing.mobile.services.HttpConnecting
@@ -49,6 +50,7 @@ import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.SimpleTimeZone
 import java.util.TimeZone
 import java.util.UUID
 import kotlin.coroutines.resume
@@ -98,7 +100,7 @@ internal data class XdmTime(val timestamp: String, val localTime: String, val lo
 internal fun createXdmTime(now: Date, timeZone: TimeZone): XdmTime {
     val offsetMinutes = timeZone.getOffset(now.time) / 60000
     val localTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US).apply {
-        this.timeZone = timeZone
+        this.timeZone = SimpleTimeZone(offsetMinutes * 60000, "")
     }.format(now)
     val offsetHours = kotlin.math.abs(offsetMinutes) / 60
     val offsetRemainderMinutes = kotlin.math.abs(offsetMinutes) % 60
@@ -316,6 +318,7 @@ internal class ConciergeConversationServiceClient(
                 require(key !in ConciergeConstants.DataHandoff.RESERVED_XDM_KEYS) {
                     "XDM fields must not overwrite reserved key '$key'."
                 }
+                ConciergeXdmValue.validateField(key, value, allowNull = false)
                 put(key, value.toJsonValue())
             }
         }
