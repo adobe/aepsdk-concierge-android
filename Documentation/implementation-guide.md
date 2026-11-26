@@ -173,7 +173,7 @@ Concierge.updateXDMContext(mapOf("loyalty" to mapOf("tier" to null)))
 
 ## Authentication
 
-If your backend requires proof of the user's identity, register a `ConciergeAuthTokenProvider` to supply an app-minted authentication token. Brand Concierge attaches it to every chat and feedback request until the provider is cleared. Voice conversations don't send it.
+If your backend requires proof of the user's identity, register a `ConciergeAuthTokenProvider` to supply an app-minted authentication token. Brand Concierge attaches it to every chat and feedback request until the provider is cleared. Voice conversations send it when they start, but the voice agent doesn't use it yet.
 
 ```kotlin
 import com.adobe.marketing.mobile.concierge.Concierge
@@ -435,7 +435,7 @@ The transport, and therefore LiveKit, owns audio focus, audio routing and audio 
 
 ### Limitations
 
-- **No authentication token.** Brand Concierge doesn't send the token from `Concierge.setAuthTokenProvider` when it starts a voice conversation, so the voice agent works without it. Typed and dictated messages in the same chat still include it.
+- **The voice agent doesn't use the authentication token.** Brand Concierge sends the token from `Concierge.setAuthTokenProvider` with the request that starts a voice conversation, but the service doesn't pass it to the voice agent yet, so the agent works without it. Typed and dictated messages in the same chat use it as before.
 - **XDM context is captured once.** A voice conversation uses the context from `Concierge.updateXDMContext(...)` as it was when the conversation started. Updates made during the conversation apply from the next voice conversation or typed message. See [XDM context](#xdm-context).
 - **Language.** The app doesn't send a locale with voice; the agent speaks the language set for your Brand Concierge.
 - **Voice UI text is English** and not configurable: the voice button's accessibility labels ("Start voice conversation", "Stop voice conversation") and the microphone permission rationale.
