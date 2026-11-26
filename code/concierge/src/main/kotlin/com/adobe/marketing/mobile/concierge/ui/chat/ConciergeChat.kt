@@ -14,6 +14,9 @@ package com.adobe.marketing.mobile.concierge.ui.chat
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -43,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
@@ -61,6 +65,7 @@ import com.adobe.marketing.mobile.concierge.ConciergeStateRepository
 import com.adobe.marketing.mobile.concierge.ui.components.header.ChatHeader
 import com.adobe.marketing.mobile.concierge.ui.components.disclaimer.ConciergeDisclaimer
 import com.adobe.marketing.mobile.concierge.ui.components.input.UserInput
+import com.adobe.marketing.mobile.concierge.ui.components.input.VoiceControlState
 import com.adobe.marketing.mobile.concierge.ui.components.messages.MessageList
 import kotlinx.coroutines.flow.StateFlow
 import com.adobe.marketing.mobile.concierge.ui.components.welcome.WelcomeCard
@@ -92,6 +97,7 @@ import com.adobe.marketing.mobile.concierge.utils.image.LocalImageProvider
  * @param viewModel The ConciergeChatViewModel to use for the chat session
  * @param surfaces List of surface URLs for the chat experience.
  * @param modifier Modifier to be applied to the chat content when displayed
+ * @param handleLink Optional callback to intercept link clicks. Return true if handled; false for default WebView.
  * @param content The content composable that will be displayed. This composable receives
  *                a `showChat` callback function that can be invoked to show the chat dialog.
  *
@@ -142,6 +148,7 @@ fun ConciergeChat(
         val currentTheme = ConciergeTheme.config
         LaunchedEffect(ConciergeTheme.config) {
             viewModel.updateWelcomeConfigFromTheme(currentTheme)
+            viewModel.updateVoiceCopyFromTheme(currentTheme)
         }
 
         // Render the content composable with the callback
@@ -231,14 +238,27 @@ fun ConciergeChat(
     val hasAudioPermission by viewModel.hasAudioPermission.collectAsStateWithLifecycle()
     val showWelcomeCard by viewModel.showWelcomeCard.collectAsStateWithLifecycle()
     val welcomeConfig by viewModel.welcomeConfig.collectAsStateWithLifecycle()
+    val isVoiceSessionActive by viewModel.isVoiceSessionActive.collectAsStateWithLifecycle()
+    val isVoiceConnecting by viewModel.isVoiceConnecting.collectAsStateWithLifecycle()
+    val voiceEnabled by viewModel.voiceEnabled.collectAsStateWithLifecycle()
+    val isVoiceAvailable by viewModel.isVoiceAvailable.collectAsStateWithLifecycle()
+    val voiceScrollAnchorIndex by viewModel.voiceScrollAnchorIndex.collectAsStateWithLifecycle()
+    val voiceControl = VoiceControlState(
+        isAvailable = isVoiceAvailable,
+        isActive = isVoiceSessionActive,
+        isConnecting = isVoiceConnecting,
+        isEnabled = voiceEnabled
+    )
     
     val isReturningUser = remember { viewModel.isReturningUser() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = LocalContext.current.findActivity()
 
     // Capture the current theme to update welcome card config
     val currentTheme = ConciergeTheme.config
     LaunchedEffect(currentTheme) {
         viewModel.updateWelcomeConfigFromTheme(currentTheme)
+        viewModel.updateVoiceCopyFromTheme(currentTheme)
     }
 
     // Refresh permission status when app resumes (e.g., returning from settings)
@@ -258,10 +278,16 @@ fun ConciergeChat(
     // ChatOpened fires once when this composable enters composition.
     // ChatClosed fires when this composable leaves composition — which covers the close button,
     // back-press dialog dismissal, and XML view detachment — with no double-tracking.
+    // Leaving the chat also ends a voice conversation, except when the activity is recreated for a
+    // configuration change (for example, rotation): the ViewModel survives and the chat is shown
+    // again, so the conversation keeps running.
     DisposableEffect(Unit) {
         viewModel.activateDataHandoffSession()
         viewModel.trackChatOpened()
         onDispose {
+            if (activity?.isChangingConfigurations != true) {
+                viewModel.stopVoiceSession()
+            }
             viewModel.deactivateDataHandoffSession()
             viewModel.trackChatClosed()
         }
@@ -291,7 +317,10 @@ fun ConciergeChat(
             handleLink = resolvedLinkClick,
             onPermissionResult = { viewModel.refreshPermissionStatus() },
             onClose = onClose,
-            modifier = modifier
+            modifier = modifier,
+            voiceControl = voiceControl,
+            voiceScrollAnchorIndex = voiceScrollAnchorIndex,
+            onVoiceToggle = viewModel::toggleVoiceSession
         )
     }
 
@@ -328,6 +357,9 @@ internal fun ConciergeChat(
     onPermissionResult: (Boolean) -> Unit,
     onClose: () -> Unit,
     identityResetInProgress: Boolean = false,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    voiceScrollAnchorIndex: Int? = null,
+    onVoiceToggle: () -> Unit = {},
 ) {
     val style = ConciergeStyles.chatScreenStyle
     val focusManager = LocalFocusManager.current
@@ -372,6 +404,7 @@ internal fun ConciergeChat(
                     onSuggestionClick = { suggestion -> onEvent(PromptSuggestionClick(suggestion)) },
                     handleLink = handleLink,
                     privacyNotice = ConciergeTheme.behavior?.privacyNotice,
+                    voiceScrollAnchorIndex = voiceScrollAnchorIndex,
                     onCtaButtonClick = { cta ->
                         onEvent(CtaButtonClick(cta))
                         handleLink(cta.url, ConciergeConstants.TrackingEvent.LinkClickOrigin.CTA)
@@ -425,6 +458,8 @@ internal fun ConciergeChat(
                 onSend = { text -> onEvent(ChatEvent.SendMessage(text)) },
                 onMicEvent = onEvent,
                 onPermissionResult = onPermissionResult,
+                voiceControl = voiceControl,
+                onVoiceToggle = onVoiceToggle,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -472,6 +507,8 @@ private fun UserInputSection(
     onSend: (String) -> Unit,
     onMicEvent: (ChatEvent) -> Unit,
     onPermissionResult: (Boolean) -> Unit,
+    voiceControl: VoiceControlState,
+    onVoiceToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val inputState by inputStateFlow.collectAsStateWithLifecycle()
@@ -485,8 +522,16 @@ private fun UserInputSection(
         onSend = onSend,
         onMicEvent = onMicEvent,
         onPermissionResult = onPermissionResult,
+        voiceControl = voiceControl,
+        onVoiceToggle = onVoiceToggle,
         modifier = modifier
     )
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 /**

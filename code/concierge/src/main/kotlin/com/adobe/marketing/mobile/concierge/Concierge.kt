@@ -56,6 +56,23 @@ object Concierge {
     }
 
     /**
+     * Registers the app's [VoiceTransport], which carries voice conversations. The chat shows the
+     * voice control only while a transport is registered.
+     *
+     * Applies to chats already open and to chats opened later, in both `ConciergeChat` and
+     * `ConciergeChatView`. A running voice conversation keeps the transport it started with; after
+     * null, the voice control disappears once no conversation runs. Register one long-lived
+     * instance, for example in `Application.onCreate`. The SDK keeps a strong reference to it until
+     * it is replaced or cleared. Can be called from any thread.
+     *
+     * @param transport the app's transport, or null to turn voice conversations off.
+     */
+    @JvmStatic
+    fun setVoiceTransport(transport: VoiceTransport?) {
+        ConciergeVoiceTransportHolder.set(transport)
+    }
+
+    /**
      * Applies an RFC 7396 JSON Merge Patch to XDM context included in every conversational turn.
      *
      * Context applies to normal chat messages and [sendDataHandoff] requests, but not feedback.
