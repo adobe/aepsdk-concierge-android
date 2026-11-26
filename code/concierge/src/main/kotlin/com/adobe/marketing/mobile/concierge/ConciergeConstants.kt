@@ -48,6 +48,11 @@ object ConciergeConstants {
         const val DEFAULT_VALUE = IN_VALUE
     }
 
+    internal object VoiceBootstrap {
+        /** `query.conversation.voice.action` value requesting voice session credentials. */
+        const val ACTION_START = "start"
+    }
+
     object ChatInteraction {
         const val POSITIVE = "positive"
         const val NEGATIVE = "negative"

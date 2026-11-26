@@ -51,6 +51,9 @@ import com.adobe.marketing.mobile.concierge.ui.theme.conciergeGradientBorder
  * @param onMicPressed Callback when the microphone button is pressed
  * @param onSend Callback when a send button is pressed with non-empty text
  * @param borderColors List of colors for the animated border gradient
+ * @param voiceControl What to show for voice conversations. The text field is disabled while one
+ * is running
+ * @param onVoicePressed Callback when the voice conversation button is pressed
  */
 @Composable
 internal fun ChatInputPanel(
@@ -66,7 +69,9 @@ internal fun ChatInputPanel(
     onVoiceCancel: (() -> Unit)? = null,
     onClear: (() -> Unit)? = null,
     borderColors: List<Color> = emptyList(),
-    isFocused: Boolean = false
+    isFocused: Boolean = false,
+    voiceControl: VoiceControlState = VoiceControlState(),
+    onVoicePressed: () -> Unit = {}
 ) {
     val style = ConciergeStyles.inputPanelStyle
     val enableVoiceInput = ConciergeTheme.behavior?.enableVoiceInput ?: true
@@ -121,14 +126,14 @@ internal fun ChatInputPanel(
                 onValueChange = onTextChange,
                 // The text field is locked while recording, but the action buttons stay enabled so
                 // the recording waveform isn't rendered with the disabled (dimmed) tint.
-                isEnabled = enable && inputState !is UserInputState.Recording,
+                isEnabled = enable && inputState !is UserInputState.Recording && !voiceControl.isActive,
                 placeholder = if (inputState is UserInputState.Recording) style.listeningPlaceholderText else placeholder
             )
 
             // InputActionButtons renders nothing when voice input is off and the field is empty
             // (no clear button, and the send button's AnimatedVisibility is fully hidden) -- skip
             // the gap in that case so the pill's trailing edge doesn't show an extra blank space.
-            if (enableVoiceInput || text.isNotBlank()) {
+            if (enableVoiceInput || voiceControl.isAvailable || text.isNotBlank()) {
                 Spacer(modifier = Modifier.width(style.buttonSpacing))
             }
 
@@ -142,7 +147,9 @@ internal fun ChatInputPanel(
                 onVoiceCancel = { onVoiceCancel?.invoke() },
                 onSend = onSend,
                 onClear = { onClear?.invoke() },
-                buttonSpacing = style.buttonSpacing
+                buttonSpacing = style.buttonSpacing,
+                voiceControl = voiceControl,
+                onVoicePressed = onVoicePressed
             )
         }
     }

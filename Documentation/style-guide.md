@@ -345,7 +345,7 @@ Feature toggles and interaction configuration.
 
 | JSON Key | Type | Default | Description |
 |----------|------|---------|-------------|
-| `behavior.input.enableVoiceInput` | boolean | `false` | Enable voice input button |
+| `behavior.input.enableVoiceInput` | boolean | `false` | Show the speech-to-text (dictation) mic button. It doesn't affect the voice conversation button, which appears whenever the app registers a transport with `Concierge.setVoiceTransport` (see [Colors - Input](#colors---input)) |
 | `behavior.input.sendButtonStyle` | string | `"default"` | Send button style: `"default"` (paper airplane icon) or `"arrow"` (filled circle with upward arrow) |
 | `behavior.input.disableMultiline` | boolean | `true` | Disable multiline text input |
 | `behavior.input.showAiChatIcon` | object | `null` | Leading icon shown before the text field in the input bar. Object with an `icon` property: a local asset basename under `assets/icons/` or an absolute `http(s)` URL — same resolution rules as `citations.phoneIcon`/`storeIcon`. `null` or an empty `icon` hides it. Tooltip/content description is set via `text["input.aiChatIcon.tooltip"]`. |
@@ -597,6 +597,13 @@ While there are no strict requirements for character limits in many of these tex
 |----------|---------|-------------|
 | `text["suggestions.header"]` | `"Suggestions"` | Header label shown above prompt suggestion chips when `behavior.promptSuggestions.showHeader` is `true`. |
 
+### Voice
+
+| JSON Key | Default | Description |
+|----------|---------|-------------|
+| `text["voice.turn.failed"]` | `"Sorry, I couldn't process that. Please try again."` | Replaces the voice agent's reply when a voice turn ends with an error or an empty reply. The conversation stays open. |
+| `text["voice.turn.messageSendFailed"]` | `"Sorry, your message couldn't be sent. Please try again."` | Replaces the voice agent's reply when a prompt suggestion tapped during a voice conversation can't be delivered. |
+
 ### Example
 
 ```json
@@ -826,6 +833,12 @@ Visual styling using CSS-like variable names. All properties in the `theme` obje
 | `--input-mic-waveform-gradient-start-color` | `colors.input.micWaveformGradient` | `String?` | `null` | Start color of the listening waveform bars' gradient (hex). Requires the end color to also be set; otherwise falls back to `micRecordingIconColor` |
 | `--input-mic-waveform-gradient-end-color` | `colors.input.micWaveformGradient` | `String?` | `null` | End color of the listening waveform bars' gradient (hex). Requires the start color to also be set; otherwise falls back to `micRecordingIconColor` |
 | `--input-mic-waveform-gradient-angle` | `colors.input.micWaveformGradient` | `String` | `"180deg"` | Waveform bar gradient direction. Defaults to top-to-bottom |
+
+The voice conversation button appears while the app has a transport registered with `Concierge.setVoiceTransport` (see [Voice conversations](implementation-guide.md#voice-conversations-optional)). While the input field is empty it sits where the send button appears once there is text, next to the mic button if `enableVoiceInput` is on. It has no tokens of its own:
+
+- **Idle:** icon in `--input-mic-icon-color`, falling back to `--color-primary`. The mic icon gradient doesn't apply.
+- **Running:** a `--color-primary` circle with the icon in `--color-text`, or white if the theme doesn't set it. A theme that sets a dark `--color-text` with a dark `--color-primary` makes the icon hard to see.
+- **Connecting or reconnecting:** a `--color-primary` spinner.
 
 ### Colors - Welcome Prompts
 
@@ -1175,7 +1188,9 @@ Non-CSS `components.feedback` overrides for the feedback dialog.
     "feedback.dialog.notes.placeholder": "Additional notes (optional)",
     "feedback.toast.success": "Thank you for the feedback.",
     "feedback.thumbsUp.aria": "Thumbs up",
-    "feedback.thumbsDown.aria": "Thumbs down"
+    "feedback.thumbsDown.aria": "Thumbs down",
+    "voice.turn.failed": "Sorry, I couldn't process that. Please try again.",
+    "voice.turn.messageSendFailed": "Sorry, your message couldn't be sent. Please try again."
   },
   "arrays": {
     "welcome.examples": [
@@ -1470,7 +1485,7 @@ This section documents which properties are fully implemented, partially impleme
 | `behavior.multimodalCarousel.carouselStyle` | ✅ | Switches between paged (prev/next/dots) and continuous scroll | `ProductCarousel` |
 | `behavior.productCard.cardStyle` | ✅ | Switches between action-button cards and extended product-detail cards | `RecommendationCards`, `ProductCarousel` |
 | `behavior.productCard.cardsAlignment` | ✅ | Controls horizontal alignment of product cards (`"start"`, `"center"`, `"end"`) | `RecommendationCards` |
-| `behavior.input.enableVoiceInput` | ✅ | Controls mic button visibility | `InputActionButtons` |
+| `behavior.input.enableVoiceInput` | ✅ | Controls dictation mic button visibility (not the voice conversation button) | `InputActionButtons` |
 | `behavior.input.sendButtonStyle` | ✅ | `"default"` (paper airplane) or `"arrow"` (filled circle with upward arrow) | `SendButton` |
 | `behavior.input.disableMultiline` | ✅ | Restricts input to a single line when `true` | `ChatTextField` |
 | `behavior.input.showAiChatIcon` | ✅ | Rendered as a leading icon before the text field | `ChatInputPanel` |
@@ -1515,6 +1530,8 @@ This section documents which properties are fully implemented, partially impleme
 | `text["feedback.toast.success"]` | ⚠️ | Parsed but toast not implemented | - |
 | `text["sourcesLabel"]` | ✅ | Accordion label for sources/feedback section | `ChatFooter` → `SourcesAccordionButton` |
 | `text["feedbackHelpfulLabel"]` | ✅ | Feedback helpful label shown in `below` thumbs placement mode | `FeedbackButtons` |
+| `text["voice.turn.failed"]` | ✅ | Replaces the reply when a voice turn fails; pushed from the theme by `ConciergeChat` | `ConciergeChatViewModel` |
+| `text["voice.turn.messageSendFailed"]` | ✅ | Replaces the reply when a message sent during voice can't be delivered; pushed from the theme by `ConciergeChat` | `ConciergeChatViewModel` |
 
 ### Behavior — Feedback & Citations
 
